@@ -9963,6 +9963,9 @@ const IntroBody = ({
     state: state,
     set: set,
     fireToast: fireToast
+  }), /*#__PURE__*/React.createElement(IntroSignatureControls, {
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 14
@@ -9972,6 +9975,118 @@ const IntroBody = ({
     defaultName: (INTRO_TEMPLATES.find(t => t.id === state.introTemplate) || {}).name || '',
     fireToast: fireToast
   })));
+};
+
+// Controls that drive IntroSignature in the live preview — name → cursive,
+// size preset, on/off toggle. Live preview swatch below mirrors the size
+// the page will render at.
+const IntroSignatureControls = ({
+  state,
+  set
+}) => {
+  const enabled = state.introSignatureEnabled !== false;
+  const displayName = (state.introSignatureName || state.advisorName || '').trim();
+  const size = INTRO_SIG_SIZES[state.introSignatureSize || 'medium'] || INTRO_SIG_SIZES.medium;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 22
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginBottom: 0
+    }
+  }, "Signature"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: enabled,
+    onChange: v => set({
+      introSignatureEnabled: v
+    }),
+    size: "sm"
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.textSoft
+    }
+  }, enabled ? 'Showing' : 'Hidden'))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 10
+    }
+  }, "Sign-off at the end of the introduction. Type the name \u2014 we'll render it in a signature font."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      opacity: enabled ? 1 : 0.5,
+      pointerEvents: enabled ? 'auto' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: state.introSignatureName || '',
+    placeholder: state.advisorName || 'Your name',
+    onChange: e => set({
+      introSignatureName: e.target.value
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      minWidth: 32
+    }
+  }, "Size"), /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'small',
+      label: 'Small'
+    }, {
+      value: 'medium',
+      label: 'Medium'
+    }, {
+      value: 'large',
+      label: 'Large'
+    }],
+    value: state.introSignatureSize || 'medium',
+    onChange: v => set({
+      introSignatureSize: v
+    })
+  })), displayName && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12,
+      padding: '14px 16px',
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 6,
+      fontSize: 10,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      fontWeight: 600
+    }
+  }, "Preview"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: getTemplate(state).id === 'boutique' ? SIG_SERIF_FAMILY : SIG_HAND_FAMILY,
+      fontStyle: getTemplate(state).id === 'boutique' ? 'italic' : 'normal',
+      fontSize: size,
+      lineHeight: 1,
+      color: T.text
+    }
+  }, displayName))));
 };
 const TermsBody = ({
   state,
@@ -18323,6 +18438,60 @@ const IntroBlockRender = ({
     return null;
   }));
 };
+
+// Signature sizes used by both the editor preview and the rendered intro
+// page — kept in one place so the live preview matches the final render.
+const INTRO_SIG_SIZES = {
+  small: 22,
+  medium: 32,
+  large: 44
+};
+const SIG_HAND_FAMILY = '"Brush Script MT", "Lucida Handwriting", "Segoe Script", cursive';
+const SIG_SERIF_FAMILY = '"Cormorant Garamond", "Source Serif 4", Georgia, serif';
+
+// Renders the sender's sign-off at the end of the intro page. Boutique uses
+// the existing Cormorant italic treatment so the page still feels like a
+// hand-written letter; everything else gets a true handwritten cursive.
+const IntroSignature = ({
+  state,
+  template,
+  accent
+}) => {
+  if (state.introSignatureEnabled === false) return null;
+  const name = (state.introSignatureName || advisorOf(state) || '').trim();
+  if (!name) return null;
+  const tpl = template;
+  const isBoutique = tpl.id === 'boutique';
+  const isEditorial = tpl.id === 'editorial';
+  const size = INTRO_SIG_SIZES[state.introSignatureSize || 'medium'] || INTRO_SIG_SIZES.medium;
+  const acc = accent || state.themeColor || T.primary;
+  const practice = practiceOf(state);
+  const showRole = !!advisorOf(state) || !!state.introSignatureName;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 28,
+      paddingTop: 18,
+      borderTop: `1px solid ${isEditorial ? T.text : T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: isBoutique ? SIG_SERIF_FAMILY : SIG_HAND_FAMILY,
+      fontStyle: isBoutique ? 'italic' : 'normal',
+      fontWeight: isBoutique ? 500 : 400,
+      fontSize: size,
+      lineHeight: 1,
+      marginBottom: 8,
+      color: isBoutique ? darkenHex(acc, 0.18) : T.text
+    }
+  }, name), /*#__PURE__*/React.createElement("div", {
+    className: isBoutique ? 'tpl-font-boutique-body' : '',
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft,
+      letterSpacing: 0.1
+    }
+  }, showRole ? 'Your dedicated advisor' : 'Prepared by', " \xB7 ", practice));
+};
 const FullIntroPage = ({
   state,
   accent,
@@ -18370,7 +18539,11 @@ const FullIntroPage = ({
       tpl: tpl,
       acc: acc,
       stripLeadingGreeting: startsWithGreeting
-    })), /*#__PURE__*/React.createElement(TplFooter, {
+    })), /*#__PURE__*/React.createElement(IntroSignature, {
+      state: state,
+      template: tpl,
+      accent: acc
+    }), /*#__PURE__*/React.createElement(TplFooter, {
       template: tpl,
       accent: acc,
       state: state,
@@ -18402,7 +18575,11 @@ const FullIntroPage = ({
       tpl: tpl,
       acc: acc,
       stripLeadingGreeting: startsWithGreeting
-    })), /*#__PURE__*/React.createElement(TplFooter, {
+    })), /*#__PURE__*/React.createElement(IntroSignature, {
+      state: state,
+      template: tpl,
+      accent: acc
+    }), /*#__PURE__*/React.createElement(TplFooter, {
       template: tpl,
       accent: acc,
       state: state,
@@ -18412,9 +18589,9 @@ const FullIntroPage = ({
     })));
   }
 
-  // Boutique — letter-style, refined serif body, Cormorant italic signature.
-  const adv = advisorOf(state);
-  const practice = practiceOf(state);
+  // Boutique — letter-style, refined serif body. Signature handled by the
+  // shared IntroSignature component so the editor's size/name controls work
+  // uniformly across all three templates.
   return /*#__PURE__*/React.createElement(TplPageWrap, {
     template: tpl,
     accent: acc
@@ -18438,34 +18615,11 @@ const FullIntroPage = ({
     tpl: tpl,
     acc: acc,
     stripLeadingGreeting: startsWithGreeting
-  })), /*#__PURE__*/React.createElement(TplDivider, {
+  })), /*#__PURE__*/React.createElement(IntroSignature, {
+    state: state,
     template: tpl,
-    accent: acc,
-    marginY: 26
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-end',
-      gap: 18
-    }
-  }, /*#__PURE__*/React.createElement("div", null, adv && /*#__PURE__*/React.createElement("div", {
-    className: "tpl-font-boutique-heading",
-    style: {
-      fontStyle: 'italic',
-      fontSize: 26,
-      fontWeight: 500,
-      color: darkenHex(acc, 0.18),
-      lineHeight: 1,
-      marginBottom: 6
-    }
-  }, adv), /*#__PURE__*/React.createElement("div", {
-    className: "tpl-font-boutique-body",
-    style: {
-      fontSize: 13,
-      color: T.textSoft
-    }
-  }, adv ? 'Your dedicated advisor' : 'Prepared by', " \xB7 ", practice)))));
+    accent: acc
+  })));
 };
 const FullPackagesPage = ({
   state,
@@ -23227,6 +23381,9 @@ const templateSeed = tpl => {
     introVideo: null,
     introPdf: null,
     introBlocks: null,
+    introSignatureEnabled: true,
+    introSignatureName: '',
+    introSignatureSize: 'medium',
     termsTemplate: 'terms-blank',
     termsContent: '',
     nextTemplate: 'next-blank',
@@ -23713,6 +23870,12 @@ const App = () => {
     // from introContent + introImage/introVideo on first render via
     // getIntroBlocks(); after that the editor writes here exclusively.
     introBlocks: null,
+    // Sender's sign-off at the end of the Introduction page. Typing the name
+    // renders it in a handwritten font (Cormorant italic on Boutique); the
+    // user picks size and can turn the whole block off.
+    introSignatureEnabled: true,
+    introSignatureName: '',
+    introSignatureSize: 'medium',
     termsTemplate: 'terms-apes',
     termsContent: '1. Engagement & scope\nThis engagement is between Sole Accounting ("we") and Solepay ("you"). We will provide the services described in this proposal in accordance with APES 110 and ATO requirements.\n\n2. Fees & payment\nFees are payable monthly in advance via direct debit. Out-of-scope work will be quoted before commencement.\n\n3. Termination\nEither party may terminate with 30 days written notice.',
     nextTemplate: 'next-std',
