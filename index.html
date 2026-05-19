@@ -4932,60 +4932,66 @@ const InlineInput = ({
 const QtyStepper = ({
   qty,
   onChange
-}) => /*#__PURE__*/React.createElement("div", {
-  style: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    background: T.fieldBg,
-    borderRadius: 6,
-    border: `1px solid ${T.border}`,
-    height: 30,
-    overflow: 'hidden'
-  }
-}, /*#__PURE__*/React.createElement("button", {
-  onClick: () => onChange(Math.max(0, qty - 1)),
-  style: {
-    width: 22,
-    height: '100%',
-    border: 'none',
-    background: 'transparent',
-    color: T.muted,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  }
-}, "\u2212"), /*#__PURE__*/React.createElement("input", {
-  value: qty,
-  onChange: e => onChange(Number(e.target.value) || 0),
-  style: {
-    width: 32,
-    border: 'none',
-    background: 'transparent',
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: 600,
-    color: T.text,
-    fontVariantNumeric: 'tabular-nums',
-    outline: 'none',
-    height: '100%',
-    borderLeft: `1px solid ${T.border}`,
-    borderRight: `1px solid ${T.border}`
-  }
-}), /*#__PURE__*/React.createElement("button", {
-  onClick: () => onChange(qty + 1),
-  style: {
-    width: 22,
-    height: '100%',
-    border: 'none',
-    background: 'transparent',
-    color: T.muted,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  }
-}, "+"));
+}) => {
+  // Square buttons flanking a centered number field. Glyphs sized explicitly
+  // so the `+` doesn't collapse to a hairline at the prior 22×30 button size.
+  const btn = (sym, handler, side) => /*#__PURE__*/React.createElement("button", {
+    onClick: handler,
+    tabIndex: -1,
+    style: {
+      width: 26,
+      height: '100%',
+      border: 'none',
+      background: T.card,
+      color: T.textSoft,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 15,
+      fontWeight: 500,
+      lineHeight: 1,
+      fontFamily: 'inherit',
+      [side === 'l' ? 'borderRight' : 'borderLeft']: `1px solid ${T.border}`,
+      transition: 'background 0.1s, color 0.1s'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.background = T.primarySoft;
+      e.currentTarget.style.color = T.primary;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.background = T.card;
+      e.currentTarget.style.color = T.textSoft;
+    }
+  }, sym);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      background: T.card,
+      borderRadius: 7,
+      border: `1px solid ${T.border}`,
+      height: 30,
+      overflow: 'hidden'
+    }
+  }, btn('−', () => onChange(Math.max(0, qty - 1)), 'l'), /*#__PURE__*/React.createElement("input", {
+    value: qty,
+    onChange: e => onChange(Number(e.target.value) || 0),
+    style: {
+      width: 32,
+      border: 'none',
+      background: 'transparent',
+      textAlign: 'center',
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      fontVariantNumeric: 'tabular-nums',
+      outline: 'none',
+      height: '100%',
+      padding: 0
+    }
+  }), btn('+', () => onChange(qty + 1), 'r'));
+};
 
 // Row action menu (Duplicate / Move / Delete)
 const MenuItem = ({
@@ -5322,7 +5328,7 @@ const ServiceRow = ({
     onMouseLeave: () => setHover(false),
     style: {
       display: 'grid',
-      gridTemplateColumns: `minmax(0, 1fr) 64px 84px 78px 88px ${columns.discount ? '70px ' : ''}${columns.tax ? '60px ' : ''}${columns.optional ? '46px ' : ''}${columns.deposit ? '78px ' : ''}96px 28px`,
+      gridTemplateColumns: `minmax(0, 1fr) 92px 84px 78px 88px ${columns.discount ? '70px ' : ''}${columns.tax ? '60px ' : ''}${columns.optional ? '46px ' : ''}${columns.deposit ? '78px ' : ''}96px 28px`,
       gap: 4,
       alignItems: 'center',
       padding: '6px 8px',
@@ -5871,7 +5877,7 @@ const BillingGroup = ({
     }, 30);
     return () => clearTimeout(t);
   }, [group.rows.length]);
-  const colTemplate = `minmax(0, 1fr) 64px 84px 78px 88px ${columns.discount ? '70px ' : ''}${columns.tax ? '60px ' : ''}${columns.optional ? '46px ' : ''}${columns.deposit ? '78px ' : ''}96px 28px`;
+  const colTemplate = `minmax(0, 1fr) 92px 84px 78px 88px ${columns.discount ? '70px ' : ''}${columns.tax ? '60px ' : ''}${columns.optional ? '46px ' : ''}${columns.deposit ? '78px ' : ''}96px 28px`;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       border: `1px solid ${T.border}`,
@@ -5908,44 +5914,68 @@ const BillingGroup = ({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 10
+      gap: 10,
+      flexWrap: 'wrap'
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontWeight: 600,
-      fontSize: 14
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'recurring',
+      label: 'Recurring'
+    }, {
+      value: 'oneoff',
+      label: 'One-off'
+    }, {
+      value: 'deposit',
+      label: 'Deposit'
+    }],
+    value: group.type || 'recurring',
+    onChange: v => {
+      const next = {
+        ...group,
+        type: v
+      };
+      // When entering recurring from oneoff/deposit, ensure cycle is sensible.
+      if (v === 'recurring' && !next.cycle) {
+        next.cycle = 'monthly';
+        next.cycleValue = 1;
+        next.cycleUnit = 'months';
+      }
+      onChange(next);
     }
-  }, group.type === 'oneoff' ? 'One-off services' : group.type === 'deposit' ? 'Deposit' : 'Recurring services'), /*#__PURE__*/React.createElement(Pill, {
-    color: "accent"
-  }, group.type === 'recurring' || !group.type ? cycle.l : TYPE_LABEL[group.type]), /*#__PURE__*/React.createElement(Helper, {
+  }), /*#__PURE__*/React.createElement(Helper, {
     style: {
       display: 'inline'
     }
-  }, "\xB7 ", group.type === 'oneoff' ? `billed once ${startLabelOf(group)}` : group.type === 'deposit' ? `due ${startLabelOf(group)}` : `from ${startLabelOf(group).replace('on ', '')} · until changed`), /*#__PURE__*/React.createElement("button", {
+  }, group.type === 'oneoff' ? `Billed once ${startLabelOf(group)}` : group.type === 'deposit' ? `Due ${startLabelOf(group)}` : `From ${startLabelOf(group).replace('on ', '')} · until changed`), /*#__PURE__*/React.createElement("button", {
     onClick: () => setEditOpen(true),
-    title: "Edit billing settings",
+    title: "Edit billing settings (start date, custom cycle)",
     style: {
-      border: 'none',
-      background: 'transparent',
+      border: `1px solid ${T.border}`,
+      background: T.card,
       color: T.muted,
-      padding: 4,
+      padding: '4px 9px',
       cursor: 'pointer',
-      borderRadius: 4,
+      borderRadius: 6,
       display: 'inline-flex',
-      alignItems: 'center'
+      alignItems: 'center',
+      gap: 5,
+      fontSize: 11,
+      fontWeight: 500
     },
     onMouseEnter: e => {
-      e.currentTarget.style.background = T.card;
+      e.currentTarget.style.background = T.primarySoft;
       e.currentTarget.style.color = T.primary;
+      e.currentTarget.style.borderColor = T.primary;
     },
     onMouseLeave: e => {
-      e.currentTarget.style.background = 'transparent';
+      e.currentTarget.style.background = T.card;
       e.currentTarget.style.color = T.muted;
+      e.currentTarget.style.borderColor = T.border;
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "edit",
-    size: 13
-  }))), /*#__PURE__*/React.createElement("div", {
+    size: 11
+  }), " Edit")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -6725,10 +6755,10 @@ const ServicesBody = ({
       }
     });
   };
-  const addGroup = () => updatePackage({
+  const addGroup = (type = 'recurring') => updatePackage({
     groups: [...pkg.groups, {
       id: 'g-' + Date.now(),
-      type: 'recurring',
+      type,
       cycle: 'monthly',
       cycleValue: 1,
       cycleUnit: 'months',
@@ -7122,7 +7152,7 @@ const ServicesBody = ({
     canRemove: pkg.groups.length > 1,
     fireToast: fireToast
   })), pkg.groups.length > 0 && /*#__PURE__*/React.createElement("button", {
-    onClick: addGroup,
+    onClick: () => addGroup(),
     style: {
       width: '100%',
       padding: '12px',
@@ -7137,6 +7167,14 @@ const ServicesBody = ({
       alignItems: 'center',
       justifyContent: 'center',
       gap: 6
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = T.primary;
+      e.currentTarget.style.color = T.primary;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.borderStrong;
+      e.currentTarget.style.color = T.muted;
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "plus",
@@ -8796,6 +8834,960 @@ const MoreContent = ({
   fireToast: fireToast
 })));
 
+// =====================================================
+// Notion-style block list for the Introduction page. Each block is either
+// text, image, or video; blocks can be re-ordered with HTML5 drag-and-drop,
+// resized (image/video width), and inserted between any pair via the +
+// button that appears on row hover.
+//
+// We lazy-migrate from the legacy state.introContent + introImage/introVideo
+// so existing demos keep working without an explicit migration step. After
+// the first edit the blocks array is the source of truth.
+// =====================================================
+const newBlockId = () => 'b-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1000).toString(36);
+const getIntroBlocks = state => {
+  if (Array.isArray(state.introBlocks) && state.introBlocks.length > 0) {
+    return state.introBlocks;
+  }
+  const blocks = [];
+  const text = (state.introContent || '').trim();
+  if (text) blocks.push({
+    id: newBlockId(),
+    type: 'text',
+    content: text
+  });
+  if (state.introImage) blocks.push({
+    id: newBlockId(),
+    type: 'image',
+    src: state.introImage.url,
+    name: state.introImage.name || 'Image',
+    width: 100,
+    caption: ''
+  });
+  if (state.introVideo) blocks.push({
+    id: newBlockId(),
+    type: 'video',
+    src: state.introVideo.url,
+    name: state.introVideo.name || 'Video',
+    width: 100,
+    isUrl: state.introVideo.mime === 'video/url'
+  });
+  if (blocks.length === 0) blocks.push({
+    id: newBlockId(),
+    type: 'text',
+    content: ''
+  });
+  return blocks;
+};
+
+// Concatenated plain text of all text blocks — used by section summaries
+// and the send-validation map (so a block-list with text counts as filled
+// even when state.introContent is empty/stale).
+const getIntroText = state => {
+  const blocks = getIntroBlocks(state);
+  return blocks.filter(b => b.type === 'text').map(b => (b.content || '').trim()).filter(Boolean).join('\n\n');
+};
+
+// Auto-resizing textarea so text blocks grow with content (no inner scrollbar).
+const AutoTextarea = ({
+  value,
+  onChange,
+  placeholder,
+  autoFocus
+}) => {
+  const ref = useRef(null);
+  const resize = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+  useEffect(() => {
+    resize();
+  }, [value]);
+  return /*#__PURE__*/React.createElement("textarea", {
+    ref: ref,
+    value: value,
+    onChange: onChange,
+    placeholder: placeholder,
+    autoFocus: autoFocus,
+    onInput: resize,
+    style: {
+      width: '100%',
+      border: 'none',
+      outline: 'none',
+      background: 'transparent',
+      resize: 'none',
+      fontSize: 14,
+      lineHeight: 1.6,
+      color: T.text,
+      fontFamily: 'inherit',
+      padding: '4px 0',
+      minHeight: 28
+    }
+  });
+};
+const BlockInsertMenu = ({
+  onInsert
+}) => {
+  const [open, setOpen] = useState(false);
+  const types = [{
+    id: 'text',
+    label: 'Text',
+    icon: 'edit',
+    desc: 'Paragraph or note'
+  }, {
+    id: 'image',
+    label: 'Image',
+    icon: 'image',
+    desc: 'Photo, logo or screenshot'
+  }, {
+    id: 'video',
+    label: 'Video',
+    icon: 'video',
+    desc: 'MP4 or YouTube/Loom/Vimeo link'
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setOpen(o => !o),
+    title: "Insert block",
+    style: {
+      width: 22,
+      height: 22,
+      border: `1px solid ${T.border}`,
+      borderRadius: '50%',
+      background: T.card,
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 0,
+      transition: 'all 0.12s'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = T.primary;
+      e.currentTarget.style.color = T.primary;
+      e.currentTarget.style.background = T.primarySoft;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.border;
+      e.currentTarget.style.color = T.muted;
+      e.currentTarget.style.background = T.card;
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "plus",
+    size: 11
+  })), open && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setOpen(false),
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 30
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 26,
+      left: 0,
+      zIndex: 31,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
+      padding: 4,
+      minWidth: 220
+    }
+  }, types.map(t => /*#__PURE__*/React.createElement("button", {
+    key: t.id,
+    onClick: () => {
+      setOpen(false);
+      onInsert(t.id);
+    },
+    style: {
+      width: '100%',
+      padding: '8px 10px',
+      border: 'none',
+      background: 'transparent',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      cursor: 'pointer',
+      borderRadius: 6,
+      color: T.text,
+      fontSize: 13,
+      textAlign: 'left'
+    },
+    onMouseEnter: e => e.currentTarget.style.background = T.fieldBg,
+    onMouseLeave: e => e.currentTarget.style.background = 'transparent'
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 6,
+      background: T.primarySoft,
+      color: T.primary,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: t.icon,
+    size: 14
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600
+    }
+  }, t.label), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11,
+      marginTop: 1
+    }
+  }, t.desc)))))));
+};
+const BlockRow = ({
+  block,
+  index,
+  total,
+  onChange,
+  onRemove,
+  onInsertAfter,
+  onMove,
+  isDragSource,
+  dropPos,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
+  fireToast
+}) => {
+  const [hover, setHover] = useState(false);
+  const fileRef = useRef(null);
+  const onPickFile = file => {
+    if (!file) return;
+    const sizeKb = Math.round(file.size / 1024);
+    if (block.type === 'image') {
+      const reader = new FileReader();
+      reader.onload = () => onChange({
+        ...block,
+        src: reader.result,
+        name: file.name,
+        size: `${sizeKb} KB`
+      });
+      reader.readAsDataURL(file);
+    } else if (block.type === 'video') {
+      // Use a blob URL so we can render a real <video controls> element
+      // without buffering the entire file into a data URL.
+      try {
+        const blobUrl = URL.createObjectURL(file);
+        onChange({
+          ...block,
+          src: blobUrl,
+          name: file.name,
+          size: `${sizeKb} KB`,
+          isUrl: false,
+          mime: file.type || 'video/mp4'
+        });
+      } catch (_) {
+        onChange({
+          ...block,
+          src: '',
+          name: file.name,
+          size: `${sizeKb} KB`,
+          isUrl: false
+        });
+      }
+    }
+  };
+  const onPasteUrl = () => {
+    const url = window.prompt(block.type === 'image' ? 'Paste an image URL' : 'Paste a Loom, YouTube or Vimeo URL');
+    if (!url) return;
+    onChange({
+      ...block,
+      src: url,
+      name: url,
+      isUrl: true
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    onMouseEnter: () => setHover(true),
+    onMouseLeave: () => setHover(false),
+    onDragOver: e => onDragOver(e, index),
+    onDragLeave: onDragLeave,
+    onDrop: e => onDrop(e, index),
+    style: {
+      position: 'relative',
+      padding: '4px 0 4px 32px',
+      opacity: isDragSource ? 0.35 : 1,
+      transition: 'opacity 0.12s'
+    }
+  }, dropPos === 'before' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 0,
+      left: 32,
+      right: 0,
+      height: 2,
+      background: T.primary,
+      borderRadius: 2
+    }
+  }), dropPos === 'after' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      bottom: 0,
+      left: 32,
+      right: 0,
+      height: 2,
+      background: T.primary,
+      borderRadius: 2
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 4,
+      left: 0,
+      width: 28,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 2,
+      opacity: hover ? 1 : 0,
+      transition: 'opacity 0.12s',
+      pointerEvents: hover ? 'auto' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    draggable: true,
+    onDragStart: e => onDragStart(e, index),
+    onDragEnd: onDragEnd,
+    title: "Drag to reorder",
+    style: {
+      width: 22,
+      height: 22,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'grab',
+      borderRadius: 4,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 0
+    },
+    onMouseDown: e => {
+      e.currentTarget.style.cursor = 'grabbing';
+    },
+    onMouseUp: e => {
+      e.currentTarget.style.cursor = 'grab';
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "10",
+    height: "14",
+    viewBox: "0 0 10 14",
+    fill: "currentColor"
+  }, /*#__PURE__*/React.createElement("circle", {
+    cx: "2",
+    cy: "2",
+    r: "1"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "8",
+    cy: "2",
+    r: "1"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "2",
+    cy: "7",
+    r: "1"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "8",
+    cy: "7",
+    r: "1"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "2",
+    cy: "12",
+    r: "1"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "8",
+    cy: "12",
+    r: "1"
+  }))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onRemove(index),
+    title: "Delete block",
+    style: {
+      width: 22,
+      height: 22,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      borderRadius: 4,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 0
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.color = T.red;
+      e.currentTarget.style.background = T.redSoft;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.color = T.muted;
+      e.currentTarget.style.background = 'transparent';
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 12
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      bottom: -10,
+      left: 32,
+      zIndex: 5,
+      opacity: hover ? 1 : 0,
+      transition: 'opacity 0.12s',
+      pointerEvents: hover ? 'auto' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(BlockInsertMenu, {
+    onInsert: type => onInsertAfter(index, type)
+  })), block.type === 'text' && /*#__PURE__*/React.createElement(AutoTextarea, {
+    value: block.content || '',
+    placeholder: index === 0 ? "Hi {{contact_first_name}}, …" : "Continue typing…",
+    onChange: e => onChange({
+      ...block,
+      content: e.target.value
+    })
+  }), block.type === 'image' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: 12,
+      background: T.card,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, block.src ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 12,
+      alignItems: 'flex-start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: `${block.width || 100}%`,
+      maxWidth: 320,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      overflow: 'hidden',
+      background: T.fieldBg,
+      transition: 'width 0.12s'
+    }
+  }, /*#__PURE__*/React.createElement("img", {
+    src: block.src,
+    alt: block.name || '',
+    style: {
+      width: '100%',
+      display: 'block'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, block.name || 'Image'), /*#__PURE__*/React.createElement(BlockSizePresets, {
+    value: block.width || 100,
+    onChange: w => onChange({
+      ...block,
+      width: w
+    })
+  }), /*#__PURE__*/React.createElement("input", {
+    value: block.caption || '',
+    placeholder: "Optional caption",
+    onChange: e => onChange({
+      ...block,
+      caption: e.target.value
+    }),
+    style: {
+      width: '100%',
+      border: `1px solid ${T.border}`,
+      borderRadius: 6,
+      padding: '6px 8px',
+      fontSize: 12,
+      color: T.textSoft,
+      background: T.card,
+      fontFamily: 'inherit',
+      outline: 'none'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    ref: fileRef,
+    type: "file",
+    accept: "image/*",
+    onChange: e => onPickFile(e.target.files?.[0]),
+    style: {
+      display: 'none'
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "upload",
+    onClick: () => fileRef.current?.click()
+  }, "Replace"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "link",
+    onClick: onPasteUrl
+  }, "Use URL")))) : /*#__PURE__*/React.createElement(BlockEmptyState, {
+    block: block,
+    onPickFile: onPickFile,
+    onPasteUrl: onPasteUrl,
+    fileRef: fileRef
+  })), block.type === 'video' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: 12,
+      background: T.card,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, block.src ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 12,
+      alignItems: 'flex-start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: `${block.width || 100}%`,
+      maxWidth: 320,
+      aspectRatio: '16 / 9',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      overflow: 'hidden',
+      background: '#000',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      transition: 'width 0.12s',
+      position: 'relative'
+    }
+  }, block.isUrl ?
+  /*#__PURE__*/
+  // External embed link — render a gradient placeholder + link, since
+  // YouTube/Vimeo/Loom need iframe trickery to actually play.
+  React.createElement("a", {
+    href: block.src,
+    target: "_blank",
+    rel: "noopener noreferrer",
+    style: {
+      width: '100%',
+      height: '100%',
+      background: `linear-gradient(135deg, ${T.primary} 0%, ${darkenHex(T.primary, 0.3)} 100%)`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      textDecoration: 'none',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "video",
+    size: 24,
+    color: "#fff"
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: 0.3
+    }
+  }, "Open \u2197")) : /*#__PURE__*/React.createElement("video", {
+    src: block.src,
+    controls: true,
+    preload: "metadata",
+    style: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      background: '#000'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, block.name || 'Video'), /*#__PURE__*/React.createElement(BlockSizePresets, {
+    value: block.width || 100,
+    onChange: w => onChange({
+      ...block,
+      width: w
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    ref: fileRef,
+    type: "file",
+    accept: "video/*",
+    onChange: e => onPickFile(e.target.files?.[0]),
+    style: {
+      display: 'none'
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "upload",
+    onClick: () => fileRef.current?.click()
+  }, "Replace"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "link",
+    onClick: onPasteUrl
+  }, "Use URL")))) : /*#__PURE__*/React.createElement(BlockEmptyState, {
+    block: block,
+    onPickFile: onPickFile,
+    onPasteUrl: onPasteUrl,
+    fileRef: fileRef
+  })));
+};
+const BlockEmptyState = ({
+  block,
+  onPickFile,
+  onPasteUrl,
+  fileRef
+}) => {
+  const isImage = block.type === 'image';
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 40,
+      height: 40,
+      borderRadius: 8,
+      background: T.primarySoft,
+      color: T.primary,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: isImage ? 'image' : 'video',
+    size: 18
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, "Add an ", isImage ? 'image' : 'video'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, isImage ? 'JPG, PNG or WebP' : 'MP4 file or paste a Loom / YouTube / Vimeo link')), /*#__PURE__*/React.createElement("input", {
+    ref: fileRef,
+    type: "file",
+    accept: isImage ? 'image/*' : 'video/*',
+    onChange: e => onPickFile(e.target.files?.[0]),
+    style: {
+      display: 'none'
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "link",
+    onClick: onPasteUrl
+  }, "Use URL"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    icon: "upload",
+    onClick: () => fileRef.current?.click()
+  }, "Upload"));
+};
+
+// Discrete size presets. The free-range slider produced inconsistent sizes
+// across blocks; presets give an authoring style ("Wide" = always 75%) that
+// holds up when you have multiple images on one page.
+const SIZE_PRESETS = [{
+  v: 33,
+  l: 'Small',
+  hint: 'Quarter width — sits beside text'
+}, {
+  v: 50,
+  l: 'Medium',
+  hint: 'Half width'
+}, {
+  v: 75,
+  l: 'Wide',
+  hint: 'Wide column'
+}, {
+  v: 100,
+  l: 'Full',
+  hint: 'Fill the page width'
+}];
+const nearestPreset = val => {
+  let best = SIZE_PRESETS[0].v,
+    bestDiff = Math.abs((val ?? 100) - best);
+  for (const p of SIZE_PRESETS) {
+    const d = Math.abs((val ?? 100) - p.v);
+    if (d < bestDiff) {
+      best = p.v;
+      bestDiff = d;
+    }
+  }
+  return best;
+};
+const BlockSizePresets = ({
+  value,
+  onChange
+}) => {
+  const current = nearestPreset(value);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      minWidth: 36
+    }
+  }, "Size"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      border: `1px solid ${T.border}`,
+      borderRadius: 7,
+      padding: 2,
+      background: T.fieldBg
+    }
+  }, SIZE_PRESETS.map(p => {
+    const sel = current === p.v;
+    return /*#__PURE__*/React.createElement("button", {
+      key: p.v,
+      onClick: () => onChange(p.v),
+      title: p.hint,
+      style: {
+        padding: '4px 10px',
+        border: 'none',
+        borderRadius: 5,
+        background: sel ? T.card : 'transparent',
+        color: sel ? T.text : T.muted,
+        fontWeight: sel ? 600 : 500,
+        fontSize: 11,
+        cursor: 'pointer',
+        boxShadow: sel ? `0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px ${T.border}` : 'none',
+        transition: 'all 0.1s'
+      }
+    }, p.l);
+  })));
+};
+const IntroBlocksEditor = ({
+  state,
+  set,
+  fireToast
+}) => {
+  const blocks = getIntroBlocks(state);
+  // Persist the lazy-migrated array on first interaction so subsequent renders
+  // operate on a real array rather than re-deriving from legacy fields.
+  useEffect(() => {
+    if (state.introBlocks == null) set({
+      introBlocks: blocks
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dropTarget, setDropTarget] = useState({
+    idx: null,
+    pos: null
+  });
+  const writeBlocks = next => set({
+    introBlocks: next
+  });
+  const updateAt = (i, next) => writeBlocks(blocks.map((b, j) => j === i ? next : b));
+  const removeAt = i => {
+    const removed = blocks[i];
+    const next = blocks.filter((_, j) => j !== i);
+    // Never go fully empty — always keep at least one editable text block.
+    if (next.length === 0) next.push({
+      id: newBlockId(),
+      type: 'text',
+      content: ''
+    });
+    writeBlocks(next);
+    fireToast?.({
+      message: `Removed ${removed.type} block`,
+      action: {
+        label: 'Undo',
+        onClick: () => writeBlocks([...blocks.slice(0, i), removed, ...blocks.slice(i)])
+      }
+    });
+  };
+  const insertAfter = (i, type) => {
+    const newBlock = type === 'text' ? {
+      id: newBlockId(),
+      type: 'text',
+      content: ''
+    } : type === 'image' ? {
+      id: newBlockId(),
+      type: 'image',
+      src: '',
+      name: '',
+      width: 100,
+      caption: ''
+    } : {
+      id: newBlockId(),
+      type: 'video',
+      src: '',
+      name: '',
+      width: 100,
+      isUrl: false
+    };
+    writeBlocks([...blocks.slice(0, i + 1), newBlock, ...blocks.slice(i + 1)]);
+  };
+  const move = (from, to) => {
+    if (from === to || to < 0 || to > blocks.length) return;
+    const next = [...blocks];
+    const [moved] = next.splice(from, 1);
+    next.splice(to > from ? to - 1 : to, 0, moved);
+    writeBlocks(next);
+  };
+
+  // ---- HTML5 drag handlers ----
+  const onDragStart = (e, i) => {
+    setDragIdx(i);
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', String(i));
+    } catch (_) {}
+  };
+  const onDragOver = (e, i) => {
+    if (dragIdx == null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = e.clientY - rect.top < rect.height / 2 ? 'before' : 'after';
+    if (dropTarget.idx !== i || dropTarget.pos !== pos) setDropTarget({
+      idx: i,
+      pos
+    });
+  };
+  const onDragLeave = () => {/* keep indicator until onDrop fires */};
+  const onDrop = (e, i) => {
+    e.preventDefault();
+    if (dragIdx == null) return;
+    const pos = dropTarget.pos === 'before' ? i : i + 1;
+    move(dragIdx, pos);
+    setDragIdx(null);
+    setDropTarget({
+      idx: null,
+      pos: null
+    });
+  };
+  const onDragEnd = () => {
+    setDragIdx(null);
+    setDropTarget({
+      idx: null,
+      pos: null
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: '14px 16px 22px',
+      background: T.card,
+      marginBottom: 4
+    },
+    onDragEnd: onDragEnd
+  }, blocks.map((b, i) => /*#__PURE__*/React.createElement(BlockRow, {
+    key: b.id,
+    block: b,
+    index: i,
+    total: blocks.length,
+    onChange: next => updateAt(i, next),
+    onRemove: () => removeAt(i),
+    onInsertAfter: insertAfter,
+    isDragSource: dragIdx === i,
+    dropPos: dropTarget.idx === i ? dropTarget.pos : null,
+    onDragStart: onDragStart,
+    onDragOver: onDragOver,
+    onDragLeave: onDragLeave,
+    onDrop: onDrop,
+    onDragEnd: onDragEnd,
+    fireToast: fireToast
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 14,
+      paddingTop: 12,
+      borderTop: `1px dashed ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "edit",
+    onClick: () => insertAfter(blocks.length - 1, 'text')
+  }, "Add text"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "image",
+    onClick: () => insertAfter(blocks.length - 1, 'image')
+  }, "Add image"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "video",
+    onClick: () => insertAfter(blocks.length - 1, 'video')
+  }, "Add video")));
+};
+
 // Picking a template applies its content but only after a confirm if the user
 // has typed something — destructive overwrites without warning are the
 // number-one complaint we get on the old flow.
@@ -8824,54 +9816,163 @@ const applyTemplate = (tpl, currentContent, set, contentKey, idKey, fireToast) =
     }
   });
 };
+
+// Secondary "Save as template" affordance + naming modal. Hidden ghost button
+// (so it doesn't compete with Send) that opens a modal pre-filled with the
+// current template name. On confirm we fire a toast — no real persistence
+// because this is a mock; the value is in the interaction.
+const SaveAsTemplateButton = ({
+  kind,
+  defaultName,
+  fireToast
+}) => {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(defaultName || '');
+  useEffect(() => {
+    if (open) setName(defaultName || '');
+  }, [open, defaultName]);
+  const onSave = () => {
+    const v = (name || '').trim();
+    if (!v) return;
+    setOpen(false);
+    fireToast?.(`Saved "${v}" as a ${kind.toLowerCase()} template`);
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "save",
+    size: "sm",
+    onClick: () => setOpen(true)
+  }, "Save as template"), /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: () => setOpen(false),
+    title: `Save ${kind.toLowerCase()} as template`,
+    subtitle: "Give this template a name so you can reuse it later.",
+    width: 480
+  }, /*#__PURE__*/React.createElement(Label, null, "Template name"), /*#__PURE__*/React.createElement(Input, {
+    autoFocus: true,
+    value: name,
+    onChange: e => setName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') onSave();
+    },
+    placeholder: `e.g. "Standard ${kind.toLowerCase()}"`
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 22,
+      paddingTop: 16,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => setOpen(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    onClick: onSave,
+    disabled: !(name || '').trim()
+  }, "Save template"))));
+};
 const IntroBody = ({
   state,
   set,
   fireToast
-}) => /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Helper, {
-  style: {
-    marginBottom: 16,
-    marginTop: -4
-  }
-}, "Give your client a clear and friendly introduction to your proposal."), /*#__PURE__*/React.createElement("div", {
-  style: {
-    marginBottom: 14
-  }
-}, /*#__PURE__*/React.createElement(Label, null, "Display message from"), /*#__PURE__*/React.createElement(Select, {
-  value: state.introFrom,
-  onChange: e => set({
-    introFrom: e.target.value
-  })
-}, /*#__PURE__*/React.createElement("option", null, "Test User <org2@yopmail.com>"), /*#__PURE__*/React.createElement("option", null, "Priya Menon <priya@soleaccounting.au>"), /*#__PURE__*/React.createElement("option", null, "Practice (default)"))), /*#__PURE__*/React.createElement(TemplateDropdown, {
-  label: "Template",
-  valueId: state.introTemplate,
-  templates: INTRO_TEMPLATES,
-  fireToast: fireToast,
-  onPick: t => applyTemplate(t, state.introContent, set, 'introContent', 'introTemplate', fireToast)
-}), /*#__PURE__*/React.createElement(RichTextarea, {
-  value: state.introContent,
-  onChange: e => set({
-    introContent: e.target.value
-  }),
-  placeholder: "Start typing your introduction...",
-  mergeFieldsBeforeText: true,
-  autoFocus: true
-}), /*#__PURE__*/React.createElement("div", {
-  style: {
-    marginTop: 14
-  }
-}, /*#__PURE__*/React.createElement(Btn, {
-  variant: "primary",
-  icon: "save",
-  onClick: () => {
-    const tpl = INTRO_TEMPLATES.find(t => t.id === state.introTemplate);
-    fireToast?.(`Saved "${tpl?.name || 'Introduction'}" as a template`);
-  }
-}, "Save As Template")), /*#__PURE__*/React.createElement(MoreContent, {
-  state: state,
-  set: set,
-  fireToast: fireToast
-}));
+}) => {
+  const fromOptions = (() => {
+    const opts = ['Practice (default)'];
+    if (state.advisorName) {
+      const handle = state.advisorName.toLowerCase().replace(/[^a-z0-9]+/g, '.') || 'advisor';
+      const domain = (state.practiceName || 'practice').toLowerCase().replace(/[^a-z0-9]+/g, '') + '.au';
+      opts.unshift(`${state.advisorName} <${handle}@${domain}>`);
+    }
+    return opts;
+  })();
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 16,
+      marginTop: -4
+    }
+  }, "Give your client a clear and friendly introduction to your proposal."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Display message from"), /*#__PURE__*/React.createElement(Select, {
+    value: state.introFrom,
+    onChange: e => set({
+      introFrom: e.target.value
+    })
+  }, fromOptions.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o
+  }, o)))), /*#__PURE__*/React.createElement(TemplateDropdown, {
+    label: "Template",
+    valueId: state.introTemplate,
+    templates: INTRO_TEMPLATES,
+    fireToast: fireToast,
+    onPick: t => {
+      // Picking a template resets the block list to a single text block
+      // seeded with the template's body content (with the usual dirty-check).
+      const dirty = (state.introContent || '').trim().length > 0 || Array.isArray(state.introBlocks) && state.introBlocks.some(b => b.type !== 'text' || (b.content || '').trim());
+      if (dirty && t.content !== '' && state.introContent !== t.content) {
+        if (!window.confirm(`Replace your current introduction with "${t.name}"?\n\nYour blocks will be cleared.`)) {
+          set({
+            introTemplate: t.id
+          });
+          return;
+        }
+      }
+      const snapshot = {
+        introContent: state.introContent,
+        introBlocks: state.introBlocks
+      };
+      const nextBlocks = t.content ? [{
+        id: newBlockId(),
+        type: 'text',
+        content: t.content
+      }] : [{
+        id: newBlockId(),
+        type: 'text',
+        content: ''
+      }];
+      set({
+        introTemplate: t.id,
+        introContent: t.content,
+        introBlocks: nextBlocks
+      });
+      fireToast?.({
+        message: `Applied "${t.name}"`,
+        action: {
+          label: 'Undo',
+          onClick: () => set(snapshot)
+        }
+      });
+    }
+  }), /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginTop: 14
+    }
+  }, "Content"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 8
+    }
+  }, "Drag the handle to reorder. Click ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.primary,
+      fontWeight: 600
+    }
+  }, "+"), " below any block to insert text, image, or video."), /*#__PURE__*/React.createElement(IntroBlocksEditor, {
+    state: state,
+    set: set,
+    fireToast: fireToast
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(SaveAsTemplateButton, {
+    kind: "Introduction",
+    defaultName: (INTRO_TEMPLATES.find(t => t.id === state.introTemplate) || {}).name || '',
+    fireToast: fireToast
+  })));
+};
 const TermsBody = ({
   state,
   set,
@@ -8898,14 +9999,11 @@ const TermsBody = ({
   style: {
     marginTop: 14
   }
-}, /*#__PURE__*/React.createElement(Btn, {
-  variant: "primary",
-  icon: "save",
-  onClick: () => {
-    const tpl = TERMS_TEMPLATES.find(t => t.id === state.termsTemplate);
-    fireToast?.(`Saved "${tpl?.name || 'Terms'}" as a template`);
-  }
-}, "Save As Template")));
+}, /*#__PURE__*/React.createElement(SaveAsTemplateButton, {
+  kind: "Terms",
+  defaultName: (TERMS_TEMPLATES.find(t => t.id === state.termsTemplate) || {}).name || '',
+  fireToast: fireToast
+})));
 const NextBody = ({
   state,
   set,
@@ -8932,14 +10030,402 @@ const NextBody = ({
   style: {
     marginTop: 14
   }
-}, /*#__PURE__*/React.createElement(Btn, {
-  variant: "primary",
-  icon: "save",
-  onClick: () => {
-    const tpl = NEXT_TEMPLATES.find(t => t.id === state.nextTemplate);
-    fireToast?.(`Saved "${tpl?.name || 'Next steps'}" as a template`);
+}, /*#__PURE__*/React.createElement(SaveAsTemplateButton, {
+  kind: "Next steps",
+  defaultName: (NEXT_TEMPLATES.find(t => t.id === state.nextTemplate) || {}).name || '',
+  fireToast: fireToast
+})));
+
+// =====================================================
+// THANKS BODY — accordion section for editing the post-sign Thank-you page:
+// enable/disable, heading/subtitle copy, perks section copy, and partner
+// offers. Compact inline editor; offers list mirrors ManageOffersModal.
+// =====================================================
+const offerCardStyle = () => ({
+  border: `1px solid ${T.border}`,
+  borderRadius: 10,
+  padding: 12,
+  background: T.card
+});
+const OfferEditor = ({
+  offer,
+  onChange,
+  onRemove
+}) => /*#__PURE__*/React.createElement("div", {
+  style: offerCardStyle()
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10
   }
-}, "Save As Template")));
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    background: offer.color,
+    color: '#fff',
+    fontWeight: 800,
+    fontSize: 13,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  }
+}, offer.initial || '·'), /*#__PURE__*/React.createElement("input", {
+  value: offer.name,
+  onChange: e => onChange({
+    ...offer,
+    name: e.target.value
+  }),
+  placeholder: "Partner name",
+  style: {
+    flex: 1,
+    border: `1px solid ${T.border}`,
+    background: T.card,
+    padding: '6px 8px',
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: 600,
+    color: T.text,
+    outline: 'none'
+  }
+}), /*#__PURE__*/React.createElement(Toggle, {
+  on: offer.enabled !== false,
+  onChange: v => onChange({
+    ...offer,
+    enabled: v
+  }),
+  size: "sm"
+}), /*#__PURE__*/React.createElement("button", {
+  onClick: onRemove,
+  title: "Remove offer",
+  style: {
+    width: 26,
+    height: 26,
+    border: 'none',
+    background: 'transparent',
+    color: T.muted,
+    cursor: 'pointer',
+    borderRadius: 4,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  onMouseEnter: e => {
+    e.currentTarget.style.background = T.redSoft;
+    e.currentTarget.style.color = T.red;
+  },
+  onMouseLeave: e => {
+    e.currentTarget.style.background = 'transparent';
+    e.currentTarget.style.color = T.muted;
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "trash",
+  size: 13
+}))), /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8
+  }
+}, /*#__PURE__*/React.createElement("input", {
+  value: offer.tagline,
+  placeholder: "Short tagline",
+  onChange: e => onChange({
+    ...offer,
+    tagline: e.target.value
+  }),
+  style: inputStyleSoft()
+}), /*#__PURE__*/React.createElement("input", {
+  value: offer.cta,
+  placeholder: "Button label",
+  onChange: e => onChange({
+    ...offer,
+    cta: e.target.value
+  }),
+  style: inputStyleSoft()
+}), /*#__PURE__*/React.createElement("input", {
+  value: offer.offer,
+  placeholder: "Offer description",
+  onChange: e => onChange({
+    ...offer,
+    offer: e.target.value
+  }),
+  style: {
+    ...inputStyleSoft(),
+    gridColumn: '1 / -1'
+  }
+}), /*#__PURE__*/React.createElement("input", {
+  value: offer.fine || '',
+  placeholder: "Fine print (optional)",
+  onChange: e => onChange({
+    ...offer,
+    fine: e.target.value
+  }),
+  style: {
+    ...inputStyleSoft(),
+    gridColumn: '1 / -1'
+  }
+}), /*#__PURE__*/React.createElement("div", {
+  style: {
+    gridColumn: '1 / -1',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 11,
+    color: T.muted,
+    marginTop: 2
+  }
+}, /*#__PURE__*/React.createElement("span", null, "Colour"), /*#__PURE__*/React.createElement("input", {
+  type: "color",
+  value: offer.color,
+  onChange: e => onChange({
+    ...offer,
+    color: e.target.value
+  }),
+  style: {
+    width: 26,
+    height: 22,
+    border: 'none',
+    padding: 0,
+    borderRadius: 4,
+    cursor: 'pointer'
+  }
+}), /*#__PURE__*/React.createElement("span", {
+  className: "tpl-mono",
+  style: {
+    fontSize: 11,
+    color: T.textSoft,
+    textTransform: 'uppercase'
+  }
+}, offer.color), /*#__PURE__*/React.createElement("span", {
+  style: {
+    flex: 1
+  }
+}), /*#__PURE__*/React.createElement("span", null, "Initials"), /*#__PURE__*/React.createElement("input", {
+  value: offer.initial || '',
+  maxLength: 2,
+  onChange: e => onChange({
+    ...offer,
+    initial: e.target.value.toUpperCase()
+  }),
+  style: {
+    width: 36,
+    ...inputStyleSoft()
+  }
+}))));
+const ThanksBody = ({
+  state,
+  set,
+  fireToast
+}) => {
+  const offers = state.partnerOffers || [];
+  const enabled = state.thanksEnabled !== false;
+  const updateOffer = (id, next) => set({
+    partnerOffers: offers.map(o => o.id === id ? next : o)
+  });
+  const removeOffer = id => {
+    const idx = offers.findIndex(o => o.id === id);
+    const removed = offers[idx];
+    if (idx === -1) return;
+    set({
+      partnerOffers: offers.filter(o => o.id !== id)
+    });
+    fireToast?.({
+      message: `Removed "${removed.name}"`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          const next = [...offers];
+          next.splice(idx, 0, removed);
+          set({
+            partnerOffers: next
+          });
+        }
+      }
+    });
+  };
+  const addNew = () => set({
+    partnerOffers: [...offers, {
+      id: 'offer-' + Date.now().toString(36),
+      name: 'New partner',
+      tagline: '',
+      offer: 'Describe the perk on offer',
+      fine: '',
+      cta: 'Claim offer',
+      color: '#10B981',
+      initial: 'P',
+      enabled: true
+    }]
+  });
+  const resetOffers = () => set({
+    partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
+      ...o,
+      enabled: true
+    }))
+  });
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 14,
+      marginTop: -4
+    }
+  }, "Shown to the client right after they sign. Use the heading, subtitle and perks to confirm next steps and surface any optional benefits."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 18,
+      padding: '10px 14px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: enabled,
+    onChange: v => set({
+      thanksEnabled: v
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Show thank-you page"), /*#__PURE__*/React.createElement(Helper, null, "When off, signing finishes on the agreement and skips the thanks screen."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      opacity: enabled ? 1 : 0.5,
+      pointerEvents: enabled ? 'auto' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Heading"), /*#__PURE__*/React.createElement(Input, {
+    value: state.thanksHeading || '',
+    placeholder: "Thank you, {{ contact_first_name }}.",
+    onChange: e => set({
+      thanksHeading: e.target.value
+    })
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "Merge fields like ", /*#__PURE__*/React.createElement("code", {
+    style: {
+      fontSize: 11
+    }
+  }, '{{ contact_first_name }}'), " resolve at send time."), /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginTop: 16
+    }
+  }, "Subtitle"), /*#__PURE__*/React.createElement("textarea", {
+    value: state.thanksSubtitle || '',
+    placeholder: "Your engagement with {{ practice_name }} is under way...",
+    onChange: e => set({
+      thanksSubtitle: e.target.value
+    }),
+    rows: 3,
+    style: {
+      width: '100%',
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      padding: '8px 10px',
+      borderRadius: 8,
+      fontSize: 13,
+      color: T.text,
+      outline: 'none',
+      fontFamily: 'inherit',
+      lineHeight: 1.55,
+      resize: 'vertical'
+    }
+  }), /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginTop: 22
+    }
+  }, "Perks section"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: state.thanksPerksTitle || '',
+    placeholder: "A few perks, on us",
+    onChange: e => set({
+      thanksPerksTitle: e.target.value
+    })
+  }), /*#__PURE__*/React.createElement("textarea", {
+    value: state.thanksPerksIntro || '',
+    placeholder: "Optional benefits from {{ practice_name }}'s partner network...",
+    onChange: e => set({
+      thanksPerksIntro: e.target.value
+    }),
+    rows: 2,
+    style: {
+      width: '100%',
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      padding: '8px 10px',
+      borderRadius: 8,
+      fontSize: 13,
+      color: T.text,
+      outline: 'none',
+      fontFamily: 'inherit',
+      lineHeight: 1.55,
+      resize: 'vertical'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 22,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginBottom: 0
+    }
+  }, "Partner offers"), /*#__PURE__*/React.createElement(Helper, null, offers.filter(o => o.enabled !== false).length, " of ", offers.length, " shown to client")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, offers.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 18,
+      borderRadius: 10,
+      border: `1px dashed ${T.border}`,
+      fontSize: 13,
+      color: T.muted,
+      textAlign: 'center'
+    }
+  }, "No partner offers configured. Add one below or reset to defaults."), offers.map(o => /*#__PURE__*/React.createElement(OfferEditor, {
+    key: o.id,
+    offer: o,
+    onChange: next => updateOffer(o.id, next),
+    onRemove: () => removeOffer(o.id)
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    onClick: addNew
+  }, "Add offer"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: resetOffers
+  }, "Reset to defaults"))));
+};
 
 // --- Add. Docs. ---
 const FIELD_TYPES = [{
@@ -9038,6 +10524,10 @@ const PLACEMENT_PRESETS = [{
   icon: 'palette',
   pages: '—'
 }];
+
+// Preset placements use coordinates that already land on the 2.5% snap grid
+// — when a user nudges or aligns later, things stay flush rather than ending
+// up a few pixels off after the first manual touch.
 const fieldsForPreset = (preset, pageCount) => {
   const last = pageCount;
   switch (preset) {
@@ -9046,14 +10536,14 @@ const fieldsForPreset = (preset, pageCount) => {
         id: 'f-1',
         type: 'date',
         page: last,
-        x: 0.10,
-        y: 0.86
+        x: 0.100,
+        y: 0.850
       }, {
         id: 'f-2',
         type: 'signature',
         page: last,
-        x: 0.55,
-        y: 0.84
+        x: 0.550,
+        y: 0.850
       }];
     case 'sign-every':
       return Array.from({
@@ -9062,14 +10552,14 @@ const fieldsForPreset = (preset, pageCount) => {
         id: `f-d-${i + 1}`,
         type: 'date',
         page: i + 1,
-        x: 0.10,
-        y: 0.86
+        x: 0.100,
+        y: 0.850
       }, {
         id: `f-s-${i + 1}`,
         type: 'signature',
         page: i + 1,
-        x: 0.55,
-        y: 0.84
+        x: 0.550,
+        y: 0.850
       }]).flat();
     case 'sign-each':
       return [...Array.from({
@@ -9078,46 +10568,46 @@ const fieldsForPreset = (preset, pageCount) => {
         id: `f-i-${i + 1}`,
         type: 'initials',
         page: i + 1,
-        x: 0.84,
-        y: 0.94
+        x: 0.850,
+        y: 0.950
       })), {
         id: 'f-d',
         type: 'date',
         page: last,
-        x: 0.10,
-        y: 0.86
+        x: 0.100,
+        y: 0.850
       }, {
         id: 'f-s',
         type: 'signature',
         page: last,
-        x: 0.55,
-        y: 0.84
+        x: 0.550,
+        y: 0.850
       }];
     case 'full-intake':
       return [{
         id: 'f-n',
         type: 'name',
         page: last,
-        x: 0.08,
-        y: 0.66
+        x: 0.100,
+        y: 0.650
       }, {
         id: 'f-e',
         type: 'email',
         page: last,
-        x: 0.50,
-        y: 0.66
+        x: 0.500,
+        y: 0.650
       }, {
         id: 'f-d',
         type: 'date',
         page: last,
-        x: 0.08,
-        y: 0.86
+        x: 0.100,
+        y: 0.850
       }, {
         id: 'f-s',
         type: 'signature',
         page: last,
-        x: 0.50,
-        y: 0.84
+        x: 0.500,
+        y: 0.850
       }];
     case 'custom':
     default:
@@ -9227,83 +10717,254 @@ const DocCard = ({
   name: "trash",
   size: 14
 })));
+
+// Tiny page thumbnail with field dots — used in PresetCard so each option
+// reads at a glance ("oh, sign-end means just the last page"). Pages are
+// shown as small rounded rectangles; field positions render as filled dots.
+const PresetThumb = ({
+  pageCount = 2,
+  fields = [],
+  lastPageOnly = false,
+  selected
+}) => {
+  // Render 2 pages (first + last) compactly with field markers in approximate positions.
+  const pages = pageCount === 1 ? [1] : [1, pageCount];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 4,
+      flexShrink: 0
+    }
+  }, pages.map((p, i) => {
+    const onPage = fields.filter(f => f.page === p);
+    const isLast = p === pageCount;
+    return /*#__PURE__*/React.createElement("div", {
+      key: p,
+      style: {
+        position: 'relative',
+        width: 20,
+        height: 26,
+        border: `1px solid ${selected ? T.primary : T.borderStrong}`,
+        borderRadius: 3,
+        background: selected ? withAlpha(T.primary, 0.04) : T.card,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        top: 3,
+        left: 3,
+        right: 3,
+        height: 1,
+        background: withAlpha(T.muted, 0.35),
+        borderRadius: 1
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        top: 6,
+        left: 3,
+        right: 6,
+        height: 1,
+        background: withAlpha(T.muted, 0.25),
+        borderRadius: 1
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        top: 9,
+        left: 3,
+        right: 5,
+        height: 1,
+        background: withAlpha(T.muted, 0.25),
+        borderRadius: 1
+      }
+    }), onPage.map((f, j) => /*#__PURE__*/React.createElement("span", {
+      key: j,
+      style: {
+        position: 'absolute',
+        left: `calc(${f.x * 100}% - 2px)`,
+        top: `calc(${f.y * 100}% - 2px)`,
+        width: 4,
+        height: 4,
+        borderRadius: '50%',
+        background: selected ? T.primary : T.text
+      }
+    })), !isLast && pageCount > 2 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        bottom: 1,
+        right: 1,
+        fontSize: 6,
+        color: T.muted
+      }
+    }, "\u2026"));
+  }));
+};
+
+// Approximate fields for the thumbnail (small fixed set, not tied to the
+// real preset fn output since pageCount in the real call uses doc.pageCount).
+const PRESET_THUMB_FIELDS = {
+  'sign-end': {
+    count: 2,
+    fields: [{
+      page: 2,
+      type: 'date',
+      x: 0.20,
+      y: 0.78
+    }, {
+      page: 2,
+      type: 'signature',
+      x: 0.65,
+      y: 0.78
+    }]
+  },
+  'sign-every': {
+    count: 2,
+    fields: [{
+      page: 1,
+      type: 'date',
+      x: 0.20,
+      y: 0.78
+    }, {
+      page: 1,
+      type: 'signature',
+      x: 0.65,
+      y: 0.78
+    }, {
+      page: 2,
+      type: 'date',
+      x: 0.20,
+      y: 0.78
+    }, {
+      page: 2,
+      type: 'signature',
+      x: 0.65,
+      y: 0.78
+    }]
+  },
+  'sign-each': {
+    count: 2,
+    fields: [{
+      page: 1,
+      type: 'initials',
+      x: 0.80,
+      y: 0.90
+    }, {
+      page: 2,
+      type: 'date',
+      x: 0.20,
+      y: 0.78
+    }, {
+      page: 2,
+      type: 'signature',
+      x: 0.65,
+      y: 0.78
+    }]
+  },
+  'full-intake': {
+    count: 2,
+    fields: [{
+      page: 2,
+      type: 'name',
+      x: 0.20,
+      y: 0.55
+    }, {
+      page: 2,
+      type: 'email',
+      x: 0.65,
+      y: 0.55
+    }, {
+      page: 2,
+      type: 'date',
+      x: 0.20,
+      y: 0.78
+    }, {
+      page: 2,
+      type: 'signature',
+      x: 0.65,
+      y: 0.78
+    }]
+  },
+  'custom': {
+    count: 1,
+    fields: []
+  }
+};
 const PresetCard = ({
   preset,
   selected,
   onClick
-}) => /*#__PURE__*/React.createElement("button", {
-  onClick: onClick,
-  style: {
-    width: '100%',
-    padding: 12,
-    borderRadius: 10,
-    border: `1px solid ${selected ? T.primary : T.border}`,
-    background: selected ? T.primarySofter : T.card,
-    cursor: 'pointer',
-    textAlign: 'left',
-    marginBottom: 8,
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: 10,
-    transition: 'all 0.1s'
-  }
-}, /*#__PURE__*/React.createElement("div", {
-  style: {
-    width: 30,
-    height: 30,
-    borderRadius: 7,
-    background: selected ? T.primary : T.fieldBg,
-    color: selected ? '#fff' : T.muted,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0
-  }
-}, /*#__PURE__*/React.createElement(Icon, {
-  name: preset.icon,
-  size: 14
-})), /*#__PURE__*/React.createElement("div", {
-  style: {
-    flex: 1,
-    minWidth: 0
-  }
-}, /*#__PURE__*/React.createElement("div", {
-  style: {
-    fontWeight: 600,
-    fontSize: 13,
-    color: selected ? T.primary : T.text
-  }
-}, preset.l), /*#__PURE__*/React.createElement("div", {
-  style: {
-    fontSize: 11,
-    color: T.muted,
-    marginTop: 2,
-    lineHeight: 1.4
-  }
-}, preset.desc), preset.pages && preset.v !== 'custom' && /*#__PURE__*/React.createElement("div", {
-  style: {
-    marginTop: 4,
-    fontSize: 10,
-    color: selected ? T.primary : T.muted,
-    fontWeight: 600,
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
-  }
-}, /*#__PURE__*/React.createElement(Icon, {
-  name: "docs",
-  size: 9,
-  color: selected ? T.primary : T.muted
-}), " ", preset.pages)), selected && /*#__PURE__*/React.createElement(Icon, {
-  name: "check",
-  size: 14,
-  color: T.primary,
-  strokeWidth: 2.5
-}));
+}) => {
+  const thumb = PRESET_THUMB_FIELDS[preset.v];
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    style: {
+      width: '100%',
+      padding: 12,
+      borderRadius: 10,
+      border: `1px solid ${selected ? T.primary : T.border}`,
+      background: selected ? T.primarySofter : T.card,
+      cursor: 'pointer',
+      textAlign: 'left',
+      marginBottom: 8,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      transition: 'all 0.1s'
+    }
+  }, thumb ? /*#__PURE__*/React.createElement(PresetThumb, {
+    pageCount: thumb.count,
+    fields: thumb.fields,
+    selected: selected
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 46,
+      height: 30,
+      borderRadius: 6,
+      background: selected ? T.primarySoft : T.fieldBg,
+      color: selected ? T.primary : T.muted,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: preset.icon,
+    size: 14
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 600,
+      fontSize: 13,
+      color: selected ? T.primary : T.text
+    }
+  }, preset.l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      marginTop: 2,
+      lineHeight: 1.4
+    }
+  }, preset.desc)), selected && /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 14,
+    color: T.primary,
+    strokeWidth: 2.5
+  }));
+};
 
-// Mock PDF page preview with placed fields
+// Mock PDF page preview with placed fields.
+// Adds snap-to-grid + cursor-relative drag + keyboard nudging so authors get
+// crisp, predictable placement rather than the previous "wherever the cursor
+// happens to release" behaviour.
+const GRID_STEP = 0.025; // 2.5% page-width snap → reliable column alignment
+const snap = (v, step = GRID_STEP) => Math.round(v / step) * step;
+const clampRange = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const PdfPageMock = ({
   page,
   totalPages,
@@ -9312,28 +10973,62 @@ const PdfPageMock = ({
   onAddAt,
   onMoveField,
   onRemoveField,
-  addingType
+  addingType,
+  snapEnabled = true,
+  selectedId,
+  onSelectField
 }) => {
   const ref = useRef(null);
   const [draggingId, setDraggingId] = useState(null);
+  // Cursor → field-center offset, captured on mousedown. Without this the
+  // field would jump so its centre is under the cursor on first move.
+  const [dragOffset, setDragOffset] = useState({
+    dx: 0,
+    dy: 0
+  });
   const onPageClick = e => {
     if (!addingType || !ref.current) return;
+    if (e.target !== ref.current && !e.target.dataset?.pageCanvas) {
+      // Click landed on a placed field — let its handler deal with it.
+      return;
+    }
     const rect = ref.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    onAddAt(addingType, x, y);
+    let x = (e.clientX - rect.left) / rect.width;
+    let y = (e.clientY - rect.top) / rect.height;
+    if (snapEnabled) {
+      x = snap(x);
+      y = snap(y);
+    }
+    onAddAt(addingType, clampRange(x, 0.02, 0.98), clampRange(y, 0.02, 0.98));
   };
-  const onMouseMoveField = (e, fid) => {
-    if (draggingId !== fid || !ref.current) return;
+  const onFieldMouseDown = (e, f) => {
+    e.stopPropagation();
     const rect = ref.current.getBoundingClientRect();
-    const x = Math.min(0.95, Math.max(0.02, (e.clientX - rect.left) / rect.width));
-    const y = Math.min(0.96, Math.max(0.02, (e.clientY - rect.top) / rect.height));
-    onMoveField(fid, x, y);
+    const cursorX = (e.clientX - rect.left) / rect.width;
+    const cursorY = (e.clientY - rect.top) / rect.height;
+    setDragOffset({
+      dx: cursorX - f.x,
+      dy: cursorY - f.y
+    });
+    setDraggingId(f.id);
+    onSelectField?.(f.id);
+  };
+  const onMouseMove = e => {
+    if (!draggingId || !ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    let x = (e.clientX - rect.left) / rect.width - dragOffset.dx;
+    let y = (e.clientY - rect.top) / rect.height - dragOffset.dy;
+    if (snapEnabled) {
+      x = snap(x);
+      y = snap(y);
+    }
+    onMoveField(draggingId, clampRange(x, 0.02, 0.98), clampRange(y, 0.02, 0.98));
   };
   return /*#__PURE__*/React.createElement("div", {
     ref: ref,
     onClick: onPageClick,
-    onMouseMove: e => draggingId && onMouseMoveField(e, draggingId),
+    "data-page-canvas": true,
+    onMouseMove: onMouseMove,
     onMouseUp: () => setDraggingId(null),
     onMouseLeave: () => setDraggingId(null),
     style: {
@@ -9350,7 +11045,20 @@ const PdfPageMock = ({
       boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
       overflow: 'hidden'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, snapEnabled && (addingType || draggingId) && /*#__PURE__*/React.createElement("div", {
+    "data-page-canvas": true,
+    style: {
+      position: 'absolute',
+      inset: 0,
+      pointerEvents: 'none',
+      zIndex: 1,
+      backgroundImage: `
+            linear-gradient(to right, ${withAlpha(T.primary, 0.10)} 1px, transparent 1px),
+            linear-gradient(to bottom, ${withAlpha(T.primary, 0.10)} 1px, transparent 1px)
+          `,
+      backgroundSize: `${100 * GRID_STEP}% ${100 * GRID_STEP * (8.5 / 11)}%`
+    }
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       height: 4,
       background: themeColor || '#D6A47A',
@@ -9368,7 +11076,7 @@ const PdfPageMock = ({
       background: i === 0 ? T.text : T.border,
       borderRadius: 2,
       marginBottom: i === 0 ? 18 : 8,
-      width: i === 0 ? '70%' : `${60 + Math.random() * 35}%`,
+      width: i === 0 ? '70%' : `${60 + i * 17 % 35}%`,
       opacity: i === 0 ? 1 : 0.5
     }
   })), /*#__PURE__*/React.createElement("div", {
@@ -9384,59 +11092,74 @@ const PdfPageMock = ({
     }
   }, "Page ", page, " of ", totalPages), fields.map(f => {
     const t = FIELD_TYPES.find(x => x.v === f.type);
+    const selected = selectedId === f.id;
+    const isDragging = draggingId === f.id;
     return /*#__PURE__*/React.createElement("div", {
       key: f.id,
-      onClick: e => e.stopPropagation(),
-      onMouseDown: e => {
+      onClick: e => {
         e.stopPropagation();
-        setDraggingId(f.id);
+        onSelectField?.(f.id);
       },
+      onMouseDown: e => onFieldMouseDown(e, f),
       style: {
         position: 'absolute',
+        zIndex: selected ? 4 : 3,
         left: `calc(${f.x * 100}% - ${t.w / 2}px)`,
         top: `calc(${f.y * 100}% - ${t.h / 2}px)`,
         width: t.w,
         height: t.h,
-        background: t.tint,
-        border: `1.5px solid ${t.fg}`,
-        borderRadius: 8,
-        padding: '4px 10px',
+        background: selected ? withAlpha(T.primary, 0.06) : 'rgba(255,255,255,0.92)',
+        border: `1px ${selected ? 'solid' : 'dashed'} ${selected ? T.primary : T.borderStrong}`,
+        borderRadius: 6,
+        padding: '4px 8px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 6,
-        cursor: draggingId === f.id ? 'grabbing' : 'grab',
-        boxShadow: draggingId === f.id ? `0 4px 12px ${t.fg}66` : 'none',
-        transition: draggingId === f.id ? 'none' : 'box-shadow 0.1s'
+        cursor: isDragging ? 'grabbing' : 'grab',
+        boxShadow: isDragging ? `0 6px 14px ${withAlpha(T.primary, 0.30)}` : selected ? `0 0 0 2px ${withAlpha(T.primary, 0.18)}` : 'none',
+        transition: isDragging ? 'none' : 'box-shadow 0.1s, border-color 0.1s, background 0.1s'
       }
     }, /*#__PURE__*/React.createElement(Icon, {
       name: t.icon,
       size: 11,
-      color: t.fg
+      color: selected ? T.primary : t.fg
     }), /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 11,
         fontWeight: 600,
-        color: t.fg,
-        fontStyle: f.type === 'signature' ? 'italic' : 'normal'
+        color: selected ? T.primary : T.textSoft,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
       }
     }, t.l), /*#__PURE__*/React.createElement("button", {
       onClick: e => {
         e.stopPropagation();
         onRemoveField(f.id);
       },
+      title: "Remove field",
       style: {
         width: 14,
         height: 14,
         borderRadius: '50%',
-        background: T.card,
-        border: `1px solid ${t.fg}`,
-        color: t.fg,
+        background: 'transparent',
+        border: 'none',
+        color: T.muted,
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 0
+        padding: 0,
+        flexShrink: 0
+      },
+      onMouseEnter: e => {
+        e.currentTarget.style.color = T.red;
+        e.currentTarget.style.background = T.redSoft;
+      },
+      onMouseLeave: e => {
+        e.currentTarget.style.color = T.muted;
+        e.currentTarget.style.background = 'transparent';
       }
     }, /*#__PURE__*/React.createElement(Icon, {
       name: "close",
@@ -9456,9 +11179,20 @@ const PdfPageMock = ({
       fontSize: 11,
       fontWeight: 500,
       pointerEvents: 'none',
-      zIndex: 5
+      zIndex: 5,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
     }
-  }, "Click anywhere to place ", FIELD_TYPES.find(t => t.v === addingType)?.l));
+  }, "Click anywhere to place ", FIELD_TYPES.find(t => t.v === addingType)?.l, snapEnabled && /*#__PURE__*/React.createElement("span", {
+    style: {
+      padding: '1px 6px',
+      borderRadius: 4,
+      background: withAlpha('#FFFFFF', 0.18),
+      fontSize: 10,
+      letterSpacing: 0.3
+    }
+  }, "SNAP")));
 };
 const DocConfigModal = ({
   open,
@@ -9470,13 +11204,58 @@ const DocConfigModal = ({
   const [draft, setDraft] = useState(doc);
   const [activePage, setActivePage] = useState(1);
   const [addingType, setAddingType] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   useEffect(() => {
     if (open && doc) {
       setDraft(doc);
       setActivePage(doc.pageCount || 1);
       setAddingType(null);
+      setSelectedId(null);
     }
   }, [open, doc?.id]);
+
+  // Keyboard nudge: arrow keys move the selected field by one grid step
+  // (Shift = 4 steps for faster macro-positioning). Backspace/Delete drops it.
+  useEffect(() => {
+    if (!open || !selectedId) return;
+    const onKey = e => {
+      const target = e.target;
+      const tag = target && target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target && target.isContentEditable) return;
+      const step = (e.shiftKey ? 4 : 1) * GRID_STEP;
+      const stepY = step * (8.5 / 11); // page is taller than wide; keep visual feel even
+      const delta = {
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+        ArrowUp: [0, -stepY],
+        ArrowDown: [0, stepY]
+      }[e.key];
+      if (delta) {
+        e.preventDefault();
+        setDraft(d => ({
+          ...d,
+          preset: 'custom',
+          fields: d.fields.map(f => f.id === selectedId ? {
+            ...f,
+            x: clampRange(f.x + delta[0], 0.02, 0.98),
+            y: clampRange(f.y + delta[1], 0.02, 0.98)
+          } : f)
+        }));
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        setDraft(d => ({
+          ...d,
+          preset: 'custom',
+          fields: d.fields.filter(f => f.id !== selectedId)
+        }));
+        setSelectedId(null);
+      } else if (e.key === 'Escape') {
+        setSelectedId(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, selectedId]);
   if (!open || !doc || !draft) return null;
   const setPreset = v => {
     if (v === 'custom') {
@@ -9491,6 +11270,7 @@ const DocConfigModal = ({
         fields: fieldsForPreset(v, draft.pageCount)
       });
     }
+    setSelectedId(null);
   };
   const removeField = fid => {
     setDraft({
@@ -9498,6 +11278,7 @@ const DocConfigModal = ({
       fields: draft.fields.filter(f => f.id !== fid),
       preset: 'custom'
     });
+    if (selectedId === fid) setSelectedId(null);
   };
   const moveField = (fid, x, y) => {
     setDraft(d => ({
@@ -9510,9 +11291,38 @@ const DocConfigModal = ({
       } : f)
     }));
   };
+
+  // Snap the selected field to one of nine anchor points on the page —
+  // covers the common "put the signature in the bottom-right" case without
+  // forcing the user to drag.
+  const alignSelected = anchor => {
+    if (!selectedId) return;
+    const map = {
+      tl: [0.10, 0.10],
+      tc: [0.50, 0.10],
+      tr: [0.90, 0.10],
+      ml: [0.10, 0.50],
+      mc: [0.50, 0.50],
+      mr: [0.90, 0.50],
+      bl: [0.10, 0.86],
+      bc: [0.50, 0.86],
+      br: [0.90, 0.86]
+    };
+    const [x, y] = map[anchor] || map.br;
+    setDraft(d => ({
+      ...d,
+      preset: 'custom',
+      fields: d.fields.map(f => f.id === selectedId ? {
+        ...f,
+        x,
+        y
+      } : f)
+    }));
+  };
   const addFieldAt = (type, x, y) => {
+    const id = 'f-' + Date.now();
     const newField = {
-      id: 'f-' + Date.now(),
+      id,
       type,
       page: activePage,
       x,
@@ -9524,8 +11334,10 @@ const DocConfigModal = ({
       preset: 'custom'
     });
     setAddingType(null);
+    setSelectedId(id);
   };
   const fieldsOnActivePage = draft.fields.filter(f => f.page === activePage);
+  const selectedField = draft.fields.find(f => f.id === selectedId);
   return /*#__PURE__*/React.createElement(Modal, {
     open: open,
     onClose: onClose,
@@ -9633,27 +11445,39 @@ const DocConfigModal = ({
       background: T.border,
       margin: '14px 0'
     }
-  }), /*#__PURE__*/React.createElement(Label, null, "Placed (", draft.fields.length, ")"), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement(Label, null, "Placed (", draft.fields.length, ")"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 8
+    }
+  }, "Click to select on canvas \xB7 change page or remove inline."), /*#__PURE__*/React.createElement("div", {
     className: "scroll-area",
     style: {
-      maxHeight: 180,
-      overflowY: 'auto'
+      maxHeight: 240,
+      overflowY: 'auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4
     }
   }, draft.fields.map(f => {
     const t = FIELD_TYPES.find(x => x.v === f.type);
+    const isSelected = selectedId === f.id;
     return /*#__PURE__*/React.createElement("div", {
       key: f.id,
-      onClick: () => setActivePage(f.page),
+      onClick: () => {
+        setActivePage(f.page);
+        setSelectedId(f.id);
+      },
       style: {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
         padding: '7px 8px',
         borderRadius: 6,
-        marginBottom: 3,
-        background: T.fieldBg,
+        background: isSelected ? T.primarySoft : T.fieldBg,
+        border: `1px solid ${isSelected ? T.primary : 'transparent'}`,
         cursor: 'pointer',
-        fontSize: 12
+        fontSize: 12,
+        transition: 'all 0.1s'
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -9673,24 +11497,59 @@ const DocConfigModal = ({
     })), /*#__PURE__*/React.createElement("span", {
       style: {
         flex: 1,
-        fontWeight: 500
+        fontWeight: 500,
+        color: isSelected ? T.primary : T.text
       }
-    }, t.l), /*#__PURE__*/React.createElement("span", {
+    }, t.l), /*#__PURE__*/React.createElement("select", {
+      value: f.page,
+      onClick: e => e.stopPropagation(),
+      onChange: e => setDraft(d => ({
+        ...d,
+        preset: 'custom',
+        fields: d.fields.map(x => x.id === f.id ? {
+          ...x,
+          page: Number(e.target.value)
+        } : x)
+      })),
+      title: "Page",
       style: {
-        fontSize: 10,
-        color: T.muted
+        fontSize: 11,
+        padding: '2px 4px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 4,
+        background: T.card,
+        color: T.textSoft,
+        cursor: 'pointer',
+        outline: 'none'
       }
-    }, "p.", f.page), /*#__PURE__*/React.createElement("button", {
+    }, Array.from({
+      length: draft.pageCount
+    }, (_, i) => i + 1).map(n => /*#__PURE__*/React.createElement("option", {
+      key: n,
+      value: n
+    }, "p.", n))), /*#__PURE__*/React.createElement("button", {
       onClick: e => {
         e.stopPropagation();
         removeField(f.id);
       },
+      title: "Remove",
       style: {
         border: 'none',
         background: 'transparent',
         color: T.muted,
         padding: 2,
-        cursor: 'pointer'
+        cursor: 'pointer',
+        borderRadius: 4,
+        display: 'inline-flex',
+        alignItems: 'center'
+      },
+      onMouseEnter: e => {
+        e.currentTarget.style.color = T.red;
+        e.currentTarget.style.background = T.redSoft;
+      },
+      onMouseLeave: e => {
+        e.currentTarget.style.color = T.muted;
+        e.currentTarget.style.background = 'transparent';
       }
     }, /*#__PURE__*/React.createElement(Icon, {
       name: "close",
@@ -9709,104 +11568,171 @@ const DocConfigModal = ({
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 12,
-      flexWrap: 'wrap',
-      gap: 10
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 8,
+      overflowX: 'auto',
+      padding: '4px 2px',
+      flex: 1
+    }
+  }, Array.from({
+    length: draft.pageCount
+  }, (_, i) => {
+    const pageNum = i + 1;
+    const pageFields = draft.fields.filter(f => f.page === pageNum);
+    const isActive = pageNum === activePage;
+    return /*#__PURE__*/React.createElement("button", {
+      key: pageNum,
+      onClick: () => setActivePage(pageNum),
+      title: `Page ${pageNum} · ${pageFields.length} ${pageFields.length === 1 ? 'field' : 'fields'}`,
+      style: {
+        position: 'relative',
+        flexShrink: 0,
+        width: 40,
+        height: 52,
+        padding: 0,
+        border: `${isActive ? 2 : 1}px solid ${isActive ? T.primary : pageFields.length > 0 ? T.borderStrong : T.border}`,
+        borderRadius: 4,
+        background: isActive ? withAlpha(T.primary, 0.04) : T.card,
+        cursor: 'pointer',
+        overflow: 'hidden',
+        transition: 'all 0.1s',
+        display: 'block'
+      }
+    }, [0, 1, 2, 3].map(li => /*#__PURE__*/React.createElement("div", {
+      key: li,
+      style: {
+        position: 'absolute',
+        top: 5 + li * 4,
+        left: 4,
+        right: li === 0 ? 12 : 6 + li * 2,
+        height: 1,
+        background: withAlpha(T.muted, 0.35),
+        borderRadius: 1
+      }
+    })), pageFields.map((f, j) => {
+      const t = FIELD_TYPES.find(x => x.v === f.type);
+      return /*#__PURE__*/React.createElement("span", {
+        key: j,
+        style: {
+          position: 'absolute',
+          left: `calc(${f.x * 100}% - 2px)`,
+          top: `calc(${f.y * 100}% - 2px)`,
+          width: 4,
+          height: 4,
+          borderRadius: '50%',
+          background: isActive ? T.primary : t?.fg || T.text,
+          boxShadow: isActive ? `0 0 0 1px ${withAlpha(T.primary, 0.20)}` : 'none'
+        }
+      });
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        position: 'absolute',
+        bottom: 1,
+        left: 0,
+        right: 0,
+        textAlign: 'center',
+        fontSize: 8,
+        fontWeight: 700,
+        color: isActive ? T.primary : T.muted,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, pageNum));
+  })), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      flexShrink: 0,
+      whiteSpace: 'nowrap'
+    }
+  }, fieldsOnActivePage.length, " on page \xB7 ", draft.fields.length, " total")), selectedField && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '8px 12px',
+      marginBottom: 12,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 4,
-      flexWrap: 'wrap'
+      gap: 10
     }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActivePage(p => Math.max(1, p - 1)),
-    disabled: activePage === 1,
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      width: 26,
-      height: 26,
-      border: `1px solid ${T.border}`,
-      borderRadius: 6,
-      background: T.card,
-      cursor: 'pointer',
-      opacity: activePage === 1 ? 0.4 : 1,
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, FIELD_TYPES.find(t => t.v === selectedField.type)?.l), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      display: 'inline'
+    }
+  }, "\xB7 arrow keys nudge \xB7 backspace removes")), /*#__PURE__*/React.createElement("div", {
+    style: {
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 2
+      gap: 10
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronLeft",
-    size: 11
-  })), Array.from({
-    length: draft.pageCount
-  }, (_, i) => {
-    const pageNum = i + 1;
-    const fieldCount = draft.fields.filter(f => f.page === pageNum).length;
-    const isActive = pageNum === activePage;
-    return /*#__PURE__*/React.createElement("button", {
-      key: pageNum,
-      onClick: () => setActivePage(pageNum),
-      title: `Page ${pageNum} · ${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'}`,
-      style: {
-        position: 'relative',
-        minWidth: 30,
-        height: 26,
-        padding: '0 6px',
-        border: `1px solid ${isActive ? T.primary : fieldCount > 0 ? '#C7C9FB' : T.border}`,
-        borderRadius: 6,
-        background: isActive ? T.primary : fieldCount > 0 ? T.primarySofter : T.card,
-        color: isActive ? '#fff' : fieldCount > 0 ? T.primary : T.muted,
-        cursor: 'pointer',
-        fontSize: 11,
-        fontWeight: 600,
-        fontVariantNumeric: 'tabular-nums',
-        transition: 'all 0.1s'
-      }
-    }, pageNum, fieldCount > 0 && /*#__PURE__*/React.createElement("span", {
-      style: {
-        position: 'absolute',
-        top: -4,
-        right: -4,
-        minWidth: 14,
-        height: 14,
-        borderRadius: 7,
-        padding: '0 3px',
-        background: isActive ? '#fff' : T.primary,
-        color: isActive ? T.primary : '#fff',
-        fontSize: 9,
-        fontWeight: 700,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: `1.5px solid ${isActive ? T.primary : T.card}`
-      }
-    }, fieldCount));
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setActivePage(p => Math.min(draft.pageCount, p + 1)),
-    disabled: activePage === draft.pageCount,
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      width: 26,
-      height: 26,
+      fontSize: 11,
+      color: T.muted
+    }
+  }, "Align:"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-grid',
+      gridTemplateColumns: 'repeat(3, 22px)',
+      gridTemplateRows: 'repeat(3, 22px)',
+      gap: 2
+    }
+  }, [['tl', 'tc', 'tr'], ['ml', 'mc', 'mr'], ['bl', 'bc', 'br']].flat().map(a => /*#__PURE__*/React.createElement("button", {
+    key: a,
+    onClick: () => alignSelected(a),
+    title: `Align ${a}`,
+    style: {
+      width: 22,
+      height: 22,
       border: `1px solid ${T.border}`,
-      borderRadius: 6,
+      borderRadius: 4,
       background: T.card,
       cursor: 'pointer',
-      opacity: activePage === draft.pageCount ? 0.4 : 1,
-      display: 'flex',
+      padding: 0,
+      display: 'inline-flex',
       alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: 2
+      justifyContent: 'center'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = T.primary;
+      e.currentTarget.style.background = T.primarySoft;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.border;
+      e.currentTarget.style.background = T.card;
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 11
-  }))), /*#__PURE__*/React.createElement(Helper, null, fieldsOnActivePage.length, " on page \xB7 ", draft.fields.length, " total \xB7 drag to reposition")), /*#__PURE__*/React.createElement(PdfPageMock, {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: 1,
+      background: T.primary
+    }
+  })))))), /*#__PURE__*/React.createElement(PdfPageMock, {
     page: activePage,
     totalPages: draft.pageCount,
     fields: fieldsOnActivePage,
     themeColor: themeColor,
     addingType: addingType,
+    selectedId: selectedId,
+    onSelectField: setSelectedId,
     onAddAt: addFieldAt,
     onMoveField: moveField,
     onRemoveField: removeField
@@ -11945,6 +13871,10 @@ const PREVIEW_TABS = [{
   id: 'next',
   label: 'Next steps'
 }, {
+  id: 'thanks',
+  label: 'Thank you',
+  postSign: true
+}, {
   id: 'email',
   label: 'Email'
 }];
@@ -11956,8 +13886,24 @@ const SECTION_TO_TAB = {
   terms: 'terms',
   docs: 'terms',
   next: 'next',
+  thanks: 'thanks',
   theme: 'splash',
   notify: 'email'
+};
+
+// Reverse: clicking a preview tab should open the editor accordion section
+// the reader is most likely to want to edit. Multiple tabs can point at the
+// same section (Packages + Services both → 'services' accordion).
+const TAB_TO_SECTION = {
+  splash: 'client',
+  intro: 'intro',
+  packages: 'services',
+  services: 'services',
+  pricing: 'payment',
+  terms: 'terms',
+  next: 'next',
+  thanks: 'thanks',
+  email: 'notify'
 };
 
 // Shared centering wrapper for the in-editor Live preview pane. The templated
@@ -12123,13 +14069,16 @@ const MediaCaption = ({
     }
   }, name)), action);
 };
+
+// Image render — filename caption removed; callers can render a real
+// user-supplied caption beneath using the same MediaCaption typography.
 const MediaImage = ({
   img,
   tpl,
   accent
 }) => {
   const frame = attachmentFrame(tpl, accent);
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("div", {
     style: {
       ...frame,
       overflow: 'hidden',
@@ -12145,26 +14094,54 @@ const MediaImage = ({
       objectFit: 'cover',
       borderRadius: tpl.id === 'editorial' ? 0 : frame.borderRadius - 4
     }
-  })), /*#__PURE__*/React.createElement(MediaCaption, {
-    tpl: tpl,
-    label: "IMAGE",
-    name: img.name || 'Attached image'
   }));
 };
 const MediaVideo = ({
   vid,
   tpl,
-  accent
+  accent,
+  hideCaption = false
 }) => {
   const frame = attachmentFrame(tpl, accent);
   const isUrl = vid?.mime === 'video/url';
+  const hasPlayableFile = !!vid?.url && !isUrl;
   const title = isUrl ? vid.url || 'Watch the intro video' : vid.name || 'Intro video';
   const accentText = contrastText(accent);
+
+  // If we have an actual playable file (data URL or blob URL), render a real
+  // <video> element with controls. This is what makes the prototype feel
+  // real when reviewers upload a clip. External embeds (YouTube/Vimeo/Loom)
+  // still fall through to the gradient + open-link treatment.
+  if (hasPlayableFile) {
+    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...frame,
+        position: 'relative',
+        height: 'auto',
+        background: '#000',
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("video", {
+      src: vid.url,
+      controls: true,
+      preload: "metadata",
+      style: {
+        display: 'block',
+        width: '100%',
+        maxHeight: 360,
+        objectFit: 'contain',
+        background: '#000'
+      }
+    })), !hideCaption && /*#__PURE__*/React.createElement(MediaCaption, {
+      tpl: tpl,
+      label: "WATCH",
+      name: title
+    }));
+  }
   return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       ...frame,
       position: 'relative',
-      // Big thumbnail-like area — gradient if we don't have an actual thumbnail
       height: 240,
       background: tpl.id === 'boutique' ? `linear-gradient(135deg, ${withAlpha(accent, 0.12)} 0%, ${withAlpha(accent, 0.06)} 100%)` : tpl.id === 'editorial' ? `linear-gradient(180deg, #0F1117 0%, #2D3142 100%)` : `linear-gradient(135deg, ${accent} 0%, ${darkenHex(accent, 0.30)} 100%)`,
       display: 'flex',
@@ -12180,7 +14157,10 @@ const MediaVideo = ({
       backgroundImage: `radial-gradient(rgba(255,255,255,${tpl.id === 'editorial' ? 0.06 : 0.10}) 1px, transparent 1px)`,
       backgroundSize: '14px 14px'
     }
-  }), /*#__PURE__*/React.createElement("button", {
+  }), /*#__PURE__*/React.createElement("a", {
+    href: isUrl ? vid.url : '#',
+    target: isUrl ? '_blank' : undefined,
+    rel: isUrl ? 'noopener noreferrer' : undefined,
     style: {
       position: 'relative',
       zIndex: 1,
@@ -12195,7 +14175,8 @@ const MediaVideo = ({
       alignItems: 'center',
       justifyContent: 'center',
       boxShadow: '0 14px 36px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.10)',
-      transition: 'transform 0.12s'
+      transition: 'transform 0.12s',
+      textDecoration: 'none'
     },
     onMouseEnter: e => e.currentTarget.style.transform = 'scale(1.05)',
     onMouseLeave: e => e.currentTarget.style.transform = 'scale(1)'
@@ -12219,18 +14200,21 @@ const MediaVideo = ({
       color: tpl.id === 'boutique' ? T.muted : withAlpha('#FFFFFF', 0.85),
       letterSpacing: 1.4
     }
-  }, isUrl ? 'Video · link' : 'Video')), /*#__PURE__*/React.createElement(MediaCaption, {
+  }, isUrl ? 'Video · link' : 'Video')), !hideCaption && /*#__PURE__*/React.createElement(MediaCaption, {
     tpl: tpl,
     label: "WATCH",
     name: title,
-    action: /*#__PURE__*/React.createElement("span", {
+    action: isUrl ? /*#__PURE__*/React.createElement("a", {
+      href: vid.url,
+      target: "_blank",
+      rel: "noopener noreferrer",
       style: {
         fontSize: 12,
         color: accent,
         fontWeight: 600,
-        cursor: 'pointer'
+        textDecoration: 'none'
       }
-    }, "Open \u2197")
+    }, "Open \u2197") : null
   }));
 };
 const MediaPdf = ({
@@ -13346,6 +15330,16 @@ const PreviewNext = ({
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
 }));
+const PreviewThanks = ({
+  state,
+  set
+}) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullThanksPage, {
+  state: state,
+  set: set,
+  accent: state.themeColor || T.primary,
+  template: getTemplate(state),
+  showEditorBanner: true
+}));
 
 // Render-tokens variant tuned for the email preview — merge fields appear as a
 // subtle inline tag instead of a jarring amber pill, so the message reads like
@@ -13378,6 +15372,43 @@ const renderTokensSoft = (text, accent = T.primary) => {
   });
 };
 
+// Resolve `{{ field_name }}` placeholders against state so the recipient
+// preview reads as the actual email/message that would land in the inbox
+// ("Hi Shravya," instead of "Hi {{ contact_first_name }}"). Falls back to a
+// readable label for unknown tokens so the user can still spot stray fields.
+const buildTokenMap = (state, recipient) => {
+  const firstName = (() => {
+    if (recipient?.label) return recipient.label.split(/\s+/)[0];
+    if (state.clientContacts?.[0]?.userId) {
+      const u = (state.users || []).find(x => x.id === state.clientContacts[0].userId);
+      if (u?.firstName) return u.firstName;
+    }
+    return state.client ? state.client.split(/\s+/)[0] : 'there';
+  })();
+  const fullName = recipient?.label || state.client || 'there';
+  const email = recipient?.value || state.clientEmail || '';
+  return {
+    contact_first_name: firstName,
+    contact_full_name: fullName,
+    contact_name: fullName,
+    contact_email: email,
+    client_business: state.client || '',
+    client_name: state.client || '',
+    practice_name: practiceOf(state),
+    advisor_name: advisorOf(state) || practiceOf(state),
+    proposal_name: state.proposalName || 'Advisory retainer',
+    proposal_link: 'https://sole.app/p/' + (state.proposalId || 'preview')
+  };
+};
+const resolveTokens = (text, state, recipient) => {
+  if (!text) return '';
+  const map = buildTokenMap(state, recipient);
+  return text.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (_, k) => {
+    const v = map[k.toLowerCase()];
+    return v != null && v !== '' ? String(v) : `{{ ${k} }}`;
+  });
+};
+
 // Initials → small colored avatar
 const initialsFor = str => {
   if (!str) return '·';
@@ -13395,7 +15426,13 @@ const PreviewEmail = ({
   const fromLabel = state.introFrom || 'Test User <org2@yopmail.com>';
   const accent = state.themeColor || T.primary;
   const accentText = contrastText(accent);
-  const body = state[channel + 'Content'] || '';
+  const rawBody = state[channel + 'Content'] || '';
+  const firstRecipient = recipients[0];
+  // Right-hand preview is "what the client sees" — resolve all merge fields
+  // to real values so the demo doesn't surface raw {{ contact_first_name }}.
+  const body = resolveTokens(rawBody, state, firstRecipient);
+  const subjectRaw = state.subject || `Your proposal from ${practiceOf(state)}`;
+  const subjectResolved = resolveTokens(subjectRaw, state, firstRecipient);
 
   // Parse "Display name <email>"
   const fromMatch = fromLabel.match(/^(.*?)<(.+?)>\s*$/);
@@ -13530,7 +15567,7 @@ const PreviewEmail = ({
         position: 'relative',
         boxShadow: '0 1px 1px rgba(0,0,0,0.08)'
       }
-    }, body ? renderTokensSoft(body, accent) : /*#__PURE__*/React.createElement("span", {
+    }, body ? body : /*#__PURE__*/React.createElement("span", {
       style: {
         opacity: 0.7
       }
@@ -13615,7 +15652,7 @@ const PreviewEmail = ({
       lineHeight: 1.3,
       letterSpacing: '-0.01em'
     }
-  }, state.subject || `Your proposal from ${practiceOf(state)}`), /*#__PURE__*/React.createElement("div", {
+  }, subjectResolved), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -13755,7 +15792,7 @@ const PreviewEmail = ({
       whiteSpace: 'pre-wrap',
       fontFamily: '"Inter", -apple-system, sans-serif'
     }
-  }, body ? renderTokensSoft(body, accent) : /*#__PURE__*/React.createElement("span", {
+  }, body ? body : /*#__PURE__*/React.createElement("span", {
     style: {
       color: T.muted,
       fontStyle: 'italic'
@@ -13906,6 +15943,9 @@ const LivePreview = ({
     set: set
   });else if (activeTab === 'next') body = /*#__PURE__*/React.createElement(PreviewNext, {
     state: state
+  });else if (activeTab === 'thanks') body = /*#__PURE__*/React.createElement(PreviewThanks, {
+    state: state,
+    set: set
   });else body = /*#__PURE__*/React.createElement(PreviewEmail, {
     state: state
   });
@@ -13944,12 +15984,7 @@ const LivePreview = ({
       fontWeight: 600,
       color: T.textSoft
     }
-  }, "Live preview"), /*#__PURE__*/React.createElement(Pill, {
-    color: "accent",
-    style: {
-      fontSize: 10
-    }
-  }, "Client view")), /*#__PURE__*/React.createElement(Btn, {
+  }, "Live client preview")), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
     iconRight: "eye",
@@ -13977,9 +16012,27 @@ const LivePreview = ({
       fontWeight: activeTab === t.id ? 600 : 500,
       fontSize: 12,
       cursor: 'pointer',
-      whiteSpace: 'nowrap'
+      whiteSpace: 'nowrap',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
     }
-  }, t.label))), /*#__PURE__*/React.createElement("div", {
+  }, t.label, t.postSign && /*#__PURE__*/React.createElement("span", {
+    title: "Only shown to the client after they sign",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 14,
+      height: 14,
+      borderRadius: 4,
+      background: activeTab === t.id ? withAlpha(T.primary, 0.18) : T.fieldBg,
+      color: activeTab === t.id ? T.primary : T.muted,
+      fontSize: 9,
+      fontWeight: 700,
+      letterSpacing: 0
+    }
+  }, "\u2605")))), /*#__PURE__*/React.createElement("div", {
     className: "scroll-area",
     style: {
       flex: 1,
@@ -13993,7 +16046,7 @@ const LivePreview = ({
       '--page-h': 'clamp(540px, calc(100vh - 200px), 1075px)'
     }
   }, /*#__PURE__*/React.createElement("div", {
-    key: (state.template || 'modern') + '|' + state.themeColor + '|' + (state.brandFetched ? '1' : '0'),
+    key: [state.template || 'modern', state.themeColor, state.themeAccent, state.brandInitial || '', state.brandFont || '', state.brandFetched ? '1' : '0'].join('|'),
     style: {
       animation: 'fadein 0.25s ease'
     }
@@ -14003,9 +16056,15 @@ const LivePreview = ({
 // =====================================================
 // FULL CLIENT PREVIEW (overlay)
 // =====================================================
-const FULL_PREVIEW_PAGES = [{
+// Page list is now state-aware: the 'thanks' page only appears once the
+// client has signed, so the stepper / PDF doesn't expose a celebratory page
+// before there's anything to celebrate. TOC is always shown.
+const FULL_PREVIEW_PAGES_BASE = [{
   id: 'cover',
   label: 'Cover'
+}, {
+  id: 'toc',
+  label: 'Contents'
 }, {
   id: 'intro',
   label: 'Introduction'
@@ -14030,6 +16089,51 @@ const FULL_PREVIEW_PAGES = [{
 }, {
   id: 'next',
   label: 'Next Step'
+}];
+// Include 'thanks' in the page list whenever the author hasn't switched it
+// off. The preview surfaces an editor-only banner explaining the page only
+// renders for the client *after* they sign.
+const getFullPreviewPages = state => {
+  const base = [...FULL_PREVIEW_PAGES_BASE];
+  if (state.thanksEnabled !== false) base.push({
+    id: 'thanks',
+    label: 'Thank you'
+  });
+  return base;
+};
+// Kept for any legacy reference; consumers should call getFullPreviewPages(state).
+const FULL_PREVIEW_PAGES = FULL_PREVIEW_PAGES_BASE;
+
+// Default partner / referral offers shown on the Thank-you page. Cloned
+// into state.partnerOffers on first edit so authors can toggle individual
+// perks, tweak the copy, or add their own.
+const DEFAULT_PARTNER_OFFERS = [{
+  id: 'sprintlaw',
+  name: 'Sprintlaw',
+  tagline: 'Affordable legal services for small business',
+  offer: '$250 voucher towards legal templates & advice',
+  fine: 'Valid for new clients. Use code SOLE250 at checkout.',
+  cta: 'Claim voucher',
+  color: '#FF5E3A',
+  initial: 'S'
+}, {
+  id: 'insight',
+  name: 'Insight Digital',
+  tagline: 'Marketing growth for accountants & their clients',
+  offer: 'Free digital health check + 30-min business plan session',
+  fine: 'No obligation. Booked directly with our partner consultant.',
+  cta: 'Book free audit',
+  color: '#6D4AFF',
+  initial: 'I'
+}, {
+  id: 'bizcover',
+  name: 'BizCover',
+  tagline: 'Compare business insurance in minutes',
+  offer: 'Get a comparison quote · 10% off your first policy',
+  fine: 'Australia\'s largest small-business insurance marketplace.',
+  cta: 'Get a quote',
+  color: '#0EA5E9',
+  initial: 'B'
 }];
 const FullPreviewLogo = ({
   state,
@@ -14450,19 +16554,23 @@ const TplDivider = ({
 
 // Document-grade footer with section name + page number — this is the single
 // move that elevates the whole thing to feel like a real proposal document.
-// Pass `chapter` (1-8) so we can compute Page N of 9. The cover doesn't use this.
-const TPL_TOTAL_PAGES = 9;
+// Pass `chapter` (1-8) for normal sections; the formula puts Introduction
+// at page 3 (Cover=1, Contents=2, Introduction=3 …). Pages outside this
+// scheme — TOC, Thank-you — pass an explicit `pageNum` override.
+const tplTotalPages = state => 10 + (state && state.signedAt ? 1 : 0);
 const TplFooter = ({
   template,
   accent,
   state,
   chapter,
   sectionLabel,
-  prepared
+  prepared,
+  pageNum
 }) => {
   prepared = prepared || practiceOf(state);
-  const pageNum = (chapter || 0) + 1; // chapter 1 → page 2 (cover is 1)
-  const pageStr = `${String(pageNum).padStart(2, '0')} / ${String(TPL_TOTAL_PAGES).padStart(2, '0')}`;
+  const num = pageNum != null ? pageNum : (chapter || 0) + 2; // +2: cover + TOC
+  const total = tplTotalPages(state);
+  const pageStr = `${String(num).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
   const brandInitial = state.brandInitial || 'S';
 
   // ============ BLANK ============
@@ -15359,6 +17467,862 @@ const FullCoverPage = ({
     accent: accStrong
   }))));
 };
+
+// Sections shown in the table of contents. Cover + TOC are intentionally
+// excluded — readers don't navigate to them, and listing "Contents" inside
+// itself is awkward. Page numbers follow the Cover=1, TOC=2, Introduction=3
+// scheme defined in TplFooter.
+const TOC_ENTRIES = [{
+  id: 'intro',
+  chapter: 1,
+  title: 'Introduction',
+  page: 3,
+  kicker: 'A note from your advisor'
+}, {
+  id: 'packages',
+  chapter: 2,
+  title: 'Packages',
+  page: 4,
+  kicker: 'How we work together'
+}, {
+  id: 'services',
+  chapter: 3,
+  title: 'Services',
+  page: 5,
+  kicker: 'Detailed line items'
+}, {
+  id: 'addons',
+  chapter: 4,
+  title: 'Add-ons',
+  page: 6,
+  kicker: 'Optional extras'
+}, {
+  id: 'pricing',
+  chapter: 5,
+  title: 'Pricing summary',
+  page: 7,
+  kicker: 'What you pay, when'
+}, {
+  id: 'payments',
+  chapter: 6,
+  title: 'Payment methods',
+  page: 8,
+  kicker: 'How you pay'
+}, {
+  id: 'review',
+  chapter: 7,
+  title: 'Review agreement',
+  page: 9,
+  kicker: 'Terms & signature'
+}, {
+  id: 'next',
+  chapter: 8,
+  title: 'Next steps',
+  page: 10,
+  kicker: 'After acceptance'
+}];
+const TocRow = ({
+  template,
+  accent,
+  entry,
+  onJump
+}) => {
+  const tpl = template;
+  const chapStr = String(entry.chapter).padStart(2, '0');
+  const pageStr = String(entry.page).padStart(2, '0');
+  const isEditorial = tpl.id === 'editorial';
+  const isBoutique = tpl.id === 'boutique';
+  const headingFont = isEditorial ? 'tpl-font-editorial-heading' : isBoutique ? 'tpl-font-boutique-heading' : 'tpl-font-modern-heading';
+  const titleSize = isEditorial ? 19 : isBoutique ? 21 : 17;
+  const titleWeight = isEditorial ? 600 : isBoutique ? 500 : 600;
+  const dotColor = isEditorial ? T.text : withAlpha(accent || T.primary, 0.45);
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onJump,
+    style: {
+      all: 'unset',
+      display: 'grid',
+      gridTemplateColumns: '34px 1fr auto',
+      alignItems: 'baseline',
+      padding: '14px 4px',
+      borderTop: `1px solid ${isEditorial ? T.text : T.border}`,
+      cursor: onJump ? 'pointer' : 'default',
+      gap: 14,
+      width: '100%'
+    },
+    onMouseEnter: e => {
+      if (onJump) e.currentTarget.style.background = withAlpha(accent || T.primary, 0.04);
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.background = 'transparent';
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "tpl-mono",
+    style: {
+      fontSize: 11,
+      color: isEditorial ? T.text : accent || T.primary,
+      fontWeight: 600,
+      letterSpacing: 0.4
+    }
+  }, chapStr), /*#__PURE__*/React.createElement("span", {
+    style: {
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: headingFont,
+    style: {
+      fontSize: titleSize,
+      fontWeight: titleWeight,
+      color: T.text,
+      letterSpacing: isEditorial ? '-0.005em' : 0,
+      flexShrink: 0
+    }
+  }, entry.title), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      height: 1,
+      marginBottom: 4,
+      borderBottom: `1px dotted ${dotColor}`,
+      minWidth: 30,
+      opacity: 0.7
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      fontStyle: isEditorial ? 'italic' : 'normal',
+      letterSpacing: 0.5,
+      flexShrink: 0
+    }
+  }, entry.kicker)), /*#__PURE__*/React.createElement("span", {
+    className: "tpl-mono",
+    style: {
+      fontSize: 12,
+      color: T.text,
+      fontWeight: 600,
+      fontVariantNumeric: 'tabular-nums',
+      letterSpacing: 0.4
+    }
+  }, pageStr));
+};
+const FullTocPage = ({
+  state,
+  accent,
+  template,
+  onJump
+}) => {
+  const tpl = template || getTemplate(state);
+  const acc = accent || state.themeColor || T.primary;
+  const entries = state.signedAt ? [...TOC_ENTRIES, {
+    id: 'thanks',
+    chapter: 9,
+    title: 'Thank you',
+    page: 11,
+    kicker: 'Optional perks'
+  }] : TOC_ENTRIES;
+  return /*#__PURE__*/React.createElement(TplPageWrap, {
+    template: tpl,
+    accent: acc
+  }, /*#__PURE__*/React.createElement(TplPageHeader, {
+    template: tpl,
+    accent: acc,
+    kicker: "Contents",
+    title: "Table of contents",
+    subtitle: tpl.id === 'boutique' ? 'A guide to what\'s inside.' : null
+  }), /*#__PURE__*/React.createElement(TplBody, {
+    template: tpl
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      borderBottom: `1px solid ${tpl.id === 'editorial' ? T.text : T.border}`
+    }
+  }, entries.map(e => /*#__PURE__*/React.createElement(TocRow, {
+    key: e.id,
+    template: tpl,
+    accent: acc,
+    entry: e,
+    onJump: onJump ? () => onJump(e.id) : undefined
+  }))), /*#__PURE__*/React.createElement(TplFooter, {
+    template: tpl,
+    accent: acc,
+    state: state,
+    pageNum: 2,
+    sectionLabel: "Contents",
+    prepared: practiceOf(state)
+  })));
+};
+
+// =====================================================
+// Thank-you page — appears only after the client has signed.
+// Shows a confirmation + curated partner perks (Sprintlaw / Insight /
+// BizCover). Designed to match the active template's typography.
+// =====================================================
+// Minimal perk row — meant to read as a small post-sign benefit, not a
+// marketing billboard. Single hairline rule top + bottom, small lockup,
+// plain CTA link in the page accent. The partner's brand colour only
+// shows up on the tiny initials chip.
+const PartnerOfferCard = ({
+  offer,
+  accent,
+  template
+}) => {
+  const tpl = template;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      padding: '14px 4px',
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: 5,
+      background: withAlpha(offer.color, 0.14),
+      color: offer.color,
+      fontWeight: 700,
+      fontSize: 11,
+      letterSpacing: 0.2,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, offer.initial), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      lineHeight: 1.2
+    }
+  }, offer.name), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      lineHeight: 1.2
+    }
+  }, "\xB7 ", offer.tagline)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft,
+      lineHeight: 1.45
+    }
+  }, offer.offer), offer.fine && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      lineHeight: 1.4
+    }
+  }, offer.fine), /*#__PURE__*/React.createElement("a", {
+    href: "#",
+    onClick: e => e.preventDefault(),
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: accent || T.primary,
+      textDecoration: 'none',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      alignSelf: 'flex-start'
+    }
+  }, offer.cta, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 11,
+    color: accent || T.primary
+  })));
+};
+
+// Editor-only banner shown above the Thank-you page in preview when the
+// client hasn't signed yet. Surfaces the "post-sign" context + an in-place
+// Manage offers entry point so authors don't have to dig for it.
+const ThanksEditorBanner = ({
+  state,
+  set,
+  accent
+}) => {
+  const [open, setOpen] = useState(false);
+  const acc = accent || T.primary;
+  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: withAlpha(acc, 0.10),
+      border: `1px solid ${withAlpha(acc, 0.28)}`,
+      borderRadius: 10,
+      padding: '10px 14px',
+      marginBottom: 18,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      fontSize: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: '50%',
+      background: withAlpha(acc, 0.20),
+      color: darkenHex(acc, 0.2),
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "eye",
+    size: 12
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      color: T.text
+    }
+  }, /*#__PURE__*/React.createElement("b", {
+    style: {
+      fontWeight: 600
+    }
+  }, "Editor preview."), ' ', "This page is only shown to the client after they sign the proposal."), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setOpen(true),
+    style: {
+      padding: '5px 11px',
+      border: `1px solid ${withAlpha(acc, 0.4)}`,
+      borderRadius: 6,
+      background: T.card,
+      color: darkenHex(acc, 0.18),
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "edit",
+    size: 11
+  }), " Manage offers")), /*#__PURE__*/React.createElement(ManageOffersModal, {
+    open: open,
+    onClose: () => setOpen(false),
+    state: state,
+    set: set
+  }));
+};
+const ManageOffersModal = ({
+  open,
+  onClose,
+  state,
+  set
+}) => {
+  const offers = state.partnerOffers || [];
+  const update = (id, patch) => set({
+    partnerOffers: offers.map(o => o.id === id ? {
+      ...o,
+      ...patch
+    } : o)
+  });
+  const remove = id => set({
+    partnerOffers: offers.filter(o => o.id !== id)
+  });
+  const addNew = () => set({
+    partnerOffers: [...offers, {
+      id: 'offer-' + Date.now().toString(36),
+      name: 'New partner',
+      tagline: 'Partner tagline',
+      offer: 'Describe the perk on offer',
+      fine: 'Optional fine print.',
+      cta: 'Claim offer',
+      color: '#10B981',
+      initial: 'P',
+      enabled: true
+    }]
+  });
+  const reset = () => set({
+    partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
+      ...o,
+      enabled: true
+    }))
+  });
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: "Manage thank-you offers",
+    subtitle: "Toggle, edit, or add the partner perks shown to clients after they sign.",
+    width: 720
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      maxHeight: '55vh',
+      overflowY: 'auto'
+    }
+  }, offers.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 18,
+      borderRadius: 8,
+      border: `1px dashed ${T.border}`,
+      color: T.muted,
+      fontSize: 13,
+      textAlign: 'center'
+    }
+  }, "No partner offers configured. Add one below or reset to defaults."), offers.map(o => /*#__PURE__*/React.createElement("div", {
+    key: o.id,
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: 12,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      background: o.color,
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: 13,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, o.initial), /*#__PURE__*/React.createElement("input", {
+    value: o.name,
+    onChange: e => update(o.id, {
+      name: e.target.value
+    }),
+    style: {
+      flex: 1,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      padding: '6px 8px',
+      borderRadius: 6,
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      outline: 'none'
+    }
+  }), /*#__PURE__*/React.createElement(Toggle, {
+    on: o.enabled !== false,
+    onChange: v => update(o.id, {
+      enabled: v
+    }),
+    size: "sm"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => remove(o.id),
+    title: "Remove offer",
+    style: {
+      width: 26,
+      height: 26,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      borderRadius: 4,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.background = T.redSoft;
+      e.currentTarget.style.color = T.red;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.background = 'transparent';
+      e.currentTarget.style.color = T.muted;
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 13
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    value: o.tagline,
+    placeholder: "Tagline",
+    onChange: e => update(o.id, {
+      tagline: e.target.value
+    }),
+    style: inputStyleSoft()
+  }), /*#__PURE__*/React.createElement("input", {
+    value: o.cta,
+    placeholder: "Button label",
+    onChange: e => update(o.id, {
+      cta: e.target.value
+    }),
+    style: inputStyleSoft()
+  }), /*#__PURE__*/React.createElement("input", {
+    value: o.offer,
+    placeholder: "Offer description",
+    onChange: e => update(o.id, {
+      offer: e.target.value
+    }),
+    style: {
+      ...inputStyleSoft(),
+      gridColumn: '1 / -1'
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: o.fine || '',
+    placeholder: "Fine print (optional)",
+    onChange: e => update(o.id, {
+      fine: e.target.value
+    }),
+    style: {
+      ...inputStyleSoft(),
+      gridColumn: '1 / -1'
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 11,
+      color: T.muted,
+      gridColumn: '1 / -1',
+      marginTop: 2
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Brand colour"), /*#__PURE__*/React.createElement("input", {
+    type: "color",
+    value: o.color,
+    onChange: e => update(o.id, {
+      color: e.target.value
+    }),
+    style: {
+      width: 28,
+      height: 22,
+      border: 'none',
+      padding: 0,
+      borderRadius: 4,
+      cursor: 'pointer'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "tpl-mono",
+    style: {
+      fontSize: 11,
+      color: T.textSoft,
+      textTransform: 'uppercase'
+    }
+  }, o.color), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("span", null, "Initial"), /*#__PURE__*/React.createElement("input", {
+    value: o.initial || '',
+    maxLength: 2,
+    onChange: e => update(o.id, {
+      initial: e.target.value.toUpperCase()
+    }),
+    style: {
+      width: 36,
+      ...inputStyleSoft()
+    }
+  })))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 18,
+      paddingTop: 14,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    onClick: addNew
+  }, "Add offer"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: reset
+  }, "Reset to defaults"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    onClick: onClose
+  }, "Done"))));
+};
+const inputStyleSoft = () => ({
+  border: `1px solid ${T.border}`,
+  background: T.card,
+  padding: '5px 8px',
+  borderRadius: 6,
+  fontSize: 12,
+  color: T.textSoft,
+  outline: 'none',
+  fontFamily: 'inherit'
+});
+const FullThanksPage = ({
+  state,
+  set,
+  accent,
+  template,
+  showEditorBanner = false
+}) => {
+  const tpl = template || getTemplate(state);
+  const acc = accent || state.themeColor || T.primary;
+  const accDark = darkenHex(acc, 0.18);
+  const accText = contrastText(acc);
+  const clientName = state.client || 'there';
+  const practice = practiceOf(state);
+  const adv = advisorOf(state);
+  const signedName = state.signedName || clientName;
+  const stamp = state.signedAt ? new Date(state.signedAt).toLocaleString('en-AU', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : null;
+  const isEditorial = tpl.id === 'editorial';
+  const isBoutique = tpl.id === 'boutique';
+  const offers = (state.partnerOffers || []).filter(o => o.enabled !== false);
+  // Resolve merge tokens in the editable copy.
+  const recipient = (state.notifyRecipients || [])[0];
+  const heading = resolveTokens(state.thanksHeading || `Thank you, ${clientName}.`, state, recipient);
+  const subtitle = resolveTokens(state.thanksSubtitle || `Your engagement with ${practice} is officially under way${adv ? `. ${adv} will be your dedicated advisor` : ''}. We'll be in touch within one business day with your onboarding pack.`, state, recipient);
+  return /*#__PURE__*/React.createElement(Fragment, null, showEditorBanner && !state.signedAt && set && /*#__PURE__*/React.createElement(ThanksEditorBanner, {
+    state: state,
+    set: set,
+    accent: acc
+  }), /*#__PURE__*/React.createElement(TplPageWrap, {
+    template: tpl,
+    accent: acc
+  }, /*#__PURE__*/React.createElement(TplBody, {
+    template: tpl,
+    style: {
+      paddingTop: isEditorial ? 56 : 48
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '8px 8px 24px',
+      marginBottom: 28
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 56,
+      height: 56,
+      borderRadius: '50%',
+      background: withAlpha(acc, 0.14),
+      color: acc,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 26,
+    color: accDark,
+    strokeWidth: 2.6
+  })), /*#__PURE__*/React.createElement("div", {
+    className: tpl.headingClass,
+    style: {
+      fontSize: isEditorial ? 38 : isBoutique ? 40 : 34,
+      fontWeight: isBoutique ? 500 : 700,
+      color: T.text,
+      lineHeight: 1.05,
+      letterSpacing: isBoutique ? 0 : '-0.01em',
+      fontStyle: isBoutique ? 'italic' : 'normal',
+      marginBottom: 12
+    }
+  }, heading), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      color: T.textSoft,
+      lineHeight: 1.55,
+      maxWidth: 540,
+      margin: '0 auto',
+      whiteSpace: 'pre-wrap'
+    }
+  }, subtitle), stamp && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      fontSize: 12,
+      color: T.muted,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '5px 12px',
+      borderRadius: 999,
+      background: withAlpha(acc, 0.08),
+      border: `1px solid ${withAlpha(acc, 0.2)}`
+    }
+  }, "Signed by ", /*#__PURE__*/React.createElement("b", {
+    style: {
+      color: T.text,
+      fontWeight: 600
+    }
+  }, signedName), " \xB7 ", stamp)), offers.length > 0 && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(TplDivider, {
+    template: tpl,
+    accent: acc,
+    marginY: 4
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: tpl.headingClass,
+    style: {
+      fontSize: 14,
+      fontWeight: 600,
+      color: T.text,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      marginBottom: 4
+    }
+  }, resolveTokens(state.thanksPerksTitle || 'A few perks, on us', state, recipient)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.muted,
+      lineHeight: 1.5,
+      marginBottom: 10,
+      maxWidth: 560
+    }
+  }, resolveTokens(state.thanksPerksIntro || `Optional benefits from ${practice}'s partner network — claim any that are useful, no obligation.`, state, recipient)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      borderBottom: `1px solid ${T.border}`
+    }
+  }, offers.map(o => /*#__PURE__*/React.createElement(PartnerOfferCard, {
+    key: o.id,
+    offer: o,
+    accent: acc,
+    template: tpl
+  }))))), /*#__PURE__*/React.createElement(TplFooter, {
+    template: tpl,
+    accent: acc,
+    state: state,
+    pageNum: 11,
+    sectionLabel: "Thank you",
+    prepared: `${practice} · Welcome aboard`
+  }))));
+};
+
+// Renders the introBlocks list (text / image / video) into themed paragraphs
+// and inline media. Drops the leading greeting from the first text block if
+// the surrounding page already shows one as the header.
+const IntroBlockRender = ({
+  state,
+  tpl,
+  acc,
+  stripLeadingGreeting
+}) => {
+  const blocks = getIntroBlocks(state);
+  const greetingRe = /^\s*(hi|hello|hey|dear|good\s+(morning|afternoon|evening))/i;
+  return /*#__PURE__*/React.createElement(Fragment, null, blocks.map((b, i) => {
+    if (b.type === 'text') {
+      let lines = (b.content || '').split('\n').filter(l => l.trim().length > 0);
+      if (i === 0 && stripLeadingGreeting && lines.length > 0 && greetingRe.test(lines[0])) {
+        lines = lines.slice(1);
+      }
+      if (lines.length === 0) return null;
+      return /*#__PURE__*/React.createElement("div", {
+        key: b.id,
+        style: {
+          marginBottom: 6
+        }
+      }, lines.map((l, j) => /*#__PURE__*/React.createElement("p", {
+        key: j,
+        style: {
+          margin: '0 0 14px'
+        }
+      }, l)));
+    }
+    if (b.type === 'image' && b.src) {
+      return /*#__PURE__*/React.createElement("div", {
+        key: b.id,
+        style: {
+          margin: '18px 0',
+          display: 'flex',
+          justifyContent: 'center'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          width: `${b.width || 100}%`,
+          maxWidth: '100%'
+        }
+      }, /*#__PURE__*/React.createElement(MediaImage, {
+        img: {
+          url: b.src,
+          name: b.name || ''
+        },
+        tpl: tpl,
+        accent: acc
+      }), b.caption && /*#__PURE__*/React.createElement("div", {
+        className: tpl.id === 'editorial' ? 'tpl-font-editorial-heading' : tpl.id === 'boutique' ? 'tpl-font-boutique-heading' : '',
+        style: {
+          marginTop: 10,
+          textAlign: 'center',
+          fontSize: tpl.id === 'boutique' ? 13 : 12,
+          color: T.textSoft,
+          fontStyle: 'italic',
+          letterSpacing: 0.1
+        }
+      }, b.caption)));
+    }
+    if (b.type === 'video' && b.src) {
+      return /*#__PURE__*/React.createElement("div", {
+        key: b.id,
+        style: {
+          margin: '18px 0',
+          display: 'flex',
+          justifyContent: 'center'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          width: `${b.width || 100}%`,
+          maxWidth: '100%'
+        }
+      }, /*#__PURE__*/React.createElement(MediaVideo, {
+        vid: {
+          url: b.src,
+          name: b.name || '',
+          mime: b.isUrl ? 'video/url' : ''
+        },
+        tpl: tpl,
+        accent: acc,
+        hideCaption: true
+      }), b.caption && /*#__PURE__*/React.createElement("div", {
+        className: tpl.id === 'editorial' ? 'tpl-font-editorial-heading' : tpl.id === 'boutique' ? 'tpl-font-boutique-heading' : '',
+        style: {
+          marginTop: 10,
+          textAlign: 'center',
+          fontSize: tpl.id === 'boutique' ? 13 : 12,
+          color: T.textSoft,
+          fontStyle: 'italic',
+          letterSpacing: 0.1
+        }
+      }, b.caption)));
+    }
+    return null;
+  }));
+};
 const FullIntroPage = ({
   state,
   accent,
@@ -15366,11 +18330,14 @@ const FullIntroPage = ({
 }) => {
   const tpl = template || getTemplate(state);
   const acc = accent || state.themeColor || T.primary;
-  const intro = state.introContent || 'Welcome to your proposal.';
-  // If the user's intro already opens with a greeting, don't double up.
-  const startsWithGreeting = /^\s*(hi|hello|hey|dear|good\s+(morning|afternoon|evening))/i.test(intro);
+  const blocks = getIntroBlocks(state);
+  // First text block's first line, used to decide whether to suppress the
+  // auto-generated "Hi {client}," greeting because the user has written
+  // their own.
+  const firstText = (blocks.find(b => b.type === 'text')?.content || '').split('\n').filter(l => l.trim())[0] || '';
+  const greetingRe = /^\s*(hi|hello|hey|dear|good\s+(morning|afternoon|evening))/i;
+  const startsWithGreeting = greetingRe.test(firstText);
   const greeting = `Hi ${state.client || 'there'},`;
-  const paragraphs = intro.split('\n').filter(Boolean);
   if (tpl.id === 'editorial') {
     return /*#__PURE__*/React.createElement(TplPageWrap, {
       template: tpl,
@@ -15398,18 +18365,12 @@ const FullIntroPage = ({
         lineHeight: 1.75,
         color: T.text
       }
-    }, paragraphs.map((p, i) => /*#__PURE__*/React.createElement("p", {
-      key: i,
-      style: {
-        margin: '0 0 14px',
-        // Drop-cap on first paragraph for editorial flavor
-        ...(i === 0 && !startsWithGreeting ? {} : {})
-      }
-    }, p))), /*#__PURE__*/React.createElement(IntroMediaPreview, {
+    }, /*#__PURE__*/React.createElement(IntroBlockRender, {
       state: state,
-      template: tpl,
-      accent: acc
-    }), /*#__PURE__*/React.createElement(TplFooter, {
+      tpl: tpl,
+      acc: acc,
+      stripLeadingGreeting: startsWithGreeting
+    })), /*#__PURE__*/React.createElement(TplFooter, {
       template: tpl,
       accent: acc,
       state: state,
@@ -15426,7 +18387,7 @@ const FullIntroPage = ({
       template: tpl,
       accent: acc,
       kicker: `01 · Introduction`,
-      title: startsWithGreeting ? paragraphs[0] || greeting : greeting,
+      title: startsWithGreeting ? firstText : greeting,
       subtitle: startsWithGreeting ? null : 'A short note before we get into the specifics.'
     }), /*#__PURE__*/React.createElement(TplBody, {
       template: tpl
@@ -15436,16 +18397,12 @@ const FullIntroPage = ({
         lineHeight: 1.72,
         color: T.text
       }
-    }, (startsWithGreeting ? paragraphs.slice(1) : paragraphs).map((p, i) => /*#__PURE__*/React.createElement("p", {
-      key: i,
-      style: {
-        margin: '0 0 14px'
-      }
-    }, p))), /*#__PURE__*/React.createElement(IntroMediaPreview, {
+    }, /*#__PURE__*/React.createElement(IntroBlockRender, {
       state: state,
-      template: tpl,
-      accent: acc
-    }), /*#__PURE__*/React.createElement(TplFooter, {
+      tpl: tpl,
+      acc: acc,
+      stripLeadingGreeting: startsWithGreeting
+    })), /*#__PURE__*/React.createElement(TplFooter, {
       template: tpl,
       accent: acc,
       state: state,
@@ -15455,9 +18412,7 @@ const FullIntroPage = ({
     })));
   }
 
-  // Boutique — letter-style, refined serif body, Cormorant italic signature
-  // (instead of Caveat which fails contrast at small sizes). Generous reading
-  // measure, accessible body size, restrained ornament.
+  // Boutique — letter-style, refined serif body, Cormorant italic signature.
   const adv = advisorOf(state);
   const practice = practiceOf(state);
   return /*#__PURE__*/React.createElement(TplPageWrap, {
@@ -15478,16 +18433,12 @@ const FullIntroPage = ({
       color: T.text,
       maxWidth: 580
     }
-  }, (startsWithGreeting ? paragraphs.slice(1) : paragraphs).map((p, i) => /*#__PURE__*/React.createElement("p", {
-    key: i,
-    style: {
-      margin: '0 0 14px'
-    }
-  }, p))), /*#__PURE__*/React.createElement(IntroMediaPreview, {
+  }, /*#__PURE__*/React.createElement(IntroBlockRender, {
     state: state,
-    template: tpl,
-    accent: acc
-  }), /*#__PURE__*/React.createElement(TplDivider, {
+    tpl: tpl,
+    acc: acc,
+    stripLeadingGreeting: startsWithGreeting
+  })), /*#__PURE__*/React.createElement(TplDivider, {
     template: tpl,
     accent: acc,
     marginY: 26
@@ -16102,6 +19053,31 @@ const FullAddonsPage = ({
     sectionLabel: "Add-ons"
   })));
 };
+
+// Shared computation used by both pricing summary and payments page so the
+// number is consistent across surfaces. When the user requires payment on
+// sign, we include the first cycle of any recurring group whose start
+// trigger is "acceptance" — that's the amount the card would actually be
+// charged when the engagement kicks off.
+const computePayable = state => {
+  const monthlyEq = state.packages.reduce((sum, p) => sum + p.groups.reduce((s, g) => {
+    if (g.type && g.type !== 'recurring') return s;
+    return s + groupSubtotal(g) / cycleOf(g).m;
+  }, 0), 0);
+  const oneTime = state.packages.reduce((sum, p) => sum + p.groups.reduce((s, g) => g.type === 'oneoff' || g.type === 'deposit' ? s + groupSubtotal(g) : s, 0), 0);
+  const recurringDueOnAcceptance = state.packages.reduce((sum, p) => sum + p.groups.reduce((s, g) => {
+    const isRec = !g.type || g.type === 'recurring';
+    const startsNow = !g.startBillingOn || g.startBillingOn === 'acceptance';
+    return isRec && startsNow ? s + groupSubtotal(g) : s;
+  }, 0), 0);
+  const payableOnAcceptance = state.paymentRequired ? oneTime + recurringDueOnAcceptance : oneTime;
+  return {
+    monthlyEq,
+    oneTime,
+    recurringDueOnAcceptance,
+    payableOnAcceptance
+  };
+};
 const FullPricingPage = ({
   state,
   accent,
@@ -16109,12 +19085,11 @@ const FullPricingPage = ({
 }) => {
   const tpl = template || getTemplate(state);
   const acc = accent || state.themeColor || T.primary;
-  const monthlyEq = state.packages.reduce((sum, p) => sum + p.groups.reduce((s, g) => {
-    if (g.type && g.type !== 'recurring') return s;
-    return s + groupSubtotal(g) / cycleOf(g).m;
-  }, 0), 0);
-  const oneTime = state.packages.reduce((sum, p) => sum + p.groups.reduce((s, g) => g.type === 'oneoff' || g.type === 'deposit' ? s + groupSubtotal(g) : s, 0), 0);
-  const payableOnAcceptance = state.paymentRequired ? oneTime : 0;
+  const {
+    monthlyEq,
+    oneTime,
+    payableOnAcceptance
+  } = computePayable(state);
 
   // ---- Editorial: hairline-ruled financial statement look ----
   if (tpl.id === 'editorial') {
@@ -16474,6 +19449,10 @@ const FullPaymentsPage = ({
   const tpl = template || getTemplate(state);
   const acc = accent || state.themeColor || T.primary;
   const pillFg = contrastText(acc);
+  const {
+    payableOnAcceptance
+  } = computePayable(state);
+  const amount = fmtMoney(payableOnAcceptance);
   const cardContent = /*#__PURE__*/React.createElement(React.Fragment, null, tpl.id === 'editorial' ? /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '18px 0',
@@ -16510,7 +19489,7 @@ const FullPaymentsPage = ({
       fontSize: 26,
       fontVariantNumeric: 'tabular-nums'
     }
-  }, "$0.00"), state.paymentRequired && /*#__PURE__*/React.createElement("button", {
+  }, amount), state.paymentRequired && /*#__PURE__*/React.createElement("button", {
     style: {
       marginTop: 8,
       padding: '6px 14px',
@@ -16563,7 +19542,7 @@ const FullPaymentsPage = ({
       fontVariantNumeric: 'tabular-nums',
       color: acc
     }
-  }, "$0.00"), state.paymentRequired && /*#__PURE__*/React.createElement("button", {
+  }, amount), state.paymentRequired && /*#__PURE__*/React.createElement("button", {
     style: {
       marginTop: 6,
       padding: '7px 16px',
@@ -16612,7 +19591,7 @@ const FullPaymentsPage = ({
       fontVariantNumeric: 'tabular-nums',
       letterSpacing: '-0.02em'
     }
-  }, "$0.00"), state.paymentRequired && /*#__PURE__*/React.createElement("button", {
+  }, amount), state.paymentRequired && /*#__PURE__*/React.createElement("button", {
     style: {
       marginTop: 8,
       padding: '7px 18px',
@@ -16982,6 +19961,13 @@ const PDFDocument = ({
   })), /*#__PURE__*/React.createElement("div", {
     className: "pdf-page",
     style: pageStyle
+  }, /*#__PURE__*/React.createElement(FullTocPage, {
+    state: state,
+    accent: accent,
+    template: template
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "pdf-page",
+    style: pageStyle
   }, /*#__PURE__*/React.createElement(FullIntroPage, {
     state: state,
     accent: accent,
@@ -17035,6 +20021,13 @@ const PDFDocument = ({
     state: state,
     accent: accent,
     template: template
+  })), state.signedAt && /*#__PURE__*/React.createElement("div", {
+    className: "pdf-page",
+    style: pageStyle
+  }, /*#__PURE__*/React.createElement(FullThanksPage, {
+    state: state,
+    accent: accent,
+    template: template
   }))), host);
 };
 const FullPreview = ({
@@ -17045,10 +20038,11 @@ const FullPreview = ({
   const accent = state.themeColor || '#F5C518';
   const accentText = contrastText(accent);
   const template = getTemplate(state);
+  const pages = getFullPreviewPages(state);
   const [page, setPage] = useState('cover');
-  const idx = FULL_PREVIEW_PAGES.findIndex(p => p.id === page);
-  const prev = idx > 0 ? FULL_PREVIEW_PAGES[idx - 1] : null;
-  const next = idx < FULL_PREVIEW_PAGES.length - 1 ? FULL_PREVIEW_PAGES[idx + 1] : null;
+  const idx = pages.findIndex(p => p.id === page);
+  const prev = idx > 0 ? pages[idx - 1] : null;
+  const next = idx < pages.length - 1 ? pages[idx + 1] : null;
   const [downloadOpen, setDownloadOpen] = useState(false);
   useEffect(() => {
     const onKey = e => {
@@ -17057,6 +20051,19 @@ const FullPreview = ({
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  // When the client signs in this view, slide to the new Thank-you page so
+  // the experience closes on a high note rather than leaving them on the
+  // review surface with a "signed" pill.
+  const wasSignedRef = useRef(!!state.signedAt);
+  useEffect(() => {
+    if (state.signedAt && !wasSignedRef.current) {
+      wasSignedRef.current = true;
+      setPage('thanks');
+    } else if (!state.signedAt) {
+      wasSignedRef.current = false;
+    }
+  }, [state.signedAt]);
   const pageProps = {
     state,
     accent,
@@ -17065,8 +20072,13 @@ const FullPreview = ({
   let body;
   if (page === 'cover') body = /*#__PURE__*/React.createElement(FullCoverPage, _extends({}, pageProps, {
     onOpenIntro: () => setPage('intro')
+  }));else if (page === 'toc') body = /*#__PURE__*/React.createElement(FullTocPage, _extends({}, pageProps, {
+    onJump: setPage
   }));else if (page === 'intro') body = /*#__PURE__*/React.createElement(FullIntroPage, pageProps);else if (page === 'packages') body = /*#__PURE__*/React.createElement(FullPackagesPage, pageProps);else if (page === 'services') body = /*#__PURE__*/React.createElement(FullServicesPage, pageProps);else if (page === 'addons') body = /*#__PURE__*/React.createElement(FullAddonsPage, pageProps);else if (page === 'pricing') body = /*#__PURE__*/React.createElement(FullPricingPage, pageProps);else if (page === 'payments') body = /*#__PURE__*/React.createElement(FullPaymentsPage, pageProps);else if (page === 'review') body = /*#__PURE__*/React.createElement(FullReviewPage, _extends({}, pageProps, {
     set: set
+  }));else if (page === 'thanks') body = /*#__PURE__*/React.createElement(FullThanksPage, _extends({}, pageProps, {
+    set: set,
+    showEditorBanner: !state.signedAt
   }));else body = /*#__PURE__*/React.createElement(FullNextPage, pageProps);
   const handleDownloadPdf = () => {
     setDownloadOpen(false);
@@ -17111,7 +20123,7 @@ const FullPreview = ({
       gap: 2,
       overflowX: 'auto'
     }
-  }, FULL_PREVIEW_PAGES.map((p, i) => {
+  }, pages.map((p, i) => {
     const isActive = p.id === page;
     return /*#__PURE__*/React.createElement(Fragment, {
       key: p.id
@@ -17149,7 +20161,7 @@ const FullPreview = ({
         fontWeight: isActive ? 700 : 500,
         color: isActive ? T.text : T.muted
       }
-    }, p.label)), i < FULL_PREVIEW_PAGES.length - 1 && /*#__PURE__*/React.createElement(Icon, {
+    }, p.label)), i < pages.length - 1 && /*#__PURE__*/React.createElement(Icon, {
       name: "chevronRight",
       size: 11,
       color: T.mutedSoft
@@ -17208,12 +20220,12 @@ const FullPreview = ({
     style: {
       fontWeight: 700
     }
-  }, "Proposal Preview"), /*#__PURE__*/React.createElement("span", {
+  }, "Proposal preview"), /*#__PURE__*/React.createElement("span", {
     style: {
       marginLeft: 8,
       color: T.muted
     }
-  }, "You are previewing what your client will see once this proposal has been sent.")), /*#__PURE__*/React.createElement("button", {
+  }, "This is what your client will see \u2014 edits in the builder appear here automatically.")), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     style: {
       padding: '6px 12px',
@@ -17230,9 +20242,9 @@ const FullPreview = ({
       color: T.text
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: "undo",
+    name: "close",
     size: 12
-  }), " Refresh to see changes")), /*#__PURE__*/React.createElement("div", {
+  }), " Back to editor")), /*#__PURE__*/React.createElement("div", {
     className: "scroll-area",
     style: {
       flex: 1,
@@ -17756,6 +20768,15 @@ const ProposalEditor = ({
     if (next && SECTION_TO_TAB[next]) setPreviewTab(SECTION_TO_TAB[next]);
   };
 
+  // Tab click in the right preview pane → set tab AND open the matching
+  // editor accordion section, so both surfaces always reflect the same
+  // context the user is reading. No-op for tabs without a section mapping.
+  const setTabAndSection = tabId => {
+    setPreviewTab(tabId);
+    const sec = TAB_TO_SECTION[tabId];
+    if (sec && sec !== openSection) setOpenSection(sec);
+  };
+
   // Open + scroll-into-view + brief border flash so the user understands what's missing.
   const focusSection = id => {
     switchSection(id);
@@ -17781,10 +20802,22 @@ const ProposalEditor = ({
     client: state.client ? `${state.client} · ${state.clientType} · ${lengthLabel}, ${startLabel}` : 'No client selected',
     services: totalRows ? `${activePkg.name} · ${totalRows} ${totalRows === 1 ? 'service' : 'services'} · ${fmtMoney(monthlyEq)} / mo equivalent` : 'No services added',
     payment: state.paymentRequired ? 'Required to sign · Pay with Stripe' : 'Not required to sign',
-    intro: state.introContent ? state.introContent.slice(0, 70).replace(/\n/g, ' ') + '…' : 'Empty — load a template',
+    intro: (() => {
+      const txt = getIntroText(state);
+      const blocks = getIntroBlocks(state);
+      const mediaCount = blocks.filter(b => b.type !== 'text' && b.src).length;
+      if (!txt && mediaCount === 0) return 'Empty — load a template';
+      const head = txt ? txt.slice(0, 60).replace(/\n/g, ' ') + (txt.length > 60 ? '…' : '') : '(media only)';
+      return mediaCount ? `${head} · ${mediaCount} attachment${mediaCount === 1 ? '' : 's'}` : head;
+    })(),
     terms: state.termsContent ? 'Engagement terms & signature ready' : 'Empty',
     docs: (state.uploadedDocs || []).length === 0 ? 'No documents attached' : `${state.uploadedDocs.length} ${state.uploadedDocs.length === 1 ? 'document' : 'documents'} · ${state.uploadedDocs.reduce((s, d) => s + d.fields.length, 0)} fields placed`,
     next: state.nextContent ? 'Onboarding steps populated' : 'Empty',
+    thanks: (() => {
+      if (state.thanksEnabled === false) return 'Disabled — page hidden post-sign';
+      const onCount = (state.partnerOffers || []).filter(o => o.enabled !== false).length;
+      return onCount === 0 ? 'Heading + subtitle · no perks' : `Heading + subtitle · ${onCount} ${onCount === 1 ? 'perk' : 'perks'}`;
+    })(),
     theme: state.brandFetched ? `Brand from ${state.brandUrl} · ${state.themeColor} · ${state.brandFont}` : `Primary ${state.themeColor} · accent ${state.themeAccent || '#F5C518'}`,
     notify: (() => {
       const channelLabel = state.channel === 'email' ? 'Email' : state.channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
@@ -17801,7 +20834,7 @@ const ProposalEditor = ({
     client: !!state.clientId,
     services: state.packages.some(p => p.groups.some(g => g.rows.length > 0 && g.rows.some(r => r.name && r.rate > 0))),
     payment: true,
-    intro: !!state.introContent,
+    intro: !!getIntroText(state) || getIntroBlocks(state).some(b => b.type !== 'text' && b.src),
     terms: !!state.termsContent,
     next: !!state.nextContent,
     notify: (state.notifyRecipients || []).length > 0
@@ -17953,6 +20986,14 @@ const ProposalEditor = ({
       id: 'next',
       title: 'Next Step',
       body: /*#__PURE__*/React.createElement(NextBody, {
+        state: state,
+        set: set,
+        fireToast: fireToast
+      })
+    }, {
+      id: 'thanks',
+      title: 'Thank you',
+      body: /*#__PURE__*/React.createElement(ThanksBody, {
         state: state,
         set: set,
         fireToast: fireToast
@@ -18165,7 +21206,7 @@ const ProposalEditor = ({
     state: state,
     set: set,
     activeTab: previewTab,
-    setTab: setPreviewTab,
+    setTab: setTabAndSection,
     onOpenFull: onPreview
   }))));
 };
@@ -18295,7 +21336,7 @@ const Confirm = ({
       }
     }, "Required on sign \xB7 via Stripe") : /*#__PURE__*/React.createElement("span", {
       style: {
-        color: T.amber
+        color: T.textSoft
       }
     }, "Not required to sign"),
     onEdit: () => goto('payment')
@@ -20185,6 +23226,7 @@ const templateSeed = tpl => {
     introImage: null,
     introVideo: null,
     introPdf: null,
+    introBlocks: null,
     termsTemplate: 'terms-blank',
     termsContent: '',
     nextTemplate: 'next-blank',
@@ -20667,6 +23709,10 @@ const App = () => {
     introImage: null,
     introVideo: null,
     introPdf: null,
+    // Notion-style block list for the Introduction page. Lazy-initialised
+    // from introContent + introImage/introVideo on first render via
+    // getIntroBlocks(); after that the editor writes here exclusively.
+    introBlocks: null,
     termsTemplate: 'terms-apes',
     termsContent: '1. Engagement & scope\nThis engagement is between Sole Accounting ("we") and Solepay ("you"). We will provide the services described in this proposal in accordance with APES 110 and ATO requirements.\n\n2. Fees & payment\nFees are payable monthly in advance via direct debit. Out-of-scope work will be quoted before commencement.\n\n3. Termination\nEither party may terminate with 30 days written notice.',
     nextTemplate: 'next-std',
@@ -20705,7 +23751,20 @@ const App = () => {
     // signature (set by the SignModal triggered from the client preview)
     signedAt: null,
     signedName: '',
-    signModalOpen: false
+    signModalOpen: false,
+    // Editable partner offers shown on the Thank-you page (post-sign).
+    // Authors can toggle/edit via the in-preview "Manage offers" button.
+    partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
+      ...o,
+      enabled: true
+    })),
+    // Thank-you copy. Merge fields ({{ contact_first_name }} etc.) resolve
+    // against state at render time.
+    thanksEnabled: true,
+    thanksHeading: 'Thank you, {{ contact_first_name }}.',
+    thanksSubtitle: 'Your engagement with {{ practice_name }} is officially under way. We\'ll be in touch within one business day with your onboarding pack.',
+    thanksPerksTitle: 'A few perks, on us',
+    thanksPerksIntro: 'Optional benefits from {{ practice_name }}\'s partner network — claim any that are useful, no obligation.'
   });
   const set = patch => setState(s => ({
     ...s,
