@@ -4858,6 +4858,15 @@ const fmtMoney = n => '$' + (n || 0).toLocaleString('en-AU', {
 const rowSubtotal = r => r.qty * r.rate * (1 - (r.discount || 0) / 100);
 const rowTotalWithTax = (r, taxOn) => rowSubtotal(r) * (1 + (taxOn ? (r.tax || 0) / 100 : 0));
 const groupSubtotal = g => g.rows.reduce((s, r) => r.optional ? s : s + rowTotalWithTax(r, g.taxRates), 0);
+// Renders the qty × rate caption alongside any modifier that affects the
+// displayed total (discount, GST). Stops the client-facing total from
+// appearing to silently disagree with the line caption — audit ISSUE-002.
+const priceLineDetail = (r, taxOn) => {
+  const parts = [`${r.qty} × ${fmtMoney(r.rate)}`];
+  if (r.discount) parts.push(`−${r.discount}% disc`);
+  if (taxOn && r.tax) parts.push(`incl. ${r.tax}% GST`);
+  return parts.join(' · ');
+};
 
 // Inline cell — looks like text until focused
 const InlineInput = ({
@@ -7736,6 +7745,12 @@ const NEXT_TEMPLATES = [{
 }];
 const NOTIFY_TEMPLATES = {
   email: [{
+    id: 'em-blank',
+    name: 'Custom (blank)',
+    tag: 'built-in',
+    desc: 'Start from scratch',
+    content: ''
+  }, {
     id: 'em-std',
     name: 'Standard proposal ready',
     tag: 'built-in',
@@ -7755,6 +7770,12 @@ const NOTIFY_TEMPLATES = {
     content: 'Hi {{ contact_first_name }}, just a quick reminder that your proposal from {{ practice_name }} is still awaiting your review. The link is below.'
   }],
   whatsapp: [{
+    id: 'wa-blank',
+    name: 'Custom (blank)',
+    tag: 'built-in',
+    desc: 'Start from scratch',
+    content: ''
+  }, {
     id: 'wa-std',
     name: 'Default WhatsApp',
     tag: 'built-in',
@@ -7768,6 +7789,12 @@ const NOTIFY_TEMPLATES = {
     content: 'Hey {{ contact_first_name }} 👋 here\'s the proposal we just discussed: {{ proposal_link }}. Reply if anything looks off!'
   }],
   sms: [{
+    id: 'sms-blank',
+    name: 'Custom (blank)',
+    tag: 'built-in',
+    desc: 'Start from scratch',
+    content: ''
+  }, {
     id: 'sms-std',
     name: 'Default SMS',
     tag: 'built-in',
@@ -10162,176 +10189,565 @@ const offerCardStyle = () => ({
   padding: 12,
   background: T.card
 });
+
+// Inline SVG approximations of each partner's actual brand mark. Keyed by
+// offer.id so renames in the editor don't break the lookup. The returned
+// fragment paints onto a transparent canvas — the surrounding PartnerLogo
+// wrapper supplies the white tile background and the soft border.
+const PARTNER_LOGOS = {
+  // Sprintlaw — teal square logomark (white "S" formed by two angled blades)
+  // followed by the wordmark in dark sans-serif, matching the supplied brand
+  // asset.
+  sprintlaw: ({
+    width,
+    height,
+    radius
+  }) => {
+    const sq = height;
+    const markRadius = Math.max(3, radius * 0.85);
+    return /*#__PURE__*/React.createElement("svg", {
+      width: width,
+      height: height,
+      viewBox: `0 0 ${width} ${height}`,
+      xmlns: "http://www.w3.org/2000/svg",
+      style: {
+        display: 'block'
+      }
+    }, /*#__PURE__*/React.createElement("rect", {
+      x: "0",
+      y: "0",
+      width: sq,
+      height: sq,
+      rx: markRadius,
+      fill: "#1FBBB0"
+    }), /*#__PURE__*/React.createElement("g", {
+      transform: `translate(${sq / 2} ${sq / 2}) rotate(-25)`
+    }, /*#__PURE__*/React.createElement("rect", {
+      x: -sq * 0.30,
+      y: -sq * 0.28,
+      width: sq * 0.52,
+      height: sq * 0.18,
+      rx: sq * 0.09,
+      fill: "#FFFFFF"
+    }), /*#__PURE__*/React.createElement("rect", {
+      x: -sq * 0.22,
+      y: sq * 0.10,
+      width: sq * 0.52,
+      height: sq * 0.18,
+      rx: sq * 0.09,
+      fill: "#FFFFFF"
+    })), /*#__PURE__*/React.createElement("text", {
+      x: sq + 7,
+      y: height / 2,
+      dy: "0.35em",
+      fontFamily: "\"Helvetica Neue\", \"Arial Black\", Arial, sans-serif",
+      fontWeight: "800",
+      fontSize: Math.max(10, Math.min(13, Math.round(height * 0.42))),
+      letterSpacing: "-0.3",
+      fill: "#0F1117"
+    }, "Sprintlaw"));
+  },
+  // Insight Digital — small orange ant icon (rear segment + head + curly
+  // antennae) followed by the "inSight" wordmark, "in" orange-italic and
+  // "Sight" dark-serif, matching the supplied brand asset.
+  insight: ({
+    width,
+    height,
+    radius
+  }) => {
+    const antCX = Math.max(8, height * 0.32);
+    const antScale = height / 32;
+    return /*#__PURE__*/React.createElement("svg", {
+      width: width,
+      height: height,
+      viewBox: `0 0 ${width} ${height}`,
+      xmlns: "http://www.w3.org/2000/svg",
+      style: {
+        display: 'block'
+      }
+    }, /*#__PURE__*/React.createElement("g", {
+      transform: `translate(${antCX} ${height / 2}) scale(${antScale})`
+    }, /*#__PURE__*/React.createElement("ellipse", {
+      cx: "2.6",
+      cy: "0",
+      rx: "3.6",
+      ry: "2.8",
+      fill: "#F26B3A"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "-2.6",
+      cy: "-0.2",
+      r: "2.3",
+      fill: "#F26B3A"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "-3.0",
+      cy: "-0.6",
+      r: "0.55",
+      fill: "#FFFFFF"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M -3.2 -2.2 Q -5.4 -3.8 -3.6 -5.6 Q -2.2 -6.6 -3.6 -7.6",
+      stroke: "#F26B3A",
+      strokeWidth: "0.65",
+      fill: "none",
+      strokeLinecap: "round"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M -1.4 -2.2 Q 0.8 -3.8 -1.0 -5.6 Q -2.4 -6.6 -1.0 -7.6",
+      stroke: "#F26B3A",
+      strokeWidth: "0.65",
+      fill: "none",
+      strokeLinecap: "round"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "0",
+      y1: "2.4",
+      x2: "-1.8",
+      y2: "4.2",
+      stroke: "#F26B3A",
+      strokeWidth: "0.65",
+      strokeLinecap: "round"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "2.6",
+      y1: "2.6",
+      x2: "2.6",
+      y2: "4.6",
+      stroke: "#F26B3A",
+      strokeWidth: "0.65",
+      strokeLinecap: "round"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "5.0",
+      y1: "2.4",
+      x2: "6.6",
+      y2: "4.2",
+      stroke: "#F26B3A",
+      strokeWidth: "0.65",
+      strokeLinecap: "round"
+    })), /*#__PURE__*/React.createElement("text", {
+      x: antCX + 12,
+      y: height / 2,
+      dy: "0.35em",
+      fontFamily: "Georgia, 'Times New Roman', serif",
+      fontSize: Math.max(12, Math.min(16, Math.round(height * 0.52)))
+    }, /*#__PURE__*/React.createElement("tspan", {
+      fill: "#F26B3A",
+      fontStyle: "italic",
+      fontWeight: "700"
+    }, "in"), /*#__PURE__*/React.createElement("tspan", {
+      fill: "#1F2937",
+      fontWeight: "700"
+    }, "Sight")));
+  },
+  // BizCover — bold rounded "bc" mark in cyan, followed by the "BizCover"
+  // wordmark in dark sans-serif, matching the supplied brand asset.
+  bizcover: ({
+    width,
+    height,
+    radius
+  }) => /*#__PURE__*/React.createElement("svg", {
+    width: width,
+    height: height,
+    viewBox: `0 0 ${width} ${height}`,
+    xmlns: "http://www.w3.org/2000/svg",
+    style: {
+      display: 'block'
+    }
+  }, /*#__PURE__*/React.createElement("text", {
+    x: "6",
+    y: height / 2,
+    dy: "0.36em",
+    fontFamily: "\"Helvetica Neue\", \"Arial Black\", Arial, sans-serif",
+    fontWeight: "900",
+    fontSize: Math.max(16, Math.min(24, Math.round(height * 0.78))),
+    letterSpacing: "-0.8",
+    fill: "#19BCE5"
+  }, "bc"), /*#__PURE__*/React.createElement("text", {
+    x: Math.max(28, Math.round(height * 1.0)),
+    y: height / 2,
+    dy: "0.35em",
+    fontFamily: "\"Helvetica Neue\", Arial, sans-serif",
+    fontWeight: "800",
+    fontSize: Math.max(10, Math.min(13, Math.round(height * 0.40))),
+    letterSpacing: "-0.2",
+    fill: "#1F2937"
+  }, "BizCover"))
+};
+
+// Resolves an offer to the right visual: uploaded logo > built-in SVG mark > coloured-initial tile.
+const PartnerLogo = ({
+  offer,
+  width = 88,
+  height = 32,
+  radius = 8
+}) => {
+  if (offer.logoUrl) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        width,
+        height,
+        borderRadius: radius,
+        overflow: 'hidden',
+        flexShrink: 0,
+        border: `1px solid ${T.border}`,
+        background: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("img", {
+      src: offer.logoUrl,
+      alt: offer.name,
+      style: {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain'
+      }
+    }));
+  }
+  const renderer = PARTNER_LOGOS[offer.id];
+  if (renderer) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        width,
+        height,
+        borderRadius: radius,
+        overflow: 'hidden',
+        flexShrink: 0,
+        border: `1px solid ${T.border}`,
+        background: '#FFFFFF',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start'
+      }
+    }, renderer({
+      width,
+      height,
+      radius
+    }));
+  }
+  // Fallback: brand-coloured square with the initial.
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: height,
+      height,
+      borderRadius: radius,
+      flexShrink: 0,
+      background: offer.color,
+      color: '#fff',
+      fontWeight: 800,
+      fontSize: Math.round(height * 0.48),
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, offer.initial || '·');
+};
+
+// Lightweight hover-tooltip. Used sparingly — for short explanatory copy next
+// to a label where a Helper line below would be too noisy.
+const InfoHint = ({
+  text,
+  side = 'top',
+  width = 220
+}) => {
+  const [open, setOpen] = useState(false);
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'relative',
+      display: 'inline-flex',
+      alignItems: 'center',
+      cursor: 'help'
+    },
+    onMouseEnter: () => setOpen(true),
+    onMouseLeave: () => setOpen(false),
+    onFocus: () => setOpen(true),
+    onBlur: () => setOpen(false),
+    tabIndex: 0,
+    "aria-label": text
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 12,
+    color: T.muted
+  }), open && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      [side]: '140%',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      background: '#1F2937',
+      color: '#fff',
+      padding: '6px 10px',
+      borderRadius: 6,
+      fontSize: 11,
+      fontWeight: 500,
+      lineHeight: 1.4,
+      textAlign: 'center',
+      width,
+      whiteSpace: 'normal',
+      zIndex: 100,
+      boxShadow: '0 4px 14px rgba(0,0,0,0.18)',
+      pointerEvents: 'none'
+    }
+  }, text));
+};
+
+// Reads an image file from the local disk and returns a data URL via onLoad.
+// Silent on read errors — keeps demos resilient to bad uploads.
+const readImageAsDataURL = (file, onLoad) => {
+  if (!file || !file.type?.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = () => onLoad(reader.result);
+  reader.readAsDataURL(file);
+};
 const OfferEditor = ({
   offer,
   onChange,
   onRemove
-}) => /*#__PURE__*/React.createElement("div", {
-  style: offerCardStyle()
-}, /*#__PURE__*/React.createElement("div", {
-  style: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10
-  }
-}, /*#__PURE__*/React.createElement("div", {
-  style: {
-    width: 30,
-    height: 30,
-    borderRadius: 7,
-    background: offer.color,
-    color: '#fff',
-    fontWeight: 800,
-    fontSize: 13,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0
-  }
-}, offer.initial || '·'), /*#__PURE__*/React.createElement("input", {
-  value: offer.name,
-  onChange: e => onChange({
-    ...offer,
-    name: e.target.value
-  }),
-  placeholder: "Partner name",
-  style: {
-    flex: 1,
-    border: `1px solid ${T.border}`,
-    background: T.card,
-    padding: '6px 8px',
-    borderRadius: 6,
-    fontSize: 13,
-    fontWeight: 600,
-    color: T.text,
-    outline: 'none'
-  }
-}), /*#__PURE__*/React.createElement(Toggle, {
-  on: offer.enabled !== false,
-  onChange: v => onChange({
-    ...offer,
-    enabled: v
-  }),
-  size: "sm"
-}), /*#__PURE__*/React.createElement("button", {
-  onClick: onRemove,
-  title: "Remove offer",
-  style: {
-    width: 26,
-    height: 26,
-    border: 'none',
-    background: 'transparent',
-    color: T.muted,
-    cursor: 'pointer',
-    borderRadius: 4,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  onMouseEnter: e => {
-    e.currentTarget.style.background = T.redSoft;
-    e.currentTarget.style.color = T.red;
-  },
-  onMouseLeave: e => {
-    e.currentTarget.style.background = 'transparent';
-    e.currentTarget.style.color = T.muted;
-  }
-}, /*#__PURE__*/React.createElement(Icon, {
-  name: "trash",
-  size: 13
-}))), /*#__PURE__*/React.createElement("div", {
-  style: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 8
-  }
-}, /*#__PURE__*/React.createElement("input", {
-  value: offer.tagline,
-  placeholder: "Short tagline",
-  onChange: e => onChange({
-    ...offer,
-    tagline: e.target.value
-  }),
-  style: inputStyleSoft()
-}), /*#__PURE__*/React.createElement("input", {
-  value: offer.cta,
-  placeholder: "Button label",
-  onChange: e => onChange({
-    ...offer,
-    cta: e.target.value
-  }),
-  style: inputStyleSoft()
-}), /*#__PURE__*/React.createElement("input", {
-  value: offer.offer,
-  placeholder: "Offer description",
-  onChange: e => onChange({
-    ...offer,
-    offer: e.target.value
-  }),
-  style: {
-    ...inputStyleSoft(),
-    gridColumn: '1 / -1'
-  }
-}), /*#__PURE__*/React.createElement("input", {
-  value: offer.fine || '',
-  placeholder: "Fine print (optional)",
-  onChange: e => onChange({
-    ...offer,
-    fine: e.target.value
-  }),
-  style: {
-    ...inputStyleSoft(),
-    gridColumn: '1 / -1'
-  }
-}), /*#__PURE__*/React.createElement("div", {
-  style: {
-    gridColumn: '1 / -1',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 11,
-    color: T.muted,
-    marginTop: 2
-  }
-}, /*#__PURE__*/React.createElement("span", null, "Colour"), /*#__PURE__*/React.createElement("input", {
-  type: "color",
-  value: offer.color,
-  onChange: e => onChange({
-    ...offer,
-    color: e.target.value
-  }),
-  style: {
-    width: 26,
-    height: 22,
-    border: 'none',
-    padding: 0,
-    borderRadius: 4,
-    cursor: 'pointer'
-  }
-}), /*#__PURE__*/React.createElement("span", {
-  className: "tpl-mono",
-  style: {
-    fontSize: 11,
-    color: T.textSoft,
-    textTransform: 'uppercase'
-  }
-}, offer.color), /*#__PURE__*/React.createElement("span", {
-  style: {
-    flex: 1
-  }
-}), /*#__PURE__*/React.createElement("span", null, "Initials"), /*#__PURE__*/React.createElement("input", {
-  value: offer.initial || '',
-  maxLength: 2,
-  onChange: e => onChange({
-    ...offer,
-    initial: e.target.value.toUpperCase()
-  }),
-  style: {
-    width: 36,
-    ...inputStyleSoft()
-  }
-}))));
+}) => {
+  const fileInputRef = useRef(null);
+  const hasCustomLogo = !!offer.logoUrl;
+  const hasBuiltinLogo = !!PARTNER_LOGOS[offer.id];
+  return /*#__PURE__*/React.createElement("div", {
+    style: offerCardStyle()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => fileInputRef.current?.click(),
+    title: hasCustomLogo ? 'Replace logo' : 'Upload custom logo',
+    style: {
+      border: `1px solid ${T.border}`,
+      background: 'transparent',
+      padding: 0,
+      borderRadius: 8,
+      cursor: 'pointer',
+      position: 'relative',
+      display: 'inline-flex',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(PartnerLogo, {
+    offer: offer,
+    width: 88,
+    height: 32,
+    radius: 7
+  })), /*#__PURE__*/React.createElement("input", {
+    ref: fileInputRef,
+    type: "file",
+    accept: "image/*",
+    style: {
+      display: 'none'
+    },
+    onChange: e => {
+      const file = e.target.files?.[0];
+      readImageAsDataURL(file, dataUrl => onChange({
+        ...offer,
+        logoUrl: dataUrl
+      }));
+      e.target.value = '';
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: offer.name,
+    onChange: e => onChange({
+      ...offer,
+      name: e.target.value
+    }),
+    placeholder: "Partner name",
+    style: {
+      flex: 1,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      padding: '6px 8px',
+      borderRadius: 6,
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      outline: 'none'
+    }
+  }), /*#__PURE__*/React.createElement(Toggle, {
+    on: offer.enabled !== false,
+    onChange: v => onChange({
+      ...offer,
+      enabled: v
+    }),
+    size: "sm"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onRemove,
+    title: "Remove offer",
+    style: {
+      width: 26,
+      height: 26,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      borderRadius: 4,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.background = T.redSoft;
+      e.currentTarget.style.color = T.red;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.background = 'transparent';
+      e.currentTarget.style.color = T.muted;
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 13
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    value: offer.tagline,
+    placeholder: "Short tagline",
+    onChange: e => onChange({
+      ...offer,
+      tagline: e.target.value
+    }),
+    style: {
+      ...inputStyleSoft(),
+      gridColumn: '1 / -1'
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: offer.offer,
+    placeholder: "Offer description",
+    onChange: e => onChange({
+      ...offer,
+      offer: e.target.value
+    }),
+    style: {
+      ...inputStyleSoft(),
+      gridColumn: '1 / -1'
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    value: offer.cta,
+    placeholder: "Button label",
+    onChange: e => onChange({
+      ...offer,
+      cta: e.target.value
+    }),
+    style: inputStyleSoft()
+  }), /*#__PURE__*/React.createElement("input", {
+    type: "url",
+    value: offer.ctaUrl || '',
+    placeholder: "https://example.com/claim",
+    onChange: e => onChange({
+      ...offer,
+      ctaUrl: e.target.value
+    }),
+    style: inputStyleSoft()
+  }), /*#__PURE__*/React.createElement("input", {
+    value: offer.fine || '',
+    placeholder: "Fine print (optional)",
+    onChange: e => onChange({
+      ...offer,
+      fine: e.target.value
+    }),
+    style: {
+      ...inputStyleSoft(),
+      gridColumn: '1 / -1'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      gridColumn: '1 / -1',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      fontSize: 11,
+      color: T.muted,
+      marginTop: 2,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Colour"), /*#__PURE__*/React.createElement("input", {
+    type: "color",
+    value: offer.color,
+    onChange: e => onChange({
+      ...offer,
+      color: e.target.value
+    }),
+    style: {
+      width: 26,
+      height: 22,
+      border: 'none',
+      padding: 0,
+      borderRadius: 4,
+      cursor: 'pointer'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "tpl-mono",
+    style: {
+      fontSize: 11,
+      color: T.textSoft,
+      textTransform: 'uppercase'
+    }
+  }, offer.color)), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => fileInputRef.current?.click(),
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      padding: '4px 9px',
+      borderRadius: 6,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      color: T.textSoft,
+      fontSize: 11,
+      fontWeight: 500,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "upload",
+    size: 10
+  }), " ", hasCustomLogo ? 'Replace logo' : 'Upload logo'), hasCustomLogo && /*#__PURE__*/React.createElement("button", {
+    onClick: () => onChange({
+      ...offer,
+      logoUrl: ''
+    }),
+    title: hasBuiltinLogo ? 'Restore built-in wordmark' : 'Remove uploaded logo',
+    style: {
+      padding: '4px 8px',
+      borderRadius: 6,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      color: T.muted,
+      fontSize: 11,
+      fontWeight: 500,
+      cursor: 'pointer'
+    }
+  }, hasBuiltinLogo ? 'Use default' : 'Clear'), !hasCustomLogo && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Initials"), /*#__PURE__*/React.createElement("input", {
+    value: offer.initial || '',
+    maxLength: 2,
+    onChange: e => onChange({
+      ...offer,
+      initial: e.target.value.toUpperCase()
+    }),
+    style: {
+      width: 36,
+      ...inputStyleSoft()
+    }
+  })))));
+};
 const ThanksBody = ({
   state,
   set,
@@ -10500,11 +10916,19 @@ const ThanksBody = ({
       marginTop: 22,
       marginBottom: 8
     }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
   }, /*#__PURE__*/React.createElement(Label, {
     style: {
       marginBottom: 0
     }
-  }, "Partner offers"), /*#__PURE__*/React.createElement(Helper, null, offers.filter(o => o.enabled !== false).length, " of ", offers.length, " shown to client")), /*#__PURE__*/React.createElement("div", {
+  }, "Partner offers"), /*#__PURE__*/React.createElement(InfoHint, {
+    text: "These partners provide value to your clients \u2014 vetted offers Sole has negotiated on their behalf."
+  })), /*#__PURE__*/React.createElement(Helper, null, offers.filter(o => o.enabled !== false).length, " of ", offers.length, " shown to client")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -13238,7 +13662,33 @@ const ThemeBody = ({
     style: {
       color: T.primary
     }
-  }, "pull from website"), " above"), /*#__PURE__*/React.createElement(Helper, null, "SVG, PNG, or JPG \xB7 max 1MB"))));
+  }, "pull from website"), " above"), /*#__PURE__*/React.createElement(Helper, null, "SVG, PNG, or JPG \xB7 max 1MB"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 18,
+      padding: '10px 14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: !!state.showPoweredBy,
+    onChange: v => set({
+      showPoweredBy: v
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Show \"Powered by Sole\" footer"), /*#__PURE__*/React.createElement(Helper, null, "Off by default so the proposal feels white-labelled to your client."))));
 };
 const COUNTRY_CODES = [{
   iso: 'AU',
@@ -13306,14 +13756,89 @@ const renderTokens = text => {
     }, p);
   });
 };
+
+// ---- Multi-channel notify helpers ----
+// `state.channels` is the authoritative array of selected channels. We still
+// honour the legacy `state.channel` string so freshly-loaded sessions don't
+// surprise the user, but everything in the editor reads `getChannels`.
+const NOTIFY_CHANNEL_OPTIONS = [{
+  v: 'email',
+  l: 'Email',
+  icon: 'send'
+}, {
+  v: 'whatsapp',
+  l: 'WhatsApp',
+  icon: 'bell'
+}, {
+  v: 'sms',
+  l: 'SMS',
+  icon: 'bell'
+}];
+const getChannels = state => {
+  if (Array.isArray(state.channels) && state.channels.length > 0) return state.channels;
+  return [state.channel || 'email'];
+};
+const channelLabelOf = c => c === 'email' ? 'Email' : c === 'whatsapp' ? 'WhatsApp' : 'SMS';
+// Returns { email, phone } regardless of whether the recipient was saved with
+// the new shape (email/phone) or the legacy shape (value, plus userId).
+const recipientAddresses = r => {
+  if (!r) return {
+    email: '',
+    phone: ''
+  };
+  if (r.email !== undefined || r.phone !== undefined) {
+    return {
+      email: r.email || '',
+      phone: r.phone || ''
+    };
+  }
+  if (r.userId) {
+    const u = userById(r.userId);
+    return {
+      email: u?.email || '',
+      phone: u?.phone || ''
+    };
+  }
+  const isEmail = (r.value || '').includes('@');
+  return {
+    email: isEmail ? r.value : '',
+    phone: !isEmail ? r.value : ''
+  };
+};
+const isReachable = (r, channel) => {
+  const {
+    email,
+    phone
+  } = recipientAddresses(r);
+  return channel === 'email' ? !!email : !!phone;
+};
 const NotifyBody = ({
   state,
   set,
   fireToast
 }) => {
-  const channel = state.channel || 'email';
-  const isEmail = channel === 'email';
-  const country = COUNTRY_CODES.find(c => c.iso === state.notifyCountryIso) || COUNTRY_CODES[0];
+  const channels = getChannels(state);
+  const isChannelOn = c => channels.includes(c);
+  const toggleChannel = c => {
+    const next = isChannelOn(c) ? channels.filter(x => x !== c) : [...channels, c];
+    if (next.length === 0) {
+      fireToast?.('At least one channel must stay selected.');
+      return;
+    }
+    set({
+      channels: next,
+      channel: next[0],
+      notifyActiveChannel: next.includes(state.notifyActiveChannel) ? state.notifyActiveChannel : next[0]
+    });
+  };
+
+  // Which channel's content/subject is currently being edited. Persisted in
+  // state so the right-pane preview can mirror the same channel.
+  const editTab = channels.includes(state.notifyActiveChannel) ? state.notifyActiveChannel : channels[0];
+  const setEditTab = c => set({
+    notifyActiveChannel: c
+  });
+  const isEmail = editTab === 'email';
   const [pulseKey, setPulseKey] = useState(0);
   const [recipientPickerOpen, setRecipientPickerOpen] = useState(false);
   const [adhocOpen, setAdhocOpen] = useState(false);
@@ -13323,89 +13848,57 @@ const NotifyBody = ({
   const subjTaRef = useRef(null);
   const [msgAttrOpen, setMsgAttrOpen] = useState(false);
   const [subjAttrOpen, setSubjAttrOpen] = useState(false);
-  const switchChannel = v => {
-    if (v === channel) return;
-    set({
-      channel: v
-    });
+
+  // Pulse the live-preview when the user switches the active composer tab —
+  // matches the previous single-channel switchChannel feel.
+  const switchEditTab = v => {
+    if (v === editTab) return;
+    setEditTab(v);
     setPulseKey(k => k + 1);
   };
 
-  // Recipients are stored as { source: 'contact'|'adhoc', value, label, role? }.
-  // Defaulting to the client's contacts means a freshly-picked client has its
-  // people pre-filled — no need to re-pick them in the notify section.
+  // Recipients now carry BOTH email and phone whenever they're known. Adhoc
+  // additions populate only the side that was entered. This lets a single list
+  // serve all enabled channels — no more re-seeding when the channel changes.
   const recipients = state.notifyRecipients || [];
   const setRecipients = r => set({
     notifyRecipients: r
   });
 
-  // Auto-seed once per (clientId, channel) combination so switching channels
-  // pulls in phone numbers (sms/whatsapp) that the email seed would have
-  // skipped — without re-seeding when the user has explicitly emptied the list
-  // for a given combo.
+  // Seed once per clientId. Pulls every contact who has at least one
+  // address — the channel filtering is done at render/send time.
   const seededRef = useRef(new Set());
   useEffect(() => {
-    const key = `${state.clientId || 'none'}::${channel}`;
-    if (seededRef.current.has(key)) return;
+    if (!state.clientId || seededRef.current.has(state.clientId)) return;
     if ((state.clientContacts || []).length === 0) return;
     if (recipients.length > 0) {
-      seededRef.current.add(key);
+      seededRef.current.add(state.clientId);
       return;
     }
     const seeded = (state.clientContacts || []).map(c => {
       const u = userById(c.userId);
       if (!u) return null;
-      const value = isEmail ? u.email : u.phone || '';
-      if (!value) return null;
+      if (!u.email && !u.phone) return null;
       return {
         source: 'contact',
         userId: c.userId,
         label: fullName(u),
-        value,
+        email: u.email || '',
+        phone: u.phone || '',
         role: c.role,
         isPrimary: c.isPrimary
       };
     }).filter(Boolean);
-    seededRef.current.add(key);
+    seededRef.current.add(state.clientId);
     if (seeded.length > 0) setRecipients(seeded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel, state.clientId]);
-
-  // When the channel changes, refresh contact recipients' `value` so the
-  // address shown reflects the new channel (email→phone or vice versa). Drop
-  // anyone with no usable address for the new channel and surface them in a toast.
-  const lastChannelRef = useRef(channel);
-  useEffect(() => {
-    if (lastChannelRef.current === channel) return;
-    lastChannelRef.current = channel;
-    if (recipients.length === 0) return;
-    const dropped = [];
-    const next = recipients.map(r => {
-      if (r.source !== 'contact') return r;
-      const u = userById(r.userId);
-      if (!u) return r;
-      const value = isEmail ? u.email : u.phone || '';
-      if (!value) {
-        dropped.push(r.label);
-        return null;
-      }
-      return {
-        ...r,
-        value
-      };
-    }).filter(Boolean);
-    setRecipients(next);
-    if (dropped.length > 0) {
-      fireToast?.(`Dropped ${dropped.length} recipient${dropped.length === 1 ? '' : 's'} with no ${isEmail ? 'email' : 'phone'}: ${dropped.join(', ')}`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel]);
+  }, [state.clientId]);
   const removeRecipient = idx => {
     const removed = recipients[idx];
     const next = recipients.filter((_, i) => i !== idx);
     setRecipients(next);
     fireToast?.({
-      message: `Removed ${removed.label || removed.value}`,
+      message: `Removed ${removed.label || removed.email || removed.phone || removed.value}`,
       action: {
         label: 'Undo',
         onClick: () => {
@@ -13419,62 +13912,67 @@ const NotifyBody = ({
   const addContactRecipient = userId => {
     const u = userById(userId);
     if (!u) return;
-    const c = (state.clientContacts || []).find(x => x.userId === userId);
-    const value = isEmail ? u.email : u.phone || '';
-    if (!value) {
-      fireToast?.(`${fullName(u)} has no ${isEmail ? 'email' : 'phone'} on file`);
+    if (!u.email && !u.phone) {
+      fireToast?.(`${fullName(u)} has no email or phone on file`);
       return;
     }
     if (recipients.some(r => r.userId === userId)) return;
+    const c = (state.clientContacts || []).find(x => x.userId === userId);
     setRecipients([...recipients, {
       source: 'contact',
       userId,
       label: fullName(u),
-      value,
+      email: u.email || '',
+      phone: u.phone || '',
       role: c?.role,
       isPrimary: c?.isPrimary
     }]);
     setRecipientPickerOpen(false);
   };
+  // Auto-detect: contains '@' → email recipient, otherwise treat as phone.
+  // Keeps "Add custom" to a single field instead of forcing the author to
+  // pick a type.
   const addAdhoc = () => {
     const v = adhocValue.trim();
     if (!v) return;
+    const looksLikeEmail = v.includes('@');
     setRecipients([...recipients, {
       source: 'adhoc',
       label: v,
-      value: v
+      email: looksLikeEmail ? v : '',
+      phone: looksLikeEmail ? '' : v
     }]);
     setAdhocValue('');
     setAdhocOpen(false);
   };
   const onPickTemplate = t => {
-    const dirty = (state[channel + 'Content'] || '').trim().length > 0;
-    if (dirty && t.content !== '' && state[channel + 'Content'] !== t.content) {
-      if (!window.confirm(`Replace your ${channel} message with "${t.name}"?`)) {
+    const dirty = (state[editTab + 'Content'] || '').trim().length > 0;
+    if (dirty && t.content !== '' && state[editTab + 'Content'] !== t.content) {
+      if (!window.confirm(`Replace your ${editTab} message with "${t.name}"?`)) {
         set({
-          [channel + 'TemplateId']: t.id
+          [editTab + 'TemplateId']: t.id
         });
         return;
       }
     }
-    const snapshot = state[channel + 'Content'];
+    const snapshot = state[editTab + 'Content'];
     set({
-      [channel + 'TemplateId']: t.id,
-      [channel + 'Content']: t.content
+      [editTab + 'TemplateId']: t.id,
+      [editTab + 'Content']: t.content
     });
     fireToast?.({
       message: `Applied "${t.name}"`,
       action: {
         label: 'Undo',
         onClick: () => set({
-          [channel + 'Content']: snapshot
+          [editTab + 'Content']: snapshot
         })
       }
     });
   };
   const insertAtCaret = (ref, fieldKey) => {
     const ta = ref.current;
-    const stateKey = ref === subjTaRef ? 'subject' : channel + 'Content';
+    const stateKey = ref === subjTaRef ? 'subject' : editTab + 'Content';
     const text = `{{ ${fieldKey} }}`;
     const v = state[stateKey] || '';
     if (!ta) {
@@ -13494,44 +13992,80 @@ const NotifyBody = ({
       ta.selectionStart = ta.selectionEnd = start + text.length;
     });
   };
-
-  // Per-channel content + template id are stored under separate keys so users
-  // can keep an unfinished SMS draft while still composing the email.
-  const contentKey = channel + 'Content';
-  const templateIdKey = channel + 'TemplateId';
+  const contentKey = editTab + 'Content';
+  const templateIdKey = editTab + 'TemplateId';
   const messageContent = state[contentKey] || '';
-  const templates = NOTIFY_TEMPLATES[channel] || [];
+  const templates = NOTIFY_TEMPLATES[editTab] || [];
 
-  // Suggest people who are part of the client but not yet recipients.
+  // Available contacts = anyone on the client not yet a recipient who has at
+  // least one usable address. The picker is channel-agnostic now.
   const availableContacts = (state.clientContacts || []).filter(c => {
     if (recipients.some(r => r.userId === c.userId)) return false;
     const u = userById(c.userId);
     if (!u) return false;
-    return isEmail ? !!u.email : !!u.phone;
+    return !!(u.email || u.phone);
   });
   const charCount = messageContent.length;
   const smsSegments = Math.max(1, Math.ceil(charCount / 160));
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, "Send via"), /*#__PURE__*/React.createElement("div", {
+  const reachableForEditTab = recipients.filter(r => isReachable(r, editTab)).length;
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Send via"), /*#__PURE__*/React.createElement(InfoHint, {
+    text: "Pick one or more channels. The same proposal can go out by email, WhatsApp and SMS together.",
+    width: 240
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 8,
       marginBottom: 16,
       flexWrap: 'wrap'
     }
-  }, [{
-    v: 'email',
-    l: 'Email'
-  }, {
-    v: 'whatsapp',
-    l: 'WhatsApp'
-  }, {
-    v: 'sms',
-    l: 'SMS'
-  }].map(o => /*#__PURE__*/React.createElement(Chip, {
-    key: o.v,
-    selected: channel === o.v,
-    onClick: () => switchChannel(o.v)
-  }, o.l))), /*#__PURE__*/React.createElement(Label, null, "Recipients"), /*#__PURE__*/React.createElement("div", {
+  }, NOTIFY_CHANNEL_OPTIONS.map(o => {
+    const on = isChannelOn(o.v);
+    const count = recipients.filter(r => isReachable(r, o.v)).length;
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.v,
+      onClick: () => toggleChannel(o.v),
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 11px',
+        borderRadius: 8,
+        border: `1px solid ${on ? T.primary : T.border}`,
+        background: on ? T.primarySoft : T.card,
+        color: on ? T.primary : T.textSoft,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 14,
+        height: 14,
+        borderRadius: 3,
+        border: `1.5px solid ${on ? T.primary : T.muted}`,
+        background: on ? T.primary : 'transparent',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, on && /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 9,
+      color: "#fff",
+      strokeWidth: 3
+    })), o.l, on && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: count === 0 ? T.amber : T.muted,
+        fontWeight: 500
+      }
+    }, "\xB7 ", count === 0 ? 'no recipients' : `${count} reachable`));
+  })), /*#__PURE__*/React.createElement(Label, null, "Recipients"), /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: 14,
       padding: 10,
@@ -13543,82 +14077,95 @@ const NotifyBody = ({
     style: {
       padding: '8px 4px'
     }
-  }, "No recipients yet \xB7 add the client's contacts or a custom ", isEmail ? 'email' : 'number', " below.") : /*#__PURE__*/React.createElement("div", {
+  }, "No recipients yet \xB7 add the client's contacts or paste a custom email / phone below.") : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexWrap: 'wrap',
       gap: 6
     }
-  }, recipients.map((r, idx) => /*#__PURE__*/React.createElement("span", {
-    key: idx,
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '4px 4px 4px 6px',
-      borderRadius: 999,
-      background: r.isPrimary ? T.primarySofter : T.fieldBg,
-      border: `1px solid ${r.isPrimary ? '#C7C9FB' : T.border}`,
-      fontSize: 12
-    }
-  }, r.source === 'contact' ? /*#__PURE__*/React.createElement(Avatar, {
-    name: r.label,
-    size: 20
-  }) : /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 20,
-      height: 20,
-      borderRadius: '50%',
-      background: T.muted,
-      color: '#fff',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: isEmail ? 'send' : 'bell',
-    size: 10,
-    color: "#fff"
-  })), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontWeight: 500
-    }
-  }, r.label), r.role && /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: T.muted
-    }
-  }, "\xB7 ", r.role), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: T.muted,
-      fontSize: 11
-    }
-  }, r.value), /*#__PURE__*/React.createElement("button", {
-    onClick: () => removeRecipient(idx),
-    title: "Remove",
-    style: {
-      width: 20,
-      height: 20,
-      border: 'none',
-      borderRadius: '50%',
-      background: 'transparent',
-      color: T.muted,
-      cursor: 'pointer',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    onMouseEnter: e => {
-      e.currentTarget.style.color = T.red;
-      e.currentTarget.style.background = T.redSoft;
-    },
-    onMouseLeave: e => {
-      e.currentTarget.style.color = T.muted;
-      e.currentTarget.style.background = 'transparent';
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "close",
-    size: 10
-  }))))), /*#__PURE__*/React.createElement("div", {
+  }, recipients.map((r, idx) => {
+    const {
+      email,
+      phone
+    } = recipientAddresses(r);
+    return /*#__PURE__*/React.createElement("span", {
+      key: idx,
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '4px 4px 4px 6px',
+        borderRadius: 999,
+        background: r.isPrimary ? T.primarySofter : T.fieldBg,
+        border: `1px solid ${r.isPrimary ? '#C7C9FB' : T.border}`,
+        fontSize: 12
+      }
+    }, r.source === 'contact' ? /*#__PURE__*/React.createElement(Avatar, {
+      name: r.label,
+      size: 20
+    }) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        background: T.muted,
+        color: '#fff',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: email ? 'send' : 'bell',
+      size: 10,
+      color: "#fff"
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 500
+      }
+    }, r.label), r.role && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted
+      }
+    }, "\xB7 ", r.role), email && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: isChannelOn('email') ? T.textSoft : T.muted,
+        fontSize: 11,
+        opacity: isChannelOn('email') ? 1 : 0.6
+      }
+    }, "\uD83D\uDCE7 ", email), phone && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: isChannelOn('whatsapp') || isChannelOn('sms') ? T.textSoft : T.muted,
+        fontSize: 11,
+        opacity: isChannelOn('whatsapp') || isChannelOn('sms') ? 1 : 0.6
+      }
+    }, "\uD83D\uDCF1 ", phone), /*#__PURE__*/React.createElement("button", {
+      onClick: () => removeRecipient(idx),
+      title: "Remove",
+      style: {
+        width: 20,
+        height: 20,
+        border: 'none',
+        borderRadius: '50%',
+        background: 'transparent',
+        color: T.muted,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      },
+      onMouseEnter: e => {
+        e.currentTarget.style.color = T.red;
+        e.currentTarget.style.background = T.redSoft;
+      },
+      onMouseLeave: e => {
+        e.currentTarget.style.color = T.muted;
+        e.currentTarget.style.background = 'transparent';
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "close",
+      size: 10
+    })));
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 6,
@@ -13728,7 +14275,7 @@ const NotifyBody = ({
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap'
       }
-    }, c.role, " \xB7 ", isEmail ? u.email : u.phone)));
+    }, c.role, u.email ? ` · ${u.email}` : '', u.phone ? ` · ${u.phone}` : '')));
   })))), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'relative'
@@ -13754,21 +14301,21 @@ const NotifyBody = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "edit",
     size: 11
-  }), " Add custom ", isEmail ? 'email' : 'number'), /*#__PURE__*/React.createElement(Popover, {
+  }), " Add custom email / phone"), /*#__PURE__*/React.createElement(Popover, {
     open: adhocOpen,
     onClose: () => setAdhocOpen(false),
     anchorAlign: "left",
-    width: 300
+    width: 320
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: 12
     }
-  }, /*#__PURE__*/React.createElement(Label, null, isEmail ? 'Email address' : 'Phone (with country code)'), /*#__PURE__*/React.createElement("input", {
+  }, /*#__PURE__*/React.createElement(Label, null, "Email or phone"), /*#__PURE__*/React.createElement("input", {
     ref: adhocRef,
-    type: isEmail ? 'email' : 'tel',
+    type: "text",
     value: adhocValue,
     onChange: e => setAdhocValue(e.target.value),
-    placeholder: isEmail ? 'name@example.com' : '+61 412 345 678',
+    placeholder: "name@example.com or +61 412 345 678",
     onKeyDown: e => {
       if (e.key === 'Enter') addAdhoc();
     },
@@ -13782,7 +14329,11 @@ const NotifyBody = ({
       outline: 'none',
       fontSize: 13
     }
-  }), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "We'll auto-detect \u2014 contains '@' \u2192 email recipient, otherwise phone."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 6,
@@ -13797,7 +14348,7 @@ const NotifyBody = ({
     variant: "primary",
     onClick: addAdhoc,
     disabled: !adhocValue.trim()
-  }, "Add"))))))), !isEmail && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, "Default country code"), /*#__PURE__*/React.createElement(Select, {
+  }, "Add"))))))), channels.some(c => c !== 'email') && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, "Default country code"), /*#__PURE__*/React.createElement(Select, {
     value: state.notifyCountryIso || 'AU',
     onChange: e => set({
       notifyCountryIso: e.target.value
@@ -13810,8 +14361,19 @@ const NotifyBody = ({
   }, COUNTRY_CODES.map(c => /*#__PURE__*/React.createElement("option", {
     key: c.iso,
     value: c.iso
-  }, c.flag, " ", c.code, " ", c.iso)))), /*#__PURE__*/React.createElement(TemplateDropdown, {
-    label: `${channel === 'whatsapp' ? 'WhatsApp' : channel === 'sms' ? 'SMS' : 'Email'} template`,
+  }, c.flag, " ", c.code, " ", c.iso)))), channels.length > 1 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, "Composing for"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, channels.map(c => /*#__PURE__*/React.createElement(Chip, {
+    key: c,
+    selected: editTab === c,
+    onClick: () => switchEditTab(c)
+  }, channelLabelOf(c))))), /*#__PURE__*/React.createElement(TemplateDropdown, {
+    label: `${channelLabelOf(editTab)} template`,
     valueId: state[templateIdKey],
     templates: templates,
     fireToast: fireToast,
@@ -13912,7 +14474,7 @@ const NotifyBody = ({
     onChange: e => set({
       [contentKey]: e.target.value
     }),
-    placeholder: `Type your ${channel === 'sms' ? 'SMS' : channel === 'whatsapp' ? 'WhatsApp' : 'email'} message…`,
+    placeholder: `Type your ${editTab === 'sms' ? 'SMS' : editTab === 'whatsapp' ? 'WhatsApp' : 'email'} message…`,
     style: {
       width: '100%',
       minHeight: 120,
@@ -13944,7 +14506,7 @@ const NotifyBody = ({
       color: T.text,
       whiteSpace: 'pre-wrap'
     }
-  }, messageContent ? renderTokens(messageContent) : /*#__PURE__*/React.createElement("span", {
+  }, messageContent ? resolveTokens(messageContent, state, recipients.filter(r => isReachable(r, editTab))[0] || recipients[0]) : /*#__PURE__*/React.createElement("span", {
     style: {
       color: T.muted
     }
@@ -13958,7 +14520,7 @@ const NotifyBody = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "info",
     size: 11
-  }), channel === 'sms' ? `${charCount} chars · ${smsSegments} ${smsSegments === 1 ? 'segment' : 'segments'} (160/segment)` : `${charCount} characters · ${recipients.length} recipient${recipients.length === 1 ? '' : 's'}`));
+  }), editTab === 'sms' ? `${charCount} chars · ${smsSegments} ${smsSegments === 1 ? 'segment' : 'segments'} (160/segment) · ${reachableForEditTab} reachable on SMS` : `${charCount} characters · ${reachableForEditTab} reachable on ${channelLabelOf(editTab)}`));
 };
 
 // =====================================================
@@ -15533,16 +16095,22 @@ const initialsFor = str => {
   return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase().slice(0, 2);
 };
 const PreviewEmail = ({
-  state
+  state,
+  set
 }) => {
-  const channel = state.channel || 'email';
+  const channels = getChannels(state);
+  // Right-pane mirrors whichever channel the editor is currently composing for,
+  // falling back to the first selected channel.
+  const channel = channels.includes(state.notifyActiveChannel) ? state.notifyActiveChannel : channels[0];
   const recipients = state.notifyRecipients || [];
-  const channelLabel = channel === 'email' ? 'Email' : channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+  const channelLabel = channelLabelOf(channel);
   const fromLabel = state.introFrom || 'Test User <org2@yopmail.com>';
   const accent = state.themeColor || T.primary;
   const accentText = contrastText(accent);
   const rawBody = state[channel + 'Content'] || '';
-  const firstRecipient = recipients[0];
+  // Show only recipients reachable on the channel being previewed.
+  const reachable = recipients.filter(r => isReachable(r, channel));
+  const firstRecipient = reachable[0] || recipients[0];
   // Right-hand preview is "what the client sees" — resolve all merge fields
   // to real values so the demo doesn't surface raw {{ contact_first_name }}.
   const body = resolveTokens(rawBody, state, firstRecipient);
@@ -15561,17 +16129,18 @@ const PreviewEmail = ({
     hour: '2-digit',
     minute: '2-digit'
   });
-  const recipientCount = recipients.length;
+  const recipientCount = reachable.length;
+  const labelOf = r => r.label || recipientAddresses(r).email || recipientAddresses(r).phone || '';
   const recipientLabel = recipientCount === 0 ? /*#__PURE__*/React.createElement("span", {
     style: {
       color: T.amber,
       fontStyle: 'italic'
     }
-  }, "No recipients yet \u2014 add one in the editor") : recipients.length === 1 ? recipients[0].label || recipients[0].value : /*#__PURE__*/React.createElement("span", null, recipients[0].label || recipients[0].value, " ", /*#__PURE__*/React.createElement("span", {
+  }, "No recipients reachable on ", channelLabel, " \u2014 add one in the editor") : recipientCount === 1 ? labelOf(reachable[0]) : /*#__PURE__*/React.createElement("span", null, labelOf(reachable[0]), " ", /*#__PURE__*/React.createElement("span", {
     style: {
       color: T.muted
     }
-  }, "and ", recipients.length - 1, " other", recipients.length > 2 ? 's' : ''));
+  }, "and ", recipientCount - 1, " other", recipientCount > 2 ? 's' : ''));
   if (channel !== 'email') {
     // ---- SMS / WhatsApp: phone-message bubble preview ----
     const bubbleBg = channel === 'whatsapp' ? '#D9FDD3' : '#3478F6';
@@ -16205,11 +16774,16 @@ const FULL_PREVIEW_PAGES_BASE = [{
   id: 'next',
   label: 'Next Step'
 }];
+// True if any package has at least one optional row — drives whether the
+// Add-ons page surfaces in the stepper + ToC. Audit ISSUE-005 — clients
+// should never see an empty "no add-ons" placeholder section.
+const hasAnyAddons = state => (state.packages || []).some(p => (p.groups || []).some(g => (g.rows || []).some(r => r.optional)));
 // Include 'thanks' in the page list whenever the author hasn't switched it
 // off. The preview surfaces an editor-only banner explaining the page only
 // renders for the client *after* they sign.
 const getFullPreviewPages = state => {
-  const base = [...FULL_PREVIEW_PAGES_BASE];
+  let base = [...FULL_PREVIEW_PAGES_BASE];
+  if (!hasAnyAddons(state)) base = base.filter(p => p.id !== 'addons');
   if (state.thanksEnabled !== false) base.push({
     id: 'thanks',
     label: 'Thank you'
@@ -16229,6 +16803,7 @@ const DEFAULT_PARTNER_OFFERS = [{
   offer: '$250 voucher towards legal templates & advice',
   fine: 'Valid for new clients. Use code SOLE250 at checkout.',
   cta: 'Claim voucher',
+  ctaUrl: 'https://sprintlaw.com.au',
   color: '#FF5E3A',
   initial: 'S'
 }, {
@@ -16238,6 +16813,7 @@ const DEFAULT_PARTNER_OFFERS = [{
   offer: 'Free digital health check + 30-min business plan session',
   fine: 'No obligation. Booked directly with our partner consultant.',
   cta: 'Book free audit',
+  ctaUrl: 'https://insightdigital.com.au',
   color: '#6D4AFF',
   initial: 'I'
 }, {
@@ -16247,6 +16823,7 @@ const DEFAULT_PARTNER_OFFERS = [{
   offer: 'Get a comparison quote · 10% off your first policy',
   fine: 'Australia\'s largest small-business insurance marketplace.',
   cta: 'Get a quote',
+  ctaUrl: 'https://bizcover.com.au',
   color: '#0EA5E9',
   initial: 'B'
 }];
@@ -17072,7 +17649,7 @@ const FullCoverPage = ({
         paddingTop: 28,
         borderTop: `1px solid ${T.border}`
       }
-    }, /*#__PURE__*/React.createElement(PoweredByFooter, {
+    }, state.showPoweredBy && /*#__PURE__*/React.createElement(PoweredByFooter, {
       accent: acc
     }))));
   }
@@ -17220,7 +17797,7 @@ const FullCoverPage = ({
       style: {
         marginTop: 24
       }
-    }, /*#__PURE__*/React.createElement(PoweredByFooter, {
+    }, state.showPoweredBy && /*#__PURE__*/React.createElement(PoweredByFooter, {
       accent: acc
     }))));
   }
@@ -17397,7 +17974,7 @@ const FullCoverPage = ({
       style: {
         marginTop: 40
       }
-    }, /*#__PURE__*/React.createElement(PoweredByFooter, {
+    }, state.showPoweredBy && /*#__PURE__*/React.createElement(PoweredByFooter, {
       accent: acc
     }))));
   }
@@ -17578,7 +18155,7 @@ const FullCoverPage = ({
       color: T.textSoft,
       marginBottom: 18
     }
-  }, "Issued ", today, " \xB7 Validity ", validityText), /*#__PURE__*/React.createElement(PoweredByFooter, {
+  }, "Issued ", today, " \xB7 Validity ", validityText), state.showPoweredBy && /*#__PURE__*/React.createElement(PoweredByFooter, {
     accent: accStrong
   }))));
 };
@@ -17730,13 +18307,14 @@ const FullTocPage = ({
 }) => {
   const tpl = template || getTemplate(state);
   const acc = accent || state.themeColor || T.primary;
-  const entries = state.signedAt ? [...TOC_ENTRIES, {
+  const baseEntries = hasAnyAddons(state) ? TOC_ENTRIES : TOC_ENTRIES.filter(e => e.id !== 'addons');
+  const entries = state.signedAt ? [...baseEntries, {
     id: 'thanks',
     chapter: 9,
     title: 'Thank you',
     page: 11,
     kicker: 'Optional perks'
-  }] : TOC_ENTRIES;
+  }] : baseEntries;
   return /*#__PURE__*/React.createElement(TplPageWrap, {
     template: tpl,
     accent: acc
@@ -17785,6 +18363,8 @@ const PartnerOfferCard = ({
   template
 }) => {
   const tpl = template;
+  const hasLogo = !!offer.logoUrl || !!PARTNER_LOGOS[offer.id];
+  const href = offer.ctaUrl && offer.ctaUrl.trim() ? offer.ctaUrl : '#';
   return /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -17797,9 +18377,14 @@ const PartnerOfferCard = ({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 9
+      gap: 10
     }
-  }, /*#__PURE__*/React.createElement("span", {
+  }, hasLogo ? /*#__PURE__*/React.createElement(PartnerLogo, {
+    offer: offer,
+    width: 78,
+    height: 26,
+    radius: 5
+  }) : /*#__PURE__*/React.createElement("span", {
     style: {
       width: 22,
       height: 22,
@@ -17816,18 +18401,11 @@ const PartnerOfferCard = ({
     }
   }, offer.initial), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 13,
-      fontWeight: 600,
-      color: T.text,
-      lineHeight: 1.2
-    }
-  }, offer.name), /*#__PURE__*/React.createElement("span", {
-    style: {
       fontSize: 11,
       color: T.muted,
       lineHeight: 1.2
     }
-  }, "\xB7 ", offer.tagline)), /*#__PURE__*/React.createElement("div", {
+  }, offer.tagline)), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 12.5,
       color: T.textSoft,
@@ -17840,8 +18418,10 @@ const PartnerOfferCard = ({
       lineHeight: 1.4
     }
   }, offer.fine), /*#__PURE__*/React.createElement("a", {
-    href: "#",
-    onClick: e => e.preventDefault(),
+    href: href,
+    target: href === '#' ? undefined : '_blank',
+    rel: href === '#' ? undefined : 'noopener noreferrer',
+    onClick: href === '#' ? e => e.preventDefault() : undefined,
     style: {
       fontSize: 12,
       fontWeight: 600,
@@ -17974,6 +18554,17 @@ const ManageOffersModal = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 10,
+      fontSize: 12,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement(InfoHint, {
+    text: "These partners provide value to your clients \u2014 vetted offers Sole has negotiated on their behalf."
+  }), /*#__PURE__*/React.createElement("span", null, "Hover for what partner offers are.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
       flexDirection: 'column',
       gap: 10,
       maxHeight: '55vh',
@@ -17988,169 +18579,12 @@ const ManageOffersModal = ({
       fontSize: 13,
       textAlign: 'center'
     }
-  }, "No partner offers configured. Add one below or reset to defaults."), offers.map(o => /*#__PURE__*/React.createElement("div", {
+  }, "No partner offers configured. Add one below or reset to defaults."), offers.map(o => /*#__PURE__*/React.createElement(OfferEditor, {
     key: o.id,
-    style: {
-      border: `1px solid ${T.border}`,
-      borderRadius: 10,
-      padding: 12,
-      background: T.card
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 30,
-      height: 30,
-      borderRadius: 7,
-      background: o.color,
-      color: '#fff',
-      fontWeight: 800,
-      fontSize: 13,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
-    }
-  }, o.initial), /*#__PURE__*/React.createElement("input", {
-    value: o.name,
-    onChange: e => update(o.id, {
-      name: e.target.value
-    }),
-    style: {
-      flex: 1,
-      border: `1px solid ${T.border}`,
-      background: T.card,
-      padding: '6px 8px',
-      borderRadius: 6,
-      fontSize: 13,
-      fontWeight: 600,
-      color: T.text,
-      outline: 'none'
-    }
-  }), /*#__PURE__*/React.createElement(Toggle, {
-    on: o.enabled !== false,
-    onChange: v => update(o.id, {
-      enabled: v
-    }),
-    size: "sm"
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => remove(o.id),
-    title: "Remove offer",
-    style: {
-      width: 26,
-      height: 26,
-      border: 'none',
-      background: 'transparent',
-      color: T.muted,
-      cursor: 'pointer',
-      borderRadius: 4,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    onMouseEnter: e => {
-      e.currentTarget.style.background = T.redSoft;
-      e.currentTarget.style.color = T.red;
-    },
-    onMouseLeave: e => {
-      e.currentTarget.style.background = 'transparent';
-      e.currentTarget.style.color = T.muted;
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "trash",
-    size: 13
+    offer: o,
+    onChange: next => update(o.id, next),
+    onRemove: () => remove(o.id)
   }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    value: o.tagline,
-    placeholder: "Tagline",
-    onChange: e => update(o.id, {
-      tagline: e.target.value
-    }),
-    style: inputStyleSoft()
-  }), /*#__PURE__*/React.createElement("input", {
-    value: o.cta,
-    placeholder: "Button label",
-    onChange: e => update(o.id, {
-      cta: e.target.value
-    }),
-    style: inputStyleSoft()
-  }), /*#__PURE__*/React.createElement("input", {
-    value: o.offer,
-    placeholder: "Offer description",
-    onChange: e => update(o.id, {
-      offer: e.target.value
-    }),
-    style: {
-      ...inputStyleSoft(),
-      gridColumn: '1 / -1'
-    }
-  }), /*#__PURE__*/React.createElement("input", {
-    value: o.fine || '',
-    placeholder: "Fine print (optional)",
-    onChange: e => update(o.id, {
-      fine: e.target.value
-    }),
-    style: {
-      ...inputStyleSoft(),
-      gridColumn: '1 / -1'
-    }
-  }), /*#__PURE__*/React.createElement("label", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      fontSize: 11,
-      color: T.muted,
-      gridColumn: '1 / -1',
-      marginTop: 2
-    }
-  }, /*#__PURE__*/React.createElement("span", null, "Brand colour"), /*#__PURE__*/React.createElement("input", {
-    type: "color",
-    value: o.color,
-    onChange: e => update(o.id, {
-      color: e.target.value
-    }),
-    style: {
-      width: 28,
-      height: 22,
-      border: 'none',
-      padding: 0,
-      borderRadius: 4,
-      cursor: 'pointer'
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "tpl-mono",
-    style: {
-      fontSize: 11,
-      color: T.textSoft,
-      textTransform: 'uppercase'
-    }
-  }, o.color), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1
-    }
-  }), /*#__PURE__*/React.createElement("span", null, "Initial"), /*#__PURE__*/React.createElement("input", {
-    value: o.initial || '',
-    maxLength: 2,
-    onChange: e => update(o.id, {
-      initial: e.target.value.toUpperCase()
-    }),
-    style: {
-      width: 36,
-      ...inputStyleSoft()
-    }
-  })))))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -18215,8 +18649,19 @@ const FullThanksPage = ({
   const isEditorial = tpl.id === 'editorial';
   const isBoutique = tpl.id === 'boutique';
   const offers = (state.partnerOffers || []).filter(o => o.enabled !== false);
-  // Resolve merge tokens in the editable copy.
-  const recipient = (state.notifyRecipients || [])[0];
+  // Resolve merge tokens against the actual client signatory — not just the
+  // first notify recipient (which might be the practice owner CC'd on the
+  // send). Order of preference: who signed > primary client contact > first
+  // contact > first notify recipient. Audit ISSUE-008.
+  const primaryContact = (state.clientContacts || []).find(c => c.isPrimary) || (state.clientContacts || [])[0];
+  const primaryUser = primaryContact ? userById(primaryContact.userId) : null;
+  const recipient = state.signedName ? {
+    label: state.signedName,
+    value: state.clientEmail || ''
+  } : primaryUser ? {
+    label: fullName(primaryUser),
+    value: primaryUser.email || ''
+  } : (state.notifyRecipients || [])[0];
   const heading = resolveTokens(state.thanksHeading || `Thank you, ${clientName}.`, state, recipient);
   const subtitle = resolveTokens(state.thanksSubtitle || `Your engagement with ${practice} is officially under way${adv ? `. ${adv} will be your dedicated advisor` : ''}. We'll be in touch within one business day with your onboarding pack.`, state, recipient);
   return /*#__PURE__*/React.createElement(Fragment, null, showEditorBanner && !state.signedAt && set && /*#__PURE__*/React.createElement(ThanksEditorBanner, {
@@ -18734,7 +19179,7 @@ const FullServicesPage = ({
           fontVariantNumeric: 'tabular-nums',
           fontSize: 12
         }
-      }, r.qty, " \xD7 ", fmtMoney(r.rate)), /*#__PURE__*/React.createElement("td", {
+      }, priceLineDetail(r, g.taxRates)), /*#__PURE__*/React.createElement("td", {
         className: "tpl-font-editorial-heading",
         style: {
           padding: '14px 0',
@@ -18812,7 +19257,7 @@ const FullServicesPage = ({
           fontSize: 11,
           color: T.muted
         }
-      }, r.qty, " \xD7 ", fmtMoney(r.rate))), /*#__PURE__*/React.createElement("div", {
+      }, priceLineDetail(r, g.taxRates))), /*#__PURE__*/React.createElement("div", {
         className: "tpl-font-boutique-heading",
         style: {
           fontSize: 16,
@@ -18901,7 +19346,7 @@ const FullServicesPage = ({
         fontVariantNumeric: 'tabular-nums',
         fontSize: 12
       }
-    }, r.qty, " \xD7 ", fmtMoney(r.rate)), /*#__PURE__*/React.createElement("td", {
+    }, priceLineDetail(r, g.taxRates)), /*#__PURE__*/React.createElement("td", {
       className: "tpl-font-modern-heading",
       style: {
         padding: '12px 18px',
@@ -18999,7 +19444,7 @@ const FullAddonsPage = ({
           marginTop: 2,
           letterSpacing: 0.4
         }
-      }, row.qty, " \xD7 ", fmtMoney(row.rate), " \xB7 ", cycleOf(group).l)), /*#__PURE__*/React.createElement("div", {
+      }, priceLineDetail(row, group.taxRates), " \xB7 ", cycleOf(group).l)), /*#__PURE__*/React.createElement("div", {
         style: {
           display: 'flex',
           alignItems: 'center',
@@ -19076,7 +19521,7 @@ const FullAddonsPage = ({
           fontSize: 11,
           color: T.muted
         }
-      }, row.qty, " \xD7 ", fmtMoney(row.rate), " \xB7 ", cycleOf(group).l))), /*#__PURE__*/React.createElement("div", {
+      }, priceLineDetail(row, group.taxRates), " \xB7 ", cycleOf(group).l))), /*#__PURE__*/React.createElement("div", {
         style: {
           display: 'flex',
           alignItems: 'center',
@@ -19150,7 +19595,7 @@ const FullAddonsPage = ({
         color: T.muted,
         marginTop: 2
       }
-    }, row.qty, " \xD7 ", fmtMoney(row.rate), " \xB7 ", cycleOf(group).l))), /*#__PURE__*/React.createElement("div", {
+    }, priceLineDetail(row, group.taxRates), " \xB7 ", cycleOf(group).l))), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -19998,7 +20443,16 @@ const FullReviewPage = ({
 }) => {
   const tpl = template || getTemplate(state);
   const acc = accent || state.themeColor || T.primary;
-  const sections = parseClauseSections(state.termsContent || 'Engagement terms will appear here.');
+  // Resolve merge tokens BEFORE parsing so legal clauses substitute the
+  // actual counterparty (audit ISSUE-001 — no more leaked platform names).
+  const primaryContact = (state.clientContacts || []).find(c => c.isPrimary) || (state.clientContacts || [])[0];
+  const primaryUser = primaryContact ? userById(primaryContact.userId) : null;
+  const resolverRecipient = primaryUser ? {
+    label: fullName(primaryUser),
+    value: primaryUser.email || ''
+  } : (state.notifyRecipients || [])[0];
+  const resolvedTerms = resolveTokens(state.termsContent || 'Engagement terms will appear here.', state, resolverRecipient);
+  const sections = parseClauseSections(resolvedTerms);
   return /*#__PURE__*/React.createElement(TplPageWrap, {
     template: tpl,
     accent: acc
@@ -20040,7 +20494,13 @@ const FullNextPage = ({
 }) => {
   const tpl = template || getTemplate(state);
   const acc = accent || state.themeColor || T.primary;
-  const sections = parseClauseSections(state.nextContent || 'Next steps will be shared here.');
+  const primaryContact = (state.clientContacts || []).find(c => c.isPrimary) || (state.clientContacts || [])[0];
+  const primaryUser = primaryContact ? userById(primaryContact.userId) : null;
+  const resolverRecipient = primaryUser ? {
+    label: fullName(primaryUser),
+    value: primaryUser.email || ''
+  } : (state.notifyRecipients || [])[0];
+  const sections = parseClauseSections(resolveTokens(state.nextContent || 'Next steps will be shared here.', state, resolverRecipient));
   return /*#__PURE__*/React.createElement(TplPageWrap, {
     template: tpl,
     accent: acc
@@ -20442,67 +20902,83 @@ const FullPreview = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "chevronLeft",
     size: 12
-  }), " Back"), next ? /*#__PURE__*/React.createElement("button", {
-    onClick: () => setPage(next.id),
-    style: {
-      padding: '10px 22px',
-      border: 'none',
-      borderRadius: 8,
-      background: accent,
-      color: accentText,
-      fontSize: 14,
-      fontWeight: 700,
-      cursor: 'pointer',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      boxShadow: `0 4px 12px ${accent}55`,
-      transition: 'transform 0.08s, box-shadow 0.12s'
-    },
-    onMouseEnter: e => {
-      e.currentTarget.style.transform = 'translateY(-1px)';
-      e.currentTarget.style.boxShadow = `0 6px 16px ${accent}66`;
-    },
-    onMouseLeave: e => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = `0 4px 12px ${accent}55`;
+  }), " Back"), (() => {
+    // The last-page CTA has historically read "Accept & Sign" but only
+    // closed the preview — that was misleading on the Thank-you page
+    // (already signed) and broken on the Review page (didn't open the
+    // sign modal). Audit ISSUE-003. Now: Review + unsigned → opens
+    // SignModal; Thank-you or already-signed → "Close preview".
+    if (next) {
+      return /*#__PURE__*/React.createElement("button", {
+        onClick: () => setPage(next.id),
+        style: {
+          padding: '10px 22px',
+          border: 'none',
+          borderRadius: 8,
+          background: accent,
+          color: accentText,
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          boxShadow: `0 4px 12px ${accent}55`,
+          transition: 'transform 0.08s, box-shadow 0.12s'
+        },
+        onMouseEnter: e => {
+          e.currentTarget.style.transform = 'translateY(-1px)';
+          e.currentTarget.style.boxShadow = `0 6px 16px ${accent}66`;
+        },
+        onMouseLeave: e => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = `0 4px 12px ${accent}55`;
+        }
+      }, "Next ", /*#__PURE__*/React.createElement(Icon, {
+        name: "chevronRight",
+        size: 13,
+        color: accentText,
+        strokeWidth: 2.4
+      }));
     }
-  }, "Next ", /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 13,
-    color: accentText,
-    strokeWidth: 2.4
-  })) : /*#__PURE__*/React.createElement("button", {
-    onClick: onClose,
-    style: {
-      padding: '10px 22px',
-      border: 'none',
-      borderRadius: 8,
-      background: accent,
+    const isReviewLast = page === 'review' && !state.signedAt;
+    const onLastClick = isReviewLast ? () => set({
+      signModalOpen: true
+    }) : onClose;
+    const label = isReviewLast ? 'Accept & Sign' : 'Close preview';
+    const icon = isReviewLast ? 'check' : 'close';
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: onLastClick,
+      style: {
+        padding: '10px 22px',
+        border: 'none',
+        borderRadius: 8,
+        background: accent,
+        color: accentText,
+        fontSize: 14,
+        fontWeight: 700,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        boxShadow: `0 4px 12px ${accent}55`,
+        transition: 'transform 0.08s, box-shadow 0.12s'
+      },
+      onMouseEnter: e => {
+        e.currentTarget.style.transform = 'translateY(-1px)';
+        e.currentTarget.style.boxShadow = `0 6px 16px ${accent}66`;
+      },
+      onMouseLeave: e => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = `0 4px 12px ${accent}55`;
+      }
+    }, label, " ", /*#__PURE__*/React.createElement(Icon, {
+      name: icon,
+      size: 13,
       color: accentText,
-      fontSize: 14,
-      fontWeight: 700,
-      cursor: 'pointer',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      boxShadow: `0 4px 12px ${accent}55`,
-      transition: 'transform 0.08s, box-shadow 0.12s'
-    },
-    onMouseEnter: e => {
-      e.currentTarget.style.transform = 'translateY(-1px)';
-      e.currentTarget.style.boxShadow = `0 6px 16px ${accent}66`;
-    },
-    onMouseLeave: e => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = `0 4px 12px ${accent}55`;
-    }
-  }, "Accept & Sign ", /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
-    size: 13,
-    color: accentText,
-    strokeWidth: 2.5
-  }))));
+      strokeWidth: 2.5
+    }));
+  })()));
 };
 
 // =====================================================
@@ -20661,12 +21137,7 @@ const EditorTopBar = ({
     onClick: togglePreview,
     icon: "eye",
     size: "sm"
-  }, previewOn ? 'Hide preview' : 'Preview'), hasPreview && /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    onClick: onPreview,
-    icon: "eye",
-    size: "sm"
-  }, isMobile ? '' : 'Full preview'), !isMobile && /*#__PURE__*/React.createElement(Btn, {
+  }, previewOn ? 'Hide preview' : 'Preview'), !isMobile && /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     onClick: () => {
       // The PDFDocument portal is permanently mounted in App; the @media
@@ -20974,12 +21445,13 @@ const ProposalEditor = ({
     })(),
     theme: state.brandFetched ? `Brand from ${state.brandUrl} · ${state.themeColor} · ${state.brandFont}` : `Primary ${state.themeColor} · accent ${state.themeAccent || '#F5C518'}`,
     notify: (() => {
-      const channelLabel = state.channel === 'email' ? 'Email' : state.channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+      const chans = getChannels(state);
+      const chanList = chans.map(channelLabelOf).join(' + ');
       const recips = state.notifyRecipients || [];
-      if (recips.length === 0) return `${channelLabel} → no recipients`;
-      const first = recips[0].label || recips[0].value || '—';
+      if (recips.length === 0) return `${chanList} → no recipients`;
+      const first = recips[0].label || recipientAddresses(recips[0]).email || recipientAddresses(recips[0]).phone || '—';
       const extra = recips.length > 1 ? ` +${recips.length - 1}` : '';
-      return `${channelLabel} → ${first}${extra}`;
+      return `${chanList} → ${first}${extra}`;
     })()
   };
 
@@ -20991,7 +21463,13 @@ const ProposalEditor = ({
     intro: !!getIntroText(state) || getIntroBlocks(state).some(b => b.type !== 'text' && b.src),
     terms: !!state.termsContent,
     next: !!state.nextContent,
-    notify: (state.notifyRecipients || []).length > 0
+    notify: (() => {
+      const chans = getChannels(state);
+      const recips = state.notifyRecipients || [];
+      if (chans.length === 0 || recips.length === 0) return false;
+      // Every chosen channel must have at least one reachable recipient.
+      return chans.every(c => recips.some(r => isReachable(r, c)));
+    })()
   };
   const optional = {
     docs: true,
@@ -21041,8 +21519,8 @@ const ProposalEditor = ({
       detail: 'Help the client know what happens after they sign.'
     },
     notify: {
-      label: 'Add at least one recipient',
-      detail: 'Pick a contact from the client or paste a custom address.'
+      label: 'Reachable recipient per channel',
+      detail: 'Every selected channel needs at least one recipient with the matching email or phone.'
     },
     docs: {
       label: 'Attach engagement documents',
@@ -21436,13 +21914,14 @@ const Confirm = ({
   // Notification preview — name who the proposal will actually be sent to
   // (not the client's primary email, which can mislead).
   const recipients = state.notifyRecipients || [];
-  const channelLabel = state.channel === 'email' ? 'Email' : state.channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+  const chans = getChannels(state);
+  const chanLabel = chans.map(channelLabelOf).join(' + ');
   const notifyValue = recipients.length === 0 ? /*#__PURE__*/React.createElement("span", {
     style: {
       color: T.red
     }
-  }, "No recipients") : /*#__PURE__*/React.createElement("span", null, channelLabel, " \u2192 ", recipients.length, " ", recipients.length === 1 ? 'recipient' : 'recipients');
-  const notifySub = recipients.length === 0 ? 'Add a contact before sending.' : recipients.map(r => r.label || r.value).slice(0, 4).join(', ') + (recipients.length > 4 ? ` +${recipients.length - 4}` : '');
+  }, "No recipients") : /*#__PURE__*/React.createElement("span", null, chanLabel, " \u2192 ", recipients.length, " ", recipients.length === 1 ? 'recipient' : 'recipients');
+  const notifySub = recipients.length === 0 ? 'Add a contact before sending.' : recipients.map(r => r.label || recipientAddresses(r).email || recipientAddresses(r).phone).slice(0, 4).join(', ') + (recipients.length > 4 ? ` +${recipients.length - 4}` : '');
 
   // Show the active client's contacts on the summary row sub-line so the
   // reviewer knows who's attached to the entity, not just the entity itself.
@@ -21995,160 +22474,9 @@ const ProposalsList = ({
       background: T.bg,
       display: 'flex'
     }
-  }, /*#__PURE__*/React.createElement("aside", {
-    style: {
-      width: 220,
-      background: T.card,
-      borderRight: `1px solid ${T.border}`,
-      padding: '20px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 14,
-      flexShrink: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'baseline',
-      gap: 6,
-      padding: '0 6px'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 22,
-      fontWeight: 700,
-      letterSpacing: -0.5
-    }
-  }, "S"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-block',
-      width: 14,
-      height: 14,
-      borderRadius: '50%',
-      background: `radial-gradient(circle at 30% 30%, ${T.primary}, ${T.primaryDark})`,
-      transform: 'translateY(2px)'
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 22,
-      fontWeight: 700,
-      letterSpacing: -0.5
-    }
-  }, "le"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: T.amber,
-      fontWeight: 600,
-      marginLeft: 2
-    }
-  }, "(Practice)")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700,
-      color: T.muted,
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-      padding: '0 8px 6px'
-    }
-  }, "Menu"), [{
-    i: 'list',
-    l: 'Dashboard'
-  }, {
-    i: 'proposal',
-    l: 'Proposal',
-    active: true,
-    sub: ['Overview', 'Proposals', 'Deals', 'Services']
-  }, {
-    i: 'building',
-    l: 'Job Management'
-  }, {
-    i: 'user',
-    l: 'Clients Management'
-  }, {
-    i: 'handshake',
-    l: 'Team Management'
-  }, {
-    i: 'wallet',
-    l: 'Payroll Management',
-    go: '#/practice/employees'
-  }, {
-    i: 'docs',
-    l: 'Docs'
-  }, {
-    i: 'send',
-    l: 'Communications'
-  }, {
-    i: 'info',
-    l: 'Questionnaires & Forms'
-  }, {
-    i: 'bell',
-    l: 'Notifications',
-    badge: 1992
-  }].map((m, i) => /*#__PURE__*/React.createElement(Fragment, {
-    key: i
-  }, /*#__PURE__*/React.createElement("button", {
-    "data-hover": "row",
-    onClick: m.go ? () => {
-      window.location.hash = m.go;
-    } : undefined,
-    style: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '8px 10px',
-      border: 'none',
-      borderRadius: 8,
-      background: m.active ? T.primary : 'transparent',
-      color: m.active ? '#fff' : T.textSoft,
-      fontSize: 13,
-      fontWeight: m.active ? 600 : 500,
-      cursor: 'pointer',
-      textAlign: 'left'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: m.i,
-    size: 15,
-    color: m.active ? '#fff' : T.muted
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1
-    }
-  }, m.l), m.badge && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700,
-      background: T.red,
-      color: '#fff',
-      padding: '1px 6px',
-      borderRadius: 999
-    }
-  }, m.badge)), m.sub && /*#__PURE__*/React.createElement("div", {
-    style: {
-      paddingLeft: 24,
-      marginTop: 2,
-      marginBottom: 2
-    }
-  }, m.sub.map(s => /*#__PURE__*/React.createElement("button", {
-    key: s,
-    "data-hover": "row",
-    style: {
-      width: '100%',
-      padding: '6px 10px',
-      border: 'none',
-      background: s === 'Proposals' ? T.primarySoft : 'transparent',
-      color: s === 'Proposals' ? T.primary : T.muted,
-      fontWeight: s === 'Proposals' ? 600 : 500,
-      borderRadius: 8,
-      fontSize: 12,
-      cursor: 'pointer',
-      textAlign: 'left'
-    }
-  }, s))))))), /*#__PURE__*/React.createElement("main", {
+  }, /*#__PURE__*/React.createElement(AppSidebar, {
+    activeSubId: "proposal"
+  }), /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
       padding: '20px 28px 60px',
@@ -23362,63 +23690,99 @@ const blankPackages = () => [{
   }]
 }];
 
-// Maps a template id to a partial state seed. Built-ins are deterministic; user-saved
-// templates carry their own snapshot under `seed`.
+// Maps a template id to a partial state seed. Built-ins are deterministic;
+// user-saved templates carry their own snapshot under `seed`.
+//
+// Two distinct cases worth understanding before editing:
+//   • Blank template ("Start from scratch") → trueEmpty + cleared client.
+//     Nothing pre-filled anywhere, so the author writes everything themselves.
+//   • Non-blank built-in template → trueEmpty + only the fields that *are*
+//     the template's value (packages, intro/terms/next snippets). Notify
+//     content, subject, thanks copy, and client info are left blank so the
+//     author personalises them per engagement. ("Can be prefilled but not
+//     everything" — per audit feedback.)
+const trueEmpty = proposalName => ({
+  proposalName: proposalName || 'Untitled proposal',
+  activePackageId: 'pkg-1',
+  packages: blankPackages(),
+  // intro / terms / next — all empty by default; non-blank templates layer
+  // their snippets on top.
+  introTemplate: 'intro-blank',
+  introContent: '',
+  introImage: null,
+  introVideo: null,
+  introPdf: null,
+  introBlocks: null,
+  introSignatureEnabled: true,
+  introSignatureName: '',
+  introSignatureSize: 'medium',
+  termsTemplate: 'terms-blank',
+  termsContent: '',
+  nextTemplate: 'next-blank',
+  nextContent: '',
+  // notify — start clean, no draft email/WhatsApp/SMS body, no subject.
+  notifyRecipients: [],
+  channels: ['email'],
+  channel: 'email',
+  notifyActiveChannel: 'email',
+  emailTemplateId: 'em-blank',
+  emailContent: '',
+  whatsappTemplateId: 'wa-blank',
+  whatsappContent: '',
+  smsTemplateId: 'sms-blank',
+  smsContent: '',
+  subject: '',
+  notifyCountryIso: 'AU',
+  // contract defaults
+  autoExpire: false,
+  expireDays: '14',
+  expireCustom: '',
+  startMode: 'acceptance',
+  startDateChip: 'today',
+  startDateCustom: '',
+  contractLength: '12',
+  contractCustom: '',
+  contractUnit: 'months',
+  // payment + signing
+  paymentRequired: false,
+  paymentMethods: {
+    stripe: true
+  },
+  uploadedDocs: [],
+  signedAt: null,
+  signedName: '',
+  signModalOpen: false,
+  // thanks page — defaults apply when these are blank (heading/subtitle
+  // render fallback copy). Partner offers stay as platform defaults so the
+  // author can curate which ones the client sees.
+  thanksEnabled: true,
+  thanksHeading: '',
+  thanksSubtitle: '',
+  thanksPerksTitle: '',
+  thanksPerksIntro: '',
+  partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
+    ...o,
+    enabled: true
+  })),
+  // client — cleared so each template feels like a new proposal.
+  clientId: null,
+  client: '',
+  clientType: '',
+  clientAbn: '',
+  clientAcn: '',
+  clientRegDate: '',
+  clientBilling: '',
+  clientGst: false,
+  clientEmail: '',
+  clientContacts: []
+});
 const templateSeed = tpl => {
   if (!tpl) return {};
   if (tpl.seed) return tpl.seed; // user-saved
-  // Reset *all* new state fields too — otherwise loading a template would
-  // silently inherit the previous proposal's media uploads, recipient list,
-  // and per-channel notify drafts. Set sensible defaults for notify content
-  // (std templates) so demos look complete out of the box.
-  const baseEmpty = {
-    proposalName: tpl.name === 'Blank proposal' ? 'Untitled proposal' : tpl.name,
-    activePackageId: 'pkg-1',
-    packages: blankPackages(),
-    introTemplate: 'intro-blank',
-    introContent: '',
-    introImage: null,
-    introVideo: null,
-    introPdf: null,
-    introBlocks: null,
-    introSignatureEnabled: true,
-    introSignatureName: '',
-    introSignatureSize: 'medium',
-    termsTemplate: 'terms-blank',
-    termsContent: '',
-    nextTemplate: 'next-blank',
-    nextContent: '',
-    notifyRecipients: [],
-    channel: 'email',
-    emailTemplateId: 'em-std',
-    emailContent: NOTIFY_TEMPLATES.email[0].content,
-    whatsappTemplateId: 'wa-std',
-    whatsappContent: NOTIFY_TEMPLATES.whatsapp[0].content,
-    smsTemplateId: 'sms-std',
-    smsContent: NOTIFY_TEMPLATES.sms[0].content,
-    uploadedDocs: [],
-    paymentRequired: false,
-    signedAt: null,
-    signedName: '',
-    signModalOpen: false
-  };
-  if (tpl.id === 't-blank') return {
-    ...baseEmpty,
-    clientId: null,
-    client: '',
-    clientType: '',
-    clientAbn: '',
-    clientAcn: '',
-    clientRegDate: '',
-    clientBilling: '',
-    clientGst: false,
-    clientEmail: '',
-    clientContacts: []
-  };
+  if (tpl.id === 't-blank') return trueEmpty('Untitled proposal');
   if (tpl.id === 't-advisory') {
     return {
-      ...baseEmpty,
-      proposalName: 'Advisory retainer',
+      ...trueEmpty('Advisory retainer'),
       packages: [{
         id: 'pkg-1',
         name: 'Advisory',
@@ -23489,8 +23853,7 @@ const templateSeed = tpl => {
   }
   if (tpl.id === 't-tax') {
     return {
-      ...baseEmpty,
-      proposalName: 'Annual tax return',
+      ...trueEmpty('Annual tax return'),
       packages: [{
         id: 'pkg-1',
         name: 'Tax',
@@ -23542,8 +23905,7 @@ const templateSeed = tpl => {
   }
   if (tpl.id === 't-bookkeeping') {
     return {
-      ...baseEmpty,
-      proposalName: 'Monthly bookkeeping',
+      ...trueEmpty('Monthly bookkeeping'),
       packages: [{
         id: 'pkg-1',
         name: 'Books',
@@ -23615,8 +23977,7 @@ const templateSeed = tpl => {
   }
   if (tpl.id === 't-smsf') {
     return {
-      ...baseEmpty,
-      proposalName: 'SMSF audit pack',
+      ...trueEmpty('SMSF audit pack'),
       packages: [{
         id: 'pkg-1',
         name: 'SMSF',
@@ -23658,8 +24019,7 @@ const templateSeed = tpl => {
   }
   if (tpl.id === 't-onboarding') {
     return {
-      ...baseEmpty,
-      proposalName: 'New client onboarding',
+      ...trueEmpty('New client onboarding'),
       packages: [{
         id: 'pkg-1',
         name: 'Onboarding',
@@ -23719,7 +24079,7 @@ const templateSeed = tpl => {
       nextContent: '1. Sign engagement letter\n2. Verify identity\n3. Discovery call within 5 business days'
     };
   }
-  return baseEmpty;
+  return trueEmpty(tpl.name);
 };
 const App = () => {
   const viewport = useViewport();
@@ -23877,7 +24237,7 @@ const App = () => {
     introSignatureName: '',
     introSignatureSize: 'medium',
     termsTemplate: 'terms-apes',
-    termsContent: '1. Engagement & scope\nThis engagement is between Sole Accounting ("we") and Solepay ("you"). We will provide the services described in this proposal in accordance with APES 110 and ATO requirements.\n\n2. Fees & payment\nFees are payable monthly in advance via direct debit. Out-of-scope work will be quoted before commencement.\n\n3. Termination\nEither party may terminate with 30 days written notice.',
+    termsContent: '1. Engagement & scope\nThis engagement is between Sole Accounting ("we") and {{ client_name }} ("you"). We will provide the services described in this proposal in accordance with APES 110 and ATO requirements.\n\n2. Fees & payment\nFees are payable monthly in advance via direct debit. Out-of-scope work will be quoted before commencement.\n\n3. Termination\nEither party may terminate with 30 days written notice.',
     nextTemplate: 'next-std',
     nextContent: '1. Sign this proposal — once accepted, you\'ll receive a confirmation email.\n2. Complete your client onboarding pack (ID verification + ATO authorisation).\n3. We\'ll schedule your kickoff call within 5 business days.\n4. Your dedicated advisor will be in touch shortly after.',
     // theme
@@ -23900,7 +24260,9 @@ const App = () => {
     brandFont: '',
     brandInitial: 'A',
     // notify
+    channels: ['email'],
     channel: 'email',
+    notifyActiveChannel: 'email',
     subject: 'Your proposal from Sole Accounting',
     notifyCountryIso: 'AU',
     notifyPhone: '412 345 678',
@@ -24246,59 +24608,88 @@ const AppSidebar = ({
   const dashboardActiveLabel = (dashboardSubs.find(s => s.id === activeSubId) || {}).label;
   const isDashboardActive = !!dashboardActiveLabel;
   const isPayrollActive = !!payrollActiveLabel;
-  const items = [{
-    i: 'list',
-    l: 'Dashboard',
-    onClick: leavePractice
-  }, {
+
+  // Every non-sub item now navigates somewhere. Items with built surfaces go
+  // to that route; items without built surfaces go to a stub page under the
+  // same /practice/<id> path (added in PracticeApp's renderContent switch),
+  // so the user can always exit a module via the sidebar — previously many
+  // parent items were inert and trapped the user in whichever module they'd
+  // entered.
+  const items = [
+  // Dashboards lives at the top — most-used analytical surfaces for the
+  // firm leader; everything else descends from there.
+  {
+    id: 'dashboards',
     i: 'chartBar',
     l: 'Dashboards',
     active: isDashboardActive,
     sub: dashboardSubs.map(s => s.label),
     subIds: dashboardSubs.map(s => s.id),
-    activeSub: dashboardActiveLabel
+    activeSub: dashboardActiveLabel,
+    // Parent click opens the first sub (Practice Dashboard) — gives the
+    // user a working landing rather than an inert label.
+    onClick: () => goPractice(dashboardSubs[0].id)
   }, {
+    id: 'proposal',
     i: 'proposal',
     l: 'Proposal',
+    active: activeSubId === 'proposal',
     sub: ['Overview', 'Proposals', 'Deals', 'Services'],
+    activeSub: activeSubId === 'proposal' ? 'Proposals' : null,
     onSub: leavePractice,
     onClick: leavePractice
   }, {
+    id: 'job-management',
     i: 'building',
     l: 'Job Management',
-    onClick: leavePractice
+    active: activeSubId === 'job-management',
+    onClick: () => goPractice('job-management')
   }, {
+    id: 'clients-management',
     i: 'user',
     l: 'Clients Management',
-    onClick: leavePractice
+    active: activeSubId === 'clients-management',
+    onClick: () => goPractice('clients-management')
   }, {
+    id: 'team-management',
     i: 'handshake',
     l: 'Team Management',
-    onClick: leavePractice
+    active: activeSubId === 'team-management',
+    onClick: () => goPractice('team-management')
   }, {
+    id: 'payroll',
     i: 'wallet',
     l: 'Payroll Management',
     active: isPayrollActive,
     sub: payrollSubs.map(s => s.label),
     subIds: payrollSubs.map(s => s.id),
-    activeSub: payrollActiveLabel
+    activeSub: payrollActiveLabel,
+    onClick: () => goPractice(payrollSubs[0].id)
   }, {
+    id: 'docs',
     i: 'docs',
     l: 'Docs',
-    onClick: leavePractice
+    active: activeSubId === 'docs',
+    onClick: () => goPractice('docs')
   }, {
+    id: 'communications',
     i: 'send',
     l: 'Communications',
-    onClick: leavePractice
+    active: activeSubId === 'communications',
+    onClick: () => goPractice('communications')
   }, {
+    id: 'questionnaires-forms',
     i: 'info',
     l: 'Questionnaires & Forms',
-    onClick: leavePractice
+    active: activeSubId === 'questionnaires-forms',
+    onClick: () => goPractice('questionnaires-forms')
   }, {
+    id: 'notifications',
     i: 'bell',
     l: 'Notifications',
     badge: 1992,
-    onClick: leavePractice
+    active: activeSubId === 'notifications',
+    onClick: () => goPractice('notifications')
   }];
   return /*#__PURE__*/React.createElement("aside", {
     style: {
@@ -56446,22 +56837,41 @@ const StubPage = ({
   }
 }, blurb))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
   style: {
-    padding: '40px 24px',
-    textAlign: 'center',
-    color: T.muted
+    padding: '56px 24px',
+    textAlign: 'center'
   }
 }, /*#__PURE__*/React.createElement("div", {
   style: {
-    fontSize: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    background: T.fieldBg,
+    color: T.muted,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "info",
+  size: 20,
+  color: T.muted
+})), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 15,
     fontWeight: 600,
-    color: T.textSoft,
+    color: T.text,
     marginBottom: 6
   }
-}, "Coming next"), /*#__PURE__*/React.createElement("div", {
+}, "This page is empty for now"), /*#__PURE__*/React.createElement("div", {
   style: {
-    fontSize: 13
+    fontSize: 13,
+    color: T.muted,
+    maxWidth: 380,
+    margin: '0 auto',
+    lineHeight: 1.5
   }
-}, "This area is being designed alongside the proposal & payroll flows."))));
+}, "We haven't built the ", title.toLowerCase(), " surface yet \u2014 it'll land alongside the proposal & payroll flows. The sidebar still gets you here so you can jump around freely."))));
 
 // =================================================================
 // IndividualStaffDashboardPage — A staff member's personal command
@@ -57359,6 +57769,60 @@ const ISD_STATUS_DIST = {
 // switcher — so the id is a constant. If we later wire authentication,
 // derive this from the session instead.
 const ISD_CURRENT_STAFF_ID = 'sm';
+
+// Per-user "which sections are visible" preference for the Individual Staff
+// Dashboard. Powered by the Customise charts sheet — each entry shows up as
+// a toggleable row. Adding a new section here is the only step needed to
+// surface it in the customise UI.
+const ISD_CHART_SECTIONS = [{
+  id: 'kpi-strip',
+  label: 'KPI strip',
+  desc: 'Top tiles — utilisation, hours free, reviews, awaiting others, overdue.'
+}, {
+  id: 'workflow-snapshot',
+  label: 'Workflow snapshot',
+  desc: 'Due this week · blocked · waiting on client · waiting on reviewer · missing timesheets · rework.'
+}, {
+  id: 'quality',
+  label: 'Quality & timeliness',
+  desc: 'Review queue, on-time vs late deliveries, turnaround, reopens.'
+}, {
+  id: 'charts-row',
+  label: 'Hours & workflow charts',
+  desc: 'Hours by service donut + workflow status distribution.'
+}, {
+  id: 'reviewers-row',
+  label: 'Reviewers & activity',
+  desc: 'Reviewers I rely on + the recent activity feed.'
+}, {
+  id: 'ai-suggestions',
+  label: 'AI suggested actions',
+  desc: 'Generative next-action recommendations from your inbox.'
+}, {
+  id: 'my-inbox',
+  label: 'My inbox',
+  desc: 'Signals demanding action — counts per category.'
+}, {
+  id: 'capability-mix',
+  label: 'Capability & workload mix',
+  desc: 'Workload by service line + complexity bars.'
+}];
+const ISD_HIDDEN_KEY = 'sole.isd.hiddenSections.v1';
+const loadIsdHidden = () => {
+  try {
+    const raw = localStorage.getItem(ISD_HIDDEN_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+};
+const saveIsdHidden = set => {
+  try {
+    localStorage.setItem(ISD_HIDDEN_KEY, JSON.stringify([...set]));
+  } catch {}
+};
 const IndividualStaffDashboardPage = ({
   fireToast
 }) => {
@@ -57372,6 +57836,23 @@ const IndividualStaffDashboardPage = ({
   const [drill, setDrill] = useState(null);
   // Share = simple centered popup (not a side sheet, #56).
   const [sharePopup, setSharePopup] = useState(false);
+  // Customise sheet — wired toggles, persisted in localStorage so the user's
+  // layout sticks across reloads. Previously this was a decorative drill-down
+  // (#56) that did nothing.
+  const [customiseOpen, setCustomiseOpen] = useState(false);
+  const [hiddenSections, setHiddenSections] = useState(() => loadIsdHidden());
+  const isSectionVisible = id => !hiddenSections.has(id);
+  const toggleSection = id => setHiddenSections(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);else next.add(id);
+    saveIsdHidden(next);
+    return next;
+  });
+  const showAllSections = () => {
+    const empty = new Set();
+    setHiddenSections(empty);
+    saveIsdHidden(empty);
+  };
   useEffect(() => {
     if (!drill && !sharePopup) return;
     const onKey = e => {
@@ -57697,75 +58178,19 @@ const IndividualStaffDashboardPage = ({
     icon: "users",
     onClick: () => setSharePopup(true)
   }, "Share"), /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    icon: "sliders",
-    onClick: () => setDrill({
-      title: 'Customise charts',
-      blurb: 'Toggle which charts appear on this dashboard. Changes persist for your account.',
-      drivers: [{
-        label: 'Visible',
-        value: '5 charts',
-        sub: 'KPI strip · Workflow · Quality · Hours · Reviewers',
-        share: 100,
-        color: T.primary
-      }, {
-        label: 'Hidden',
-        value: '3 charts',
-        sub: 'Burndown · Pipeline funnel · Activity feed',
-        share: 38,
-        color: T.muted
-      }],
-      next: 'Open: Chart preferences'
-    })
-  }, "Customise"), /*#__PURE__*/React.createElement(Btn, {
     variant: "primary",
-    icon: "plus",
-    onClick: () => setDrill({
-      eyebrow: 'Chart library',
-      title: 'Add a chart',
-      headline: '6 available',
-      blurb: 'Pick a chart from the library to add to your dashboard. Each tile shows a tiny preview so you can pick visually.',
-      listTitle: 'Available charts',
-      list: [{
-        name: 'Burndown',
-        sub: 'Hours remaining vs target',
-        tag: 'Time-series',
-        tone: 'accent',
-        onClick: () => fireToast('Added Burndown chart')
-      }, {
-        name: 'Pipeline funnel',
-        sub: 'Stages from Lead → Lodged',
-        tag: 'Funnel',
-        tone: 'neutral',
-        onClick: () => fireToast('Added Pipeline funnel chart')
-      }, {
-        name: 'Activity feed',
-        sub: 'Latest comments + status changes',
-        tag: 'Timeline',
-        tone: 'neutral',
-        onClick: () => fireToast('Added Activity feed')
-      }, {
-        name: 'Client mix',
-        sub: 'Hours by client this period',
-        tag: 'Donut',
-        tone: 'neutral',
-        onClick: () => fireToast('Added Client mix donut')
-      }, {
-        name: 'Forecast revenue',
-        sub: 'Projected billings over 30/60/90d',
-        tag: 'Forecast',
-        tone: 'neutral',
-        onClick: () => fireToast('Added Forecast chart')
-      }, {
-        name: 'Reopen reasons',
-        sub: 'Top reasons jobs come back',
-        tag: 'Bar',
-        tone: 'amber',
-        onClick: () => fireToast('Added Reopen reasons chart')
-      }],
-      primaryLabel: 'Done'
-    })
-  }, "Add chart"))), /*#__PURE__*/React.createElement("div", {
+    icon: "sliders",
+    onClick: () => setCustomiseOpen(true)
+  }, "Customise charts", hiddenSections.size > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 6,
+      padding: '1px 6px',
+      borderRadius: 999,
+      background: 'rgba(255,255,255,0.22)',
+      fontSize: 10,
+      fontWeight: 700
+    }
+  }, hiddenSections.size, " hidden")))), isSectionVisible('kpi-strip') && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: 'repeat(5, 1fr)',
@@ -57848,7 +58273,7 @@ const IndividualStaffDashboardPage = ({
       size: 12,
       color: T.muted
     }), k.sub));
-  })), /*#__PURE__*/React.createElement("div", {
+  })), isSectionVisible('workflow-snapshot') && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: 'repeat(6, 1fr)',
@@ -58015,7 +58440,7 @@ const IndividualStaffDashboardPage = ({
         }
       }, t.sub));
     });
-  })()), /*#__PURE__*/React.createElement(DashSection, {
+  })()), isSectionVisible('quality') && /*#__PURE__*/React.createElement(DashSection, {
     title: "Quality & timeliness",
     subtitle: `How your work shipped ${pCfg.label}`
   }, /*#__PURE__*/React.createElement("div", {
@@ -58199,7 +58624,7 @@ const IndividualStaffDashboardPage = ({
         }
       }, t.sub));
     });
-  })())), /*#__PURE__*/React.createElement("div", {
+  })())), isSectionVisible('charts-row') && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1.4fr',
@@ -58348,7 +58773,7 @@ const IndividualStaffDashboardPage = ({
     }
   }, /*#__PURE__*/React.createElement(ProjLollipop, {
     data: statusDist
-  })))), /*#__PURE__*/React.createElement("div", {
+  })))), isSectionVisible('reviewers-row') && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '1.2fr 1fr',
@@ -58787,7 +59212,7 @@ const IndividualStaffDashboardPage = ({
       color: T.muted,
       marginTop: 1
     }
-  }, a.when))))))), /*#__PURE__*/React.createElement(DashSection, {
+  }, a.when))))))), isSectionVisible('ai-suggestions') && /*#__PURE__*/React.createElement(DashSection, {
     accent: /*#__PURE__*/React.createElement(Icon, {
       name: "sparkle",
       size: 16,
@@ -58918,7 +59343,7 @@ const IndividualStaffDashboardPage = ({
       size: 11,
       color: "#fff"
     })))));
-  }))), /*#__PURE__*/React.createElement(DashSection, {
+  }))), isSectionVisible('my-inbox') && /*#__PURE__*/React.createElement(DashSection, {
     title: "My inbox",
     subtitle: `Signals demanding action ${pCfg.label}`,
     right: liveInbox.reduce((s, i) => s + i.count, 0) === 0 ? /*#__PURE__*/React.createElement("span", {
@@ -59086,7 +59511,7 @@ const IndividualStaffDashboardPage = ({
       fontWeight: 600,
       cursor: 'pointer'
     }
-  }, "Fill timesheets \u2192")), /*#__PURE__*/React.createElement(DashSection, {
+  }, "Fill timesheets \u2192")), isSectionVisible('capability-mix') && /*#__PURE__*/React.createElement(DashSection, {
     title: "Capability & workload mix",
     subtitle: `Service lines and complexity ${pCfg.label} (${pCfg.sub})`
   }, /*#__PURE__*/React.createElement("div", {
@@ -59239,7 +59664,139 @@ const IndividualStaffDashboardPage = ({
     payload: drill,
     onClose: () => setDrill(null),
     fireToast: fireToast
-  }), aiCompose && /*#__PURE__*/React.createElement("div", {
+  }), customiseOpen && /*#__PURE__*/React.createElement("div", {
+    onClick: () => setCustomiseOpen(false),
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,.42)',
+      zIndex: 240,
+      display: 'flex',
+      justifyContent: 'flex-end',
+      animation: 'fadein .15s ease'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      width: 'min(440px, 92vw)',
+      height: '100%',
+      background: T.card,
+      boxShadow: '-12px 0 32px rgba(0,0,0,.10)',
+      display: 'flex',
+      flexDirection: 'column',
+      animation: 'slidein .2s ease'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '18px 22px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase'
+    }
+  }, "Dashboard preferences"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      fontWeight: 700,
+      marginTop: 4
+    }
+  }, "Customise charts"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4,
+      lineHeight: 1.45
+    }
+  }, "Toggle a section off to hide it from this dashboard. Your selection is saved to this browser.")), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setCustomiseOpen(false),
+    "aria-label": "Close",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      padding: 4,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: '14px 18px',
+      display: 'grid',
+      gap: 8
+    }
+  }, ISD_CHART_SECTIONS.map(s => {
+    const on = isSectionVisible(s.id);
+    return /*#__PURE__*/React.createElement("div", {
+      key: s.id,
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
+        gap: 12,
+        alignItems: 'flex-start',
+        padding: '12px 14px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        background: on ? T.card : T.fieldBg,
+        transition: 'background 0.12s'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: on ? T.text : T.muted
+      }
+    }, s.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        marginTop: 3,
+        lineHeight: 1.4
+      }
+    }, s.desc)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        paddingTop: 2
+      }
+    }, /*#__PURE__*/React.createElement(Toggle, {
+      on: on,
+      onChange: () => toggleSection(s.id),
+      size: "sm"
+    })));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 18px',
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: showAllSections,
+    disabled: hiddenSections.size === 0
+  }, "Show all"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, ISD_CHART_SECTIONS.length - hiddenSections.size, " of ", ISD_CHART_SECTIONS.length, " visible")))), aiCompose && /*#__PURE__*/React.createElement("div", {
     onClick: () => setAiCompose(null),
     style: {
       position: 'fixed',
@@ -66552,6 +67109,44 @@ const PracticeApp = () => {
         return /*#__PURE__*/React.createElement(StubPage, {
           title: "Client Profitability",
           blurb: "MRR vs time \xD7 hourly rate, utilisation per client, and NPS \u2014 wireframe pending."
+        });
+      // Stub routes for sidebar items that don't have a real surface yet.
+      // Having an explicit route keeps the sidebar a true exit hatch — users
+      // can always leave their current module by clicking a top-level item.
+      case 'job-management':
+        return /*#__PURE__*/React.createElement(StubPage, {
+          title: "Job Management",
+          blurb: "Set up service-line jobs, track WIP, and assign work to the team \u2014 wireframe pending."
+        });
+      case 'clients-management':
+        return /*#__PURE__*/React.createElement(StubPage, {
+          title: "Clients Management",
+          blurb: "Onboarding, KYC, document collection and engagement history \u2014 wireframe pending."
+        });
+      case 'team-management':
+        return /*#__PURE__*/React.createElement(StubPage, {
+          title: "Team Management",
+          blurb: "Staff records, roles, capacity targets, skills and access \u2014 wireframe pending."
+        });
+      case 'docs':
+        return /*#__PURE__*/React.createElement(StubPage, {
+          title: "Docs",
+          blurb: "Engagement letters, working papers, and shared templates \u2014 wireframe pending."
+        });
+      case 'communications':
+        return /*#__PURE__*/React.createElement(StubPage, {
+          title: "Communications",
+          blurb: "Outbound email / WhatsApp / SMS sequences and inbox triage \u2014 wireframe pending."
+        });
+      case 'questionnaires-forms':
+        return /*#__PURE__*/React.createElement(StubPage, {
+          title: "Questionnaires & Forms",
+          blurb: "Pre-engagement questionnaires and client intake forms \u2014 wireframe pending."
+        });
+      case 'notifications':
+        return /*#__PURE__*/React.createElement(StubPage, {
+          title: "Notifications",
+          blurb: "System alerts, mentions, and reminders across the practice \u2014 wireframe pending."
         });
       default:
         return /*#__PURE__*/React.createElement(PracticeDashboardPage, {
