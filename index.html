@@ -425,6 +425,22 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   }
   @keyframes drawerin { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
+  /* Rich block editor — placeholder for empty contenteditable. The :empty
+     selector matches when the element contains nothing, including a single
+     <br> that browsers leave after the user deletes all content (so we also
+     handle the "only-a-br" case via the :has selector with a fallback). */
+  .rich-block-editor:empty::before,
+  .rich-block-editor:has(> br:only-child)::before {
+    content: attr(data-placeholder);
+    color: #9CA3AF;
+    pointer-events: none;
+  }
+  .rich-block-editor h2 { font-size: 18px; font-weight: 700; margin: 8px 0 4px; line-height: 1.3; }
+  .rich-block-editor h3 { font-size: 15px; font-weight: 600; margin: 6px 0 2px; line-height: 1.3; }
+  .rich-block-editor p  { margin: 0 0 6px; }
+  .rich-block-editor ul, .rich-block-editor ol { margin: 4px 0 6px; padding-left: 22px; }
+  .rich-block-editor li { margin: 1px 0; }
+
   /* ---- Proposal templates: typography stacks loaded into rendered pages ---- */
   .tpl-font-editorial-heading { font-family: 'Source Serif 4', 'Iowan Old Style', Georgia, 'Times New Roman', serif; font-feature-settings: 'ss01', 'cv11'; }
   .tpl-font-editorial-body    { font-family: 'Source Serif 4', 'Iowan Old Style', Georgia, serif; font-feature-settings: 'ss01'; }
@@ -475,6 +491,22 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
        across A4 sheets. */
     .tpl-page-card { box-shadow: none !important; }
     .tpl-page-scroll { overflow: visible !important; }
+  }
+
+  /* Inline editable text in the live preview — soft tint + faint underline
+     on hover hints at editability without nudging surrounding layout. The
+     in-edit ring lives in inline styles on EditableText so it stays themed. */
+  [data-editable][data-editing="false"]:hover {
+    background: rgba(91, 91, 246, 0.06);
+    box-shadow: inset 0 -1px 0 rgba(91, 91, 246, 0.42);
+  }
+  [data-editable][data-editing="false"]:focus-visible {
+    outline: 2px solid rgba(91, 91, 246, 0.55);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  [data-editable][data-empty="true"][data-editing="false"] {
+    opacity: 0.55;
   }
 </style>
 </head>
@@ -1987,6 +2019,110 @@ const Chip = ({
     ...style
   }
 }, children);
+
+// Click-to-edit text used by the live preview for inline-editable page
+// headings + subtitles. Renders plain text in its caller's typography by
+// default; clicking switches to contentEditable for direct manipulation. On
+// blur (or Enter for single-line) the new value is committed via onChange.
+// Esc cancels. The wrapper handles its own DOM content during editing to
+// avoid React contentEditable warnings — re-renders triggered from above
+// while editing are intentionally swallowed so the cursor stays put.
+const EditableText = ({
+  value,
+  onChange,
+  placeholder = '',
+  multiline = false,
+  style = {},
+  className = '',
+  asTag = 'span',
+  ariaLabel = 'Edit'
+}) => {
+  const [editing, setEditing] = useState(false);
+  const ref = useRef(null);
+  const initial = useRef('');
+  useEffect(() => {
+    if (editing && ref.current) {
+      ref.current.innerText = value || '';
+      initial.current = value || '';
+      ref.current.focus();
+      const range = document.createRange();
+      range.selectNodeContents(ref.current);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }, [editing]);
+  const Tag = asTag;
+  if (!onChange) {
+    return /*#__PURE__*/React.createElement(Tag, {
+      className: className,
+      style: style
+    }, value !== undefined && value !== null && value !== '' ? value : placeholder || '');
+  }
+  const commit = () => {
+    const next = (ref.current?.innerText || '').replace(/\s+$/g, '');
+    setEditing(false);
+    if (next !== initial.current) onChange(next);
+  };
+  const cancel = () => {
+    if (ref.current) ref.current.innerText = initial.current;
+    setEditing(false);
+  };
+  return /*#__PURE__*/React.createElement(Tag, {
+    ref: ref,
+    contentEditable: editing,
+    suppressContentEditableWarning: true,
+    role: "textbox",
+    tabIndex: 0,
+    "aria-label": ariaLabel,
+    title: editing ? undefined : 'Click or press Enter to edit',
+    onClick: e => {
+      if (editing) return;
+      e.stopPropagation();
+      setEditing(true);
+    },
+    onFocus: e => {
+      // Keyboard activation: Enter/Space in role=textbox should enter
+      // edit mode. We can't tell here whether focus came from click or
+      // tab — that's handled in onKeyDown below.
+    },
+    onBlur: editing ? commit : undefined,
+    onKeyDown: e => {
+      if (!editing) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setEditing(true);
+        }
+        return;
+      }
+      if (!multiline && e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cancel();
+      }
+    },
+    className: className,
+    "data-editable": true,
+    "data-editing": editing ? 'true' : 'false',
+    "data-empty": !value && !editing ? 'true' : 'false',
+    style: {
+      ...style,
+      cursor: editing ? 'text' : 'pointer',
+      outline: 'none',
+      borderRadius: 4,
+      transition: 'box-shadow 120ms ease, background 120ms ease',
+      ...(editing ? {
+        padding: '2px 6px',
+        margin: '-2px -6px',
+        boxShadow: `0 0 0 1px ${withAlpha(T.primary, 0.5)}, 0 0 0 4px ${withAlpha(T.primary, 0.12)}`,
+        background: T.card
+      } : {})
+    }
+  }, editing ? null : value !== undefined && value !== null && value !== '' ? value : placeholder || ' ');
+};
 const ChipGroup = ({
   options,
   value,
@@ -4292,6 +4428,9 @@ const ClientBody = ({
     l: '+1 month'
   }];
   const lengthChips = [{
+    v: '1',
+    l: '1 mo'
+  }, {
     v: '3',
     l: '3 mo'
   }, {
@@ -8893,9 +9032,172 @@ const getIntroBlocks = state => {
 // Concatenated plain text of all text blocks — used by section summaries
 // and the send-validation map (so a block-list with text counts as filled
 // even when state.introContent is empty/stale).
+// Strip HTML so plain-text checks (validation, summaries) work for both
+// plain and rich-text content. Whitespace-only payloads count as empty.
+const stripHtml = s => String(s || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+const looksLikeHtml = s => /<\/?[a-z][^>]*>/i.test(String(s || ''));
 const getIntroText = state => {
   const blocks = getIntroBlocks(state);
-  return blocks.filter(b => b.type === 'text').map(b => (b.content || '').trim()).filter(Boolean).join('\n\n');
+  return blocks.filter(b => b.type === 'text').map(b => stripHtml(b.content || '').trim()).filter(Boolean).join('\n\n');
+};
+
+// Rich text editor for intro text blocks — contentEditable + minimal toolbar
+// (headings, bold/italic/underline, lists). Stores content as HTML so we
+// preserve formatting through the live + full preview. Plain-text legacy
+// content keeps rendering correctly because the renderer detects HTML.
+const RichBlockEditor = ({
+  value,
+  onChange,
+  placeholder,
+  autoFocus
+}) => {
+  const ref = useRef(null);
+  const lastRef = useRef(value || '');
+  // Only re-sync DOM when the value changes from OUTSIDE the editor (e.g.
+  // template apply). Setting innerHTML on every keystroke nukes the caret.
+  useEffect(() => {
+    const v = value || '';
+    if (ref.current && v !== lastRef.current) {
+      lastRef.current = v;
+      if (ref.current.innerHTML !== v) ref.current.innerHTML = v;
+    }
+  }, [value]);
+  useEffect(() => {
+    if (autoFocus && ref.current) ref.current.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const flush = () => {
+    if (!ref.current) return;
+    const html = ref.current.innerHTML;
+    if (html === lastRef.current) return;
+    lastRef.current = html;
+    onChange(html);
+  };
+  const exec = (cmd, arg) => {
+    if (ref.current) ref.current.focus();
+    try {
+      document.execCommand(cmd, false, arg);
+    } catch (_) {}
+    flush();
+  };
+  const TbBtn = ({
+    onClick,
+    title,
+    children,
+    active
+  }) => /*#__PURE__*/React.createElement("button", {
+    onMouseDown: e => e.preventDefault(),
+    onClick: onClick,
+    title: title,
+    style: {
+      minWidth: 26,
+      height: 26,
+      border: 'none',
+      borderRadius: 4,
+      background: active ? T.fieldBg : 'transparent',
+      color: T.textSoft,
+      cursor: 'pointer',
+      padding: '0 6px',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 12
+    },
+    onMouseEnter: e => e.currentTarget.style.background = T.fieldBg,
+    onMouseLeave: e => e.currentTarget.style.background = active ? T.fieldBg : 'transparent'
+  }, children);
+  const TbSep = () => /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 1,
+      height: 16,
+      background: T.border,
+      margin: '0 4px'
+    }
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1,
+      padding: '4px 6px',
+      borderBottom: `1px solid ${T.border}`,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('formatBlock', '<h2>'),
+    title: "Heading"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700
+    }
+  }, "H1")), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('formatBlock', '<h3>'),
+    title: "Subheading"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700,
+      fontSize: 11
+    }
+  }, "H2")), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('formatBlock', '<p>'),
+    title: "Paragraph"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11
+    }
+  }, "P")), /*#__PURE__*/React.createElement(TbSep, null), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('bold'),
+    title: "Bold (\u2318B)"
+  }, /*#__PURE__*/React.createElement("b", null, "B")), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('italic'),
+    title: "Italic (\u2318I)"
+  }, /*#__PURE__*/React.createElement("i", null, "I")), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('underline'),
+    title: "Underline (\u2318U)"
+  }, /*#__PURE__*/React.createElement("u", null, "U")), /*#__PURE__*/React.createElement(TbSep, null), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('insertUnorderedList'),
+    title: "Bulleted list"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "list",
+    size: 12
+  })), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => exec('insertOrderedList'),
+    title: "Numbered list"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "listNumbered",
+    size: 12
+  })), /*#__PURE__*/React.createElement(TbSep, null), /*#__PURE__*/React.createElement(TbBtn, {
+    onClick: () => {
+      const url = window.prompt('Link URL');
+      if (url) exec('createLink', url);
+    },
+    title: "Insert link"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "link",
+    size: 12
+  }))), /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    contentEditable: true,
+    suppressContentEditableWarning: true,
+    onInput: flush,
+    onBlur: flush,
+    "data-placeholder": placeholder || '',
+    className: "rich-block-editor",
+    style: {
+      minHeight: 56,
+      padding: '10px 12px',
+      outline: 'none',
+      fontSize: 14,
+      lineHeight: 1.6,
+      color: T.text
+    }
+  }));
 };
 
 // Auto-resizing textarea so text blocks grow with content (no inner scrollbar).
@@ -8945,7 +9247,7 @@ const BlockInsertMenu = ({
     id: 'text',
     label: 'Text',
     icon: 'edit',
-    desc: 'Paragraph or note'
+    desc: 'Heading, paragraph, list — rich formatting'
   }, {
     id: 'image',
     label: 'Image',
@@ -8956,6 +9258,11 @@ const BlockInsertMenu = ({
     label: 'Video',
     icon: 'video',
     desc: 'MP4 or YouTube/Loom/Vimeo link'
+  }, {
+    id: 'pageBreak',
+    label: 'Page break',
+    icon: 'list',
+    desc: 'Continue the intro on a new page'
   }];
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -9266,14 +9573,57 @@ const BlockRow = ({
     }
   }, /*#__PURE__*/React.createElement(BlockInsertMenu, {
     onInsert: type => onInsertAfter(index, type)
-  })), block.type === 'text' && /*#__PURE__*/React.createElement(AutoTextarea, {
+  })), block.type === 'text' && /*#__PURE__*/React.createElement(RichBlockEditor, {
     value: block.content || '',
-    placeholder: index === 0 ? "Hi {{contact_first_name}}, …" : "Continue typing…",
-    onChange: e => onChange({
+    placeholder: index === 0 ? 'Hi {{contact_first_name}}, …' : 'Continue typing…',
+    onChange: html => onChange({
       ...block,
-      content: e.target.value
+      content: html
     })
-  }), block.type === 'image' && /*#__PURE__*/React.createElement("div", {
+  }), block.type === 'pageBreak' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 14px',
+      borderRadius: 8,
+      border: `1px dashed ${T.borderStrong}`,
+      background: T.fieldBg,
+      color: T.muted,
+      fontSize: 12,
+      fontWeight: 500
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      height: 1,
+      background: T.borderStrong
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '3px 10px',
+      borderRadius: 999,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      fontSize: 11,
+      fontWeight: 600,
+      color: T.textSoft,
+      letterSpacing: 0.4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "list",
+    size: 11,
+    color: T.muted
+  }), " PAGE BREAK"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      height: 1,
+      background: T.borderStrong
+    }
+  })), block.type === 'image' && /*#__PURE__*/React.createElement("div", {
     style: {
       border: `1px solid ${T.border}`,
       borderRadius: 10,
@@ -9691,13 +10041,20 @@ const IntroBlocksEditor = ({
       name: '',
       width: 100,
       caption: ''
-    } : {
+    } : type === 'video' ? {
       id: newBlockId(),
       type: 'video',
       src: '',
       name: '',
       width: 100,
       isUrl: false
+    } : type === 'pageBreak' ? {
+      id: newBlockId(),
+      type: 'pageBreak'
+    } : {
+      id: newBlockId(),
+      type: 'text',
+      content: ''
     };
     writeBlocks([...blocks.slice(0, i + 1), newBlock, ...blocks.slice(i + 1)]);
   };
@@ -9778,7 +10135,8 @@ const IntroBlocksEditor = ({
       gap: 8,
       marginTop: 14,
       paddingTop: 12,
-      borderTop: `1px dashed ${T.border}`
+      borderTop: `1px dashed ${T.border}`,
+      flexWrap: 'wrap'
     }
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
@@ -9795,7 +10153,27 @@ const IntroBlocksEditor = ({
     size: "sm",
     icon: "video",
     onClick: () => insertAfter(blocks.length - 1, 'video')
-  }, "Add video")));
+  }, "Add video"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    onClick: () => {
+      // Append page break + a fresh empty text block so the new page
+      // is ready to type into.
+      writeBlocks([...blocks, {
+        id: newBlockId(),
+        type: 'pageBreak'
+      }, {
+        id: newBlockId(),
+        type: 'text',
+        content: ''
+      }]);
+    }
+  }, "Add page")));
 };
 
 // Picking a template applies its content but only after a confirm if the user
@@ -10230,16 +10608,19 @@ const PARTNER_LOGOS = {
       fill: "#0F1117"
     }, "Sprintlaw"));
   },
-  // Insight Digital — small orange ant icon (rear segment + head + curly
-  // antennae) followed by the "inSight" wordmark, "in" orange-italic and
-  // "Sight" dark-serif, matching the supplied brand asset.
+  // involve digital — black circle mark with white serif "iD" letters,
+  // followed by the wordmark "involve digital" stacked in two lines so the
+  // longer name still fits inside the 88×32 tile.
   insight: ({
     width,
     height,
     radius
   }) => {
-    const antCX = Math.max(8, height * 0.32);
-    const antScale = height / 32;
+    const markR = (height - 4) / 2;
+    const markCx = 2 + markR;
+    const textX = markCx + markR + 6;
+    const idFontSize = markR * 1.1;
+    const wordFontSize = Math.max(10, Math.min(12, Math.round(height * 0.34)));
     return /*#__PURE__*/React.createElement("svg", {
       width: width,
       height: height,
@@ -10248,74 +10629,45 @@ const PARTNER_LOGOS = {
       style: {
         display: 'block'
       }
-    }, /*#__PURE__*/React.createElement("g", {
-      transform: `translate(${antCX} ${height / 2}) scale(${antScale})`
-    }, /*#__PURE__*/React.createElement("ellipse", {
-      cx: "2.6",
-      cy: "0",
-      rx: "3.6",
-      ry: "2.8",
-      fill: "#F26B3A"
+    }, /*#__PURE__*/React.createElement("circle", {
+      cx: markCx,
+      cy: height / 2,
+      r: markR,
+      fill: "#0F1117"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "-2.6",
-      cy: "-0.2",
-      r: "2.3",
-      fill: "#F26B3A"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "-3.0",
-      cy: "-0.6",
-      r: "0.55",
-      fill: "#FFFFFF"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M -3.2 -2.2 Q -5.4 -3.8 -3.6 -5.6 Q -2.2 -6.6 -3.6 -7.6",
-      stroke: "#F26B3A",
-      strokeWidth: "0.65",
+      cx: markCx - markR * 0.30,
+      cy: height / 2 - markR * 0.55,
+      r: markR * 0.10,
       fill: "none",
-      strokeLinecap: "round"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M -1.4 -2.2 Q 0.8 -3.8 -1.0 -5.6 Q -2.4 -6.6 -1.0 -7.6",
-      stroke: "#F26B3A",
-      strokeWidth: "0.65",
-      fill: "none",
-      strokeLinecap: "round"
-    }), /*#__PURE__*/React.createElement("line", {
-      x1: "0",
-      y1: "2.4",
-      x2: "-1.8",
-      y2: "4.2",
-      stroke: "#F26B3A",
-      strokeWidth: "0.65",
-      strokeLinecap: "round"
-    }), /*#__PURE__*/React.createElement("line", {
-      x1: "2.6",
-      y1: "2.6",
-      x2: "2.6",
-      y2: "4.6",
-      stroke: "#F26B3A",
-      strokeWidth: "0.65",
-      strokeLinecap: "round"
-    }), /*#__PURE__*/React.createElement("line", {
-      x1: "5.0",
-      y1: "2.4",
-      x2: "6.6",
-      y2: "4.2",
-      stroke: "#F26B3A",
-      strokeWidth: "0.65",
-      strokeLinecap: "round"
-    })), /*#__PURE__*/React.createElement("text", {
-      x: antCX + 12,
+      stroke: "#FFFFFF",
+      strokeWidth: Math.max(0.5, markR * 0.06)
+    }), /*#__PURE__*/React.createElement("text", {
+      x: markCx,
       y: height / 2,
-      dy: "0.35em",
+      dy: "0.36em",
+      textAnchor: "middle",
       fontFamily: "Georgia, 'Times New Roman', serif",
-      fontSize: Math.max(12, Math.min(16, Math.round(height * 0.52)))
-    }, /*#__PURE__*/React.createElement("tspan", {
-      fill: "#F26B3A",
-      fontStyle: "italic",
-      fontWeight: "700"
-    }, "in"), /*#__PURE__*/React.createElement("tspan", {
-      fill: "#1F2937",
-      fontWeight: "700"
-    }, "Sight")));
+      fontSize: idFontSize,
+      fontWeight: "700",
+      fill: "#FFFFFF",
+      letterSpacing: "-0.4"
+    }, "iD"), /*#__PURE__*/React.createElement("text", {
+      x: textX,
+      y: height / 2 - wordFontSize * 0.20,
+      fontFamily: "\"Helvetica Neue\", Arial, sans-serif",
+      fontSize: wordFontSize,
+      fontWeight: "700",
+      letterSpacing: "-0.2",
+      fill: "#0F1117"
+    }, "involve"), /*#__PURE__*/React.createElement("text", {
+      x: textX,
+      y: height / 2 + wordFontSize * 0.95,
+      fontFamily: "\"Helvetica Neue\", Arial, sans-serif",
+      fontSize: wordFontSize,
+      fontWeight: "500",
+      letterSpacing: "-0.2",
+      fill: "#6B7280"
+    }, "digital"));
   },
   // BizCover — bold rounded "bc" mark in cyan, followed by the "BizCover"
   // wordmark in dark sans-serif, matching the supplied brand asset.
@@ -10635,7 +10987,58 @@ const OfferEditor = ({
       ...inputStyleSoft(),
       gridColumn: '1 / -1'
     }
+  }), /*#__PURE__*/React.createElement("textarea", {
+    value: offer.details || '',
+    placeholder: "Details (optional) \u2014 why this matters to the client, e.g. they're scaling team next quarter",
+    onChange: e => onChange({
+      ...offer,
+      details: e.target.value
+    }),
+    rows: 2,
+    style: {
+      ...inputStyleSoft(),
+      gridColumn: '1 / -1',
+      resize: 'vertical',
+      fontFamily: 'inherit',
+      lineHeight: 1.5
+    }
+  }), /*#__PURE__*/React.createElement("label", {
+    style: {
+      gridColumn: '1 / -1',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '8px 10px',
+      borderRadius: 8,
+      background: offer.notifyPartner ? T.primarySofter : T.fieldBg,
+      border: `1px solid ${offer.notifyPartner ? '#C7C9FB' : T.border}`,
+      cursor: 'pointer',
+      marginTop: 2
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: !!offer.notifyPartner,
+    onChange: v => onChange({
+      ...offer,
+      notifyPartner: v
+    }),
+    size: "sm"
   }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Notify ", offer.name || 'partner', " when sent"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11,
+      marginTop: 2
+    }
+  }, "We'll email the partner that this client has been invited so they can warm-introduce themselves. Makes the perk feel personal."))), /*#__PURE__*/React.createElement("div", {
     style: {
       gridColumn: '1 / -1',
       display: 'flex',
@@ -10731,62 +11134,21 @@ const OfferEditor = ({
     }
   })))));
 };
+
+// Slimmer ThanksBody — owns the post-sign confirmation copy only. Perks
+// live in their own accordion ([[PerksBody]]) so the two pages can be
+// edited independently.
 const ThanksBody = ({
   state,
-  set,
-  fireToast
+  set
 }) => {
-  const offers = state.partnerOffers || [];
   const enabled = state.thanksEnabled !== false;
-  const updateOffer = (id, next) => set({
-    partnerOffers: offers.map(o => o.id === id ? next : o)
-  });
-  const removeOffer = id => {
-    const idx = offers.findIndex(o => o.id === id);
-    const removed = offers[idx];
-    if (idx === -1) return;
-    set({
-      partnerOffers: offers.filter(o => o.id !== id)
-    });
-    fireToast?.({
-      message: `Removed "${removed.name}"`,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          const next = [...offers];
-          next.splice(idx, 0, removed);
-          set({
-            partnerOffers: next
-          });
-        }
-      }
-    });
-  };
-  const addNew = () => set({
-    partnerOffers: [...offers, {
-      id: 'offer-' + Date.now().toString(36),
-      name: 'New partner',
-      tagline: '',
-      offer: 'Describe the perk on offer',
-      fine: '',
-      cta: 'Claim offer',
-      color: '#10B981',
-      initial: 'P',
-      enabled: true
-    }]
-  });
-  const resetOffers = () => set({
-    partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
-      ...o,
-      enabled: true
-    }))
-  });
   return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Helper, {
     style: {
       marginBottom: 14,
       marginTop: -4
     }
-  }, "Shown to the client right after they sign. Use the heading, subtitle and perks to confirm next steps and surface any optional benefits."), /*#__PURE__*/React.createElement("div", {
+  }, "The final page the client lands on after signing. Keep it calm and personal \u2014 a confirmation, not a sales pitch."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -10855,23 +11217,109 @@ const ThanksBody = ({
       lineHeight: 1.55,
       resize: 'vertical'
     }
-  }), /*#__PURE__*/React.createElement(Label, {
+  })));
+};
+
+// PerksBody — owns the partner offer rail that appears on the dedicated
+// Perks page (just before Thank you). Lifted out of ThanksBody so authors
+// can toggle perks independently of the confirmation copy.
+const PerksBody = ({
+  state,
+  set,
+  fireToast
+}) => {
+  const offers = state.partnerOffers || [];
+  const enabled = state.perksEnabled !== false;
+  const updateOffer = (id, next) => set({
+    partnerOffers: offers.map(o => o.id === id ? next : o)
+  });
+  const removeOffer = id => {
+    const idx = offers.findIndex(o => o.id === id);
+    const removed = offers[idx];
+    if (idx === -1) return;
+    set({
+      partnerOffers: offers.filter(o => o.id !== id)
+    });
+    fireToast?.({
+      message: `Removed "${removed.name}"`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          const next = [...offers];
+          next.splice(idx, 0, removed);
+          set({
+            partnerOffers: next
+          });
+        }
+      }
+    });
+  };
+  const addNew = () => set({
+    partnerOffers: [...offers, {
+      id: 'offer-' + Date.now().toString(36),
+      name: 'New partner',
+      tagline: '',
+      offer: 'Describe the perk on offer',
+      fine: '',
+      cta: 'Claim offer',
+      color: '#10B981',
+      initial: 'P',
+      enabled: true
+    }]
+  });
+  const resetOffers = () => set({
+    partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
+      ...o,
+      enabled: true
+    }))
+  });
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Helper, {
     style: {
-      marginTop: 22
+      marginBottom: 14,
+      marginTop: -4
     }
-  }, "Perks section"), /*#__PURE__*/React.createElement("div", {
+  }, "Partner offers shown to the client on the page before Thank you. Optional benefits \u2014 no obligation, no pressure."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      flexDirection: 'column',
-      gap: 8
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 18,
+      padding: '10px 14px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
     }
-  }, /*#__PURE__*/React.createElement(Input, {
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: enabled,
+    onChange: v => set({
+      perksEnabled: v
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Show perks page"), /*#__PURE__*/React.createElement(Helper, null, "When off, the perks page is skipped and signing goes straight to Thank you."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      opacity: enabled ? 1 : 0.5,
+      pointerEvents: enabled ? 'auto' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Section title"), /*#__PURE__*/React.createElement(Input, {
     value: state.thanksPerksTitle || '',
     placeholder: "A few perks, on us",
     onChange: e => set({
       thanksPerksTitle: e.target.value
     })
-  }), /*#__PURE__*/React.createElement("textarea", {
+  }), /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginTop: 16
+    }
+  }, "Intro line"), /*#__PURE__*/React.createElement("textarea", {
     value: state.thanksPerksIntro || '',
     placeholder: "Optional benefits from {{ practice_name }}'s partner network...",
     onChange: e => set({
@@ -10891,7 +11339,7 @@ const ThanksBody = ({
       lineHeight: 1.55,
       resize: 'vertical'
     }
-  })), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -14531,6 +14979,10 @@ const PREVIEW_TABS = [{
   id: 'next',
   label: 'Next steps'
 }, {
+  id: 'perks',
+  label: 'Perks',
+  postSign: true
+}, {
   id: 'thanks',
   label: 'Thank you',
   postSign: true
@@ -14546,6 +14998,7 @@ const SECTION_TO_TAB = {
   terms: 'terms',
   docs: 'terms',
   next: 'next',
+  perks: 'perks',
   thanks: 'thanks',
   theme: 'splash',
   notify: 'email'
@@ -14562,6 +15015,7 @@ const TAB_TO_SECTION = {
   pricing: 'payment',
   terms: 'terms',
   next: 'next',
+  perks: 'perks',
   thanks: 'thanks',
   email: 'notify'
 };
@@ -15041,9 +15495,11 @@ const IntroMediaPreview = ({
   }));
 };
 const PreviewIntro = ({
-  state
+  state,
+  set
 }) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullIntroPage, {
   state: state,
+  set: set,
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
 }));
@@ -15660,23 +16116,29 @@ const PackageCard = ({
   }))));
 };
 const PreviewPackages = ({
-  state
+  state,
+  set
 }) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullPackagesPage, {
   state: state,
+  set: set,
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
 }));
 const PreviewServices = ({
-  state
+  state,
+  set
 }) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullServicesPage, {
   state: state,
+  set: set,
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
 }));
 const PreviewPricing = ({
-  state
+  state,
+  set
 }) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullPricingPage, {
   state: state,
+  set: set,
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
 }));
@@ -15984,11 +16446,23 @@ const PreviewTerms = ({
   template: getTemplate(state)
 }));
 const PreviewNext = ({
-  state
+  state,
+  set
 }) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullNextPage, {
   state: state,
+  set: set,
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
+}));
+const PreviewPerks = ({
+  state,
+  set
+}) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullPerksPage, {
+  state: state,
+  set: set,
+  accent: state.themeColor || T.primary,
+  template: getTemplate(state),
+  showEditorBanner: true
 }));
 const PreviewThanks = ({
   state,
@@ -16598,18 +17072,26 @@ const LivePreview = ({
     state: state,
     setTab: setTab
   });else if (activeTab === 'intro') body = /*#__PURE__*/React.createElement(PreviewIntro, {
-    state: state
+    state: state,
+    set: set
   });else if (activeTab === 'packages') body = /*#__PURE__*/React.createElement(PreviewPackages, {
-    state: state
+    state: state,
+    set: set
   });else if (activeTab === 'services') body = /*#__PURE__*/React.createElement(PreviewServices, {
-    state: state
+    state: state,
+    set: set
   });else if (activeTab === 'pricing') body = /*#__PURE__*/React.createElement(PreviewPricing, {
-    state: state
+    state: state,
+    set: set
   });else if (activeTab === 'terms') body = /*#__PURE__*/React.createElement(PreviewTerms, {
     state: state,
     set: set
   });else if (activeTab === 'next') body = /*#__PURE__*/React.createElement(PreviewNext, {
-    state: state
+    state: state,
+    set: set
+  });else if (activeTab === 'perks') body = /*#__PURE__*/React.createElement(PreviewPerks, {
+    state: state,
+    set: set
   });else if (activeTab === 'thanks') body = /*#__PURE__*/React.createElement(PreviewThanks, {
     state: state,
     set: set
@@ -16755,18 +17237,22 @@ const FULL_PREVIEW_PAGES_BASE = [{
   label: 'Review agreement'
 }, {
   id: 'next',
-  label: 'Next Step'
+  label: 'Next Steps'
 }];
 // True if any package has at least one optional row — drives whether the
 // Add-ons page surfaces in the stepper + ToC. Audit ISSUE-005 — clients
 // should never see an empty "no add-ons" placeholder section.
 const hasAnyAddons = state => (state.packages || []).some(p => (p.groups || []).some(g => (g.rows || []).some(r => r.optional)));
-// Include 'thanks' in the page list whenever the author hasn't switched it
-// off. The preview surfaces an editor-only banner explaining the page only
-// renders for the client *after* they sign.
+// Include 'perks' and 'thanks' in the page list whenever the author hasn't
+// switched them off. Both render only for the client *after* signing — the
+// preview surfaces an editor-only banner explaining the gating.
 const getFullPreviewPages = state => {
   let base = [...FULL_PREVIEW_PAGES_BASE];
   if (!hasAnyAddons(state)) base = base.filter(p => p.id !== 'addons');
+  if (state.perksEnabled !== false) base.push({
+    id: 'perks',
+    label: 'Perks'
+  });
   if (state.thanksEnabled !== false) base.push({
     id: 'thanks',
     label: 'Thank you'
@@ -16791,14 +17277,14 @@ const DEFAULT_PARTNER_OFFERS = [{
   initial: 'S'
 }, {
   id: 'insight',
-  name: 'Insight Digital',
+  name: 'involve digital',
   tagline: 'Marketing growth for accountants & their clients',
   offer: 'Free digital health check + 30-min business plan session',
   fine: 'No obligation. Booked directly with our partner consultant.',
   cta: 'Book free audit',
-  ctaUrl: 'https://insightdigital.com.au',
-  color: '#6D4AFF',
-  initial: 'I'
+  ctaUrl: 'https://involve.com.au',
+  color: '#0F1117',
+  initial: 'i'
 }, {
   id: 'bizcover',
   name: 'BizCover',
@@ -16909,6 +17395,41 @@ const TplPageWrap = ({
 // hairline-rule chapter marker; Modern gets a clean hairline + mono kicker (no
 // gradient — the cover is the only colored hero); Boutique gets a serif
 // ornament + Cormorant title; Blank gets minimal sans heading on a hairline.
+// Builds the title/subtitle slots for TplPageHeader. When the page is being
+// rendered in an editable surface (LivePreview / FullPreview), state + set
+// are present and the slots come back as EditableText nodes. In the PDF
+// print path set is omitted and the slots fall through to plain text — the
+// EditableText component short-circuits when onChange is absent.
+const usePageHeaderSlots = (pageId, defaults, state, set) => {
+  const overrides = pageId && state && state.pageHeaders && state.pageHeaders[pageId] || {};
+  const resolvedTitle = overrides.title !== undefined ? overrides.title : defaults.title;
+  const resolvedSubtitle = overrides.subtitle !== undefined ? overrides.subtitle : defaults.subtitle;
+  const writeSlot = set && pageId ? slot => value => {
+    const prev = state && state.pageHeaders || {};
+    const prevPage = prev[pageId] || {};
+    // Empty/whitespace clears the override so the page reverts to its default.
+    const nextPage = {
+      ...prevPage
+    };
+    if (!value || !String(value).trim()) {
+      delete nextPage[slot];
+    } else {
+      nextPage[slot] = value;
+    }
+    set({
+      pageHeaders: {
+        ...prev,
+        [pageId]: nextPage
+      }
+    });
+  } : null;
+  return {
+    title: resolvedTitle,
+    subtitle: resolvedSubtitle,
+    setTitle: writeSlot ? writeSlot('title') : null,
+    setSubtitle: writeSlot ? writeSlot('subtitle') : null
+  };
+};
 const TplPageHeader = ({
   template,
   accent,
@@ -16916,9 +17437,28 @@ const TplPageHeader = ({
   kicker,
   title,
   subtitle,
-  alignCenter = false
+  alignCenter = false,
+  pageId,
+  state,
+  set,
+  setTitle,
+  setSubtitle
 }) => {
   const chapStr = chapter !== undefined ? String(chapter).padStart(2, '0') : '';
+  const baseSlots = usePageHeaderSlots(pageId, {
+    title,
+    subtitle
+  }, state, set);
+  // Direct setter overrides take precedence over the pageHeaders mechanism —
+  // used by pages that already own their copy in dedicated state fields
+  // (Perks: state.thanksPerksTitle; Thanks: state.thanksHeading; etc.) so
+  // accordion edits and inline edits write to the same place.
+  const slots = {
+    title: baseSlots.title,
+    subtitle: baseSlots.subtitle,
+    setTitle: setTitle || baseSlots.setTitle,
+    setSubtitle: setSubtitle || baseSlots.setSubtitle
+  };
 
   // ============ BLANK ============
   if (template.id === 'blank') {
@@ -16947,18 +17487,27 @@ const TplPageHeader = ({
         height: 1,
         background: T.border
       }
-    })), /*#__PURE__*/React.createElement("div", {
+    })), /*#__PURE__*/React.createElement(EditableText, {
+      asTag: "div",
       className: template.headingClass,
+      value: slots.title,
+      onChange: slots.setTitle,
+      placeholder: "Section title",
       style: {
         fontSize: 32,
         fontWeight: 700,
         color: T.text,
         lineHeight: 1.1,
-        marginBottom: subtitle ? 12 : 24,
+        marginBottom: slots.subtitle ? 12 : 24,
         letterSpacing: '-0.02em',
         textAlign: alignCenter ? 'center' : 'left'
       }
-    }, title), subtitle && /*#__PURE__*/React.createElement("div", {
+    }), (slots.subtitle || slots.setSubtitle) && /*#__PURE__*/React.createElement(EditableText, {
+      asTag: "div",
+      multiline: true,
+      value: slots.subtitle,
+      onChange: slots.setSubtitle,
+      placeholder: "Optional subtitle",
       style: {
         fontSize: 15,
         color: T.muted,
@@ -16967,7 +17516,7 @@ const TplPageHeader = ({
         maxWidth: 560,
         textAlign: alignCenter ? 'center' : 'left'
       }
-    }, subtitle));
+    }));
   }
 
   // ============ EDITORIAL ============
@@ -17007,19 +17556,28 @@ const TplPageHeader = ({
         color: T.muted,
         flexShrink: 0
       }
-    }, kicker)), /*#__PURE__*/React.createElement("div", {
+    }, kicker)), /*#__PURE__*/React.createElement(EditableText, {
+      asTag: "div",
       className: "tpl-font-editorial-heading",
+      value: slots.title,
+      onChange: slots.setTitle,
+      placeholder: "Section title",
       style: {
         fontSize: 36,
         fontWeight: 600,
         color: T.text,
         lineHeight: 1.04,
-        marginBottom: subtitle ? 12 : 28,
+        marginBottom: slots.subtitle ? 12 : 28,
         textAlign: alignCenter ? 'center' : 'left',
         letterSpacing: '-0.005em'
       }
-    }, title), subtitle && /*#__PURE__*/React.createElement("div", {
+    }), (slots.subtitle || slots.setSubtitle) && /*#__PURE__*/React.createElement(EditableText, {
+      asTag: "div",
+      multiline: true,
       className: "tpl-font-editorial-heading",
+      value: slots.subtitle,
+      onChange: slots.setSubtitle,
+      placeholder: "Optional subtitle",
       style: {
         fontStyle: 'italic',
         fontSize: 15,
@@ -17029,13 +17587,16 @@ const TplPageHeader = ({
         textAlign: alignCenter ? 'center' : 'left',
         maxWidth: 540
       }
-    }, subtitle));
+    }));
   }
 
   // ============ MODERN ============
   // Clean header — no gradient band. The cover owns the gradient.
-  // Section index in mono + bold sans heading + subtitle.
+  // Section index in mono + bold sans heading + subtitle. The hairline rule
+  // picks up a hint of the accent so internal pages feel of-a-piece with
+  // the cover's gradient hero.
   if (template.id === 'modern') {
+    const acc = accent || T.primary;
     return /*#__PURE__*/React.createElement("div", {
       style: {
         padding: '40px 44px 0'
@@ -17045,40 +17606,54 @@ const TplPageHeader = ({
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        marginBottom: 18
+        marginBottom: 20
       }
     }, chapter !== undefined && /*#__PURE__*/React.createElement("span", {
       className: "tpl-mono",
       style: {
         fontSize: 11,
-        fontWeight: 600,
-        color: accent || T.primary,
-        letterSpacing: 0.5
+        fontWeight: 700,
+        color: acc,
+        letterSpacing: 0.5,
+        padding: '3px 8px',
+        borderRadius: 4,
+        background: withAlpha(acc, 0.10),
+        border: `1px solid ${withAlpha(acc, 0.25)}`
       }
-    }, chapStr, " \u2014"), kicker && /*#__PURE__*/React.createElement("span", {
+    }, chapStr), kicker && /*#__PURE__*/React.createElement("span", {
       className: "tpl-caption",
       style: {
         fontSize: 10,
         color: T.muted,
-        letterSpacing: 1.6
+        letterSpacing: 1.6,
+        fontWeight: 600
       }
     }, kicker), /*#__PURE__*/React.createElement("span", {
       style: {
         flex: 1,
         height: 1,
-        background: T.border
+        background: `linear-gradient(to right, ${withAlpha(acc, 0.18)}, ${T.border})`
       }
-    })), /*#__PURE__*/React.createElement("div", {
+    })), /*#__PURE__*/React.createElement(EditableText, {
+      asTag: "div",
       className: "tpl-font-modern-heading",
+      value: slots.title,
+      onChange: slots.setTitle,
+      placeholder: "Section title",
       style: {
         fontSize: 38,
         fontWeight: 800,
         color: T.text,
         lineHeight: 1.0,
-        marginBottom: subtitle ? 12 : 28,
+        marginBottom: slots.subtitle ? 12 : 28,
         letterSpacing: '-0.03em'
       }
-    }, title), subtitle && /*#__PURE__*/React.createElement("div", {
+    }), (slots.subtitle || slots.setSubtitle) && /*#__PURE__*/React.createElement(EditableText, {
+      asTag: "div",
+      multiline: true,
+      value: slots.subtitle,
+      onChange: slots.setSubtitle,
+      placeholder: "Optional subtitle",
       style: {
         fontSize: 15,
         color: T.muted,
@@ -17086,7 +17661,7 @@ const TplPageHeader = ({
         lineHeight: 1.55,
         maxWidth: 560
       }
-    }, subtitle));
+    }));
   }
 
   // ============ BOUTIQUE ============
@@ -17105,23 +17680,27 @@ const TplPageHeader = ({
       letterSpacing: 0.3,
       textAlign: alignCenter ? 'center' : 'left'
     }
-  }, kicker), /*#__PURE__*/React.createElement("div", {
+  }, kicker), /*#__PURE__*/React.createElement(EditableText, {
+    asTag: "div",
     className: "tpl-font-boutique-heading",
+    value: slots.title,
+    onChange: slots.setTitle,
+    placeholder: "Section title",
     style: {
       fontSize: 42,
       fontWeight: 600,
       color: T.text,
       lineHeight: 1.02,
-      marginBottom: subtitle ? 14 : 24,
+      marginBottom: slots.subtitle ? 14 : 24,
       letterSpacing: '-0.005em',
       textAlign: alignCenter ? 'center' : 'left'
     }
-  }, title), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
       gap: 10,
-      marginBottom: subtitle ? 16 : 28,
+      marginBottom: slots.subtitle ? 16 : 28,
       color: accent || T.primary,
       justifyContent: alignCenter ? 'center' : 'flex-start'
     }
@@ -17142,8 +17721,13 @@ const TplPageHeader = ({
       height: 1,
       background: withAlpha(accent || T.primary, 0.4)
     }
-  })), subtitle && /*#__PURE__*/React.createElement("div", {
+  })), (slots.subtitle || slots.setSubtitle) && /*#__PURE__*/React.createElement(EditableText, {
+    asTag: "div",
+    multiline: true,
     className: "tpl-font-boutique-body",
+    value: slots.subtitle,
+    onChange: slots.setSubtitle,
+    placeholder: "Optional subtitle",
     style: {
       fontStyle: 'italic',
       fontSize: 15,
@@ -17153,7 +17737,7 @@ const TplPageHeader = ({
       maxWidth: 560,
       textAlign: alignCenter ? 'center' : 'left'
     }
-  }, subtitle));
+  }));
 };
 const TplBody = ({
   template,
@@ -18291,13 +18875,28 @@ const FullTocPage = ({
   const tpl = template || getTemplate(state);
   const acc = accent || state.themeColor || T.primary;
   const baseEntries = hasAnyAddons(state) ? TOC_ENTRIES : TOC_ENTRIES.filter(e => e.id !== 'addons');
-  const entries = state.signedAt ? [...baseEntries, {
-    id: 'thanks',
-    chapter: 9,
-    title: 'Thank you',
-    page: 11,
-    kicker: 'Optional perks'
-  }] : baseEntries;
+  const postSignEntries = [];
+  if (state.signedAt && state.perksEnabled !== false) {
+    postSignEntries.push({
+      id: 'perks',
+      chapter: 9,
+      title: 'A few perks, on us',
+      page: 11,
+      kicker: 'Optional benefits'
+    });
+  }
+  if (state.signedAt && state.thanksEnabled !== false) {
+    const chap = postSignEntries.length > 0 ? 10 : 9;
+    const pg = postSignEntries.length > 0 ? 12 : 11;
+    postSignEntries.push({
+      id: 'thanks',
+      chapter: chap,
+      title: 'Thank you',
+      page: pg,
+      kicker: 'Welcome aboard'
+    });
+  }
+  const entries = [...baseEntries, ...postSignEntries];
   return /*#__PURE__*/React.createElement(TplPageWrap, {
     template: tpl,
     accent: acc
@@ -18332,14 +18931,11 @@ const FullTocPage = ({
 };
 
 // =====================================================
-// Thank-you page — appears only after the client has signed.
-// Shows a confirmation + curated partner perks (Sprintlaw / Insight /
-// BizCover). Designed to match the active template's typography.
+// Perks page — appears between Next steps and Thank you on post-sign
+// surfaces. Curates partner offers (Sprintlaw / involve digital / BizCover)
+// as proper cards with a clear hierarchy: who → what → fine print → CTA.
+// Designed to feel like a thoughtful gift rail, not a marketing billboard.
 // =====================================================
-// Minimal perk row — meant to read as a small post-sign benefit, not a
-// marketing billboard. Single hairline rule top + bottom, small lockup,
-// plain CTA link in the page accent. The partner's brand colour only
-// shows up on the tiny initials chip.
 const PartnerOfferCard = ({
   offer,
   accent,
@@ -18348,91 +18944,542 @@ const PartnerOfferCard = ({
   const tpl = template;
   const hasLogo = !!offer.logoUrl || !!PARTNER_LOGOS[offer.id];
   const href = offer.ctaUrl && offer.ctaUrl.trim() ? offer.ctaUrl : '#';
+  const acc = accent || T.primary;
+  const accDark = darkenHex(acc, 0.22);
+  const isEditorial = tpl && tpl.id === 'editorial';
+  const isBoutique = tpl && tpl.id === 'boutique';
+  // Per-template surface — keeps the rhythm of the surrounding page chrome.
+  // Each card carries a subtle "value" accent (left rule on Modern, top rule
+  // on Editorial, soft tinted top on Boutique) so the rail reads as a
+  // curated benefit list rather than a flat directory.
+  const surface = isEditorial ? {
+    background: '#FFFFFF',
+    border: `1px solid ${T.border}`,
+    borderRadius: 4,
+    boxShadow: 'none',
+    borderTop: `3px solid ${T.text}`
+  } : isBoutique ? {
+    background: '#FFFFFF',
+    border: `1px solid #E8E1D4`,
+    borderRadius: 16,
+    boxShadow: '0 8px 22px rgba(120, 98, 60, 0.08), 0 2px 6px rgba(120, 98, 60, 0.04)'
+  } : {
+    background: '#FFFFFF',
+    border: `1px solid ${T.border}`,
+    borderRadius: 14,
+    boxShadow: '0 1px 3px rgba(15, 17, 23, 0.05), 0 4px 14px rgba(15, 17, 23, 0.04)',
+    borderLeft: `3px solid ${withAlpha(acc, 0.7)}`
+  };
+  const ctaStyle = isEditorial ? {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '10px 18px',
+    borderRadius: 2,
+    background: T.text,
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    textDecoration: 'none',
+    border: 'none',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer'
+  } : isBoutique ? {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '10px 20px',
+    borderRadius: 999,
+    background: '#FFFFFF',
+    color: accDark,
+    fontSize: 13.5,
+    fontWeight: 600,
+    textDecoration: 'none',
+    border: `1.5px solid ${withAlpha(accDark, 0.5)}`,
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    boxShadow: `0 2px 6px ${withAlpha(acc, 0.10)}`
+  } : {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '10px 18px',
+    borderRadius: 999,
+    background: acc,
+    color: contrastText(acc),
+    fontSize: 13.5,
+    fontWeight: 600,
+    textDecoration: 'none',
+    border: 'none',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    boxShadow: `0 6px 18px -6px ${withAlpha(acc, 0.5)}, 0 2px 4px ${withAlpha(acc, 0.18)}`
+  };
+  const headlineStyle = isEditorial ? {
+    fontSize: 21,
+    fontWeight: 600,
+    color: T.text,
+    lineHeight: 1.28,
+    letterSpacing: '-0.005em'
+  } : isBoutique ? {
+    fontSize: 23,
+    fontWeight: 600,
+    color: T.text,
+    lineHeight: 1.24,
+    letterSpacing: '-0.005em'
+  } : {
+    fontSize: 21,
+    fontWeight: 700,
+    color: T.text,
+    lineHeight: 1.28,
+    letterSpacing: '-0.015em'
+  };
+  const taglineStyle = isBoutique ? {
+    fontStyle: 'italic',
+    fontSize: 12.5,
+    color: T.muted,
+    lineHeight: 1.4
+  } : {
+    fontSize: 11,
+    color: accDark,
+    lineHeight: 1.4,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    fontWeight: 700
+  };
+  const cardClassName = [isEditorial ? 'tpl-font-editorial-body' : null, isBoutique ? 'tpl-font-boutique-body' : null].filter(Boolean).join(' ');
+  const cardPadding = isBoutique ? '24px 28px' : isEditorial ? '22px 24px' : '22px 26px';
   return /*#__PURE__*/React.createElement("div", {
+    className: cardClassName,
     style: {
+      ...surface,
+      padding: cardPadding,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 24,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 340px',
+      minWidth: 0,
       display: 'flex',
       flexDirection: 'column',
-      gap: 8,
-      padding: '14px 4px',
-      borderTop: `1px solid ${T.border}`
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 10
+      gap: 14
     }
   }, hasLogo ? /*#__PURE__*/React.createElement(PartnerLogo, {
     offer: offer,
-    width: 78,
-    height: 26,
-    radius: 5
+    width: 96,
+    height: 32,
+    radius: 6
   }) : /*#__PURE__*/React.createElement("span", {
     style: {
-      width: 22,
-      height: 22,
-      borderRadius: 5,
+      width: 36,
+      height: 36,
+      borderRadius: 9,
       background: withAlpha(offer.color, 0.14),
       color: offer.color,
       fontWeight: 700,
-      fontSize: 11,
+      fontSize: 15,
       letterSpacing: 0.2,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      flexShrink: 0
+      flexShrink: 0,
+      border: `1px solid ${withAlpha(offer.color, 0.2)}`
     }
   }, offer.initial), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: T.muted,
-      lineHeight: 1.2
-    }
+    style: taglineStyle
   }, offer.tagline)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      color: T.textSoft,
-      lineHeight: 1.45
-    }
+    className: isEditorial ? 'tpl-font-editorial-heading' : isBoutique ? 'tpl-font-boutique-heading' : 'tpl-font-modern-heading',
+    style: headlineStyle
   }, offer.offer), offer.fine && /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11,
+      fontSize: 12.5,
       color: T.muted,
-      lineHeight: 1.4
+      lineHeight: 1.55,
+      maxWidth: 480
     }
-  }, offer.fine), /*#__PURE__*/React.createElement("a", {
+  }, offer.fine)), /*#__PURE__*/React.createElement("a", {
     href: href,
     target: href === '#' ? undefined : '_blank',
     rel: href === '#' ? undefined : 'noopener noreferrer',
     onClick: href === '#' ? e => e.preventDefault() : undefined,
-    style: {
-      fontSize: 12,
-      fontWeight: 600,
-      color: accent || T.primary,
-      textDecoration: 'none',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 4,
-      alignSelf: 'flex-start'
-    }
+    style: ctaStyle
   }, offer.cta, /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 11,
-    color: accent || T.primary
+    name: "arrow",
+    size: isEditorial ? 11 : 14,
+    color: isEditorial ? '#FFFFFF' : isBoutique ? accDark : contrastText(acc),
+    strokeWidth: 2.4
   })));
 };
+const inputStyleSoft = () => ({
+  border: `1px solid ${T.border}`,
+  background: T.card,
+  padding: '5px 8px',
+  borderRadius: 6,
+  fontSize: 12,
+  color: T.textSoft,
+  outline: 'none',
+  fontFamily: 'inherit'
+});
 
-// Editor-only banner shown above the Thank-you page in preview when the
-// client hasn't signed yet. Surfaces the "post-sign" context + an in-place
-// Manage offers entry point so authors don't have to dig for it.
-const ThanksEditorBanner = ({
+// Resolves the recipient used for merge-token substitution on post-sign
+// pages. Order of preference: actual signatory > primary client contact >
+// first contact > first notify recipient. Audit ISSUE-008.
+const resolveSignatoryRecipient = state => {
+  const primaryContact = (state.clientContacts || []).find(c => c.isPrimary) || (state.clientContacts || [])[0];
+  const primaryUser = primaryContact ? userById(primaryContact.userId) : null;
+  return state.signedName ? {
+    label: state.signedName,
+    value: state.clientEmail || ''
+  } : primaryUser ? {
+    label: fullName(primaryUser),
+    value: primaryUser.email || ''
+  } : (state.notifyRecipients || [])[0];
+};
+const FullThanksPage = ({
   state,
   set,
-  accent
+  accent,
+  template,
+  showEditorBanner = false
 }) => {
-  const [open, setOpen] = useState(false);
+  const tpl = template || getTemplate(state);
+  const acc = accent || state.themeColor || T.primary;
+  const accDark = darkenHex(acc, 0.18);
+  const clientName = state.client || 'there';
+  const practice = practiceOf(state);
+  const adv = advisorOf(state);
+  const signedName = state.signedName || clientName;
+  const stamp = state.signedAt ? new Date(state.signedAt).toLocaleString('en-AU', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : null;
+  const isEditorial = tpl.id === 'editorial';
+  const isBoutique = tpl.id === 'boutique';
+  const isModern = tpl.id === 'modern';
+  const recipient = resolveSignatoryRecipient(state);
+  const heading = resolveTokens(state.thanksHeading || `Thank you, ${clientName}.`, state, recipient);
+  const subtitle = resolveTokens(state.thanksSubtitle || `Your engagement with ${practice} is officially under way${adv ? `. ${adv} will be your dedicated advisor` : ''}. We'll be in touch within one business day with your onboarding pack.`, state, recipient);
+  // Sign-off uses the advisor name in the script/serif treatment that matches
+  // the Intro signature, so the proposal opens and closes on the same human
+  // touch. Falls back to the practice name when no advisor is set.
+  const signOffName = (advisorOf(state) || practiceOf(state) || '').trim();
+  return /*#__PURE__*/React.createElement(Fragment, null, showEditorBanner && !state.signedAt && /*#__PURE__*/React.createElement(PostSignEditorBanner, {
+    accent: acc,
+    label: "thank-you page"
+  }), /*#__PURE__*/React.createElement(TplPageWrap, {
+    template: tpl,
+    accent: acc
+  }, /*#__PURE__*/React.createElement(TplBody, {
+    template: tpl,
+    style: {
+      paddingTop: isEditorial ? 64 : 56
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      textAlign: 'center',
+      padding: '12px 8px 40px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 28
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 28,
+      height: 1,
+      background: withAlpha(accDark, 0.4)
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "tpl-caption",
+    style: {
+      fontSize: 10,
+      color: accDark,
+      letterSpacing: 2.2,
+      textTransform: 'uppercase',
+      fontWeight: 700
+    }
+  }, "Engagement confirmed"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 28,
+      height: 1,
+      background: withAlpha(accDark, 0.4)
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      marginBottom: 28
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      inset: -14,
+      borderRadius: '50%',
+      background: withAlpha(acc, 0.08),
+      filter: 'blur(8px)'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      width: 72,
+      height: 72,
+      borderRadius: '50%',
+      background: withAlpha(acc, 0.16),
+      border: `1px solid ${withAlpha(accDark, 0.18)}`,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 32,
+    color: accDark,
+    strokeWidth: 2.6
+  }))), /*#__PURE__*/React.createElement(EditableText, {
+    asTag: "div",
+    className: tpl.headingClass,
+    value: heading,
+    placeholder: "Thank you, \u2026",
+    onChange: set ? v => set({
+      thanksHeading: v
+    }) : null,
+    style: {
+      fontSize: isEditorial ? 44 : isBoutique ? 46 : 40,
+      fontWeight: isBoutique ? 500 : 700,
+      color: T.text,
+      lineHeight: 1.04,
+      letterSpacing: isBoutique ? 0 : '-0.015em',
+      fontStyle: isBoutique ? 'italic' : 'normal',
+      marginBottom: 18,
+      maxWidth: '100%'
+    }
+  }), /*#__PURE__*/React.createElement(EditableText, {
+    asTag: "div",
+    multiline: true,
+    value: subtitle,
+    placeholder: "A short confirmation message\u2026",
+    onChange: set ? v => set({
+      thanksSubtitle: v
+    }) : null,
+    style: {
+      fontSize: 16,
+      color: T.textSoft,
+      lineHeight: 1.65,
+      maxWidth: 560,
+      whiteSpace: 'pre-wrap',
+      fontWeight: 400
+    }
+  }), stamp && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 28,
+      fontSize: 12,
+      color: T.text,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '7px 14px',
+      borderRadius: 999,
+      background: T.card,
+      border: `1px solid ${withAlpha(accDark, 0.24)}`,
+      boxShadow: `0 1px 0 ${withAlpha(accDark, 0.08)}`
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 11,
+    color: accDark
+  }), "Signed by ", /*#__PURE__*/React.createElement("b", {
+    style: {
+      color: T.text,
+      fontWeight: 600
+    }
+  }, signedName), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "\xB7"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.textSoft,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, stamp))), signOffName && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      paddingTop: 32,
+      marginTop: 8,
+      borderTop: `1px solid ${isEditorial ? T.text : T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: isBoutique ? SIG_SERIF_FAMILY : SIG_HAND_FAMILY,
+      fontStyle: isBoutique ? 'italic' : 'normal',
+      fontWeight: isBoutique ? 500 : 400,
+      fontSize: 36,
+      lineHeight: 1,
+      marginBottom: 12,
+      color: isBoutique ? darkenHex(acc, 0.18) : T.text
+    }
+  }, signOffName), /*#__PURE__*/React.createElement("div", {
+    className: isBoutique ? 'tpl-font-boutique-body' : '',
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      letterSpacing: 1.4,
+      textTransform: 'uppercase',
+      fontWeight: 600
+    }
+  }, advisorOf(state) ? `Your dedicated advisor · ${practice}` : practice), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 22,
+      fontSize: 13,
+      color: T.textSoft,
+      fontStyle: isBoutique ? 'normal' : 'italic',
+      letterSpacing: 0.2
+    }
+  }, "Welcome aboard.")), /*#__PURE__*/React.createElement(TplFooter, {
+    template: tpl,
+    accent: acc,
+    state: state,
+    pageNum: 12,
+    sectionLabel: "Thank you",
+    prepared: `${practice} · Welcome aboard`
+  }))));
+};
+
+// Perks now own their own page — sits between Next steps and Thank you on
+// post-sign surfaces. Lets clients scan partner offers without the page
+// having to share its title bar with the confirmation hero.
+const FullPerksPage = ({
+  state,
+  set,
+  accent,
+  template,
+  showEditorBanner = false
+}) => {
+  const tpl = template || getTemplate(state);
+  const acc = accent || state.themeColor || T.primary;
+  const practice = practiceOf(state);
+  const recipient = resolveSignatoryRecipient(state);
+  const offers = (state.partnerOffers || []).filter(o => o.enabled !== false);
+  const perksTitle = resolveTokens(state.thanksPerksTitle || 'A few perks, on us', state, recipient);
+  const perksIntro = resolveTokens(state.thanksPerksIntro || `Optional benefits from ${practice}'s partner network — claim any that are useful, no obligation.`, state, recipient);
+  return /*#__PURE__*/React.createElement(Fragment, null, showEditorBanner && !state.signedAt && /*#__PURE__*/React.createElement(PostSignEditorBanner, {
+    accent: acc,
+    label: "perks page"
+  }), /*#__PURE__*/React.createElement(TplPageWrap, {
+    template: tpl,
+    accent: acc
+  }, /*#__PURE__*/React.createElement(TplPageHeader, {
+    template: tpl,
+    accent: acc,
+    chapter: 9,
+    kicker: "Optional benefits",
+    title: perksTitle,
+    subtitle: perksIntro,
+    setTitle: set ? v => set({
+      thanksPerksTitle: v
+    }) : null,
+    setSubtitle: set ? v => set({
+      thanksPerksIntro: v
+    }) : null
+  }), /*#__PURE__*/React.createElement(TplBody, {
+    template: tpl
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 22,
+      paddingBottom: 18,
+      borderBottom: `1px dashed ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '4px 10px',
+      borderRadius: 999,
+      background: withAlpha(acc, 0.10),
+      border: `1px solid ${withAlpha(acc, 0.32)}`,
+      color: darkenHex(acc, 0.22),
+      fontSize: 10.5,
+      fontWeight: 700,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 10,
+    color: darkenHex(acc, 0.22),
+    strokeWidth: 2.6
+  }), "Optional"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      lineHeight: 1.4
+    }
+  }, "Skip any of these without consequence \u2014 they're a small thank-you, not part of your engagement.")), offers.length > 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, offers.map(o => /*#__PURE__*/React.createElement(PartnerOfferCard, {
+    key: o.id,
+    offer: o,
+    accent: acc,
+    template: tpl
+  }))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '28px 18px',
+      borderRadius: 10,
+      border: `1px dashed ${T.border}`,
+      background: T.fieldBg,
+      textAlign: 'center',
+      color: T.muted,
+      fontSize: 13,
+      lineHeight: 1.55
+    }
+  }, "No partner offers enabled. Add or toggle perks from the Perks accordion."), /*#__PURE__*/React.createElement(TplFooter, {
+    template: tpl,
+    accent: acc,
+    state: state,
+    chapter: 9,
+    sectionLabel: "Perks",
+    prepared: `${practice} · ${perksTitle}`
+  }))));
+};
+
+// Lightweight post-sign banner shown in the editor preview above pages that
+// only become visible to the client after signature. Drops the previous
+// "Manage offers" button since perks now have their own accordion.
+const PostSignEditorBanner = ({
+  accent,
+  label = 'page'
+}) => {
   const acc = accent || T.primary;
-  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+  return /*#__PURE__*/React.createElement("div", {
     style: {
       background: withAlpha(acc, 0.10),
       border: `1px solid ${withAlpha(acc, 0.28)}`,
@@ -18468,320 +19515,67 @@ const ThanksEditorBanner = ({
     style: {
       fontWeight: 600
     }
-  }, "Editor preview."), ' ', "This page is only shown to the client after they sign the proposal."), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setOpen(true),
-    style: {
-      padding: '5px 11px',
-      border: `1px solid ${withAlpha(acc, 0.4)}`,
-      borderRadius: 6,
-      background: T.card,
-      color: darkenHex(acc, 0.18),
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: 'pointer',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "edit",
-    size: 11
-  }), " Manage offers")), /*#__PURE__*/React.createElement(ManageOffersModal, {
-    open: open,
-    onClose: () => setOpen(false),
-    state: state,
-    set: set
-  }));
-};
-const ManageOffersModal = ({
-  open,
-  onClose,
-  state,
-  set
-}) => {
-  const offers = state.partnerOffers || [];
-  const update = (id, patch) => set({
-    partnerOffers: offers.map(o => o.id === id ? {
-      ...o,
-      ...patch
-    } : o)
-  });
-  const remove = id => set({
-    partnerOffers: offers.filter(o => o.id !== id)
-  });
-  const addNew = () => set({
-    partnerOffers: [...offers, {
-      id: 'offer-' + Date.now().toString(36),
-      name: 'New partner',
-      tagline: 'Partner tagline',
-      offer: 'Describe the perk on offer',
-      fine: 'Optional fine print.',
-      cta: 'Claim offer',
-      color: '#10B981',
-      initial: 'P',
-      enabled: true
-    }]
-  });
-  const reset = () => set({
-    partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
-      ...o,
-      enabled: true
-    }))
-  });
-  return /*#__PURE__*/React.createElement(Modal, {
-    open: open,
-    onClose: onClose,
-    title: "Manage thank-you offers",
-    subtitle: "Toggle, edit, or add the partner perks shown to clients after they sign.",
-    width: 720
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 10,
-      fontSize: 12,
-      color: T.muted
-    }
-  }, /*#__PURE__*/React.createElement(InfoHint, {
-    text: "These partners provide value to your clients \u2014 vetted offers Sole has negotiated on their behalf."
-  }), /*#__PURE__*/React.createElement("span", null, "Hover for what partner offers are.")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
-      maxHeight: '55vh',
-      overflowY: 'auto'
-    }
-  }, offers.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 18,
-      borderRadius: 8,
-      border: `1px dashed ${T.border}`,
-      color: T.muted,
-      fontSize: 13,
-      textAlign: 'center'
-    }
-  }, "No partner offers configured. Add one below or reset to defaults."), offers.map(o => /*#__PURE__*/React.createElement(OfferEditor, {
-    key: o.id,
-    offer: o,
-    onChange: next => update(o.id, next),
-    onRemove: () => remove(o.id)
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: 8,
-      marginTop: 18,
-      paddingTop: 14,
-      borderTop: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    size: "sm",
-    icon: "plus",
-    onClick: addNew
-  }, "Add offer"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    size: "sm",
-    onClick: reset
-  }, "Reset to defaults"), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    size: "sm",
-    onClick: onClose
-  }, "Done"))));
-};
-const inputStyleSoft = () => ({
-  border: `1px solid ${T.border}`,
-  background: T.card,
-  padding: '5px 8px',
-  borderRadius: 6,
-  fontSize: 12,
-  color: T.textSoft,
-  outline: 'none',
-  fontFamily: 'inherit'
-});
-const FullThanksPage = ({
-  state,
-  set,
-  accent,
-  template,
-  showEditorBanner = false
-}) => {
-  const tpl = template || getTemplate(state);
-  const acc = accent || state.themeColor || T.primary;
-  const accDark = darkenHex(acc, 0.18);
-  const accText = contrastText(acc);
-  const clientName = state.client || 'there';
-  const practice = practiceOf(state);
-  const adv = advisorOf(state);
-  const signedName = state.signedName || clientName;
-  const stamp = state.signedAt ? new Date(state.signedAt).toLocaleString('en-AU', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : null;
-  const isEditorial = tpl.id === 'editorial';
-  const isBoutique = tpl.id === 'boutique';
-  const offers = (state.partnerOffers || []).filter(o => o.enabled !== false);
-  // Resolve merge tokens against the actual client signatory — not just the
-  // first notify recipient (which might be the practice owner CC'd on the
-  // send). Order of preference: who signed > primary client contact > first
-  // contact > first notify recipient. Audit ISSUE-008.
-  const primaryContact = (state.clientContacts || []).find(c => c.isPrimary) || (state.clientContacts || [])[0];
-  const primaryUser = primaryContact ? userById(primaryContact.userId) : null;
-  const recipient = state.signedName ? {
-    label: state.signedName,
-    value: state.clientEmail || ''
-  } : primaryUser ? {
-    label: fullName(primaryUser),
-    value: primaryUser.email || ''
-  } : (state.notifyRecipients || [])[0];
-  const heading = resolveTokens(state.thanksHeading || `Thank you, ${clientName}.`, state, recipient);
-  const subtitle = resolveTokens(state.thanksSubtitle || `Your engagement with ${practice} is officially under way${adv ? `. ${adv} will be your dedicated advisor` : ''}. We'll be in touch within one business day with your onboarding pack.`, state, recipient);
-  return /*#__PURE__*/React.createElement(Fragment, null, showEditorBanner && !state.signedAt && set && /*#__PURE__*/React.createElement(ThanksEditorBanner, {
-    state: state,
-    set: set,
-    accent: acc
-  }), /*#__PURE__*/React.createElement(TplPageWrap, {
-    template: tpl,
-    accent: acc
-  }, /*#__PURE__*/React.createElement(TplBody, {
-    template: tpl,
-    style: {
-      paddingTop: isEditorial ? 56 : 48
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center',
-      padding: '8px 8px 24px',
-      marginBottom: 28
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 56,
-      height: 56,
-      borderRadius: '50%',
-      background: withAlpha(acc, 0.14),
-      color: acc,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 18
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
-    size: 26,
-    color: accDark,
-    strokeWidth: 2.6
-  })), /*#__PURE__*/React.createElement("div", {
-    className: tpl.headingClass,
-    style: {
-      fontSize: isEditorial ? 38 : isBoutique ? 40 : 34,
-      fontWeight: isBoutique ? 500 : 700,
-      color: T.text,
-      lineHeight: 1.05,
-      letterSpacing: isBoutique ? 0 : '-0.01em',
-      fontStyle: isBoutique ? 'italic' : 'normal',
-      marginBottom: 12
-    }
-  }, heading), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 15,
-      color: T.textSoft,
-      lineHeight: 1.55,
-      maxWidth: 540,
-      margin: '0 auto',
-      whiteSpace: 'pre-wrap'
-    }
-  }, subtitle), stamp && /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 16,
-      fontSize: 12,
-      color: T.muted,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '5px 12px',
-      borderRadius: 999,
-      background: withAlpha(acc, 0.08),
-      border: `1px solid ${withAlpha(acc, 0.2)}`
-    }
-  }, "Signed by ", /*#__PURE__*/React.createElement("b", {
-    style: {
-      color: T.text,
-      fontWeight: 600
-    }
-  }, signedName), " \xB7 ", stamp)), offers.length > 0 && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(TplDivider, {
-    template: tpl,
-    accent: acc,
-    marginY: 4
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 24
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: tpl.headingClass,
-    style: {
-      fontSize: 14,
-      fontWeight: 600,
-      color: T.text,
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
-      marginBottom: 4
-    }
-  }, resolveTokens(state.thanksPerksTitle || 'A few perks, on us', state, recipient)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      color: T.muted,
-      lineHeight: 1.5,
-      marginBottom: 10,
-      maxWidth: 560
-    }
-  }, resolveTokens(state.thanksPerksIntro || `Optional benefits from ${practice}'s partner network — claim any that are useful, no obligation.`, state, recipient)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      borderBottom: `1px solid ${T.border}`
-    }
-  }, offers.map(o => /*#__PURE__*/React.createElement(PartnerOfferCard, {
-    key: o.id,
-    offer: o,
-    accent: acc,
-    template: tpl
-  }))))), /*#__PURE__*/React.createElement(TplFooter, {
-    template: tpl,
-    accent: acc,
-    state: state,
-    pageNum: 11,
-    sectionLabel: "Thank you",
-    prepared: `${practice} · Welcome aboard`
-  }))));
+  }, "Editor preview."), ' ', "The ", label, " appears to the client only after they sign the proposal."));
 };
 
-// Renders the introBlocks list (text / image / video) into themed paragraphs
-// and inline media. Drops the leading greeting from the first text block if
-// the surrounding page already shows one as the header.
+// Splits the intro block list at `pageBreak` boundaries. Always returns at
+// least one page so callers don't have to special-case the empty case.
+// pageBreak blocks are dropped from the result (they're structural markers,
+// not renderable content).
+const splitIntoPages = blocks => {
+  const pages = [];
+  let current = [];
+  for (const b of blocks) {
+    if (b.type === 'pageBreak') {
+      pages.push(current);
+      current = [];
+    } else {
+      current.push(b);
+    }
+  }
+  pages.push(current);
+  return pages.length === 0 ? [[]] : pages;
+};
+
+// Renders a FLAT list of intro blocks (text / image / video) into themed
+// paragraphs and inline media. Page splitting is owned by the caller
+// (FullIntroPage) — each page renders this component with its own subset.
+// Drops the leading greeting from the first text block when the surrounding
+// page already shows one as the header.
 const IntroBlockRender = ({
-  state,
+  blocks,
   tpl,
   acc,
   stripLeadingGreeting
 }) => {
-  const blocks = getIntroBlocks(state);
+  if (!Array.isArray(blocks) || blocks.length === 0) return null;
   const greetingRe = /^\s*(hi|hello|hey|dear|good\s+(morning|afternoon|evening))/i;
   return /*#__PURE__*/React.createElement(Fragment, null, blocks.map((b, i) => {
+    const isFirstBlock = i === 0;
     if (b.type === 'text') {
-      let lines = (b.content || '').split('\n').filter(l => l.trim().length > 0);
-      if (i === 0 && stripLeadingGreeting && lines.length > 0 && greetingRe.test(lines[0])) {
+      const raw = b.content || '';
+      const isHtml = looksLikeHtml(raw);
+      if (isHtml) {
+        // Rich-text payload — render with the same HTML the editor produced.
+        // Strip a leading greeting <p>/<h*> when the page header already shows one.
+        let html = raw;
+        if (isFirstBlock && stripLeadingGreeting) {
+          html = html.replace(/^\s*<(p|h[1-6])[^>]*>\s*((hi|hello|hey|dear|good\s+(morning|afternoon|evening))[^<]*)<\/\1>/i, '');
+        }
+        if (!stripHtml(html)) return null;
+        return /*#__PURE__*/React.createElement("div", {
+          key: b.id,
+          className: "intro-rich-rendered",
+          style: {
+            marginBottom: 6
+          },
+          dangerouslySetInnerHTML: {
+            __html: html
+          }
+        });
+      }
+      let lines = raw.split('\n').filter(l => l.trim().length > 0);
+      if (isFirstBlock && stripLeadingGreeting && lines.length > 0 && greetingRe.test(lines[0])) {
         lines = lines.slice(1);
       }
       if (lines.length === 0) return null;
@@ -18920,34 +19714,58 @@ const IntroSignature = ({
     }
   }, showRole ? 'Your dedicated advisor' : 'Prepared by', " \xB7 ", practice));
 };
-const FullIntroPage = ({
+
+// True if the block list has at least one renderable thing — non-empty text,
+// or an image/video with a src. Drives whether placeholder subtitles like
+// "A short note before we get into the specifics" should appear; we don't
+// want preview "filler" text when the author has typed nothing.
+const blocksHaveContent = blocks => (blocks || []).some(b => {
+  if (b.type === 'text') return stripHtml(b.content || '').trim().length > 0;
+  if (b.type === 'image' || b.type === 'video') return !!b.src;
+  return false;
+});
+
+// One page card of the Introduction surface. Encapsulates the template-
+// specific header/body/footer so the multi-page wrapper can spawn one of
+// these per page-break boundary.
+const FullIntroPageCard = ({
   state,
-  accent,
-  template
+  set,
+  tpl,
+  acc,
+  pageBlocks,
+  pageIdx,
+  totalPages,
+  startsWithGreeting,
+  firstText,
+  greeting,
+  isLastPage,
+  hasAnyContent
 }) => {
-  const tpl = template || getTemplate(state);
-  const acc = accent || state.themeColor || T.primary;
-  const blocks = getIntroBlocks(state);
-  // First text block's first line, used to decide whether to suppress the
-  // auto-generated "Hi {client}," greeting because the user has written
-  // their own.
-  const firstText = (blocks.find(b => b.type === 'text')?.content || '').split('\n').filter(l => l.trim())[0] || '';
-  const greetingRe = /^\s*(hi|hello|hey|dear|good\s+(morning|afternoon|evening))/i;
-  const startsWithGreeting = greetingRe.test(firstText);
-  const greeting = `Hi ${state.client || 'there'},`;
+  const isMulti = totalPages > 1;
+  const pageLabel = isMulti ? `Page ${pageIdx + 1} of ${totalPages}` : null;
+  const isFirst = pageIdx === 0;
+  // Only the FIRST page of the intro is inline-editable. Subsequent
+  // "continued" pages are scaffolding; making them editable would create
+  // multiple sources of truth for the same conceptual title.
+  const editableProps = isFirst ? {
+    pageId: 'intro',
+    state,
+    set
+  } : {};
   if (tpl.id === 'editorial') {
     return /*#__PURE__*/React.createElement(TplPageWrap, {
       template: tpl,
       accent: acc
-    }, /*#__PURE__*/React.createElement(TplPageHeader, {
+    }, /*#__PURE__*/React.createElement(TplPageHeader, _extends({
       template: tpl,
       accent: acc,
       chapter: 1,
-      kicker: "A note from your advisor",
-      title: "Introduction"
-    }), /*#__PURE__*/React.createElement(TplBody, {
+      kicker: isFirst ? 'A note from your advisor' : pageLabel || 'A note from your advisor',
+      title: isFirst ? 'Introduction' : 'Introduction · continued'
+    }, editableProps)), /*#__PURE__*/React.createElement(TplBody, {
       template: tpl
-    }, !startsWithGreeting && /*#__PURE__*/React.createElement("div", {
+    }, isFirst && !startsWithGreeting && hasAnyContent && /*#__PURE__*/React.createElement("div", {
       className: "tpl-font-editorial-heading",
       style: {
         fontSize: 22,
@@ -18963,11 +19781,11 @@ const FullIntroPage = ({
         color: T.text
       }
     }, /*#__PURE__*/React.createElement(IntroBlockRender, {
-      state: state,
+      blocks: pageBlocks,
       tpl: tpl,
       acc: acc,
-      stripLeadingGreeting: startsWithGreeting
-    })), /*#__PURE__*/React.createElement(IntroSignature, {
+      stripLeadingGreeting: isFirst && startsWithGreeting
+    })), isLastPage && /*#__PURE__*/React.createElement(IntroSignature, {
       state: state,
       template: tpl,
       accent: acc
@@ -18976,7 +19794,7 @@ const FullIntroPage = ({
       accent: acc,
       state: state,
       chapter: 1,
-      sectionLabel: "Introduction",
+      sectionLabel: isMulti ? `Introduction · ${pageIdx + 1}/${totalPages}` : 'Introduction',
       prepared: advisorOf(state) ? `${practiceOf(state)} · ${advisorOf(state)}` : practiceOf(state)
     })));
   }
@@ -18984,13 +19802,13 @@ const FullIntroPage = ({
     return /*#__PURE__*/React.createElement(TplPageWrap, {
       template: tpl,
       accent: acc
-    }, /*#__PURE__*/React.createElement(TplPageHeader, {
+    }, /*#__PURE__*/React.createElement(TplPageHeader, _extends({
       template: tpl,
       accent: acc,
-      kicker: `01 · Introduction`,
-      title: startsWithGreeting ? firstText : greeting,
-      subtitle: startsWithGreeting ? null : 'A short note before we get into the specifics.'
-    }), /*#__PURE__*/React.createElement(TplBody, {
+      kicker: isFirst ? '01 · Introduction' : `01 · Introduction · ${pageLabel}`,
+      title: isFirst ? startsWithGreeting ? firstText : greeting : 'Continued',
+      subtitle: isFirst && !startsWithGreeting && hasAnyContent ? 'A short note before we get into the specifics.' : null
+    }, editableProps)), /*#__PURE__*/React.createElement(TplBody, {
       template: tpl
     }, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -18999,11 +19817,11 @@ const FullIntroPage = ({
         color: T.text
       }
     }, /*#__PURE__*/React.createElement(IntroBlockRender, {
-      state: state,
+      blocks: pageBlocks,
       tpl: tpl,
       acc: acc,
-      stripLeadingGreeting: startsWithGreeting
-    })), /*#__PURE__*/React.createElement(IntroSignature, {
+      stripLeadingGreeting: isFirst && startsWithGreeting
+    })), isLastPage && /*#__PURE__*/React.createElement(IntroSignature, {
       state: state,
       template: tpl,
       accent: acc
@@ -19012,23 +19830,20 @@ const FullIntroPage = ({
       accent: acc,
       state: state,
       chapter: 1,
-      sectionLabel: "Introduction",
+      sectionLabel: isMulti ? `Introduction · ${pageIdx + 1}/${totalPages}` : 'Introduction',
       prepared: advisorOf(state) ? `${practiceOf(state)} · ${advisorOf(state)}` : practiceOf(state)
     })));
   }
-
-  // Boutique — letter-style, refined serif body. Signature handled by the
-  // shared IntroSignature component so the editor's size/name controls work
-  // uniformly across all three templates.
+  // Boutique
   return /*#__PURE__*/React.createElement(TplPageWrap, {
     template: tpl,
     accent: acc
-  }, /*#__PURE__*/React.createElement(TplPageHeader, {
+  }, /*#__PURE__*/React.createElement(TplPageHeader, _extends({
     template: tpl,
     accent: acc,
-    kicker: "A personal note",
-    title: greeting
-  }), /*#__PURE__*/React.createElement(TplBody, {
+    kicker: isFirst ? 'A personal note' : pageLabel,
+    title: isFirst ? greeting : 'Continued'
+  }, editableProps)), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, /*#__PURE__*/React.createElement("div", {
     className: "tpl-font-boutique-body",
@@ -19039,18 +19854,85 @@ const FullIntroPage = ({
       maxWidth: 580
     }
   }, /*#__PURE__*/React.createElement(IntroBlockRender, {
-    state: state,
+    blocks: pageBlocks,
     tpl: tpl,
     acc: acc,
-    stripLeadingGreeting: startsWithGreeting
-  })), /*#__PURE__*/React.createElement(IntroSignature, {
+    stripLeadingGreeting: isFirst && startsWithGreeting
+  })), isLastPage && /*#__PURE__*/React.createElement(IntroSignature, {
     state: state,
     template: tpl,
     accent: acc
   })));
 };
+const FullIntroPage = ({
+  state,
+  set,
+  accent,
+  template
+}) => {
+  const tpl = template || getTemplate(state);
+  const acc = accent || state.themeColor || T.primary;
+  const blocks = getIntroBlocks(state);
+  const pages = splitIntoPages(blocks);
+  // First text block's first line is used to decide whether to suppress the
+  // auto-generated "Hi {client}," greeting because the user wrote their own.
+  // Handles both plain text and HTML payloads.
+  const firstRaw = blocks.find(b => b.type === 'text')?.content || '';
+  const firstText = (looksLikeHtml(firstRaw) ? stripHtml(firstRaw) : firstRaw).split('\n').filter(l => l.trim())[0] || '';
+  const greetingRe = /^\s*(hi|hello|hey|dear|good\s+(morning|afternoon|evening))/i;
+  const startsWithGreeting = greetingRe.test(firstText);
+  const greeting = `Hi ${state.client || 'there'},`;
+  const totalPages = pages.length;
+  const hasAnyContent = blocksHaveContent(blocks);
+  // Outer column-flex wrapper — without this the page cards inherit the
+  // FullPreview body's row flex layout and lay out side-by-side, which
+  // throws off alignment. Stacking vertically reads like sheets of paper
+  // and works at any page count.
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 28,
+      width: '100%'
+    }
+  }, totalPages > 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '4px 12px',
+      borderRadius: 999,
+      background: withAlpha(acc, 0.10),
+      color: darkenHex(acc, 0.2),
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "list",
+    size: 11,
+    color: darkenHex(acc, 0.2)
+  }), "Introduction \xB7 ", totalPages, " pages \u2014 scroll to read each one"), pages.map((pageBlocks, pageIdx) => /*#__PURE__*/React.createElement(FullIntroPageCard, {
+    key: `intro-page-${pageIdx}`,
+    state: state,
+    set: set,
+    tpl: tpl,
+    acc: acc,
+    pageBlocks: pageBlocks,
+    pageIdx: pageIdx,
+    totalPages: totalPages,
+    isLastPage: pageIdx === totalPages - 1,
+    startsWithGreeting: startsWithGreeting,
+    firstText: firstText,
+    greeting: greeting,
+    hasAnyContent: hasAnyContent
+  })));
+};
 const FullPackagesPage = ({
   state,
+  set,
   accent,
   template
 }) => {
@@ -19083,7 +19965,10 @@ const FullPackagesPage = ({
     chapter: 2,
     kicker: isSingle ? 'Your engagement' : 'Choose a fit',
     title: isSingle ? 'Your package' : 'Packages',
-    subtitle: isSingle ? 'Everything we will deliver, broken down line-by-line.' : 'Each option is a complete engagement. Pick the one that matches your scope.'
+    subtitle: isSingle ? 'Everything we will deliver, broken down line-by-line.' : 'Each option is a complete engagement. Pick the one that matches your scope.',
+    pageId: "packages",
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, /*#__PURE__*/React.createElement("div", {
@@ -19111,6 +19996,7 @@ const FullPackagesPage = ({
 };
 const FullServicesPage = ({
   state,
+  set,
   accent,
   template
 }) => {
@@ -19375,7 +20261,10 @@ const FullServicesPage = ({
     chapter: 3,
     kicker: "What's included",
     title: "Services",
-    subtitle: "Everything we'll deliver across the engagement."
+    subtitle: "Everything we'll deliver across the engagement.",
+    pageId: "services",
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, pkg.groups.map(renderGroup), /*#__PURE__*/React.createElement(TplFooter, {
@@ -19388,6 +20277,7 @@ const FullServicesPage = ({
 };
 const FullAddonsPage = ({
   state,
+  set,
   accent,
   template
 }) => {
@@ -19615,7 +20505,10 @@ const FullAddonsPage = ({
     chapter: 4,
     kicker: "Optional extras",
     title: "Add-ons",
-    subtitle: "Optional services you can include in your engagement."
+    subtitle: "Optional services you can include in your engagement.",
+    pageId: "addons",
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, allAddons.length === 0 ? /*#__PURE__*/React.createElement("div", {
@@ -19662,6 +20555,7 @@ const computePayable = state => {
 };
 const FullPricingPage = ({
   state,
+  set,
   accent,
   template
 }) => {
@@ -19685,7 +20579,10 @@ const FullPricingPage = ({
       chapter: 5,
       kicker: "Investment",
       title: "Pricing summary",
-      subtitle: "What you'll be charged at acceptance and ongoing."
+      subtitle: "What you'll be charged at acceptance and ongoing.",
+      pageId: "pricing",
+      state: state,
+      set: set
     }), /*#__PURE__*/React.createElement(TplBody, {
       template: tpl
     }, /*#__PURE__*/React.createElement("table", {
@@ -19794,7 +20691,10 @@ const FullPricingPage = ({
       accent: acc,
       kicker: "05 \xB7 Investment",
       title: "Pricing summary",
-      subtitle: "What you'll be charged at acceptance and ongoing."
+      subtitle: "What you'll be charged at acceptance and ongoing.",
+      pageId: "pricing",
+      state: state,
+      set: set
     }), /*#__PURE__*/React.createElement(TplBody, {
       template: tpl
     }, /*#__PURE__*/React.createElement("div", {
@@ -19917,7 +20817,10 @@ const FullPricingPage = ({
     template: tpl,
     accent: acc,
     kicker: "Investment \xB7 simple, no surprises",
-    title: "Pricing summary"
+    title: "Pricing summary",
+    pageId: "pricing",
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, /*#__PURE__*/React.createElement("div", {
@@ -20025,6 +20928,7 @@ const FullPricingPage = ({
 };
 const FullPaymentsPage = ({
   state,
+  set,
   accent,
   template
 }) => {
@@ -20210,7 +21114,10 @@ const FullPaymentsPage = ({
     chapter: 6,
     kicker: "Settlement",
     title: "Payments",
-    subtitle: state.paymentRequired ? 'Confirm your payment to activate the engagement.' : 'No upfront payment is required to accept this proposal.'
+    subtitle: state.paymentRequired ? 'Confirm your payment to activate the engagement.' : 'No upfront payment is required to accept this proposal.',
+    pageId: "payments",
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, cardContent, /*#__PURE__*/React.createElement(TplFooter, {
@@ -20445,7 +21352,10 @@ const FullReviewPage = ({
     chapter: 7,
     kicker: "Engagement agreement",
     title: "Review & sign",
-    subtitle: "Read the terms below, then sign to activate the engagement."
+    subtitle: "Read the terms below, then sign to activate the engagement.",
+    pageId: "review",
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, /*#__PURE__*/React.createElement(TplClauseList, {
@@ -20472,6 +21382,7 @@ const FullReviewPage = ({
 };
 const FullNextPage = ({
   state,
+  set,
   accent,
   template
 }) => {
@@ -20493,7 +21404,10 @@ const FullNextPage = ({
     chapter: 8,
     kicker: "After acceptance",
     title: "Next steps",
-    subtitle: "Here's what happens once you accept this proposal."
+    subtitle: "Here's what happens once you accept this proposal.",
+    pageId: "next",
+    state: state,
+    set: set
   }), /*#__PURE__*/React.createElement(TplBody, {
     template: tpl
   }, /*#__PURE__*/React.createElement(TplClauseList, {
@@ -20618,7 +21532,14 @@ const PDFDocument = ({
     state: state,
     accent: accent,
     template: template
-  })), state.signedAt && /*#__PURE__*/React.createElement("div", {
+  })), state.signedAt && state.perksEnabled !== false && /*#__PURE__*/React.createElement("div", {
+    className: "pdf-page",
+    style: pageStyle
+  }, /*#__PURE__*/React.createElement(FullPerksPage, {
+    state: state,
+    accent: accent,
+    template: template
+  })), state.signedAt && state.thanksEnabled !== false && /*#__PURE__*/React.createElement("div", {
     className: "pdf-page",
     style: pageStyle
   }, /*#__PURE__*/React.createElement(FullThanksPage, {
@@ -20664,17 +21585,17 @@ const FullPreview = ({
   const pageProps = {
     state,
     accent,
-    template
+    template,
+    set
   };
   let body;
   if (page === 'cover') body = /*#__PURE__*/React.createElement(FullCoverPage, _extends({}, pageProps, {
     onOpenIntro: () => setPage('intro')
   }));else if (page === 'toc') body = /*#__PURE__*/React.createElement(FullTocPage, _extends({}, pageProps, {
     onJump: setPage
-  }));else if (page === 'intro') body = /*#__PURE__*/React.createElement(FullIntroPage, pageProps);else if (page === 'packages') body = /*#__PURE__*/React.createElement(FullPackagesPage, pageProps);else if (page === 'services') body = /*#__PURE__*/React.createElement(FullServicesPage, pageProps);else if (page === 'addons') body = /*#__PURE__*/React.createElement(FullAddonsPage, pageProps);else if (page === 'pricing') body = /*#__PURE__*/React.createElement(FullPricingPage, pageProps);else if (page === 'payments') body = /*#__PURE__*/React.createElement(FullPaymentsPage, pageProps);else if (page === 'review') body = /*#__PURE__*/React.createElement(FullReviewPage, _extends({}, pageProps, {
-    set: set
+  }));else if (page === 'intro') body = /*#__PURE__*/React.createElement(FullIntroPage, pageProps);else if (page === 'packages') body = /*#__PURE__*/React.createElement(FullPackagesPage, pageProps);else if (page === 'services') body = /*#__PURE__*/React.createElement(FullServicesPage, pageProps);else if (page === 'addons') body = /*#__PURE__*/React.createElement(FullAddonsPage, pageProps);else if (page === 'pricing') body = /*#__PURE__*/React.createElement(FullPricingPage, pageProps);else if (page === 'payments') body = /*#__PURE__*/React.createElement(FullPaymentsPage, pageProps);else if (page === 'review') body = /*#__PURE__*/React.createElement(FullReviewPage, pageProps);else if (page === 'perks') body = /*#__PURE__*/React.createElement(FullPerksPage, _extends({}, pageProps, {
+    showEditorBanner: !state.signedAt
   }));else if (page === 'thanks') body = /*#__PURE__*/React.createElement(FullThanksPage, _extends({}, pageProps, {
-    set: set,
     showEditorBanner: !state.signedAt
   }));else body = /*#__PURE__*/React.createElement(FullNextPage, pageProps);
   const handleDownloadPdf = () => {
@@ -21311,6 +22232,17 @@ const ProposalEditor = ({
   const splitContainerRef = useRef(null);
   const [flashId, setFlashId] = useState(null);
   const sectionRefs = useRef({});
+  // Track which accordion sections the user has opened. A section's green
+  // checkmark only lights up after (a) it's been visited AND (b) the content
+  // is valid — feedback request: nothing should look "done" until the user
+  // has actually looked at it.
+  const [visitedSections, setVisitedSections] = useState(() => {
+    // The section that's open on first render is implicitly "visited".
+    return new Set(openSection ? [openSection] : []);
+  });
+  const markVisited = id => {
+    setVisitedSections(prev => prev.has(id) ? prev : new Set(prev).add(id));
+  };
 
   // Persist preference changes (debounced via React's batching — fine for low-frequency updates)
   useEffect(() => {
@@ -21373,6 +22305,7 @@ const ProposalEditor = ({
   const switchSection = id => {
     const next = openSection === id ? null : id;
     setOpenSection(next);
+    if (next) markVisited(next);
     if (next && SECTION_TO_TAB[next]) setPreviewTab(SECTION_TO_TAB[next]);
   };
 
@@ -21413,18 +22346,31 @@ const ProposalEditor = ({
     intro: (() => {
       const txt = getIntroText(state);
       const blocks = getIntroBlocks(state);
-      const mediaCount = blocks.filter(b => b.type !== 'text' && b.src).length;
+      const mediaCount = blocks.filter(b => (b.type === 'image' || b.type === 'video') && b.src).length;
+      const pageCount = blocks.filter(b => b.type === 'pageBreak').length + 1;
       if (!txt && mediaCount === 0) return 'Empty — load a template';
       const head = txt ? txt.slice(0, 60).replace(/\n/g, ' ') + (txt.length > 60 ? '…' : '') : '(media only)';
-      return mediaCount ? `${head} · ${mediaCount} attachment${mediaCount === 1 ? '' : 's'}` : head;
+      const parts = [head];
+      if (mediaCount > 0) parts.push(`${mediaCount} attachment${mediaCount === 1 ? '' : 's'}`);
+      if (pageCount > 1) parts.push(`${pageCount} pages`);
+      return parts.join(' · ');
     })(),
     terms: state.termsContent ? 'Engagement terms & signature ready' : 'Empty',
     docs: (state.uploadedDocs || []).length === 0 ? 'No documents attached' : `${state.uploadedDocs.length} ${state.uploadedDocs.length === 1 ? 'document' : 'documents'} · ${state.uploadedDocs.reduce((s, d) => s + d.fields.length, 0)} fields placed`,
     next: state.nextContent ? 'Onboarding steps populated' : 'Empty',
     thanks: (() => {
       if (state.thanksEnabled === false) return 'Disabled — page hidden post-sign';
+      const hasHeading = !!(state.thanksHeading && state.thanksHeading.trim());
+      const hasSub = !!(state.thanksSubtitle && state.thanksSubtitle.trim());
+      const parts = [];
+      if (hasHeading) parts.push('Heading');
+      if (hasSub) parts.push('subtitle');
+      return parts.length === 0 ? 'Defaults only' : `${parts.join(' + ')} customised`;
+    })(),
+    perks: (() => {
+      if (state.perksEnabled === false) return 'Disabled — page hidden post-sign';
       const onCount = (state.partnerOffers || []).filter(o => o.enabled !== false).length;
-      return onCount === 0 ? 'Heading + subtitle · no perks' : `Heading + subtitle · ${onCount} ${onCount === 1 ? 'perk' : 'perks'}`;
+      return onCount === 0 ? 'No perks shown to client' : `${onCount} ${onCount === 1 ? 'perk' : 'perks'} shown to client`;
     })(),
     theme: state.brandFetched ? `Brand from ${state.brandUrl} · ${state.themeColor} · ${state.brandFont}` : `Primary ${state.themeColor} · accent ${state.themeAccent || '#F5C518'}`,
     notify: (() => {
@@ -21456,24 +22402,42 @@ const ProposalEditor = ({
   };
   const optional = {
     docs: true,
-    theme: true
+    theme: true,
+    perks: true,
+    thanks: true
   };
   const isComplete = {
     ...required,
     docs: (state.uploadedDocs || []).length > 0 && state.uploadedDocs.every(d => d.fields.length > 0),
-    theme: true
+    theme: true,
+    // Perks/thanks are post-sign surfaces with sensible defaults — always
+    // "complete" so they appear neutral, not flagged as empty.
+    perks: true,
+    thanks: true
   };
 
-  // Consistent pill rules: required-but-empty → "Empty" (amber); optional → "Optional" (neutral); complete → no pill.
+  // A section only looks "done" (green check, no pill) once the user has both
+  // (a) visited it and (b) it has valid content. Unvisited sections — even if
+  // technically complete (e.g. payment is auto-complete because no required
+  // input) — read as "Review" so the user knows to confirm.
+  const isVisited = id => visitedSections.has(id);
+  const isSectionDone = id => isComplete[id] && isVisited(id);
   const statusFor = id => {
-    if (isComplete[id]) return null;
-    if (optional[id]) return {
-      color: 'neutral',
-      label: 'Optional'
-    };
+    if (isSectionDone(id)) return null;
+    if (!isComplete[id]) {
+      if (optional[id]) return {
+        color: 'neutral',
+        label: 'Optional'
+      };
+      return {
+        color: 'amber',
+        label: 'Empty'
+      };
+    }
+    // Complete but not yet visited — nudge the user to confirm.
     return {
-      color: 'amber',
-      label: 'Empty'
+      color: 'neutral',
+      label: 'Review'
     };
   };
 
@@ -21599,8 +22563,16 @@ const ProposalEditor = ({
       })
     }, {
       id: 'next',
-      title: 'Next Step',
+      title: 'Next Steps',
       body: /*#__PURE__*/React.createElement(NextBody, {
+        state: state,
+        set: set,
+        fireToast: fireToast
+      })
+    }, {
+      id: 'perks',
+      title: 'Perks',
+      body: /*#__PURE__*/React.createElement(PerksBody, {
         state: state,
         set: set,
         fireToast: fireToast
@@ -21610,8 +22582,7 @@ const ProposalEditor = ({
       title: 'Thank you',
       body: /*#__PURE__*/React.createElement(ThanksBody, {
         state: state,
-        set: set,
-        fireToast: fireToast
+        set: set
       })
     }]
   }, {
@@ -21712,7 +22683,7 @@ const ProposalEditor = ({
       overflowY: 'auto'
     }
   }, stages.map(stage => {
-    const allDone = stage.items.every(it => isComplete[it.id]);
+    const allDone = stage.items.every(it => isSectionDone(it.id));
     const firstId = stage.items[0]?.id;
     return /*#__PURE__*/React.createElement(Fragment, {
       key: stage.num
@@ -21742,7 +22713,7 @@ const ProposalEditor = ({
         title: item.title,
         summary: summaries[item.id],
         status: statusFor(item.id),
-        isComplete: isComplete[item.id],
+        isComplete: isSectionDone(item.id),
         isOpen: openSection === item.id,
         flashing: flashId === item.id,
         onToggle: () => switchSection(item.id)
@@ -23739,6 +24710,7 @@ const trueEmpty = proposalName => ({
   // render fallback copy). Partner offers stay as platform defaults so the
   // author can curate which ones the client sees.
   thanksEnabled: true,
+  perksEnabled: true,
   thanksHeading: '',
   thanksSubtitle: '',
   thanksPerksTitle: '',
@@ -24069,6 +25041,10 @@ const App = () => {
   const [toast, setToast] = useState(null);
   const [state, setState] = useState({
     mode: 'list',
+    // Inline-edit overrides keyed by pageId — each entry may contain { title?,
+    // subtitle? }. Empty by default; populated when the user edits a page
+    // header in the live preview.
+    pageHeaders: {},
     // client
     clientId: 1,
     client: 'Solepay',
@@ -24260,15 +25236,17 @@ const App = () => {
     signedAt: null,
     signedName: '',
     signModalOpen: false,
-    // Editable partner offers shown on the Thank-you page (post-sign).
-    // Authors can toggle/edit via the in-preview "Manage offers" button.
+    // Editable partner offers shown on the Perks page (post-sign).
+    // Authors curate them from the Perks accordion.
     partnerOffers: DEFAULT_PARTNER_OFFERS.map(o => ({
       ...o,
       enabled: true
     })),
-    // Thank-you copy. Merge fields ({{ contact_first_name }} etc.) resolve
-    // against state at render time.
+    // Post-sign copy. Merge fields ({{ contact_first_name }} etc.) resolve
+    // against state at render time. Perks and Thank you live on separate
+    // pages and can be toggled independently.
     thanksEnabled: true,
+    perksEnabled: true,
     thanksHeading: 'Thank you, {{ contact_first_name }}.',
     thanksSubtitle: 'Your engagement with {{ practice_name }} is officially under way. We\'ll be in touch within one business day with your onboarding pack.',
     thanksPerksTitle: 'A few perks, on us',
@@ -24293,9 +25271,23 @@ const App = () => {
   const onSend = () => set({
     mode: 'confirm'
   });
-  const onConfirmSend = () => set({
-    mode: 'sent'
-  });
+  const onConfirmSend = () => {
+    set({
+      mode: 'sent'
+    });
+    // If the author flagged any partner offers as "Notify partner", fire a
+    // toast naming who'll get the intro email so they can warm-introduce
+    // themselves to the client. Mock-only — no real email is sent.
+    const notify = (state.partnerOffers || []).filter(o => o.notifyPartner && o.enabled !== false).map(o => o.name);
+    if (notify.length > 0) {
+      // Slight delay so it lands after the Sent screen transition, not under it.
+      setTimeout(() => {
+        fireToast({
+          message: notify.length === 1 ? `Notified ${notify[0]} that ${state.client || 'this client'} was invited` : `Notified ${notify.length} partners (${notify.join(', ')})`
+        });
+      }, 600);
+    }
+  };
   const onClose = () => set({
     mode: 'list'
   });
@@ -49801,13 +50793,16 @@ const HelicopterViewPage = ({
         tone: 'neutral'
       }))
     }],
-    list: FOCUS_BACKLOG[row.focus] || [],
+    list: (FOCUS_BACKLOG[row.focus] || []).map(item => ({
+      ...item,
+      onClick: () => fireToast(`Opening ${item.name}`)
+    })),
     listTitle: 'Backlog',
     actions: [{
       label: row.action,
       icon: 'arrow',
       primary: true,
-      onClick: () => fireToast(`${row.action} — preview generated`)
+      onClick: () => openFocusAction(row)
     }, {
       label: 'Reassign owner',
       icon: 'users',
@@ -49815,6 +50810,448 @@ const HelicopterViewPage = ({
     }],
     next: `${(FOCUS_BACKLOG[row.focus] || []).length} items in this focus`
   });
+
+  // Per-action drill — concrete preview of WHAT WILL CHANGE if the focus
+  // action is committed. Replaces the old generic preview that just listed
+  // records with no breakdown, no measurable impact, and a stubby Commit
+  // button. Each action now reads as a real workflow trigger.
+  const openFocusAction = row => {
+    const totalDollars = sub => {
+      const matches = (sub || '').match(/\$[\d,]+(?:\.\d+)?k?/g) || [];
+      return matches.reduce((s, m) => {
+        const isK = m.endsWith('k');
+        const n = parseFloat(m.replace(/[\$,k]/g, ''));
+        return s + (Number.isFinite(n) ? n * (isK ? 1000 : 1) : 0);
+      }, 0);
+    };
+    const sumOf = records => records.reduce((s, r) => s + totalDollars(r.sub), 0);
+    const fmtDollars = n => n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toLocaleString('en-AU')}`;
+    const undoToast = msg => fireToast({
+      message: msg,
+      action: {
+        label: 'Undo',
+        onClick: () => fireToast('Reverted — nothing was changed')
+      }
+    });
+    if (row.action === 'Reassign reviews') {
+      const records = [{
+        name: 'Anderson Group — BAS Q1',
+        sub: 'Lisa S. → Sarah C. · +6h on Sarah · $4.8k WIP unblocked',
+        tag: '+6h',
+        tone: 'accent',
+        onClick: () => fireToast('Opening Anderson — BAS Q1')
+      }, {
+        name: 'Beacon Health — Bookkeeping',
+        sub: 'Lisa S. → Michael B. · +5h on Michael · $3.2k WIP unblocked',
+        tag: '+5h',
+        tone: 'accent',
+        onClick: () => fireToast('Opening Beacon — Bookkeeping')
+      }, {
+        name: 'Castor Mfg — BAS Q1',
+        sub: 'Lisa S. → Sarah C. · +4h on Sarah · $4.2k WIP unblocked',
+        tag: '+4h',
+        tone: 'accent',
+        onClick: () => fireToast('Opening Castor — BAS Q1')
+      }, {
+        name: 'XYZ Ltd — Year-end',
+        sub: 'Lisa S. → Lisa A. · +3h on Lisa A. · $5.1k WIP unblocked',
+        tag: '+3h',
+        tone: 'accent',
+        onClick: () => fireToast('Opening XYZ — Year-end')
+      }, {
+        name: 'Stark Ind — Tax plan',
+        sub: 'Lisa S. → Michael B. · +2h on Michael · $2.3k WIP unblocked',
+        tag: '+2h',
+        tone: 'accent',
+        onClick: () => fireToast('Opening Stark — Tax plan')
+      }, {
+        name: 'Globex — Compliance',
+        sub: 'Lisa S. → Sarah C. · +2h on Sarah · $1.4k WIP unblocked',
+        tag: '+2h',
+        tone: 'accent',
+        onClick: () => fireToast('Opening Globex — Compliance')
+      }];
+      return setDrill({
+        eyebrow: 'Reassign reviews',
+        title: `Move 6 reviews off Lisa S.`,
+        headline: '$21.0k WIP',
+        delta: {
+          value: '+22h capacity restored',
+          dir: 'up',
+          tone: 'positive'
+        },
+        blurb: 'Lisa S. is the bottleneck on 6 open reviews. The proposal redistributes each to a teammate with bench time. Click any row to inspect.',
+        drivers: [{
+          label: 'Sarah C.',
+          value: '3 reviews · +12h',
+          share: 50,
+          color: T.primary,
+          sub: 'Has 14h headroom this week — bookkeeping + BAS specialty',
+          records: records.filter(r => r.sub.includes('Sarah C.'))
+        }, {
+          label: 'Michael B.',
+          value: '2 reviews · +7h',
+          share: 33,
+          color: '#A78BFA',
+          sub: 'Has 12h headroom — tax + advisory specialty',
+          records: records.filter(r => r.sub.includes('Michael B.'))
+        }, {
+          label: 'Lisa A.',
+          value: '1 review · +3h',
+          share: 17,
+          color: T.amber,
+          sub: 'Has 8h headroom — year-end + audit specialty',
+          records: records.filter(r => r.sub.includes('Lisa A.'))
+        }],
+        list: records,
+        listTitle: 'Per-review reassignment',
+        actions: [{
+          label: 'Apply reassignment',
+          icon: 'check',
+          primary: true,
+          onClick: () => undoToast('Reassigned 6 reviews · Lisa S. cleared · $21k WIP unblocked')
+        }, {
+          label: 'Ping Lisa first',
+          icon: 'send',
+          onClick: () => fireToast('Draft message queued to Lisa S.')
+        }],
+        next: 'Commit reassigns all 6 in one batch · auto-notifies new owners'
+      });
+    }
+    if (row.action === 'Trigger client follow-up') {
+      const records = [{
+        name: 'Drift Studios',
+        sub: 'Waiting on STP confirmation · 6 days · $4.8k blocked',
+        tag: '6d',
+        tone: 'red',
+        onClick: () => fireToast('Opening Drift Studios job')
+      }, {
+        name: 'Wayne Ent',
+        sub: 'Waiting on prior year working papers · 8 days · $6.2k blocked',
+        tag: '8d',
+        tone: 'red',
+        onClick: () => fireToast('Opening Wayne Ent job')
+      }, {
+        name: 'Oscorp',
+        sub: "Waiting on Directors' info · 5 days · $2.1k blocked",
+        tag: '5d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Oscorp job')
+      }, {
+        name: 'ABC Corp',
+        sub: 'Waiting on signed engagement letter · 4 days · $3.4k blocked',
+        tag: '4d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening ABC Corp job')
+      }, {
+        name: 'Acme Co',
+        sub: 'Waiting on FY24 confirmation · 4 days · $2.8k blocked',
+        tag: '4d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Acme Co job')
+      }, {
+        name: 'Evolve Cafe',
+        sub: 'Waiting on clarifications · 3 days · $1.6k blocked',
+        tag: '3d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Evolve Cafe job')
+      }, {
+        name: '123 Pty',
+        sub: 'Waiting on bank statements · 2 days · $1.2k blocked',
+        tag: '2d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening 123 Pty job')
+      }, {
+        name: 'MedCorp',
+        sub: 'Waiting on payroll register · 2 days · $1.4k blocked',
+        tag: '2d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening MedCorp job')
+      }, {
+        name: 'Initech',
+        sub: 'Waiting on TFN list · 1 day · $0.8k blocked',
+        tag: '1d',
+        tone: 'accent',
+        onClick: () => fireToast('Opening Initech job')
+      }];
+      return setDrill({
+        eyebrow: 'Trigger client follow-up',
+        title: 'Send 9 client reminders',
+        headline: fmtDollars(sumOf(records)),
+        delta: {
+          value: '9 jobs unblock',
+          dir: 'up',
+          tone: 'positive'
+        },
+        blurb: 'Each reminder auto-fills the specific missing item. Items past 5 days get a stronger tone and a phone-call suggestion to the owner.',
+        drivers: [{
+          label: 'Call required (over 5 days)',
+          value: '2 clients',
+          share: 22,
+          color: T.red,
+          sub: 'Email + a same-day call from the partner',
+          records: records.filter(r => parseInt(r.tag, 10) >= 5)
+        }, {
+          label: 'Email reminder (1–5 days)',
+          value: '7 clients',
+          share: 78,
+          color: T.amber,
+          sub: 'Templated nudge with the missing item pre-filled',
+          records: records.filter(r => parseInt(r.tag, 10) < 5)
+        }],
+        list: records,
+        listTitle: 'Per-client nudge',
+        actions: [{
+          label: 'Send all 9 reminders',
+          icon: 'send',
+          primary: true,
+          onClick: () => undoToast('Sent 9 reminders · 2 escalations queued to partner for same-day call')
+        }, {
+          label: 'Preview templates',
+          icon: 'view',
+          onClick: () => fireToast('Opening email template preview')
+        }],
+        next: 'Sends in one batch · owner gets a Slack receipt'
+      });
+    }
+    if (row.action === 'Rebalance jobs') {
+      const records = [{
+        name: 'Sarah Chen',
+        sub: '165h of 150h next 7 days · over by 15h · Senior tax',
+        tag: '−4h proposed',
+        tone: 'red',
+        onClick: () => fireToast('Opening Sarah Chen workload')
+      }, {
+        name: 'Emma Wilson',
+        sub: '88% loaded · 1 conflict next week · Bookkeeping',
+        tag: '−2h proposed',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Emma Wilson workload')
+      }, {
+        name: 'James Taylor',
+        sub: '47% loaded · 23h headroom · Tax + BAS',
+        tag: '+3h proposed',
+        tone: 'green',
+        onClick: () => fireToast('Opening James Taylor workload')
+      }, {
+        name: 'David Martinez',
+        sub: '46% loaded · 24h headroom · Advisory + Bookkeeping',
+        tag: '+3h proposed',
+        tone: 'green',
+        onClick: () => fireToast('Opening David Martinez workload')
+      }];
+      return setDrill({
+        eyebrow: 'Rebalance jobs',
+        title: 'Rebalance team workload · −6h overload',
+        headline: '4 staff affected',
+        delta: {
+          value: 'Sarah & Emma return to target band',
+          dir: 'up',
+          tone: 'positive'
+        },
+        blurb: 'Sarah is 15h over for next week. The proposal moves a BAS Q1 prep block to James (23h headroom) and a payroll batch to David (24h headroom). Emma trims 2h.',
+        drivers: [{
+          label: 'Overloaded — work moving out',
+          value: '2 staff · −6h',
+          share: 50,
+          color: T.red,
+          sub: 'Sarah & Emma',
+          records: records.filter(r => r.tag.startsWith('−'))
+        }, {
+          label: 'Available — picking up work',
+          value: '2 staff · +6h',
+          share: 50,
+          color: T.greenDark,
+          sub: 'James & David',
+          records: records.filter(r => r.tag.startsWith('+'))
+        }],
+        list: records,
+        listTitle: 'Per-staff change',
+        actions: [{
+          label: 'Apply rebalance',
+          icon: 'check',
+          primary: true,
+          onClick: () => undoToast('Rebalanced 4 jobs · Sarah & Emma back in target band')
+        }, {
+          label: 'Open Capacity Planner',
+          icon: 'arrow',
+          onClick: () => {
+            window.location.hash = '#/practice/capacity-planner';
+          }
+        }],
+        next: 'Re-runs the scheduler for next week · keeps client-deadline order'
+      });
+    }
+    if (row.action === 'Follow up today') {
+      const records = [{
+        name: 'Proposal #042 — Acme Co',
+        sub: '$8,400 · 12 days since send · 1 reminder sent · viewed twice',
+        tag: '$8.4k',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Proposal #042')
+      }, {
+        name: 'Proposal #038 — Globex Ltd',
+        sub: '$6,200 · 8 days since send · viewed once',
+        tag: '$6.2k',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Proposal #038')
+      }, {
+        name: 'Proposal #031 — Initech',
+        sub: '$5,500 · 10 days since send · not yet opened',
+        tag: '$5.5k',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Proposal #031')
+      }, {
+        name: 'Proposal #044 — Stark Ind',
+        sub: '$4,800 · 6 days since send · viewed yesterday',
+        tag: '$4.8k',
+        tone: 'neutral',
+        onClick: () => fireToast('Opening Proposal #044')
+      }, {
+        name: 'Proposal #047 — Wayne Ent',
+        sub: '$3,100 · 5 days since send · viewed today',
+        tag: '$3.1k',
+        tone: 'neutral',
+        onClick: () => fireToast('Opening Proposal #047')
+      }];
+      return setDrill({
+        eyebrow: 'Follow up today',
+        title: 'Nudge 5 stalled proposals',
+        headline: '$28.0k pipeline',
+        delta: {
+          value: 'Avg 8.2 days since send',
+          dir: 'down',
+          tone: 'amber'
+        },
+        blurb: 'Each follow-up uses the warm template, references the last viewed page, and offers a 15-min walkthrough slot. Items past 10 days also get a Slack ping to the owning partner.',
+        drivers: [{
+          label: 'Cold — over 10 days',
+          value: '2 · $13.9k',
+          share: 50,
+          color: T.red,
+          sub: 'Acme Co + Initech — also notify partner',
+          records: records.filter(r => /1[0-9] day/.test(r.sub) || /[2-9][0-9] day/.test(r.sub))
+        }, {
+          label: 'Warm — 5–10 days',
+          value: '3 · $14.1k',
+          share: 50,
+          color: T.amber,
+          sub: 'Standard warm follow-up template',
+          records: records.filter(r => /^[5-9] day/.test((r.sub.match(/(\d+) days?/) || [])[0] || ''))
+        }],
+        list: records,
+        listTitle: 'Per-proposal nudge',
+        actions: [{
+          label: 'Send batch follow-up',
+          icon: 'send',
+          primary: true,
+          onClick: () => undoToast('Sent 5 follow-ups · partner pinged for 2 cold ones')
+        }, {
+          label: 'Open proposal list',
+          icon: 'arrow',
+          onClick: () => {
+            window.location.hash = '#/proposal';
+          }
+        }],
+        next: 'Sends with the warm-follow-up template · trackable opens'
+      });
+    }
+    if (row.action === 'Escalate collection') {
+      const records = [{
+        name: 'Initech — INV-2417',
+        sub: '$8,200 · 32 days overdue · 2 reminders sent · ignored',
+        tag: '32d',
+        tone: 'red',
+        onClick: () => fireToast('Opening Initech INV-2417')
+      }, {
+        name: 'Globex — INV-2401',
+        sub: '$5,400 · 28 days overdue · 1 reminder sent',
+        tag: '28d',
+        tone: 'red',
+        onClick: () => fireToast('Opening Globex INV-2401')
+      }, {
+        name: 'Wayne — INV-2389',
+        sub: '$4,800 · 18 days overdue · 1 reminder sent',
+        tag: '18d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Wayne INV-2389')
+      }, {
+        name: 'Oscorp — INV-2375',
+        sub: '$2,200 · 12 days overdue',
+        tag: '12d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Oscorp INV-2375')
+      }, {
+        name: 'Stark — INV-2362',
+        sub: '$800 · 9 days overdue',
+        tag: '9d',
+        tone: 'amber',
+        onClick: () => fireToast('Opening Stark INV-2362')
+      }];
+      return setDrill({
+        eyebrow: 'Escalate collection',
+        title: 'Escalate 5 overdue invoices',
+        headline: '$21.4k overdue',
+        delta: {
+          value: '$13.6k > 14 days',
+          dir: 'down',
+          tone: 'negative'
+        },
+        blurb: 'Final notices go out with the standard escalation template + a partner-signed cover. Items past 30 days also trigger a payment call from the partner.',
+        drivers: [{
+          label: 'Final notice + partner call (> 14d)',
+          value: '3 · $18.4k',
+          share: 86,
+          color: T.red,
+          sub: 'Initech + Globex + Wayne',
+          records: records.filter(r => parseInt(r.tag, 10) > 14)
+        }, {
+          label: 'Standard reminder (8–14 days)',
+          value: '2 · $3.0k',
+          share: 14,
+          color: T.amber,
+          sub: 'Oscorp + Stark',
+          records: records.filter(r => parseInt(r.tag, 10) <= 14)
+        }],
+        list: records,
+        listTitle: 'Per-invoice escalation',
+        actions: [{
+          label: 'Send escalation batch',
+          icon: 'send',
+          primary: true,
+          onClick: () => undoToast('Escalated 5 invoices · 3 partner calls scheduled')
+        }, {
+          label: 'Open AR aging report',
+          icon: 'arrow',
+          onClick: () => fireToast('Opening AR aging report')
+        }],
+        next: 'Final notices auto-send · partner gets calendar holds for the 3 calls'
+      });
+    }
+
+    // Fallback for any action not in the switch above — still useful.
+    return setDrill({
+      title: `${row.action} · preview`,
+      headline: `${(FOCUS_BACKLOG[row.focus] || []).length} items`,
+      delta: {
+        value: `Owner: ${row.owner.name}`,
+        dir: 'up',
+        tone: 'neutral'
+      },
+      blurb: 'Preview the items this action will affect. Click any row to inspect.',
+      list: (FOCUS_BACKLOG[row.focus] || []).map(item => ({
+        ...item,
+        onClick: () => fireToast(`Opening ${item.name}`)
+      })),
+      actions: [{
+        label: `Apply ${row.action.toLowerCase()}`,
+        icon: 'check',
+        primary: true,
+        onClick: () => undoToast(`${row.action} applied`)
+      }],
+      next: `Commit applies ${row.action.toLowerCase()} to all listed items`
+    });
+  };
   // Performance KPI drill — each KPI gets a real breakdown + 12-month
   // trend so the sheet is never the headline-only stub it used to be (#58).
   const openPerf = k => {
@@ -50774,169 +52211,7 @@ const HelicopterViewPage = ({
     })), /*#__PURE__*/React.createElement("button", {
       onClick: e => {
         e.stopPropagation();
-        // Each focus action opens a preview drill that shows what
-        // the action will affect + a confirm/cancel pair in the
-        // sheet footer. Mirrors how Smart Allocation previews.
-        const recordsByAction = {
-          'Reassign reviews': [{
-            name: 'Anderson — BAS Q1',
-            sub: 'From Lisa S. → Sarah C. (6h free)',
-            tag: '+6h',
-            tone: 'accent'
-          }, {
-            name: 'Beacon — Bookkeeping',
-            sub: 'From Lisa S. → Michael B. (12h free)',
-            tag: '+5h',
-            tone: 'accent'
-          }, {
-            name: 'Castor Mfg — BAS',
-            sub: 'From Lisa S. → Sarah C. (6h free)',
-            tag: '+4h',
-            tone: 'accent'
-          }, {
-            name: 'XYZ Ltd — Year-end',
-            sub: 'From Lisa S. → Lisa A. (8h free)',
-            tag: '+3h',
-            tone: 'accent'
-          }, {
-            name: 'Stark Ind — Tax plan',
-            sub: 'From Lisa S. → Michael B. (8h free)',
-            tag: '+2h',
-            tone: 'accent'
-          }, {
-            name: 'Globex — Compliance',
-            sub: 'From Lisa S. → Sarah C. (4h free)',
-            tag: '+2h',
-            tone: 'accent'
-          }],
-          'Trigger client follow-up': [{
-            name: 'ABC Corp',
-            sub: 'Waiting on signed engagement letter · 4 days',
-            tag: '4d',
-            tone: 'amber'
-          }, {
-            name: '123 Pty',
-            sub: 'Waiting on bank statements · 2 days',
-            tag: '2d',
-            tone: 'amber'
-          }, {
-            name: 'Drift Studios',
-            sub: 'Waiting on STP confirmation · 6 days',
-            tag: '6d',
-            tone: 'red'
-          }, {
-            name: 'Evolve Cafe',
-            sub: 'Waiting on clarifications · 3 days',
-            tag: '3d',
-            tone: 'amber'
-          }, {
-            name: 'Wayne Ent',
-            sub: 'Waiting on prior year working papers · 8 days',
-            tag: '8d',
-            tone: 'red'
-          }, {
-            name: 'Oscorp',
-            sub: 'Waiting on Directors\' info · 5 days',
-            tag: '5d',
-            tone: 'amber'
-          }, {
-            name: 'Acme Co',
-            sub: 'Waiting on FY24 confirmation · 4 days',
-            tag: '4d',
-            tone: 'amber'
-          }, {
-            name: '+ 2 more',
-            sub: 'Run full list',
-            tag: '2 records',
-            tone: 'neutral'
-          }],
-          'Rebalance jobs': [{
-            name: 'Sarah Chen',
-            sub: '165h of 150h · over by 15h next 7 days',
-            tag: '−4h proposed',
-            tone: 'red'
-          }, {
-            name: 'Emma Wilson',
-            sub: '88% loaded · 1 conflict next week',
-            tag: '−2h proposed',
-            tone: 'amber'
-          }, {
-            name: 'James Taylor',
-            sub: '47% loaded · 23h headroom available',
-            tag: '+3h proposed',
-            tone: 'green'
-          }, {
-            name: 'David Martinez',
-            sub: '46% loaded · 24h headroom available',
-            tag: '+3h proposed',
-            tone: 'green'
-          }],
-          'Follow up today': [{
-            name: 'Proposal #042 — Acme Co',
-            sub: '$8,400 · 12 days since send',
-            tag: '$8.4k',
-            tone: 'amber'
-          }, {
-            name: 'Proposal #038 — Globex Ltd',
-            sub: '$6,200 · 8 days since send',
-            tag: '$6.2k',
-            tone: 'amber'
-          }, {
-            name: 'Proposal #031 — Initech',
-            sub: '$5,500 · 10 days since send',
-            tag: '$5.5k',
-            tone: 'amber'
-          }, {
-            name: 'Proposal #044 — Stark Ind',
-            sub: '$4,800 · 6 days since send',
-            tag: '$4.8k',
-            tone: 'neutral'
-          }, {
-            name: 'Proposal #047 — Wayne Ent',
-            sub: '$3,100 · 5 days since send',
-            tag: '$3.1k',
-            tone: 'neutral'
-          }],
-          'Escalate collection': [{
-            name: 'Initech — Invoice #2417',
-            sub: '$8,200 · 32 days overdue · 2 reminders sent',
-            tag: '32d',
-            tone: 'red'
-          }, {
-            name: 'Globex — Invoice #2401',
-            sub: '$5,400 · 28 days overdue · 1 reminder sent',
-            tag: '28d',
-            tone: 'red'
-          }, {
-            name: 'Wayne — Invoice #2389',
-            sub: '$4,800 · 18 days overdue · 1 reminder sent',
-            tag: '18d',
-            tone: 'amber'
-          }, {
-            name: 'Oscorp — Invoice #2375',
-            sub: '$2,200 · 12 days overdue',
-            tag: '12d',
-            tone: 'amber'
-          }, {
-            name: 'Stark — Invoice #2362',
-            sub: '$800 · 9 days overdue',
-            tag: '9d',
-            tone: 'amber'
-          }]
-        };
-        const records = recordsByAction[row.action] || [];
-        setDrill({
-          title: `${row.action} · preview`,
-          headline: `${records.length} items`,
-          delta: {
-            value: `Owner: ${row.owner.name}`,
-            dir: 'up',
-            tone: 'neutral'
-          },
-          blurb: `Preview the items this action will affect. Click any row to inspect; close to cancel; "Open detail" to commit.`,
-          list: records,
-          next: `Commit: ${row.action}`
-        });
+        openFocusAction(row);
       },
       style: {
         display: 'inline-flex',
