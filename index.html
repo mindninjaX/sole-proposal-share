@@ -11220,6 +11220,132 @@ const ThanksBody = ({
   })));
 };
 
+// AcctSoftwareBody — post-sign page nudging clients to connect Sole as their
+// accounting software. Sole is highlighted as recommended with feature checkmarks;
+// other platforms are listed below without the extras.
+const AcctSoftwareBody = ({
+  state,
+  set
+}) => {
+  const enabled = state.acctSoftwareEnabled !== false;
+  const others = state.acctSoftwareOthers || DEFAULT_ACCT_SOFTWARE_OTHERS;
+  const toggleOther = id => set({
+    acctSoftwareOthers: others.map(o => o.id === id ? {
+      ...o,
+      enabled: !o.enabled
+    } : o)
+  });
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 14,
+      marginTop: -4
+    }
+  }, "A post-sign page that encourages clients to connect Sole as their accounting software \u2014 highlighted as the recommended choice, with other options listed below."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 18,
+      padding: '10px 14px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: enabled,
+    onChange: v => set({
+      acctSoftwareEnabled: v
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Show accounting software page"), /*#__PURE__*/React.createElement(Helper, null, "When off, clients skip this page after signing."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      opacity: enabled ? 1 : 0.5,
+      pointerEvents: enabled ? 'auto' : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Page title"), /*#__PURE__*/React.createElement(Input, {
+    value: state.acctSoftwareTitle || '',
+    placeholder: "Connect your accounting software",
+    onChange: e => set({
+      acctSoftwareTitle: e.target.value
+    })
+  }), /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginTop: 16
+    }
+  }, "Intro line"), /*#__PURE__*/React.createElement("textarea", {
+    value: state.acctSoftwareIntro || '',
+    placeholder: "To get the most from working with {{ practice_name }}, connect an accounting platform below.",
+    onChange: e => set({
+      acctSoftwareIntro: e.target.value
+    }),
+    rows: 2,
+    style: {
+      width: '100%',
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      padding: '8px 10px',
+      borderRadius: 8,
+      fontSize: 13,
+      color: T.text,
+      outline: 'none',
+      fontFamily: 'inherit',
+      lineHeight: 1.55,
+      resize: 'vertical'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 20
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Other software shown to client"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 10
+    }
+  }, "Toggle off any software you prefer not to list as an alternative."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, others.map(o => {
+    const on = o.enabled !== false;
+    return /*#__PURE__*/React.createElement("div", {
+      key: o.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '8px 12px',
+        borderRadius: 8,
+        border: `1px solid ${T.border}`,
+        background: on ? T.card : T.fieldBg,
+        opacity: on ? 1 : 0.6
+      }
+    }, /*#__PURE__*/React.createElement(Toggle, {
+      on: on,
+      onChange: () => toggleOther(o.id)
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, o.name), /*#__PURE__*/React.createElement(Helper, null, o.tagline)));
+  })))));
+};
+
 // PerksBody — owns the partner offer rail that appears on the dedicated
 // Perks page (just before Thank you). Lifted out of ThanksBody so authors
 // can toggle perks independently of the confirmation copy.
@@ -14979,6 +15105,10 @@ const PREVIEW_TABS = [{
   id: 'next',
   label: 'Next steps'
 }, {
+  id: 'acct-software',
+  label: 'Software',
+  postSign: true
+}, {
   id: 'perks',
   label: 'Perks',
   postSign: true
@@ -14998,6 +15128,7 @@ const SECTION_TO_TAB = {
   terms: 'terms',
   docs: 'terms',
   next: 'next',
+  'acct-software': 'acct-software',
   perks: 'perks',
   thanks: 'thanks',
   theme: 'splash',
@@ -15015,6 +15146,7 @@ const TAB_TO_SECTION = {
   pricing: 'payment',
   terms: 'terms',
   next: 'next',
+  'acct-software': 'acct-software',
   perks: 'perks',
   thanks: 'thanks',
   email: 'notify'
@@ -16454,6 +16586,16 @@ const PreviewNext = ({
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
 }));
+const PreviewAcctSoftware = ({
+  state,
+  set
+}) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullAcctSoftwarePage, {
+  state: state,
+  set: set,
+  accent: state.themeColor || T.primary,
+  template: getTemplate(state),
+  showEditorBanner: true
+}));
 const PreviewPerks = ({
   state,
   set
@@ -17089,6 +17231,9 @@ const LivePreview = ({
   });else if (activeTab === 'next') body = /*#__PURE__*/React.createElement(PreviewNext, {
     state: state,
     set: set
+  });else if (activeTab === 'acct-software') body = /*#__PURE__*/React.createElement(PreviewAcctSoftware, {
+    state: state,
+    set: set
   });else if (activeTab === 'perks') body = /*#__PURE__*/React.createElement(PreviewPerks, {
     state: state,
     set: set
@@ -17249,6 +17394,10 @@ const hasAnyAddons = state => (state.packages || []).some(p => (p.groups || []).
 const getFullPreviewPages = state => {
   let base = [...FULL_PREVIEW_PAGES_BASE];
   if (!hasAnyAddons(state)) base = base.filter(p => p.id !== 'addons');
+  if (state.acctSoftwareEnabled !== false) base.push({
+    id: 'acct-software',
+    label: 'Software'
+  });
   if (state.perksEnabled !== false) base.push({
     id: 'perks',
     label: 'Perks'
@@ -17295,6 +17444,62 @@ const DEFAULT_PARTNER_OFFERS = [{
   ctaUrl: 'https://bizcover.com.au',
   color: '#0EA5E9',
   initial: 'B'
+}];
+
+// Default feature checkmarks shown on the Sole recommended card.
+// Authors can toggle individual items on/off from the accordion.
+const DEFAULT_ACCT_SOFTWARE_FEATURES = [{
+  id: 'asf-1',
+  text: 'Proposals, engagement letters & e-signing',
+  enabled: true
+}, {
+  id: 'asf-2',
+  text: 'Payroll with STP Phase 2 compliance',
+  enabled: true
+}, {
+  id: 'asf-3',
+  text: 'Invoicing, payments & automated follow-ups',
+  enabled: true
+}, {
+  id: 'asf-4',
+  text: 'Secure client collaboration portal',
+  enabled: true
+}, {
+  id: 'asf-5',
+  text: 'GST, BAS & ATO-connected compliance',
+  enabled: true
+}, {
+  id: 'asf-6',
+  text: 'Purpose-built for Australian accounting firms',
+  enabled: true
+}];
+
+// Other accounting software options shown below the Sole hero card.
+const DEFAULT_ACCT_SOFTWARE_OTHERS = [{
+  id: 'aso-xero',
+  name: 'Xero',
+  tagline: 'Cloud accounting with a strong third-party ecosystem',
+  enabled: true
+}, {
+  id: 'aso-myob',
+  name: 'MYOB',
+  tagline: 'Established accounting platform for Australian businesses',
+  enabled: true
+}, {
+  id: 'aso-qbo',
+  name: 'QuickBooks',
+  tagline: 'Popular with small business owners globally',
+  enabled: true
+}, {
+  id: 'aso-fresh',
+  name: 'FreshBooks',
+  tagline: 'Simple invoicing and bookkeeping for small business',
+  enabled: true
+}, {
+  id: 'aso-reckon',
+  name: 'Reckon',
+  tagline: 'Australian-made accounting and payroll software',
+  enabled: false
 }];
 const FullPreviewLogo = ({
   state,
@@ -19363,6 +19568,309 @@ const FullThanksPage = ({
     pageNum: 12,
     sectionLabel: "Thank you",
     prepared: `${practice} · Welcome aboard`
+  }))));
+};
+
+// Inline base64 PNG logos sourced from each brand's official favicon (128×128).
+// Sole's logo is a placeholder — the firm will supply their own asset later.
+const ACCT_LOGOS = {
+  Xero: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAY1BMVEUTter///8As+ru+f0AselkzfEkuOvZ9Pz7/v+A0PFbxO7n9/3r+f04vezy+/625/hFxO7G6/mk4vd50/KD1PLN7/pZye+w4vfV8PuE2PNsyvCf3PW96/lr0fJ30PLe8/yS3PV9NtvVAAAE4ElEQVR4nO1b2bajKhBFgqhRFI1TkqPx/7+yoQCn2I3ddyXcB/ZTJEBta2AqQcGC+PJzDzlFHwTl4b3M45VQNP9KO44JxviT8hESAghqu/SNgBT/YdlrFnymoAk07dekaw5tsyZQtt8VL9GWC4GSf18+Qrw0BCIn8gWDSBHIxi/b3wCPGRDoiBv5CJFOEkgdGUCCp4JA5UwBwghdgGLmTr5QQYxSl/KREO/SAsINKzQ4ikEFPCDulgBHzC0Bhj66/rDDsXgPDw8PDw8PDw8PDw8PD48DYHR0ar8rlVkFfJBa0CXiz7emm7I/gD6S8e3MBIvSZC7FiIlHgSvbdApN5Q8+Jok5/MSYXhNVm57JR+A6D4JuxwDTOhOl5rF9lrnKcZTPx4rCKEorilEiEwGROn3ELCkilReIuoTZtUBeMnVUbBgI+VJgzFWP3WuV8Ek7bk75qDx8z69kUuxuWOoq0VwBeZlQGwPSB3sGGIH8IJZlmDfBFmlINE140yvXCam7MDqdLtvK+WRjgENVs1jOjvBNdVmB/CjYIxvJmkCvi4W66TPeV44rmwoMgx/jMWTQlKR8pt8/K+5De9dkUjhp1AQqJbMJpeaM2KaqZsUNtoNZohk0QADjWb5UqcrypDdI72Gi+bzYQkDq/DUgIlrrjvIBE4k2U8/Wg1E8xNoKMnRva5MoZ2iWgKQ/oNfnQkAIfCKlEWAXl8bqmCrtRBb5s5xAeCKtoU3cQVAxUEC08iOtk54vBOKaKN0Ns+UMtE/crCpAtXLegmv/VwMDfuRvKsQcIrTGMwFz+E5AAT0wN2OmeoPeqgEd+EHcZ0YVUD6BAcD8M0ghCztqCORz+gN6SJTgcVSOOl7Aae0MUL0KIC0fM5BVtOEarWLF5igwfXAoB1mPPsteA0SRDNLcagO0OJ92RkUAlJpftgBdRVdDYDQ9DHNb1S6WP3EJPntmTjDjgRgQTBl7H4QMFgJX08Ed9CGD56rqhKIjAm5YnsjR/CWBTsx0RwS6HQF8lsCxCcojE0g0V/ymgXB2n7UJinMmOHZC2h04ITgi9L0loJwwgsfFCSk4YW0dCEwYNumagQrDaBuGCuidwHEYyri+2AZjy0AU7pqbZdiOAIFRejMQ4bMD0W+GYsygz9dmtUL41B4S0F5cLIsgMz3fbRYYLZNRz8k8G+EpjdPpyAR6ogoKUxmjCTpOLWuS30zH1Wo6zitKpCeIKbaRffZHTijCT71I1OrpWEexJVF6bkESN9VtuBd6vdezQwJoNHG0XpBYMsX/sCQTCwByYAJ0uCQLGpsB/npRGqRPehiGsmjKt3XzzpanPLEsL9J1l3EZamOB0+VrAvtledDX1jwplgvJ441JYR4fXWN6vZT1UleaqtppeLUxyX6e/MT2jCbWrRmiXG3NkuSx3utApbc3WrZmJ/ZFps1BGdq0NkPbtuof97Uf/0rOw8PDw8PDw8PDw8PDw8Pj3+H843bnn/c7v+Dg/IqH80suzq/5xC6dAPMYBdaM+icJdP+Hy25B4e66XwH3DS8ncqkfAXwyI7NbLwdXXiVaeTavLr26GI91/kVd+y2+H4uYr679BkE0ftkTyajzCObqd/ZkX6RA2NN8YjRffo/TjpGzn5z9BwgRhHXpnM9abt8LDq+pZfSz1/8pa6fXOpv2C/DiOnhwZisWAAAAAElFTkSuQmCC',
+  MYOB: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAflBMVEWHAPn///+AAPn16P/z6/7Upv358f+pYPqhTPrJkPx8APn//f/89//y5P79+/+YNvqsWfuTI/qiVvq4efvmyP7u1/7gvf3DifyrZvqbP/rasf3y3/7r0v68fvvIm/zauv21cPvQqv2XLfqya/vgwv2cRvqSDfrGlfzozf7Sof0ZqaNVAAACJElEQVR4nO2YW3OCMBCFYfHWcFGkSBUQoRbt//+Dhc7YKbtBidLOdHq+Fx442XPYhJDBsgAAAAAAAAAAAPBHICKl2qtSRP2i5m5zVddEd7mH62j67NktbrxJXraWqE/Wcp7s0uBTNMum+ToczX65z2Z2B79IuhHIOhRpV+Nl5XaUNmw3ga1hlodf5SmMfFejCbL1o+5UFbrKnzjJRRWlfRr7uHzM/7W/dEPWNoHqY2/GBv/wyDxMr9m3RJY1925odj/ob3t5dMvftsv6Tv/dzdLNW3mt/ReO9/nvB5QeyPs9/q+3ezsYNzJfiZU/nn+zaxi/jaoc09+2C9MWrEecgBZvZRhgyBtgRGHm/zbTFQl839F+GL5JHN/XSryFiT89iQJuHNWq/dBXT1mfe3qqqNXUh7OcwZPJKlCxGJ/UlwJUl3r/ovqSWLm4OzEJEIrnX30frmlQw77Tw5WYCIMDCkWieDc+PUv/mEkSvknnw1tABRubVkyxmHD/YM7q13waTbYCvsz2YuyGBzjzDtOJKbLh/iL8livkKihFxoop4uGLYMnPQbJ5C7ZRePLgo9ir6IvH6OWNfYhiJSQ1WwSar406dyXO8K1o4XSHbjTLhwWYyFMPse38gQBTGUDxALIKvbMmzX87AFuoCIAACIAACIAACIAACIAACIAACIAACIAACIAAJgHYX8idJgD7C+lpArB/te7L4AAAAAAAAAAAAAD4V3wASaMntaKjtY4AAAAASUVORK5CYII=',
+  QuickBooks: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAANlBMVEVHcEwsoBwsoBv///8soBwsoBwsoBwsoBwsoBwsoBwZnATF4cM8qC7T6tDp9edftFaCxHuo1aTJMNE7AAAACnRSTlMAhf//zzquGGnqq1FajgAABK9JREFUeJztm9varCAIQMuOY+f3f9ndYcYsQYHs92bzzV0laxARFbOML01TtXldlspIWdZ5WzWNoDGB7trSfJWyfpnCp9yGeEl7Xn9C2g/51Hl8hoqq/ccQF6Flaf8ytLG0NxL1B0IMh2zaoN/hUj5HeKL+QHiknul6kDxyR2nn3xCkRmgeWv+UUuQJcf7+IQIjNHlE/StBzjRCU8dUv0nNIojX/adwHKGKr34T8nisonb/KR8iQfWC/Q8pSQTv6afZ4C37UwkaQat939NfDowFyfjTQzEuE5XBPxpF8Ud3xSrLRHzdG5Fygf4vQDFOmvZ+juuXzT9fgGIkvo/PTI1sAPwAioVogg/WCcIAYAAKqhuUSAfI9FsAVBMosBPEEegEGKifgPFInAFYAOSAVMcaAVIAdyQ8SEEkAG5AlHqgFODuh09yMBnAzQQPDCAEuJngSRIgBPjEMoAU4GKCgAG0XnOOyZUeAjheXD/QgbhomcCbhms1zcvSDaMrR+i9Auh5fzR0yzJPystwhkNPENRqXnUXsHQggHm8Usw+BBMO8VlAr/8HUU4A2CFmvCfMjIDnQZNPPQlgy5TQ5r+5EZoI9l3hFxLAOkv3iBFqbw/oaQjopwKg6eK3D+Ag4O99HsDmCaCSFu8Bin46AEawp+jwPBRwPy4A0gv7jARGobv+cexmI+YZBKD6/Z1uvLcADoYKc4GL/4/DvMZVvcYUvf+Mc4IA6nhL9/M1gHWQnhYOg1czDrdw1ocAfq2o+TKOIDeoERewv3NGMRVgfdIvdkuAotUJgPW4tjvA7To6wCqT/VcAEzSAD2rbAwHnZQFoiwDywwrwQW3ZbXY/4QEoZfkTYIIWmIlOBUUHtcgEsGYU4HnuDgIrBsLRgwlg9SgQD2t3SWz1ADh0uQB2UHH7oHQBTpMhkxgXwDKB26Vl5r5u2h/hKYxtAW0ABnccOADWNIAs9/kAplOBgeha4Bw2yCTOB/A16QNAlhlsANX/BxACIPk03wcmDoB61QndyALEgcTDUP11IHITotihWPlDcfLJ6PXpWAWm4+QJSfKUDFgY/W1S6qbl+m/TcnBhYq+p3l6YJF+agYvT6+bMd3G6SQBA6VPIi1Noea6x5XnvBRjPJTxjeQ46gUNgmREH8Ihng4K1RSMF8G3RsDaphADeTSrWNp0MILBNh24VX0exHCC0UcnZqhUAhLdqfUeWd09gA5A2qxnb9SwA8nY948ACBFiAs4yOdWAROLLR55ENFAkVcJjDPLIhHVrtG5UKAtDa+RHau57bcY7tHACZXI7tWOd2kQCuB5eco9s4APfTa4YJ4gDcz+8ZJogC4NYz0QsYYgBApTzkEo4YAEAJB6OI5TkAXFRH9cNz5SQGQGqpqH5oJmkpAFLIRC7lMtOfEAAt5SKPhN+WhwzAV2ZNLOf7Je0yAE85H72gcerEAP4Sa2pA1P20jMUgAAgVWHOKWjm1rEaCBd6py3rfLWxOXVpNLi5PXNyevrw//QWH9Fc80l9yyZJf88nSX3SKZoQnFw9TX3bLkl/3y9JfeMySX/ncJe2l110SX/vdEdJefN7Ee+/8J+9d/T4Y0l5+tyiiXf//B7BhpP8FszZGAAAAAElFTkSuQmCC',
+  FreshBooks: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAFY0lEQVR4nO2dW2gcVRiAv91sLhoTk8akttIUmVqqQSuiTamtBCWICLFQbFGoEBCaQr2ADPbJCKKCgw+i1Aeh2mpFpNaGikT64INQEgut0URQOkqDjWkTyWWbW7PZ9WFcu0mzm83uOXOyu/8HA7uzM+c/e775Z86c2ZkNsFKw3TXAA8BtQHUaU6mZiqolYCSq7QaAu4HtCdOdRupiGH8E2G4Q2ArswGvsbcAqX2KvcPQKsN1S4DnABu7SGitH0SPAdiuB/cBLwBotMfIEtQJs93bgZaANuFVp2XmKGgG2uwp4E2glT3onfpG9ANt9FDgK3JF1WQVI5gJstwRvq38lq3IKnMwazjvIdgBNKitTiCxfgO3WAp14Z61ClixPgO3WA6eBjVpqU4CkL8Db7ZwBGrTVpgAJpbWU7RYBX6Cw8VsfrKCiLJjRuoPhCF/2TCy5XCAAm2qLqa8KsbYylHG8k70T9I9GMlp3KdITAO8CT6gM3N5czfrqdMPPp7t/JqWAhtUlHHi4kpZ7yllbWZRpFf/n96FZgwJsdyfekMKKpygIrzZV0d5cTUlRbvSMUwuw3SrgkD9VyY5NdcUc2VPHlnW5dSK+VAY45MBg2u7N5RzZU0dZSM9WH56JaikXIPlRyXabgOe1RVZEfVWIj3bVamt8gL/H57SVnapb8La2qIoIBODw7loqM+zdpEM0BgPjeg7AkEyA7TbjXcFa0ezfWsljG27SGuPMxWmmIzFt5SfbdF7TFlER66pCvPNkjfY4HX1Ln29kw40CvH3/dq1RFfDM/bdQXqK3qzkyFeWzc1e1xlgsA9q0RlTEzoabtcd44eQwg2F9B2BYKMAb73lKa0QFBIDG+jKtMb7uneDYeb1bP9yYAU8Der+ZAoqLAgQ17n2GJ+ZoOzGsL0ACCwXs9SVqlpRkP7yTlH8m53j28ytcuap31xPn+pmw7dYBj/gSNUuCAT2bf0ffBPu+GuayT40P84ciGinQa7ujU1Fe7BjmU809nsVIFLDF9+gGicWgq3+ajr5Jjp4Lax1uSMXCDMgJJmejtHwymNG64ZkYA+MRLo1FmLim7ww3XTwB3q+VHzJblfSJROHUr5Omq6GEeC9oI1BlsiKFSlxAQe3/VxIiwDBxATlzAM43gv/dRLHZdEUKlSBwH1BiuiKFSpAcuOiezwSR7qdRRIBhQuTgvVw15UF23VuupKxYDE706r3um4oQOZgBG2qKOb53tZKy5qIQOviHkrIyIUgOZkA+IccAw0gGGEYywDCSAYaRDDDLnGSAWcaCyECcSUb1/bBeSIcxEWAWyQDDiADDjGV2p7Rh+kcjrH+r33Q1VCAZYBgRYBjpBRlGMsAwIsAwQyLAHHPAeRFgjl9wrEkRYI4uSP2wDkEv3SACTCIZYJAR4DcQAab4EceKgQgwRXf8hQgwQ1f8hQjwnwgiwCidONZI/I0I8J+PE9+IAH8ZBk4lzhAB/nIMx5pNnCEC/GMWeG/hTBHgH4dxrD8XzhQB/jANvLHYByLAHz7EsS4t9oEI0M9FoD3ZhyJALzGgFccKJ1tABOjlfRzr+1QLGPtp4uunR6gozcy/zj9UUMhZ4OBSCwWwXfNPrss/LgDbcKyhpRaUXZB6LgOPp9P4IAJUM4DX+Gk/+0AEqOMnoBHH6lnOSiJADd8AO3Csv5a7ogjIjjBwAGjBsTJ68HRO3iGzQugE9uFYWd2qIwKWRwz4Du8E61sVBYqA9BjFu5R4CMe6oLJgEZCan4EP8K5kaXlauAiYzxRed/IscBzH+kF3wEIWMAv04jV2fOrDsfT9b+Ei5JOAa8BYwjSe5PUIXsP34FjTZqp6nX8BJoc3EE3fsIQAAAAASUVORK5CYII='
+};
+const SoftwareLogo = ({
+  name,
+  size = 42
+}) => {
+  const src = ACCT_LOGOS[name];
+  const r = Math.round(size * 0.22);
+  if (src) return /*#__PURE__*/React.createElement("img", {
+    src: src,
+    alt: name,
+    width: size,
+    height: size,
+    style: {
+      borderRadius: r,
+      display: 'block',
+      flexShrink: 0,
+      objectFit: 'cover'
+    }
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: size,
+      height: size,
+      borderRadius: r,
+      background: T.primary,
+      color: '#fff',
+      fontSize: Math.round(size * 0.4),
+      fontWeight: 800,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, name.slice(0, 2).toUpperCase());
+};
+
+// FullAcctSoftwarePage — post-sign page shown between Next steps and Perks.
+// Sole is rendered as a hero "recommended" card with feature checkmarks;
+// other accounting platforms are listed in a muted grid below with their own CTA.
+const FullAcctSoftwarePage = ({
+  state,
+  set,
+  accent,
+  template,
+  showEditorBanner = false
+}) => {
+  const [selected, setSelected] = React.useState(null);
+  const tpl = template || getTemplate(state);
+  const acc = accent || state.themeColor || T.primary;
+  const accText = contrastText(acc);
+  const practice = practiceOf(state);
+  const recipient = resolveSignatoryRecipient(state);
+  const pageTitle = resolveTokens(state.acctSoftwareTitle || 'Pick your accounting software', state, recipient);
+  const pageIntro = resolveTokens(state.acctSoftwareIntro || `To get the most from your engagement with ${practice}, pick an accounting platform below. We recommend Sole — purpose-built for exactly how we work together.`, state, recipient);
+  const features = (state.acctSoftwareFeatures || DEFAULT_ACCT_SOFTWARE_FEATURES).filter(f => f.enabled !== false);
+  const others = (state.acctSoftwareOthers || DEFAULT_ACCT_SOFTWARE_OTHERS).filter(o => o.enabled !== false);
+  return /*#__PURE__*/React.createElement(Fragment, null, showEditorBanner && !state.signedAt && /*#__PURE__*/React.createElement(PostSignEditorBanner, {
+    accent: acc,
+    label: "accounting software page"
+  }), /*#__PURE__*/React.createElement(TplPageWrap, {
+    template: tpl,
+    accent: acc
+  }, /*#__PURE__*/React.createElement(TplPageHeader, {
+    template: tpl,
+    accent: acc,
+    chapter: 9,
+    kicker: "Get connected",
+    title: pageTitle,
+    subtitle: pageIntro,
+    setTitle: set ? v => set({
+      acctSoftwareTitle: v
+    }) : null,
+    setSubtitle: set ? v => set({
+      acctSoftwareIntro: v
+    }) : null
+  }), /*#__PURE__*/React.createElement(TplBody, {
+    template: tpl,
+    style: {
+      paddingTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 18,
+      borderRadius: 14,
+      border: `2px solid ${acc}`,
+      background: withAlpha(acc, 0.04),
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: acc,
+      padding: '6px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "star",
+    size: 11,
+    color: accText
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 800,
+      letterSpacing: 1.3,
+      textTransform: 'uppercase',
+      color: accText
+    }
+  }, "Recommended")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '18px 20px 20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      background: acc,
+      color: accText,
+      fontWeight: 800,
+      fontSize: 22,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      boxShadow: `0 4px 12px ${withAlpha(acc, 0.38)}`
+    }
+  }, "S"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      fontWeight: 800,
+      color: T.text,
+      letterSpacing: -0.4
+    }
+  }, "Sole"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      marginTop: 2
+    }
+  }, "All-in-one platform for accountants & their clients"))), features.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '7px 18px',
+      marginBottom: 18
+    }
+  }, features.map(f => /*#__PURE__*/React.createElement("div", {
+    key: f.id,
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 16,
+      height: 16,
+      borderRadius: '50%',
+      background: acc,
+      flexShrink: 0,
+      marginTop: 2,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 8,
+    color: accText,
+    strokeWidth: 3
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.textSoft,
+      lineHeight: 1.5
+    }
+  }, f.text)))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSelected('Sole'),
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      padding: '9px 18px',
+      borderRadius: 9,
+      border: 'none',
+      cursor: 'pointer',
+      background: selected === 'Sole' ? darkenHex(acc, 0.12) : acc,
+      color: accText,
+      fontSize: 13,
+      fontWeight: 700,
+      boxShadow: `0 3px 10px ${withAlpha(acc, 0.40)}`,
+      outline: 'none'
+    }
+  }, selected === 'Sole' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 13,
+    color: accText,
+    strokeWidth: 3
+  }), " Sole selected") : /*#__PURE__*/React.createElement(React.Fragment, null, "Select Sole ", /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 13,
+    color: accText
+  }))))), others.length > 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      marginBottom: 10,
+      paddingBottom: 8,
+      borderBottom: `1px dashed ${T.border}`
+    }
+  }, "Also available"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: 10
+    }
+  }, others.map(o => /*#__PURE__*/React.createElement("div", {
+    key: o.id,
+    style: {
+      padding: '13px 14px 12px',
+      borderRadius: 10,
+      border: `1px solid ${T.border}`,
+      background: T.fieldBg,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(SoftwareLogo, {
+    name: o.name,
+    size: 34
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.textSoft
+    }
+  }, o.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      marginTop: 1,
+      lineHeight: 1.4
+    }
+  }, o.tagline))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSelected(o.name),
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      padding: '6px 12px',
+      borderRadius: 7,
+      border: `1px solid ${selected === o.name ? T.primary : T.border}`,
+      background: selected === o.name ? T.primarySoft : T.card,
+      color: selected === o.name ? T.primary : T.textSoft,
+      fontSize: 12,
+      fontWeight: 600,
+      alignSelf: 'flex-start',
+      cursor: 'pointer',
+      outline: 'none'
+    }
+  }, selected === o.name ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: T.primary,
+    strokeWidth: 3
+  }), " ", o.name, " selected") : /*#__PURE__*/React.createElement(React.Fragment, null, "Select ", o.name, " ", /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 11,
+    color: T.muted
+  }))))))), /*#__PURE__*/React.createElement(TplFooter, {
+    template: tpl,
+    accent: acc,
+    state: state,
+    chapter: 9,
+    sectionLabel: "Accounting software",
+    prepared: `${practice} · ${pageTitle}`
   }))));
 };
 
@@ -21532,6 +22040,13 @@ const PDFDocument = ({
     state: state,
     accent: accent,
     template: template
+  })), state.signedAt && state.acctSoftwareEnabled !== false && /*#__PURE__*/React.createElement("div", {
+    className: "pdf-page",
+    style: pageStyle
+  }, /*#__PURE__*/React.createElement(FullAcctSoftwarePage, {
+    state: state,
+    accent: accent,
+    template: template
   })), state.signedAt && state.perksEnabled !== false && /*#__PURE__*/React.createElement("div", {
     className: "pdf-page",
     style: pageStyle
@@ -21593,7 +22108,9 @@ const FullPreview = ({
     onOpenIntro: () => setPage('intro')
   }));else if (page === 'toc') body = /*#__PURE__*/React.createElement(FullTocPage, _extends({}, pageProps, {
     onJump: setPage
-  }));else if (page === 'intro') body = /*#__PURE__*/React.createElement(FullIntroPage, pageProps);else if (page === 'packages') body = /*#__PURE__*/React.createElement(FullPackagesPage, pageProps);else if (page === 'services') body = /*#__PURE__*/React.createElement(FullServicesPage, pageProps);else if (page === 'addons') body = /*#__PURE__*/React.createElement(FullAddonsPage, pageProps);else if (page === 'pricing') body = /*#__PURE__*/React.createElement(FullPricingPage, pageProps);else if (page === 'payments') body = /*#__PURE__*/React.createElement(FullPaymentsPage, pageProps);else if (page === 'review') body = /*#__PURE__*/React.createElement(FullReviewPage, pageProps);else if (page === 'perks') body = /*#__PURE__*/React.createElement(FullPerksPage, _extends({}, pageProps, {
+  }));else if (page === 'intro') body = /*#__PURE__*/React.createElement(FullIntroPage, pageProps);else if (page === 'packages') body = /*#__PURE__*/React.createElement(FullPackagesPage, pageProps);else if (page === 'services') body = /*#__PURE__*/React.createElement(FullServicesPage, pageProps);else if (page === 'addons') body = /*#__PURE__*/React.createElement(FullAddonsPage, pageProps);else if (page === 'pricing') body = /*#__PURE__*/React.createElement(FullPricingPage, pageProps);else if (page === 'payments') body = /*#__PURE__*/React.createElement(FullPaymentsPage, pageProps);else if (page === 'review') body = /*#__PURE__*/React.createElement(FullReviewPage, pageProps);else if (page === 'acct-software') body = /*#__PURE__*/React.createElement(FullAcctSoftwarePage, _extends({}, pageProps, {
+    showEditorBanner: !state.signedAt
+  }));else if (page === 'perks') body = /*#__PURE__*/React.createElement(FullPerksPage, _extends({}, pageProps, {
     showEditorBanner: !state.signedAt
   }));else if (page === 'thanks') body = /*#__PURE__*/React.createElement(FullThanksPage, _extends({}, pageProps, {
     showEditorBanner: !state.signedAt
@@ -22367,6 +22884,12 @@ const ProposalEditor = ({
       if (hasSub) parts.push('subtitle');
       return parts.length === 0 ? 'Defaults only' : `${parts.join(' + ')} customised`;
     })(),
+    'acct-software': (() => {
+      if (state.acctSoftwareEnabled === false) return 'Disabled — page hidden post-sign';
+      const featureCount = (state.acctSoftwareFeatures || DEFAULT_ACCT_SOFTWARE_FEATURES).filter(f => f.enabled !== false).length;
+      const otherCount = (state.acctSoftwareOthers || DEFAULT_ACCT_SOFTWARE_OTHERS).filter(o => o.enabled !== false).length;
+      return `Sole recommended · ${featureCount} highlight${featureCount === 1 ? '' : 's'} · ${otherCount} other${otherCount === 1 ? '' : 's'}`;
+    })(),
     perks: (() => {
       if (state.perksEnabled === false) return 'Disabled — page hidden post-sign';
       const onCount = (state.partnerOffers || []).filter(o => o.enabled !== false).length;
@@ -22403,6 +22926,7 @@ const ProposalEditor = ({
   const optional = {
     docs: true,
     theme: true,
+    'acct-software': true,
     perks: true,
     thanks: true
   };
@@ -22410,8 +22934,9 @@ const ProposalEditor = ({
     ...required,
     docs: (state.uploadedDocs || []).length > 0 && state.uploadedDocs.every(d => d.fields.length > 0),
     theme: true,
-    // Perks/thanks are post-sign surfaces with sensible defaults — always
-    // "complete" so they appear neutral, not flagged as empty.
+    // Post-sign surfaces with sensible defaults — always "complete" so they
+    // appear neutral, not flagged as empty.
+    'acct-software': true,
     perks: true,
     thanks: true
   };
@@ -22568,6 +23093,13 @@ const ProposalEditor = ({
         state: state,
         set: set,
         fireToast: fireToast
+      })
+    }, {
+      id: 'acct-software',
+      title: 'Accounting Software',
+      body: /*#__PURE__*/React.createElement(AcctSoftwareBody, {
+        state: state,
+        set: set
       })
     }, {
       id: 'perks',
