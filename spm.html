@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sole SPM — A smarter end-to-end practice management platform for Australian firms</title>
+  <meta name="description" content="One end-to-end platform for Australian accounting and bookkeeping firms — built for ATO compliance, integrations, and AI-led automation. See how Sole SPM compares." />
+  <link rel="canonical" href="https://soleapp.com.au/spm/" />
+
+  <meta property="og:title" content="Sole SPM — A smarter end-to-end practice management platform" />
+  <meta property="og:description" content="Replace 6+ disconnected tools with one platform — built for Australian accounting firms and bookkeepers." />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_AU" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#EEF0FF',
+              100: '#DDE0FF',
+              200: '#BFC4FF',
+              300: '#9CA3FF',
+              400: '#7C83F7',
+              500: '#5A4FCF',
+              600: '#4A3FBE',
+              700: '#3C33A4',
+              800: '#2F2880',
+              900: '#251F66',
+            },
+            accent: { 500: '#F97316', 600: '#EA580C' },
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          boxShadow: {
+            soft: '0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04)',
+            lift: '0 18px 40px -12px rgba(74, 63, 190, 0.22)',
+            pop: '0 28px 60px -20px rgba(74, 63, 190, 0.35)',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    .grain {
+      background-image: radial-gradient(rgba(90,79,207,0.06) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .grain-dark {
+      background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .faq-icon { transform: rotate(180deg); }
+    .faq-icon { transition: transform 0.2s ease; }
+    .table-zebra tbody tr:nth-child(even) { background-color: rgba(248, 250, 252, 0.6); }
+    @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    .floaty { animation: floaty 6s ease-in-out infinite; }
+    @keyframes pulseDot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+  </style>
+
+  <!-- SVG sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-check" viewBox="0 0 20 20"><path fill="currentColor" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></symbol>
+      <symbol id="i-check-thin" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></symbol>
+      <symbol id="i-arrow-right" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></symbol>
+      <symbol id="i-star" viewBox="0 0 20 20"><path fill="currentColor" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M12 2L4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z"/></symbol>
+      <symbol id="i-trending" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M23 6l-9.5 9.5-5-5L1 18M17 6h6v6"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="none" stroke="currentColor" stroke-width="1.7" d="M2 12h20M12 2a15.3 15.3 0 010 20 15.3 15.3 0 010-20z"/></symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M12 3L13.5 8.5L19 10L13.5 11.5L12 17L10.5 11.5L5 10L10.5 8.5L12 3zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16zM5 4l.6 1.4L7 6l-1.4.6L5 8l-.6-1.4L3 6l1.4-.6L5 4z"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></symbol>
+      <symbol id="i-zap" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
+      <symbol id="i-message" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></symbol>
+    </defs>
+  </svg>
+</head>
+
+<body class="bg-white text-slate-900 antialiased">
+
+<!-- 1. ANNOUNCE BAR -->
+<div id="announce" class="bg-brand-700 text-white text-sm relative">
+  <div class="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center text-center">
+    <p class="flex items-center gap-1.5 flex-wrap justify-center">
+      <span class="inline-flex items-center gap-1.5 bg-accent-500/95 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">Early adopter</span>
+      <span class="font-semibold">14 spots left this quarter</span>
+      <span class="text-white/70">— lock in foundation pricing for 24 months</span>
+      <a href="#cta" class="ml-2 inline-flex items-center gap-1 font-semibold underline underline-offset-4 hover:text-white/90">
+        Claim your spot
+        <svg class="w-3.5 h-3.5"><use href="#i-arrow-right"/></svg>
+      </a>
+    </p>
+    <button onclick="document.getElementById('announce').remove()" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition" aria-label="Dismiss announcement">
+      <svg class="w-4 h-4"><use href="#i-x"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- 2. NAV -->
+<nav class="bg-white/85 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <a href="landing.html" class="flex items-center" aria-label="Sole Practice Manager — home">
+        <svg width="120" height="40" viewBox="0 0 156 53" fill="none" xmlns="http://www.w3.org/2000/svg" class="block">
+          <path d="M49.1722 38.4573C50.226 38.4573 51.0805 39.3122 51.0805 40.366C51.0805 41.4198 50.226 42.2743 49.1722 42.2743C48.1184 42.2743 47.2635 41.4198 47.2635 40.366C47.2635 39.3118 48.118 38.4573 49.1722 38.4573ZM47.8395 33.4576L42.7737 38.5035C42.0275 39.2498 40.8175 39.2498 40.0713 38.5035C39.322 37.7577 39.322 36.5442 40.0713 35.798L45.1304 30.7547L45.1335 30.7516L47.8395 33.4576ZM40.0682 20.2875C40.8144 19.5416 42.0218 19.5415 42.7676 20.2875L58.2811 35.801C59.0273 36.5468 59.0269 37.7542 58.2811 38.5004C57.5349 39.2462 56.3279 39.2462 55.5817 38.5004L40.0682 22.9868C39.3224 22.2408 39.3224 21.0336 40.0682 20.2875ZM60.0869 27.4441V27.4476C61.1407 27.4476 61.9951 28.3021 61.9951 29.3555C61.9951 30.4093 61.1407 31.2638 60.0869 31.2638H57.2533C56.7314 31.2638 56.232 31.0561 55.8637 30.6878L54.5732 29.3973L55.95 28.0201C56.3183 27.6518 56.8177 27.4441 57.3395 27.4441H60.0869ZM41.0067 27.441C41.5285 27.441 42.0284 27.6492 42.3962 28.017L43.773 29.3938L42.4829 30.6843V30.6812C42.1146 31.0495 41.6152 31.2576 41.0934 31.2576H38.2593C37.206 31.2576 36.3511 30.4027 36.3511 29.3493C36.3511 28.296 37.206 27.441 38.2593 27.441H41.0067ZM55.5689 20.2974C56.3152 19.5514 57.5252 19.5482 58.2745 20.2974C59.0172 21.0435 59.0207 22.2537 58.2745 22.9997L53.2347 28.0588L53.2378 28.0553L50.5323 25.3502L55.5689 20.2974ZM49.1766 16.5042C50.2304 16.5042 51.0849 17.3585 51.0849 18.4124C51.0849 19.4664 50.2304 20.3211 49.1766 20.3211C48.1224 20.321 47.2683 19.4663 47.2683 18.4124C47.2683 17.3585 48.1224 16.5042 49.1766 16.5042Z" fill="#4D4DFF"/>
+          <path d="M21.6477 42.3389C19.6113 42.3389 17.7381 41.9645 16.0347 41.2213C14.328 40.4755 12.8648 39.438 11.6448 38.1026C10.4249 36.7646 9.54432 35.2404 9 33.5178L13.3034 31.7116C14.0783 33.6903 15.2118 35.2145 16.7039 36.2714C18.196 37.3344 19.9155 37.8659 21.8655 37.8659C23.0148 37.8659 24.0105 37.6864 24.8562 37.3278C25.7015 36.9692 26.361 36.4601 26.8349 35.8006C27.3088 35.141 27.5455 34.3789 27.5455 33.5178C27.5455 32.3712 27.2159 31.4459 26.5533 30.7414C25.8933 30.0405 24.9328 29.5024 23.6682 29.131L17.6005 27.2386C15.1926 26.4924 13.3643 25.3431 12.1155 23.7965C10.8635 22.2468 10.2424 20.4409 10.2424 18.3756C10.2424 16.5985 10.681 15.0199 11.5552 13.6431C12.4325 12.2662 13.6493 11.1872 15.215 10.4155C16.7776 9.64063 18.577 9.25 20.6167 9.25C22.5379 9.25 24.2895 9.58942 25.8647 10.2618C27.4434 10.9342 28.7977 11.866 29.9312 13.0604C31.0646 14.2483 31.8874 15.6187 32.4062 17.1717L28.1892 18.9776C27.5297 17.2869 26.537 15.9869 25.2179 15.084C23.8988 14.1778 22.3649 13.7295 20.6135 13.7295C19.5504 13.7295 18.6187 13.9088 17.815 14.2675C17.0113 14.6261 16.3869 15.1352 15.945 15.7948C15.5 16.4512 15.279 17.2261 15.279 18.1162C15.279 19.1505 15.6088 20.0662 16.2684 20.8699C16.928 21.6736 17.9206 22.2756 19.2398 22.6758L24.8787 24.4433C27.4337 25.2181 29.3517 26.3291 30.6422 27.7798C31.9323 29.23 32.5791 31.0296 32.5791 33.1812C32.5791 34.9584 32.1118 36.5371 31.1799 37.9139C30.248 39.2906 28.9676 40.3761 27.3281 41.1637C25.6918 41.9517 23.7993 42.3455 21.6477 42.3455V42.3389Z" fill="#191944"/>
+          <path d="M65.7681 42.346V9.25H70.6318V42.346H65.7681Z" fill="#191944"/>
+          <path d="M86.2416 42.2672C83.917 42.2672 81.8675 41.7295 80.0873 40.6568C78.3101 39.5774 76.9175 38.1144 75.9121 36.2669C74.9098 34.4162 74.4038 32.3443 74.4038 30.0488C74.4038 27.7529 74.9067 25.6171 75.9121 23.8112C76.914 22.0021 78.2877 20.574 80.0235 19.527C81.7588 18.4799 83.7023 17.9548 85.8539 17.9548C87.6311 17.9548 89.2098 18.259 90.5866 18.861C91.9633 19.4629 93.1258 20.289 94.0736 21.3329C95.0213 22.3799 95.7447 23.5775 96.2476 24.9285C96.747 26.2767 97 27.7111 97 29.2322C97 29.6035 96.9842 29.9912 96.9551 30.3942C96.923 30.7946 96.8689 31.1695 96.7822 31.5118H78.2366V27.6407H93.9838L91.7042 29.4051C91.9602 27.9993 91.8608 26.7475 91.3997 25.6396C90.9386 24.5348 90.2249 23.6607 89.2481 23.0139C88.2717 22.3671 87.1378 22.0437 85.8478 22.0437C84.5572 22.0437 83.4524 22.3671 82.447 23.0139C81.4451 23.6607 80.6703 24.5829 80.1256 25.79C79.5782 26.9939 79.3635 28.4318 79.4788 30.0902C79.3349 31.6689 79.5558 33.0456 80.1449 34.2209C80.731 35.3957 81.5666 36.3148 82.6393 36.9744C83.7151 37.634 84.9286 37.967 86.2768 37.967C87.7081 37.967 88.915 37.6502 89.8887 37.0193C90.8651 36.3883 91.6562 35.5721 92.2581 34.5667L96.2155 36.5454C95.7544 37.634 95.0468 38.6108 94.0863 39.4688C93.1258 40.3303 91.9761 41.0123 90.6442 41.5117C89.3088 42.0141 87.8392 42.2641 86.235 42.2641L86.2416 42.2672Z" fill="#191944"/>
+          <path d="M102.019 4.065h3.276c.598 0 1.118.117 1.56.351.442.225.784.55 1.027.975.243.425.364.932.364 1.521 0 .598-.147 1.135-.442 1.612-.286.477-.689.85-1.209 1.118-.52.269-1.131.403-1.833.403H102.474L101.954 13.75h-1.287L102.019 4.065zM102.643 8.875h2.197c.416 0 .78-.087 1.092-.26.321-.173.572-.407.754-.702.182-.295.273-.637.273-1.027 0-.511-.16-.914-.481-1.209-.312-.295-.732-.442-1.261-.442H103.15L102.643 8.875z" fill="#EF792A"/>
+          <text x="108.5" y="13.75" font-family="Plus Jakarta Sans, system-ui, sans-serif" font-size="9.5" font-weight="600" fill="#EF792A" letter-spacing="0.2">practice manager</text>
+        </svg>
+      </a>
+      <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
+        <a href="landing.html" class="hover:text-slate-900 transition">Sole app</a>
+        <a href="#compare" class="hover:text-slate-900 transition">Compare</a>
+        <a href="#testimonials" class="hover:text-slate-900 transition">Customers</a>
+        <a href="#resources" class="hover:text-slate-900 transition">Resources</a>
+        <a href="#partnerships" class="hover:text-slate-900 transition">Partnerships</a>
+        <a href="#faq" class="hover:text-slate-900 transition">FAQ</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="#" class="hidden sm:inline text-sm font-medium text-slate-700 hover:text-slate-900 transition">Sign in</a>
+        <a href="#cta" class="text-sm bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2.5 rounded-lg transition shadow-soft">Get it free</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- 3. HERO -->
+<section class="relative overflow-hidden pt-14 pb-16 lg:pt-20 lg:pb-24">
+  <div class="absolute inset-0 bg-gradient-to-b from-slate-50 via-white to-white pointer-events-none"></div>
+  <div class="absolute inset-0 grain opacity-50 pointer-events-none"></div>
+  <div class="absolute -top-40 right-0 w-[600px] h-[600px] bg-brand-100/40 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute -bottom-40 -left-32 w-[480px] h-[480px] bg-orange-100/40 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
+      <div>
+        <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-brand-500 pulse-dot"></span>
+          Sole SPM · One platform for Australian firms
+        </span>
+
+        <h1 class="mt-5 text-4xl md:text-5xl lg:text-[3.4rem] font-extrabold tracking-tight text-slate-900 leading-[1.05]">
+          A smarter end-to-end
+          <span class="block text-brand-600">practice management</span>
+          platform for Australian firms.
+        </h1>
+
+        <p class="mt-6 text-lg text-slate-600 leading-relaxed max-w-xl">
+          Most practice management software helps with part of the practice. Sole SPM is built to help accounting and bookkeeping firms run their <strong class="font-semibold text-slate-800">entire</strong> business from one connected platform.
+        </p>
+
+        <div class="mt-7 flex flex-wrap items-center gap-2.5">
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-soft">
+            <svg class="w-3.5 h-3.5 text-brand-600"><use href="#i-check"/></svg>
+            Trusted by 50+ AU firms
+          </span>
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-soft">
+            <svg class="w-3.5 h-3.5 text-amber-500"><use href="#i-star"/></svg>
+            4.9/5 average rating
+          </span>
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-soft">
+            <svg class="w-3.5 h-3.5 text-emerald-600"><use href="#i-shield"/></svg>
+            ATO-aligned · BAS · STP
+          </span>
+        </div>
+
+        <div class="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <a href="#cta" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3.5 rounded-lg transition shadow-lift">
+            Get started
+            <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
+          </a>
+          <a href="#cta" class="inline-flex justify-center items-center gap-2.5 text-slate-700 hover:text-slate-900 font-medium px-2 py-3.5 transition">
+            See our team &amp; call
+          </a>
+        </div>
+
+        <p class="mt-5 text-xs text-slate-500 flex items-center gap-3 flex-wrap">
+          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>No credit card</span>
+          <span class="text-slate-300">·</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>30-day free trial</span>
+          <span class="text-slate-300">·</span>
+          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Free migration support</span>
+        </p>
+      </div>
+
+      <!-- Hero visual: dashboard mockup with floating cards (echoes screenshot) -->
+      <div class="relative">
+        <div class="relative bg-white rounded-2xl shadow-lift border border-slate-200 overflow-hidden">
+          <!-- Browser chrome -->
+          <div class="flex items-center gap-1.5 px-5 py-3 border-b border-slate-200 bg-slate-50">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span class="ml-3 text-xs text-slate-400 font-medium truncate">app.soleapp.com.au/practice/dashboard</span>
+            <span class="ml-auto inline-flex items-center gap-1 text-[10px] text-slate-400">
+              <svg class="w-3 h-3 text-emerald-500"><use href="#i-shield"/></svg> Secure
+            </span>
+          </div>
+
+          <div class="bg-slate-50/40 p-5">
+            <!-- Header row -->
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <p class="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Practice dashboard</p>
+                <h4 class="text-base font-bold text-slate-900 mt-0.5">Whitfield &amp; Co.</h4>
+              </div>
+              <span class="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-md">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span> Live
+              </span>
+            </div>
+
+            <!-- Receivables Pipeline + donut (matches screenshot layout) -->
+            <div class="grid grid-cols-5 gap-3 mb-3">
+              <div class="col-span-3 bg-white border border-slate-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-[10px] font-semibold text-slate-700">Receivables Pipeline</p>
+                  <span class="text-[9px] text-brand-600 font-semibold">This Week</span>
+                </div>
+                <p class="text-[10px] text-slate-500 mb-1">Pending Payments</p>
+                <p class="text-base font-extrabold text-slate-900 mb-2 tabular-nums">$4,200</p>
+                <svg viewBox="0 0 200 50" preserveAspectRatio="none" class="w-full h-10">
+                  <defs>
+                    <linearGradient id="heroChart" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#5A4FCF" stop-opacity="0.25"/>
+                      <stop offset="100%" stop-color="#5A4FCF" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M 0 40 Q 14 36, 22 32 T 44 28 T 66 24 T 88 22 T 110 18 T 132 14 T 154 12 T 176 8 T 200 6 L 200 50 L 0 50 Z" fill="url(#heroChart)"/>
+                  <path d="M 0 40 Q 14 36, 22 32 T 44 28 T 66 24 T 88 22 T 110 18 T 132 14 T 154 12 T 176 8 T 200 6" stroke="#5A4FCF" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                  <circle cx="200" cy="6" r="2.5" fill="#5A4FCF"/>
+                </svg>
+              </div>
+              <div class="col-span-2 bg-white border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center">
+                <p class="text-[10px] font-semibold text-slate-700 self-start">Timeline</p>
+                <div class="relative w-20 h-20 mt-1">
+                  <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#EEF0FF" stroke-width="3.4"/>
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#5A4FCF" stroke-width="3.4" stroke-dasharray="70, 100" stroke-linecap="round"/>
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F97316" stroke-width="3.4" stroke-dasharray="22, 100" stroke-dashoffset="-70" stroke-linecap="round"/>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-[9px] text-slate-400">Total</span>
+                    <span class="text-xs font-extrabold text-slate-900 tabular-nums">$128,450</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3 small KPI tiles -->
+            <div class="grid grid-cols-3 gap-2 mb-3">
+              <div class="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
+                <p class="text-[9px] text-slate-500 uppercase tracking-wider font-medium">Revenue MTD</p>
+                <p class="text-sm font-bold text-slate-900 mt-0.5 tabular-nums">$46,200</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
+                <p class="text-[9px] text-slate-500 uppercase tracking-wider font-medium">Outstanding</p>
+                <p class="text-sm font-bold text-slate-900 mt-0.5 tabular-nums">$32,100</p>
+              </div>
+              <div class="bg-white border border-slate-200 rounded-lg px-3 py-2.5">
+                <p class="text-[9px] text-slate-500 uppercase tracking-wider font-medium">New Bus. Dev.</p>
+                <p class="text-sm font-bold text-emerald-600 mt-0.5 tabular-nums">+ $12,400</p>
+              </div>
+            </div>
+
+            <!-- Today's focus list -->
+            <div class="bg-white border border-slate-200 rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-[10px] font-semibold text-slate-700">Today's focus</p>
+                <span class="text-[9px] text-brand-600 font-medium">3 items</span>
+              </div>
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2 text-[10px]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+                  <span class="text-slate-700 flex-1 truncate">Bennett Q1 BAS — review pending</span>
+                  <span class="text-slate-400 tabular-nums">2h</span>
+                </div>
+                <div class="flex items-center gap-2 text-[10px]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                  <span class="text-slate-700 flex-1 truncate">3 engagement letters awaiting signature</span>
+                  <span class="text-slate-400 tabular-nums">EOD</span>
+                </div>
+                <div class="flex items-center gap-2 text-[10px]">
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0"></span>
+                  <span class="text-slate-700 flex-1 truncate">Capacity warning — next week 102%</span>
+                  <span class="text-slate-400 tabular-nums">7d</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating cards (matches screenshot's mini receipts) -->
+        <div class="absolute -top-5 -right-3 bg-white shadow-lift rounded-xl px-3 py-2.5 border border-slate-200 hidden md:block floaty z-10">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-md bg-brand-100 flex items-center justify-center">
+              <svg class="w-4 h-4 text-brand-700"><use href="#i-trending"/></svg>
+            </div>
+            <div>
+              <p class="text-[9px] text-slate-500 uppercase tracking-wider">Practice Mgr</p>
+              <p class="text-xs font-bold text-slate-900">$128,450</p>
+            </div>
+          </div>
+        </div>
+        <div class="absolute -bottom-5 -left-4 bg-white shadow-lift rounded-xl px-3 py-2.5 border border-slate-200 hidden md:block floaty z-10" style="animation-delay: 1.5s;">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-md bg-emerald-100 flex items-center justify-center">
+              <svg class="w-4 h-4 text-emerald-700"><use href="#i-check"/></svg>
+            </div>
+            <div>
+              <p class="text-[9px] text-slate-500 uppercase tracking-wider">Migration</p>
+              <p class="text-xs font-bold text-slate-900">Complete · 4 days</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. QUICK TRUST STRIP -->
+<section class="border-y border-slate-200 bg-white py-10">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div class="text-center md:text-left">
+        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums">50+</p>
+        <p class="text-[11px] text-slate-500 mt-1 font-medium">Australian firms onboarded</p>
+      </div>
+      <div class="text-center md:text-left md:border-l md:border-slate-200 md:pl-6">
+        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums">12,400+</p>
+        <p class="text-[11px] text-slate-500 mt-1 font-medium">Clients managed on Sole</p>
+      </div>
+      <div class="text-center md:text-left md:border-l md:border-slate-200 md:pl-6">
+        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums">$4.2M</p>
+        <p class="text-[11px] text-slate-500 mt-1 font-medium">Tool spend saved annually</p>
+      </div>
+      <div class="text-center md:text-left md:border-l md:border-slate-200 md:pl-6">
+        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums inline-flex items-center gap-2">
+          4.9
+          <svg class="w-6 h-6 text-amber-400"><use href="#i-star"/></svg>
+        </p>
+        <p class="text-[11px] text-slate-500 mt-1 font-medium">Customer review score</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. WHY SOLE — three-pillar pitch row (improves reading flow into compare table) -->
+<section class="py-16 lg:py-20 bg-slate-50/60">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto text-center mb-12">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">The Sole difference</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">One connected platform — not a patchwork.</h2>
+      <p class="mt-3 text-slate-600">Disconnected systems are harder to run at scale. They cause inefficiency, gaps, and chaos. Sole SPM brings everything into one connected workflow.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-5">
+      <!-- Pillar 1 — Connected -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 hover:border-brand-300 hover:shadow-soft transition">
+        <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center mb-4">
+          <svg class="w-5 h-5"><use href="#i-layers"/></svg>
+        </div>
+        <p class="text-xs font-semibold text-brand-700 uppercase tracking-wider mb-1.5">Connected workflows</p>
+        <h3 class="text-lg font-bold text-slate-900 leading-snug">Client, jobs, billing — all in one timeline.</h3>
+        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Stop hunting across tabs and tools. Every client touchpoint, document and engagement lives on one record.</p>
+      </div>
+
+      <!-- Pillar 2 — Australian-native -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 hover:border-brand-300 hover:shadow-soft transition">
+        <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-4">
+          <svg class="w-5 h-5"><use href="#i-shield"/></svg>
+        </div>
+        <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1.5">Australian-native</p>
+        <h3 class="text-lg font-bold text-slate-900 leading-snug">BAS, STP, ASIC — built in, not bolted on.</h3>
+        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Lodge directly via SBR2, run STP Phase 2, register companies through ASIC — without leaving the platform.</p>
+      </div>
+
+      <!-- Pillar 3 — Automation -->
+      <div class="bg-white border border-slate-200 rounded-2xl p-6 hover:border-brand-300 hover:shadow-soft transition">
+        <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-4">
+          <svg class="w-5 h-5"><use href="#i-sparkles"/></svg>
+        </div>
+        <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-1.5">AI &amp; automation</p>
+        <h3 class="text-lg font-bold text-slate-900 leading-snug">Designed to scale a modern firm.</h3>
+        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Strong workflow controls, deeper client visibility, native automation and AI — designed for modern Australian practices.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. COMPARISON TABLE (the centrepiece) -->
+<section id="compare" class="py-20 lg:py-24 bg-white border-y border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto text-center mb-12">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Sole SPM vs. others</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">See how Sole SPM compares</h2>
+      <p class="mt-3 text-slate-600">
+        The right practice management software should help you run an end-to-end firm. It should improve efficiency, reduce operational friction, and create extensible workflows.
+        Too many force a trade-off between low or separate systems for onboarding, workflow, CRM, document collection, payments and communications. That creates inefficiency, gaps and chaos.
+      </p>
+      <p class="mt-3 text-slate-600">
+        Sole SPM gives you the high-level view of the firm — including where every client stands, how work is progressing, and how staff are allocated across the practice.
+      </p>
+    </div>
+
+    <div class="max-w-7xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-soft overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[960px]">
+          <thead>
+            <tr class="bg-slate-50/80 border-b border-slate-200">
+              <th class="text-left px-4 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 w-[28%]">Capability</th>
+              <th class="px-3 py-4 text-center bg-brand-50/60 border-x-2 border-brand-300">
+                <span class="text-lg font-extrabold tracking-tight text-slate-900 leading-none">Sole <span class="text-[10px] font-semibold text-brand-700 ml-0.5 uppercase tracking-[0.15em]">SPM</span></span>
+              </th>
+              <th class="px-3 py-4 text-center"><span class="text-[13px] font-extrabold tracking-tighter leading-tight text-center" style="color:#13B5EA;">Xero<br/><span class="text-slate-700 font-semibold text-[11px]">Practice Mgr</span></span></th>
+              <th class="px-3 py-4 text-center"><span class="text-[13px] font-extrabold tracking-tight leading-none" style="color:#0F172A;">karbon</span></th>
+              <th class="px-3 py-4 text-center"><span class="text-[13px] font-extrabold tracking-tight leading-none" style="color:#1E40AF;">FYI Elite</span></th>
+              <th class="px-3 py-4 text-center"><span class="text-[13px] font-extrabold tracking-tight leading-tight text-center" style="color:#6100A5;">MYOB<br/><span class="text-slate-700 font-semibold text-[11px]">Practice</span></span></th>
+              <th class="px-3 py-4 text-center"><span class="text-[13px] font-extrabold tracking-tight leading-none" style="color:#0EA5E9;">TaxDome</span></th>
+              <th class="px-3 py-4 text-center"><span class="text-[13px] font-extrabold tracking-tight leading-none" style="color:#10B981;">Cone</span></th>
+            </tr>
+          </thead>
+          <tbody class="table-zebra text-[13px]">
+            <!-- PRICING -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-4"><p class="font-semibold text-slate-900 text-[13.5px]">Pricing</p><p class="text-[11px] text-slate-500 mt-0.5">Top-tier or enterprise pricing basis</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300 px-2 py-3">
+                <p class="text-sm font-extrabold text-slate-900 tabular-nums leading-tight">From $39<span class="text-[10px] font-medium text-slate-500">/user/mo</span></p>
+                <p class="text-[10px] text-slate-500 mt-0.5 italic">tiered on firm size</p>
+              </td>
+              <td class="text-center px-2 py-3"><p class="text-sm font-semibold text-slate-700 tabular-nums">$163.90<span class="text-[10px] font-normal text-slate-400">/mo</span></p><p class="text-[10px] text-slate-400 italic">free at Silver+</p></td>
+              <td class="text-center px-2 py-3"><p class="text-xs font-semibold text-slate-600">Enterprise<br/>custom</p></td>
+              <td class="text-center px-2 py-3"><p class="text-sm font-semibold text-slate-700 tabular-nums">$70<span class="text-[10px] font-normal text-slate-400">/user/mo</span></p></td>
+              <td class="text-center px-2 py-3"><p class="text-xs font-semibold text-slate-600">Enterprise<br/>custom</p></td>
+              <td class="text-center px-2 py-3"><p class="text-sm font-semibold text-slate-700 tabular-nums">$1,300<span class="text-[10px] font-normal text-slate-400">/seat/yr</span></p></td>
+              <td class="text-center px-2 py-3"><p class="text-sm font-semibold text-slate-700 tabular-nums">$63<span class="text-[10px] font-normal text-slate-400">/user/mo</span></p></td>
+            </tr>
+
+            <!-- 1. Full white-label platform -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Full white-label platform</p><p class="text-[11px] text-slate-500 mt-0.5">Brand the platform and client experience fully</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+            </tr>
+
+            <!-- 2. Revenue referral model -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Revenue referral model</p><p class="text-[11px] text-slate-500 mt-0.5">Earn recurring revenue from referred client usage</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+            </tr>
+
+            <!-- 3. Embedded finance -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Embedded finance</p><p class="text-[11px] text-slate-500 mt-0.5">Offer finance products inside the platform</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+            </tr>
+
+            <!-- 4. End-to-end native platform -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">End-to-end native platform</p><p class="text-[11px] text-slate-500 mt-0.5">Client accounting and practice tools in one ecosystem</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+            </tr>
+
+            <!-- 5. Client onboarding & compliance -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Client onboarding &amp; compliance</p><p class="text-[11px] text-slate-500 mt-0.5">Native KYC, registrations and compliance workflows</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+            </tr>
+
+            <!-- 6. Tax lodgement -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Tax lodgement</p><p class="text-[11px] text-slate-500 mt-0.5">Prepare and lodge tax natively</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+            </tr>
+
+            <!-- 7. CRM / client management -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">CRM &amp; client management</p><p class="text-[11px] text-slate-500 mt-0.5">Manage client records and interactions centrally</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+            </tr>
+
+            <!-- 8. Document management -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Document management</p><p class="text-[11px] text-slate-500 mt-0.5">Store and manage client documents natively</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+            </tr>
+
+            <!-- 9. Client portal -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Client portal</p><p class="text-[11px] text-slate-500 mt-0.5">Secure portal for tasks, files and approvals</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-600"><svg class="w-3 h-3"><use href="#i-x"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+            </tr>
+
+            <!-- 10. Payments in workflow -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Payments in workflow</p><p class="text-[11px] text-slate-500 mt-0.5">Collect payments inside workflow and billing steps</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+            </tr>
+
+            <!-- 11. Automation & AI support -->
+            <tr class="border-b border-slate-100">
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Automation &amp; AI support</p><p class="text-[11px] text-slate-500 mt-0.5">Reduce admin with automation and AI tools</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">Limited</span></td>
+            </tr>
+
+            <!-- 12. Workflow / Job management -->
+            <tr>
+              <td class="px-4 py-3.5"><p class="font-semibold text-slate-900 text-[13.5px]">Workflow &amp; job management</p><p class="text-[11px] text-slate-500 mt-0.5">Manage jobs, tasks and accountability natively</p></td>
+              <td class="text-center bg-brand-50/40 border-x-2 border-brand-300"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+              <td class="text-center"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700"><svg class="w-3.5 h-3.5"><use href="#i-check-thin"/></svg></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="bg-slate-50/60 border-t border-slate-200 px-5 py-3 flex items-center justify-between flex-wrap gap-3">
+        <p class="text-[11px] text-slate-500 italic">All items marked with an asterisk symbolise it relates to limited functionality. Based on public documentation, Q2 2026.</p>
+        <a href="#cta" class="text-xs font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1">
+          See it in your firm — book a 30-min demo
+          <svg class="w-3 h-3"><use href="#i-arrow-right"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <p class="max-w-3xl mx-auto mt-8 text-center text-sm text-slate-600 leading-relaxed">
+      Sole SPM gives firms a connected way to operate, with stronger workflow control, clearer client visibility, built-in automation, and a platform designed to support modern Australian practice growth.
+    </p>
+  </div>
+</section>
+
+<!-- 7. DARK CTA BANNER (matches screenshot's mid-page CTA) -->
+<section id="cta" class="py-14 lg:py-16 bg-white">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="relative overflow-hidden rounded-3xl bg-slate-900 text-white shadow-pop">
+      <div class="absolute -top-20 -right-10 w-[420px] h-[420px] bg-brand-600 rounded-full blur-[120px] opacity-30 pointer-events-none"></div>
+      <div class="absolute -bottom-20 -left-10 w-[320px] h-[320px] bg-orange-500 rounded-full blur-[120px] opacity-15 pointer-events-none"></div>
+
+      <div class="relative grid md:grid-cols-[0.85fr_1.15fr] gap-0 items-stretch">
+        <!-- Left: founder/team photo with small chip -->
+        <div class="relative min-h-[200px] md:min-h-[260px]">
+          <img loading="lazy" src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&h=600&fit=crop&crop=face" class="absolute inset-0 w-full h-full object-cover object-center" alt="Sole onboarding specialist" />
+          <div class="absolute inset-0 bg-gradient-to-r from-slate-950/55 via-slate-950/20 to-slate-900/95"></div>
+          <div class="absolute top-4 left-4">
+            <span class="inline-flex items-center gap-2 bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold uppercase tracking-[0.15em] px-2.5 py-1.5 rounded-full">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span>
+              Talk to a specialist
+            </span>
+          </div>
+        </div>
+
+        <!-- Right: CTA copy -->
+        <div class="p-7 md:p-10 lg:p-12 flex flex-col justify-center">
+          <span class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-200 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full self-start">
+            Get started
+          </span>
+          <h2 class="mt-4 text-2xl md:text-3xl font-extrabold tracking-tight leading-snug">
+            Ready to simplify your practice operations?
+          </h2>
+          <p class="mt-3 text-slate-300 leading-relaxed max-w-lg">
+            If your firm is ready to transition away from disconnected systems, Sole SPM gives you a more connected way to manage clients, staff, workflows, and growth in one platform.
+          </p>
+          <div class="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center">
+            <a href="#" class="inline-flex justify-center items-center gap-2 bg-white text-slate-900 font-bold px-6 py-3 rounded-lg hover:bg-slate-100 transition">
+              Get started
+              <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
+            </a>
+            <a href="#" class="inline-flex justify-center items-center gap-2 bg-white/5 hover:bg-white/10 text-white border border-white/15 font-semibold px-6 py-3 rounded-lg transition">
+              See our team &amp; call
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. TESTIMONIALS (3-card grid — matches screenshot layout) -->
+<section id="testimonials" class="py-20 lg:py-24 bg-slate-50/60 border-y border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto text-center mb-12">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Testimonials</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Trusted by businesses across Australia</h2>
+      <p class="mt-3 text-slate-600">Real teams. Real outcomes. Real Aussie firms.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-5 lg:gap-6 max-w-6xl mx-auto">
+      <!-- Card 1 -->
+      <article class="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
+        <div class="flex gap-0.5 text-amber-400 mb-4">
+          <svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg>
+        </div>
+        <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">
+          "Sole is a founding member of the Australian Bookkeepers Network (ABN) and built directly with our members. Sole SPM is a significant step forward for the industry."
+        </blockquote>
+        <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
+          <div class="w-11 h-11 rounded-full bg-gradient-to-br from-brand-200 to-brand-100 flex items-center justify-center">
+            <svg class="w-5 h-5 text-brand-700"><use href="#i-sparkles"/></svg>
+          </div>
+          <div>
+            <p class="font-semibold text-sm text-slate-900">Jenny Burns</p>
+            <p class="text-xs text-slate-500">CEO, Australian Bookkeepers Network</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 2 -->
+      <article class="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
+        <div class="flex gap-0.5 text-amber-400 mb-4">
+          <svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg>
+        </div>
+        <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">
+          "Running my forecast-heavy practice was an oxymoron until we adopted Sole. Workflow visibility has improved, and the workspaces have transformed how we operate day to day."
+        </blockquote>
+        <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
+          <img loading="lazy" src="https://i.pravatar.cc/96?img=12" class="w-11 h-11 rounded-full object-cover" alt="" />
+          <div>
+            <p class="font-semibold text-sm text-slate-900">Shannon Cooper</p>
+            <p class="text-xs text-slate-500">Director, Cooper Forecast Advisory</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 3 -->
+      <article class="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
+        <div class="flex gap-0.5 text-amber-400 mb-4">
+          <svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg>
+        </div>
+        <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">
+          "After 23 months of running solo, we hit five South Coast Queensland clients in five months. Sole's accounting software is what we'd been chasing — my wife and I love it."
+        </blockquote>
+        <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
+          <img loading="lazy" src="https://i.pravatar.cc/96?img=68" class="w-11 h-11 rounded-full object-cover" alt="" />
+          <div>
+            <p class="font-semibold text-sm text-slate-900">Kyel Grant</p>
+            <p class="text-xs text-slate-500">Founder, Grant &amp; Co. Bookkeeping</p>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 9. FAQ -->
+<section id="faq" class="py-20 lg:py-24 bg-white">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">FAQ</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Frequently asked questions</h2>
+      <p class="mt-3 text-slate-600">Honest answers to the things that matter most.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-3">
+      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
+        <summary class="px-5 py-4 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Can Sole SPM help practice managers oversee the whole firm?</h3>
+          <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
+        </summary>
+        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes. Sole SPM gives you a single end-to-end view of every client and engagement: status, ownership, deadlines, billing, and capacity. Partners and ops leads get a real-time helicopter view — and can drill into any cell.
+        </div>
+      </details>
+
+      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
+        <summary class="px-5 py-4 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Does Sole SPM support staff management and workload visibility?</h3>
+          <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
+        </summary>
+        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes. Drag-and-drop weekly workload, a skill matrix per staff member (L1–L5), capacity forecasts by team and service line, and AI suggestions for the right person on the right job — all in one place.
+        </div>
+      </details>
+
+      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
+        <summary class="px-5 py-4 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Does Sole SPM include payments and client management?</h3>
+          <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
+        </summary>
+        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes. Take payments inline at the billing step, send branded invoices, and manage every client interaction in one timeline. No extra subscriptions or third-party plugins.
+        </div>
+      </details>
+
+      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
+        <summary class="px-5 py-4 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">What kind of brand customisation is available with Sole SPM?</h3>
+          <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
+        </summary>
+        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          White-label client portal under your own domain, your logo and colours, branded comms (email, SMS, signed documents). Most competitors charge extra for this — we include it on Scale and above.
+        </div>
+      </details>
+
+      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
+        <summary class="px-5 py-4 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Is Sole SPM for Australian practice management firms?</h3>
+          <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
+        </summary>
+        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes, Sole SPM is designed for Australian firms and supports the operational workflow, client management research and accounting workflows local practices rely on.
+        </div>
+      </details>
+
+      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
+        <summary class="px-5 py-4 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Is Sole SPM suitable for growing accounting and bookkeeping firms?</h3>
+          <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
+        </summary>
+        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes. Sole SPM is built for Australian accounting and bookkeeping firms, helping them improve visibility, create scalable operating models as they grow, and stay close to compliance.
+        </div>
+      </details>
+    </div>
+
+    <div class="mt-10 text-center">
+      <p class="text-sm text-slate-600">Still have questions? <a href="#cta" class="font-semibold text-brand-600 hover:text-brand-700">Talk to our team →</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- 10. TRY BEFORE YOU BUY — dark final CTA with dashboard mock -->
+<section id="resources" class="bg-slate-950 text-white py-20 lg:py-24 relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-brand-600 rounded-full blur-[140px] opacity-25 -translate-y-1/3 translate-x-1/4 pointer-events-none"></div>
+  <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500 rounded-full blur-[140px] opacity-15 translate-y-1/3 -translate-x-1/4 pointer-events-none"></div>
+  <div class="absolute inset-0 grain-dark opacity-30 pointer-events-none"></div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-[1fr_1fr] gap-12 lg:gap-16 items-center">
+      <!-- LEFT: Dashboard mock -->
+      <div class="relative order-2 lg:order-1">
+        <div class="relative bg-white rounded-2xl shadow-pop border border-white/10 overflow-hidden">
+          <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-200 bg-slate-50">
+            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="ml-3 text-[10px] text-slate-400 font-medium">app.soleapp.com.au</span>
+          </div>
+          <div class="p-4 bg-slate-50/40">
+            <div class="grid grid-cols-5 gap-3">
+              <div class="col-span-3 bg-white border border-slate-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-[10px] font-semibold text-slate-700">Receivables Pipeline</p>
+                  <span class="text-[9px] text-brand-600 font-semibold">This Week</span>
+                </div>
+                <p class="text-[10px] text-slate-500">Pending Payments</p>
+                <p class="text-base font-extrabold text-slate-900 mb-2 tabular-nums">$4,200</p>
+                <svg viewBox="0 0 200 40" preserveAspectRatio="none" class="w-full h-8">
+                  <path d="M 0 32 Q 14 28, 22 24 T 44 22 T 66 20 T 88 16 T 110 14 T 132 12 T 154 8 T 176 6 T 200 4" stroke="#5A4FCF" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                  <circle cx="200" cy="4" r="2.5" fill="#5A4FCF"/>
+                </svg>
+              </div>
+              <div class="col-span-2 bg-white border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center">
+                <p class="text-[10px] font-semibold text-slate-700 self-start">Timeline</p>
+                <div class="relative w-16 h-16 mt-1">
+                  <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#EEF0FF" stroke-width="3.4"/>
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#5A4FCF" stroke-width="3.4" stroke-dasharray="70, 100" stroke-linecap="round"/>
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F97316" stroke-width="3.4" stroke-dasharray="22, 100" stroke-dashoffset="-70" stroke-linecap="round"/>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-[8px] text-slate-400">Total</span>
+                    <span class="text-[10px] font-extrabold text-slate-900 tabular-nums">$128k</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-3 bg-white border border-slate-200 rounded-lg p-3">
+              <p class="text-[10px] font-semibold text-slate-700">Outstanding</p>
+              <p class="text-base font-extrabold text-slate-900 mt-0.5 tabular-nums">$4,200</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating chips -->
+        <div class="absolute -top-4 -right-3 bg-white shadow-pop rounded-xl px-3 py-2.5 border border-slate-200 hidden md:block floaty z-10">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-md bg-brand-100 flex items-center justify-center">
+              <svg class="w-4 h-4 text-brand-700"><use href="#i-trending"/></svg>
+            </div>
+            <div>
+              <p class="text-[9px] text-slate-500 uppercase tracking-wider">Practice Mgr</p>
+              <p class="text-xs font-bold text-slate-900">$128,450</p>
+            </div>
+          </div>
+        </div>
+        <div class="absolute -bottom-4 -left-3 bg-white shadow-pop rounded-xl px-3 py-2.5 border border-slate-200 hidden md:block floaty z-10" style="animation-delay: 1.5s;">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-md bg-emerald-100 flex items-center justify-center">
+              <svg class="w-4 h-4 text-emerald-700"><use href="#i-check"/></svg>
+            </div>
+            <div>
+              <p class="text-[9px] text-slate-500 uppercase tracking-wider">Live</p>
+              <p class="text-xs font-bold text-slate-900">Migration ready</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Copy + CTA -->
+      <div class="order-1 lg:order-2">
+        <span class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-200 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+          30-day free trial
+        </span>
+        <h2 class="mt-4 text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.05]">
+          Want to try before you buy?
+        </h2>
+        <p class="mt-5 text-lg text-slate-300 leading-relaxed max-w-lg">
+          After 30 days our full functionality free trial Sole remains free to use the free tier and find out how easy and intuitive Sole is. We know that it'll be valuable in helping you run your business.
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-3">
+          <a href="#" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3.5 rounded-lg transition shadow-lift">
+            Get started
+            <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
+          </a>
+          <a href="#cta" class="inline-flex justify-center items-center gap-2 bg-white/5 hover:bg-white/10 text-white border border-white/15 font-semibold px-6 py-3.5 rounded-lg transition">
+            Book a 30-min demo
+          </a>
+        </div>
+        <p class="mt-5 text-xs text-slate-400">No credit card required · Free migration support · Cancel anytime</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11. FOOTER (with newsletter strip) -->
+<footer id="partnerships" class="bg-slate-950 text-slate-400 border-t border-white/5 pt-16 pb-10 text-sm relative">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="grid lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-10 pb-12 border-b border-white/10">
+      <div>
+        <a href="landing.html" class="flex items-baseline gap-2">
+          <span class="text-2xl font-extrabold text-white">Sole</span>
+          <span class="text-xs text-slate-500 uppercase tracking-[0.15em] font-medium">Practice Manager</span>
+        </a>
+        <p class="mt-4 text-xs leading-relaxed text-slate-400 max-w-xs">
+          Sole makes accounting for Australian sole traders, freelancers, and small business more user-friendly, more affordable and more manageable.
+        </p>
+        <div class="mt-5 flex items-center gap-2.5">
+          <a href="#" class="inline-flex items-center gap-2 bg-slate-800/80 hover:bg-slate-800 border border-white/10 rounded-lg px-3 py-2 transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.345c-.327 0-.622-.211-.724-.522-.252-.762-.834-1.234-1.523-1.234-.69 0-1.272.472-1.524 1.234-.103.311-.397.522-.724.522-.42 0-.76-.34-.76-.76 0-.103.02-.205.062-.3.451-1.36 1.687-2.262 3.005-2.262s2.554.902 3.005 2.262c.041.095.062.197.062.3 0 .42-.34.76-.76.76z"/></svg>
+            <span class="text-[11px] font-semibold text-white">Google Play</span>
+          </a>
+          <a href="#" class="inline-flex items-center gap-2 bg-slate-800/80 hover:bg-slate-800 border border-white/10 rounded-lg px-3 py-2 transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83zM13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            <span class="text-[11px] font-semibold text-white">App Store</span>
+          </a>
+        </div>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">Sole App</p>
+        <ul class="space-y-2.5 text-xs">
+          <li><a href="pricing.html" class="hover:text-white transition">Sole Pricing</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole Features</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole vs Spreadsheets</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole Reviews</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole Help</a></li>
+          <li><a href="#" class="hover:text-white transition">Feature Roadmap</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">Resources</p>
+        <ul class="space-y-2.5 text-xs">
+          <li><a href="#" class="hover:text-white transition">Sole resources</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole Community</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole Education</a></li>
+          <li><a href="#" class="hover:text-white transition">Blog</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole Support</a></li>
+          <li><a href="#" class="hover:text-white transition">For Accountants &amp; Bookkeepers</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">Company</p>
+        <ul class="space-y-2.5 text-xs">
+          <li><a href="#" class="hover:text-white transition">About Sole</a></li>
+          <li><a href="#" class="hover:text-white transition">Contact Us</a></li>
+          <li><a href="#" class="hover:text-white transition">Advisory Board</a></li>
+          <li><a href="#" class="hover:text-white transition">Sole Foundation</a></li>
+          <li><a href="#" class="hover:text-white transition">Media Office</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">Legal</p>
+        <ul class="space-y-2.5 text-xs">
+          <li><a href="#" class="hover:text-white transition">Privacy Policy</a></li>
+          <li><a href="#" class="hover:text-white transition">Cookies Policy</a></li>
+          <li><a href="#" class="hover:text-white transition">Website Effects</a></li>
+          <li><a href="#" class="hover:text-white transition">Terms of Use</a></li>
+          <li><a href="#" class="hover:text-white transition">Professional Terms</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Newsletter -->
+    <div class="py-8 border-b border-white/10 grid md:grid-cols-[1fr_auto] gap-6 items-center">
+      <div>
+        <p class="text-sm font-semibold text-white">Join our newsletter</p>
+        <p class="text-xs text-slate-400 mt-1">We'll send you a notice once per week. No spam.</p>
+      </div>
+      <form class="flex items-center gap-2 w-full md:w-auto" onsubmit="event.preventDefault();">
+        <input type="email" placeholder="Enter your email" class="flex-1 md:w-80 bg-slate-900 border border-white/10 text-white placeholder:text-slate-500 text-sm rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-brand-500 transition" />
+        <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition whitespace-nowrap">Subscribe</button>
+      </form>
+    </div>
+
+    <!-- Acknowledgement -->
+    <div class="pt-8 text-[11px] leading-relaxed text-slate-500 max-w-4xl">
+      Sole acknowledges the Traditional Owners of Country throughout Australia and their continuing connection to the land, sea and community. We pay our respects to the Traditional Owners and to Elders both past and present.
+    </div>
+
+    <div class="pt-6 mt-6 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <p>Copyright © 2026 · Sole Accounting App</p>
+      <div class="flex items-center gap-3">
+        <a href="#" class="w-7 h-7 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition" aria-label="LinkedIn">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14C2.24 0 0 2.24 0 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5V5c0-2.76-2.24-5-5-5zM8 19H5V8h3v11zM6.5 6.732c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zM20 19h-3v-5.604c0-3.368-4-3.113-4 0V19h-3V8h3v1.765c1.396-2.586 7-2.777 7 2.476V19z"/></svg>
+        </a>
+        <a href="#" class="w-7 h-7 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition" aria-label="Twitter">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+        <a href="#" class="w-7 h-7 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition" aria-label="Facebook">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
+        </a>
+        <a href="#" class="w-7 h-7 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition" aria-label="Instagram">
+          <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
