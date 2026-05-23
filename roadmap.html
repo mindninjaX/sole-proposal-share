@@ -1804,8 +1804,8 @@
           <svg class="w-5 h-5 text-emerald-400"><use href="#i-shield"/></svg>
         </div>
         <div>
-          <p class="text-xs font-semibold">SOC 2 Type II</p>
-          <p class="text-[10px] text-slate-400">Security certified</p>
+          <p class="text-xs font-semibold">Australian hosted</p>
+          <p class="text-[10px] text-slate-400">AWS Sydney region</p>
         </div>
       </div>
       <div class="flex items-center gap-3">
@@ -1958,5 +1958,58 @@
     buttons.forEach(b => b.addEventListener('click', () => activate(b.dataset.cat)));
   })();
 </script>
+
+<!-- ══════════════════════════════════════════════════════════════
+     DEV NOTES — toggle reference for developers only, not live
+     ══════════════════════════════════════════════════════════════ -->
+<style>
+  #_devnotes-btn {
+    position: fixed; bottom: 24px; right: 24px; z-index: 99999;
+    background: #e11d48; color: #fff; border: none; border-radius: 100px;
+    padding: 10px 22px; font-family: 'Courier New', monospace; font-size: 12px;
+    font-weight: 900; letter-spacing: 0.04em; cursor: pointer; user-select: none;
+    box-shadow: 0 4px 20px rgba(225,29,72,0.5); display: inline-flex;
+    align-items: center; gap: 6px; transition: transform 0.15s;
+  }
+  #_devnotes-btn:hover { transform: scale(1.06); }
+  #_devnotes-btn.on { background: #1e293b; }
+  [data-devnote] { position: relative !important; }
+  ._devnote {
+    display: none; pointer-events: none; position: absolute;
+    inset: 0; z-index: 9998; box-sizing: border-box;
+  }
+  ._devnote-border { position: absolute; inset: 0; border: 3px dashed var(--dn-c); box-sizing: border-box; }
+  ._devnote-tag {
+    position: absolute; top: 0; left: 0;
+    background: var(--dn-c); color: #fff;
+    font-family: 'Courier New', monospace; font-size: 10px; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 12px 5px; line-height: 1.6;
+  }
+  ._devnote-text { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+  body.devnotes-on ._devnote { display: block; }
+</style>
+<button id="_devnotes-btn" onclick="document.body.classList.toggle('devnotes-on'); this.classList.toggle('on'); this.innerHTML = this.classList.contains('on') ? '✕ HIDE NOTES' : '📋 DEV NOTES';">📋 DEV NOTES</button>
+<script>
+(function () {
+  var COLORS = { REMOVE: '#dc2626', CHANGE: '#d97706', NOTE: '#4f46e5', KEEP: '#059669' };
+  var ANNOTATIONS = [
+    { sel: '#announce', type: 'KEEP', note: 'Feature release bar ("Shipped in May 2026") — NOT EOI language. Keep as is.' },
+  ];
+  ANNOTATIONS.forEach(function (a) {
+    var el = document.querySelector(a.sel);
+    if (!el) return;
+    el.setAttribute('data-devnote', '');
+    var d = document.createElement('div');
+    d.className = '_devnote';
+    d.style.setProperty('--dn-c', COLORS[a.type] || '#4f46e5');
+    d.innerHTML = '<div class="_devnote-border"></div>'
+      + '<div class="_devnote-tag">' + a.type
+      + (a.note ? '<span class="_devnote-text">' + a.note + '</span>' : '')
+      + '</div>';
+    el.appendChild(d);
+  });
+})();
+</script>
+
 </body>
 </html>

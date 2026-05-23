@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sole Bootcamp — Get going fast with Sole</title>
+  <title>Bootcamp — Sole Practice Manager</title>
   <meta name="description" content="The ultimate quick-start guide for new Sole users. A guided walkthrough of key features to help you set up, manage and run your business with confidence." />
   <link rel="canonical" href="https://soleapp.com.au/bootcamp/" />
 
@@ -672,13 +672,13 @@
       <div>
         <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-200 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
-          Free 14-day trial
+          Free 30-day trial
         </span>
         <h2 class="mt-5 text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.05]">
           Want to try before<br class="hidden sm:block" /> you buy?
         </h2>
         <p class="mt-5 text-slate-300 leading-relaxed max-w-lg">
-          Start your 14-day free trial and get full access to the platform — no credit card required. You'll see exactly how Sole fits your workflow, and we're here to help every step of the way.
+          Start your 30-day free trial and get full access to the platform — no credit card required. You'll see exactly how Sole fits your workflow, and we're here to help every step of the way.
         </p>
         <div class="mt-7 flex flex-col sm:flex-row gap-3 sm:items-center">
           <a href="#" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-7 py-3.5 rounded-lg transition shadow-xl">
@@ -802,6 +802,58 @@
     </div>
   </div>
 </footer>
+
+<!-- ══════════════════════════════════════════════════════════════
+     DEV NOTES — toggle reference for developers only, not live
+     ══════════════════════════════════════════════════════════════ -->
+<style>
+  #_devnotes-btn {
+    position: fixed; bottom: 24px; right: 24px; z-index: 99999;
+    background: #e11d48; color: #fff; border: none; border-radius: 100px;
+    padding: 10px 22px; font-family: 'Courier New', monospace; font-size: 12px;
+    font-weight: 900; letter-spacing: 0.04em; cursor: pointer; user-select: none;
+    box-shadow: 0 4px 20px rgba(225,29,72,0.5); display: inline-flex;
+    align-items: center; gap: 6px; transition: transform 0.15s;
+  }
+  #_devnotes-btn:hover { transform: scale(1.06); }
+  #_devnotes-btn.on { background: #1e293b; }
+  [data-devnote] { position: relative !important; }
+  ._devnote {
+    display: none; pointer-events: none; position: absolute;
+    inset: 0; z-index: 9998; box-sizing: border-box;
+  }
+  ._devnote-border { position: absolute; inset: 0; border: 3px dashed var(--dn-c); box-sizing: border-box; }
+  ._devnote-tag {
+    position: absolute; top: 0; left: 0;
+    background: var(--dn-c); color: #fff;
+    font-family: 'Courier New', monospace; font-size: 10px; font-weight: 900;
+    text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 12px 5px; line-height: 1.6;
+  }
+  ._devnote-text { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+  body.devnotes-on ._devnote { display: block; }
+</style>
+<button id="_devnotes-btn" onclick="document.body.classList.toggle('devnotes-on'); this.classList.toggle('on'); this.innerHTML = this.classList.contains('on') ? '✕ HIDE NOTES' : '📋 DEV NOTES';">📋 DEV NOTES</button>
+<script>
+(function () {
+  var COLORS = { REMOVE: '#dc2626', CHANGE: '#d97706', NOTE: '#4f46e5', KEEP: '#059669' };
+  var ANNOTATIONS = [
+    { sel: '#announce', type: 'KEEP', note: 'Bootcamp-specific content ("Live bootcamps every Tuesday") — NOT EOI language. Keep as is.' },
+  ];
+  ANNOTATIONS.forEach(function (a) {
+    var el = document.querySelector(a.sel);
+    if (!el) return;
+    el.setAttribute('data-devnote', '');
+    var d = document.createElement('div');
+    d.className = '_devnote';
+    d.style.setProperty('--dn-c', COLORS[a.type] || '#4f46e5');
+    d.innerHTML = '<div class="_devnote-border"></div>'
+      + '<div class="_devnote-tag">' + a.type
+      + (a.note ? '<span class="_devnote-text">' + a.note + '</span>' : '')
+      + '</div>';
+    el.appendChild(d);
+  });
+})();
+</script>
 
 </body>
 </html>
