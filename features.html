@@ -78,6 +78,11 @@
     /* Sticky theme nav */
     .theme-nav-link { transition: color .15s ease, background .15s ease; }
     .theme-nav-link.is-active { background: #EEF0FF; color: #3C33A4; }
+
+    /* Dashboard scrolling marquee — duplicated track makes -50% a seamless loop */
+    @keyframes dashScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    .dash-track { animation: dashScroll 32s linear infinite; }
+    .dash-track:hover { animation-play-state: paused; }
   </style>
 
   <!-- SVG sprite: shared icons (kept in sync with landing.html) -->
@@ -174,13 +179,6 @@
           </a>
         </div>
 
-        <p class="mt-6 text-xs text-slate-300/90 flex items-center gap-3 flex-wrap">
-          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>30-day free trial</span>
-          <span class="text-slate-500">·</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>Free migration</span>
-          <span class="text-slate-500">·</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>BAS · STP · PAYG ready</span>
-        </p>
       </div>
 
       <!-- Hero dashboard mockup -->
@@ -280,61 +278,191 @@
 </section>
 
 <!-- 4. WITH / WITHOUT SOLE -->
-<section class="py-20 lg:py-24 bg-white relative">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-10">
-      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">The Sole effect</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">A smarter way to manage your practice</h2>
-      <p class="mt-3 text-slate-600">See the same week of work, with and without Sole. Toggle to compare.</p>
+<section class="py-20 lg:py-24 relative overflow-hidden" style="background: linear-gradient(160deg, #F8F9FF 0%, #EEF0FF 50%, #F5F3FF 100%);">
+  <div class="absolute inset-0 grain opacity-40 pointer-events-none"></div>
+  <div class="absolute -top-32 -right-32 w-[500px] h-[500px] bg-brand-200/30 rounded-full blur-3xl pointer-events-none"></div>
+  <div class="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-violet-200/25 rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl mx-auto text-center mb-12">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-100 border border-brand-200 px-3 py-1.5 rounded-full mb-4">The Sole effect</span>
+      <h2 class="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.06]">Same week. <span class="text-brand-600">Completely different</span> outcome.</h2>
+      <p class="mt-4 text-slate-600 text-lg">See exactly what changes when your practice runs on Sole.</p>
     </div>
 
-    <!-- Toggle -->
-    <div class="flex justify-center mb-10">
-      <div id="cmp-toggle" class="inline-flex items-center gap-1 p-1 rounded-full border border-slate-200 bg-slate-100/80">
-        <button class="cmp-pill px-5 py-2 text-sm font-semibold rounded-full transition" data-state="with"    aria-pressed="true" style="color:#0F172A;background:white;box-shadow:0 2px 8px -2px rgba(15,23,42,0.18);">With Sole</button>
-        <button class="cmp-pill px-5 py-2 text-sm font-semibold rounded-full transition" data-state="without" aria-pressed="false" style="color:#64748B;background:transparent;">Without Sole</button>
+    <!-- Paired toe-to-toe comparison -->
+    <div class="max-w-4xl mx-auto">
+      <div class="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-slate-200">
+        <div class="flex items-center gap-2.5">
+          <span class="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-emerald-600"><use href="#i-check-thin"/></svg>
+          </span>
+          <span class="text-[13px] font-bold text-emerald-700 uppercase tracking-widest">With Sole</span>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <span class="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4 text-rose-500"><use href="#i-x"/></svg>
+          </span>
+          <span class="text-[13px] font-bold text-rose-600 uppercase tracking-widest">Without Sole</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Pair 1 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 text-emerald-600">
+            <svg class="w-5 h-5"><use href="#i-clock"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Save 12+ hours a week</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Automated job tracking, document chasing and status updates — no chasing required.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Hours lost to data entry &amp; chasing</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Status emails on Slack, spreadsheets that drift, copy-paste between tools.</p>
+          </div>
+        </div>
+        <!-- Pair 2 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0 text-brand-600">
+            <svg class="w-5 h-5"><use href="#i-layers"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">One source of truth</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Every client, job, doc and conversation lives in one place — not scattered across 6 apps.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Client info across 6+ apps</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Nothing tells the whole story; partners ask the same question twice.</p>
+          </div>
+        </div>
+        <!-- Pair 3 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0 text-violet-600">
+            <svg class="w-5 h-5"><use href="#i-shield"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Faster BAS, STP &amp; lodgement</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Direct ATO SBR2 lodgement with built-in validation. BAS week is calm.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">BAS week is chaos</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Manual reconciliation across 3 tools, errors caught at the last minute.</p>
+          </div>
+        </div>
+        <!-- Pair 4 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0 text-emerald-600">
+            <svg class="w-5 h-5"><use href="#i-trending"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Get paid 38% faster</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Connected invoicing, payment plans and Stripe-powered checkout — automated.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">WIP sits, debtors balloon</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Disconnected billing means invoices go out late — and chase themselves.</p>
+          </div>
+        </div>
+        <!-- Pair 5 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0 text-orange-600">
+            <svg class="w-5 h-5"><use href="#i-users"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Schedule capacity, not just calendars</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Skill matrix, drag-and-drop workload and AI-powered allocation suggestions.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Allocation by gut feel</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Seniors overloaded, juniors underused — and nobody can see it until it's too late.</p>
+          </div>
+        </div>
+        <!-- Pair 6 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0 text-brand-600">
+            <svg class="w-5 h-5"><use href="#i-globe"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Client portal that's your brand</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">White-labelled, on your domain, with secure docs and e-sign — no awkward logins.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Clients see someone else's brand</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Awkward third-party logins, white-label costs extra elsewhere.</p>
+          </div>
+        </div>
+        <!-- Pair 7 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 text-amber-600">
+            <svg class="w-5 h-5"><use href="#i-sparkles"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">AI that knows AU tax</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Drafts replies, summarises returns and flags Div 7A risks — grounded in real data.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">AI bolted on, with no context</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Generic chatbot answers that don't know your clients or Australian tax rules.</p>
+          </div>
+        </div>
+        <!-- Pair 8 -->
+        <div class="bg-white border border-emerald-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:shadow-lift hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-sky-50 border border-sky-100 flex items-center justify-center shrink-0 text-sky-600">
+            <svg class="w-5 h-5"><use href="#i-pie"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Insights you can act on</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">Margin per client, utilisation by team, WIP ageing — live on one screen.</p>
+          </div>
+        </div>
+        <div class="bg-white border border-rose-100 rounded-2xl p-5 flex items-start gap-4 shadow-soft hover:-translate-y-0.5 transition-all duration-200">
+          <span class="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0 text-rose-500">
+            <svg class="w-5 h-5"><use href="#i-x"/></svg>
+          </span>
+          <div>
+            <p class="font-bold text-slate-900 text-sm">Reporting in spreadsheets</p>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">By the time you build the chart, the month is already over.</p>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Comparison grid -->
-    <div id="cmp-grid" class="cmp-row max-w-5xl mx-auto bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-soft" data-state="with">
-      <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
-        <!-- Left col -->
-        <div>
-          <!-- WITH items -->
-          <ul class="cmp-with divide-y divide-slate-100">
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">Save 12+ hours a week on admin</p><p class="text-xs text-slate-500 mt-0.5">Automated job tracking, document chasing and status updates.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">One source of truth across the firm</p><p class="text-xs text-slate-500 mt-0.5">Every client, job, doc and conversation lives in one place.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">Faster BAS, STP &amp; lodgement</p><p class="text-xs text-slate-500 mt-0.5">Direct ATO SBR2 lodgement with built-in validation.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">Get paid 38% faster on average</p><p class="text-xs text-slate-500 mt-0.5">Connected invoicing, payment plans and Stripe-powered checkout.</p></div></li>
-          </ul>
-          <!-- WITHOUT items -->
-          <ul class="cmp-without divide-y divide-slate-100">
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">Hours lost to data entry &amp; chasing</p><p class="text-xs text-slate-500 mt-0.5">Status emails on Slack, spreadsheets that drift, copy-paste between tools.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">Client info scattered across 6+ apps</p><p class="text-xs text-slate-500 mt-0.5">Nothing tells the whole story; partners ask twice.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">BAS week is chaos</p><p class="text-xs text-slate-500 mt-0.5">Manual reconciliation in 3 tools, errors caught at the last minute.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">WIP sits, debtors balloon</p><p class="text-xs text-slate-500 mt-0.5">Disconnected billing means invoices go out late — and chase themselves.</p></div></li>
-          </ul>
-        </div>
-        <!-- Right col -->
-        <div>
-          <ul class="cmp-with divide-y divide-slate-100">
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">Schedule capacity, not just calendars</p><p class="text-xs text-slate-500 mt-0.5">Skill matrix, drag-and-drop workload and AI suggestions.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">Client portal that's your brand</p><p class="text-xs text-slate-500 mt-0.5">White-labelled, on your domain, with secure docs and e-sign.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">AI that knows AU tax</p><p class="text-xs text-slate-500 mt-0.5">Drafts replies, summarises returns and flags Div 7A risks for you.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0"><use href="#i-check"/></svg><div><p class="text-sm font-semibold text-slate-900">Insights you can actually act on</p><p class="text-xs text-slate-500 mt-0.5">Margin per client, utilisation by team, WIP ageing — at a glance.</p></div></li>
-          </ul>
-          <ul class="cmp-without divide-y divide-slate-100">
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">Allocation by gut feel</p><p class="text-xs text-slate-500 mt-0.5">Seniors overloaded, juniors underused — and nobody can see it.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">Clients see someone else's brand</p><p class="text-xs text-slate-500 mt-0.5">Awkward third-party logins, white-label costs extra.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">AI bolted on, with no context</p><p class="text-xs text-slate-500 mt-0.5">Generic chatbot answers that don't know your clients or AU rules.</p></div></li>
-            <li class="flex items-start gap-3 px-6 py-4"><svg class="w-5 h-5 text-rose-500 mt-0.5 shrink-0"><use href="#i-x"/></svg><div><p class="text-sm font-semibold text-slate-900">Reporting in spreadsheets</p><p class="text-xs text-slate-500 mt-0.5">By the time you build the chart, the month is over.</p></div></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <p class="mt-5 text-center text-xs text-slate-500">Benchmarks based on a survey of 38 Australian firms, 2025.</p>
+    <p class="mt-8 text-center text-xs text-slate-500">Benchmarks based on a survey of 38 Australian firms, 2025.</p>
   </div>
 </section>
 
@@ -1047,22 +1175,18 @@
       </p>
     </div>
 
-    <div class="grid md:grid-cols-[1.05fr_1.4fr] gap-8 lg:gap-12 items-center bg-slate-50/70 border border-slate-200 rounded-3xl p-6 lg:p-10">
-      <!-- Left: photo / illustration -->
-      <div class="relative">
-        <div class="relative aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-br from-brand-100 via-brand-50 to-orange-50 border border-slate-200">
-          <img loading="lazy" src="https://i.pravatar.cc/600?img=15" alt="Australian small-business owner" class="absolute inset-0 w-full h-full object-cover object-center" />
-          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/35 via-transparent to-transparent"></div>
+    <div class="grid md:grid-cols-[1.05fr_1.4fr] gap-8 lg:gap-12 items-stretch bg-slate-50/70 border border-slate-200 rounded-3xl p-6 lg:p-10">
+      <!-- Left: photo (fills form height) -->
+      <div class="relative h-full min-h-[420px]">
+        <div class="relative h-full w-full rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-soft">
+          <img loading="lazy" src="https://images.unsplash.com/photo-1531545514256-b1400bc00f31?w=800&q=80" alt="Team collaborating" class="absolute inset-0 w-full h-full object-cover object-center" />
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent"></div>
           <div class="absolute bottom-4 left-4 right-4">
             <span class="inline-flex items-center gap-1.5 bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold uppercase tracking-[0.15em] px-2.5 py-1.5 rounded-full">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               We read every request
             </span>
           </div>
-        </div>
-        <div class="absolute -top-4 -right-4 bg-white shadow-lift rounded-xl px-4 py-3 border border-slate-200 hidden md:block floaty">
-          <p class="text-[10px] text-slate-500 uppercase tracking-wider">Shipped this quarter</p>
-          <p class="text-sm font-bold text-brand-700">38 customer-led features</p>
         </div>
       </div>
 
@@ -1089,20 +1213,22 @@
           <textarea id="fr-feature" rows="4" placeholder="A short description of the workflow, the pain it solves, and which of your team it would help most…" class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-400 transition resize-none"></textarea>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">Area</span>
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Clients</label>
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Workflow</label>
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Billing</label>
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Compliance</label>
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Payroll</label>
-          <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> AI</label>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-2">Area <span class="font-normal text-slate-400">(optional — pick any that apply)</span></label>
+          <div class="flex flex-wrap gap-2">
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Clients</label>
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Workflow</label>
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Billing</label>
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Compliance</label>
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> Payroll</label>
+            <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 px-2.5 py-1.5 rounded-full font-medium cursor-pointer hover:border-slate-300 transition"><input type="checkbox" class="accent-brand-600 w-3 h-3" /> AI</label>
+          </div>
         </div>
 
         <div class="flex flex-col sm:flex-row gap-3 sm:items-center pt-2">
-          <button type="submit" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-3 rounded-lg transition shadow-lift">
+          <button type="submit" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-lg transition shadow-lift whitespace-nowrap">
             Send feedback
-            <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
+            <svg class="w-4 h-4 shrink-0"><use href="#i-arrow-right"/></svg>
           </button>
           <span class="text-xs text-slate-500">We reply within one business day — from a real person in Sydney.</span>
         </div>
@@ -1111,103 +1237,6 @@
   </div>
 </section>
 
-<!-- 8. TRUSTED BY (testimonials marquee from landing.html) -->
-<section class="py-20 lg:py-24 bg-slate-50 border-y border-slate-200/60 overflow-hidden">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-    <div class="text-center mb-6">
-      <span class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-        Trusted by businesses across Australia
-      </span>
-    </div>
-    <div class="max-w-2xl mx-auto text-center mb-10">
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">What Australian firms are saying</h2>
-      <p class="mt-3 text-slate-600">Real teams. Real outcomes. Real Aussie firms.</p>
-    </div>
-
-    <!-- Stat band -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 max-w-5xl mx-auto">
-      <div class="text-center">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">50+</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Australian firms onboarded</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">12,400+</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Clients managed on Sole</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">$4.2M</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Tool spend saved annually</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums inline-flex items-center justify-center gap-2">
-          4.9
-          <svg class="w-9 h-9 md:w-10 md:h-10 text-amber-400 drop-shadow-sm"><use href="#i-star"/></svg>
-        </p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Customer review score</p>
-      </div>
-    </div>
-
-    <div id="testimonial-marquee" class="relative -mx-4 sm:-mx-6 lg:-mx-8" style="-webkit-mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%); mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%);">
-      <div id="testimonial-track" class="flex gap-5 py-3 will-change-transform" style="width: max-content;">
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"The features page sold me. Once we saw payroll, BAS lodgement and the AI co-pilot in one product — we stopped shopping. Migration took 9 days."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=5" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Megan Thornton</p><p class="text-xs text-slate-500">Director, Thornton Advisory · Melbourne</p></div>
-          </div>
-        </article>
-
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"Finally we can see capacity across the whole team in one view. Smart allocate has saved us hours every Monday — and helped us spot a senior who was actually underloaded."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=12" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">David Reynolds</p><p class="text-xs text-slate-500">Ops Manager, Reynolds &amp; Hart · Brisbane</p></div>
-          </div>
-        </article>
-
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"White-label portal means clients only ever see our brand. They think we built it. A cleaner experience for them, no awkward third-party logins for us."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=44" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Priya Nair</p><p class="text-xs text-slate-500">Founder, North Star Bookkeeping · Perth</p></div>
-          </div>
-        </article>
-
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"BAS week used to be chaos. Now the team just sees what's due and Sole drafts most of it. We've reclaimed three days a quarter, easy."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=33" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Liam O'Connor</p><p class="text-xs text-slate-500">Partner, O'Connor Tax · Adelaide</p></div>
-          </div>
-        </article>
-
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"Onboarding a new client used to mean four tools and a week of chasing. Now it's a single workflow and we're often done in 48 hours."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=29" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Hannah Park</p><p class="text-xs text-slate-500">Director, Park &amp; Levy CPAs · Sydney</p></div>
-          </div>
-        </article>
-
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"Support is the difference. I email at 4pm AEST and have a useful reply by 4:14pm — from someone who knows what a Div 7A loan looks like."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=68" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">James Whitfield</p><p class="text-xs text-slate-500">Director, Accountants Direct · Melbourne</p></div>
-          </div>
-        </article>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- 9. TRY BEFORE YOU BUY (dark purple CTA) -->
 <section id="cta" class="relative overflow-hidden py-20 lg:py-24 text-white"
@@ -1217,38 +1246,50 @@
   <div class="absolute inset-0 grain-dark opacity-30"></div>
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="grid lg:grid-cols-[1fr_1.1fr] gap-10 lg:gap-14 items-center">
-      <!-- Phone / app mockups -->
-      <div class="relative h-[420px] flex items-center justify-center">
-        <!-- Back card: revenue trend -->
-        <div class="absolute left-2 lg:left-6 top-2 w-[260px] rounded-2xl bg-white shadow-pop border border-white/15 text-slate-900 p-4 rotate-[-5deg] floaty" style="animation-delay: 0.4s;">
-          <div class="flex items-center justify-between mb-2">
-            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Revenue MTD</p>
-            <span class="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-bold">↑ 12.3%</span>
+    <div class="grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-14 items-center">
+      <!-- Dashboard scrolling carousel -->
+      <div id="dash-carousel" class="relative overflow-hidden">
+        <!-- Edge gradients fade slides in/out smoothly -->
+        <div class="absolute inset-y-0 left-0 w-16 z-10 pointer-events-none" style="background:linear-gradient(to right,#2A2486 0%,transparent 100%);"></div>
+        <div class="absolute inset-y-0 right-0 w-16 z-10 pointer-events-none" style="background:linear-gradient(to left,#2A2486 0%,transparent 100%);"></div>
+        <div class="dash-track flex" style="width:max-content;">
+          <!-- Set A -->
+          <div class="shrink-0 w-[440px] mr-5">
+            <div class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl aspect-video">
+              <img loading="lazy" src="assets/dashboard-practice.png" alt="Practice Dashboard" class="w-full h-full object-cover object-top" />
+            </div>
+            <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-widest text-brand-200">Practice Dashboard</p>
           </div>
-          <p class="text-2xl font-extrabold text-slate-900 tabular-nums">$4,200</p>
-          <svg viewBox="0 0 200 60" preserveAspectRatio="none" class="w-full h-12 mt-2">
-            <path d="M 0 48 Q 14 44, 22 40 T 44 36 T 66 32 T 88 28 T 110 22 T 132 18 T 154 14 T 176 8 T 200 4 L 200 60 L 0 60 Z" fill="rgba(90,79,207,0.15)"/>
-            <path d="M 0 48 Q 14 44, 22 40 T 44 36 T 66 32 T 88 28 T 110 22 T 132 18 T 154 14 T 176 8 T 200 4" stroke="#5A4FCF" stroke-width="1.5" fill="none"/>
-          </svg>
-        </div>
-        <!-- Front card: invoice / payment -->
-        <div class="absolute right-2 lg:right-6 bottom-4 w-[280px] rounded-2xl bg-white shadow-pop border border-white/15 text-slate-900 p-5 rotate-[4deg] floaty">
-          <div class="flex items-center justify-between mb-3">
-            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot"></span>
-              Paid
-            </span>
-            <span class="text-[10px] text-slate-400 font-medium tabular-nums">INV-1042</span>
+          <div class="shrink-0 w-[440px] mr-5">
+            <div class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl aspect-video">
+              <img loading="lazy" src="assets/dashboard-helicopter.png" alt="Helicopter View" class="w-full h-full object-cover object-top" />
+            </div>
+            <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-widest text-indigo-300">Helicopter View</p>
           </div>
-          <p class="text-[10px] uppercase tracking-wider text-slate-400 font-medium">Bennett &amp; Co.</p>
-          <p class="text-3xl font-extrabold text-slate-900 tabular-nums mt-1">$28,492</p>
-          <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span class="text-slate-500">Paid via direct debit</span>
-            <span class="text-slate-700 font-semibold">May 18</span>
+          <div class="shrink-0 w-[440px] mr-5">
+            <div class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl aspect-video">
+              <img loading="lazy" src="assets/dashboard-scheduler.png" alt="Staff Scheduler" class="w-full h-full object-cover object-top" />
+            </div>
+            <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-widest text-orange-300">Staff Scheduler</p>
           </div>
-          <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-500 rounded-full" style="width: 100%"></div>
+          <!-- Set B (duplicate for seamless loop) -->
+          <div class="shrink-0 w-[440px] mr-5" aria-hidden="true">
+            <div class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl aspect-video">
+              <img loading="lazy" src="assets/dashboard-practice.png" alt="" class="w-full h-full object-cover object-top" />
+            </div>
+            <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-widest text-brand-200">Practice Dashboard</p>
+          </div>
+          <div class="shrink-0 w-[440px] mr-5" aria-hidden="true">
+            <div class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl aspect-video">
+              <img loading="lazy" src="assets/dashboard-helicopter.png" alt="" class="w-full h-full object-cover object-top" />
+            </div>
+            <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-widest text-indigo-300">Helicopter View</p>
+          </div>
+          <div class="shrink-0 w-[440px] mr-5" aria-hidden="true">
+            <div class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl aspect-video">
+              <img loading="lazy" src="assets/dashboard-scheduler.png" alt="" class="w-full h-full object-cover object-top" />
+            </div>
+            <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-widest text-orange-300">Staff Scheduler</p>
           </div>
         </div>
       </div>
@@ -1378,31 +1419,7 @@
 </footer>
 
 <script>
-  // ---- With Sole / Without Sole toggle ----
-  (function () {
-    const grid = document.getElementById('cmp-grid');
-    const pills = document.querySelectorAll('#cmp-toggle .cmp-pill');
-    if (!grid || !pills.length) return;
-    pills.forEach(p => {
-      p.addEventListener('click', () => {
-        const state = p.dataset.state;
-        grid.dataset.state = state;
-        pills.forEach(other => {
-          const active = other === p;
-          other.setAttribute('aria-pressed', active ? 'true' : 'false');
-          if (active) {
-            other.style.background = 'white';
-            other.style.color = '#0F172A';
-            other.style.boxShadow = '0 2px 8px -2px rgba(15,23,42,0.18)';
-          } else {
-            other.style.background = 'transparent';
-            other.style.color = '#64748B';
-            other.style.boxShadow = 'none';
-          }
-        });
-      });
-    });
-  })();
+  // Dashboard carousel is now pure CSS — see .dash-track in <style>.
 
   // ---- Theme nav active state on scroll ----
   (function () {
@@ -1422,28 +1439,6 @@
     onScroll();
   })();
 
-  // ---- Testimonial marquee (re-used pattern from landing.html) ----
-  (function () {
-    const wrap = document.getElementById('testimonial-marquee');
-    const track = document.getElementById('testimonial-track');
-    if (!wrap || !track) return;
-    Array.from(track.children).forEach(card => track.appendChild(card.cloneNode(true)));
-    let x = 0, lastT = performance.now(), paused = false;
-    const speed = 30;
-    function loop(t) {
-      const dt = (t - lastT) / 1000; lastT = t;
-      if (!paused) {
-        x -= speed * dt;
-        const half = track.scrollWidth / 2;
-        if (-x >= half) x += half;
-        track.style.transform = 'translateX(' + x + 'px)';
-      }
-      requestAnimationFrame(loop);
-    }
-    wrap.addEventListener('mouseenter', () => paused = true);
-    wrap.addEventListener('mouseleave', () => paused = false);
-    requestAnimationFrame(loop);
-  })();
 
   // ---- Logo favicon fallback ----
   (function () {
