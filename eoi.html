@@ -56,6 +56,13 @@
     /* Product-tab strip (lifted from landing) */
     .tab-btn { cursor: pointer; }
 
+    /* Included-in-every-plan marquee (lifted from pricing.html) */
+    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .marquee-track { display: flex; width: max-content; animation: marquee 36s linear infinite; }
+    .marquee-track:hover { animation-play-state: paused; }
+    .scrollbar-none::-webkit-scrollbar { display: none; }
+    .scrollbar-none { scrollbar-width: none; }
+
     /* Hero showcase carousel — active slide centered, adjacent dimmed/scaled */
     #hero-track { transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
     .hero-slide { opacity: 0.35; transform: scale(0.93); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
@@ -102,6 +109,9 @@
       <symbol id="i-tag" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.4" fill="currentColor"/></symbol>
       <symbol id="i-handshake" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M11 17l2 2a1 1 0 001.4 0L20 13.4a2 2 0 000-2.8L17 7.6 14 4.6a2 2 0 00-2.8 0L4 11.2a1 1 0 000 1.4l3 3M8.5 14.5L11 17"/></symbol>
       <symbol id="i-flag" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M4 22V4a1 1 0 011-1h14l-3 6 3 6H5"/></symbol>
+      <symbol id="i-receipt" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M4 2h16v20l-3-2-3 2-3-2-3 2-3-2-1 2zM8 8h8M8 12h6M8 16h4"/></symbol>
+      <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="none" stroke="currentColor" stroke-width="1.7" d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M11 20A7 7 0 014 13C4 4 11 3 20 3c0 9-1 16-9 17zM2 22s4-5 9-7"/></symbol>
       <symbol id="i-bolt" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></symbol>
       <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2" fill="currentColor"/></symbol>
       <symbol id="i-gift" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></symbol>
@@ -121,16 +131,16 @@
 <nav class="bg-white/85 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
-      <a href="landing.html" class="flex items-center" aria-label="Sole — practice management software for Australian accounting firms">
+      <a href="#" class="flex items-center" aria-label="Sole — practice management software for Australian accounting firms">
         <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-20 w-auto" />
       </a>
       <div class="flex items-center gap-5">
-        <a href="pricing.html" class="hidden sm:inline text-sm font-medium text-slate-700 hover:text-slate-900 transition">Pricing</a>
+        <a href="#pricing" class="hidden sm:inline text-sm font-medium text-slate-700 hover:text-slate-900 transition">Pricing</a>
         <a href="#eoi" class="hidden sm:inline text-sm font-medium text-slate-700 hover:text-slate-900 transition">Sign up</a>
-        <a href="#book" class="relative overflow-hidden text-sm bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2.5 rounded-lg transition shadow-soft">
+        <button type="button" data-tidycal-trigger class="relative overflow-hidden text-sm bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2.5 rounded-lg transition shadow-soft">
           <span class="shimmer absolute inset-0 pointer-events-none rounded-lg"></span>
           Book a discovery call
-        </a>
+        </button>
       </div>
     </div>
   </div>
@@ -159,20 +169,33 @@
       One connected platform for your firm, your team and your clients. AI inside the work, not bolted onto a broken workflow. From lead to proposal, onboarding, job, review, billing and collection. Use it under the Sole brand, or under your own.
     </p>
 
-    <!-- Trust pills -->
-    <div class="mt-5 flex flex-wrap items-center justify-center gap-3 reveal" data-reveal-delay="300">
-      <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-full shadow-soft">Supported setup</span>
-      <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-full shadow-soft">25% off first year</span>
-      <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-full shadow-soft">Built for Australian firms</span>
+    <!-- Trust pills — FOMO-positioned -->
+    <div class="mt-5 flex flex-wrap items-center justify-center gap-2.5 reveal" data-reveal-delay="300">
+      <span class="inline-flex items-center gap-2 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-4 py-2 rounded-full shadow-soft">
+        <span class="relative flex w-2 h-2"><span class="absolute inset-0 rounded-full bg-rose-500 opacity-75 animate-ping"></span><span class="relative w-2 h-2 rounded-full bg-rose-500"></span></span>
+        Limited cohort — small number of firms
+      </span>
+      <span class="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-full shadow-soft">
+        <svg class="w-3.5 h-3.5"><use href="#i-tag"/></svg>
+        25% off first year
+      </span>
+      <span class="inline-flex items-center gap-2 text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200 px-4 py-2 rounded-full shadow-soft">
+        <svg class="w-3.5 h-3.5"><use href="#i-check"/></svg>
+        Supported setup
+      </span>
+      <span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 px-4 py-2 rounded-full shadow-soft">
+        <span class="text-sm leading-none">🇦🇺</span>
+        Built for Australian firms
+      </span>
     </div>
 
     <!-- CTAs -->
     <div class="mt-5 flex flex-col sm:flex-row gap-3 justify-center reveal" data-reveal-delay="400">
-      <a href="#book" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold uppercase tracking-wider text-xs px-6 py-3.5 rounded-lg transition shadow-lift">
+      <button type="button" data-tidycal-trigger class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold uppercase tracking-wider text-xs px-6 py-3.5 rounded-lg transition shadow-lift">
         <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
         Book a June discovery call
-      </a>
-      <a href="#eoi" class="inline-flex justify-center items-center gap-2 bg-white text-brand-700 border border-brand-200 hover:border-brand-400 font-semibold text-sm px-6 py-3.5 rounded-lg transition shadow-soft">
+      </button>
+      <a href="https://api.leadconnectorhq.com/widget/form/REPLACE_WITH_GHL_FORM_ID" target="_blank" rel="noopener" class="inline-flex justify-center items-center gap-2 bg-white text-brand-700 border border-brand-200 hover:border-brand-400 font-semibold text-sm px-6 py-3.5 rounded-lg transition shadow-soft">
         Sign up for Pre-Release Access
       </a>
     </div>
@@ -276,12 +299,15 @@
 <section class="py-20 lg:py-24 bg-white">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="max-w-2xl mx-auto text-center mb-14 reveal">
-      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Why now</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">AI will not fix a fragmented operating model.</h2>
-      <p class="mt-3 text-slate-600">Accounting firms are already carrying too many systems. The risk is no longer just subscription cost. It is delayed work, trapped WIP, overloaded staff, broken follow-up and a client experience spread across multiple tools.</p>
+      <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-full mb-4">
+        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+        The problem
+      </span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">AI won't fix a broken operating model.</h2>
+      <p class="mt-3 text-slate-600">Your firm is already running 8–12 tools. AI bolted on top just makes the mess faster. Delayed work, trapped WIP, overloaded staff, broken follow-up — and a client experience scattered across logins.</p>
     </div>
 
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto reveal" data-reveal-delay="100">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 max-w-7xl mx-auto reveal" data-reveal-delay="100">
       <!-- 01 Stack Sprawl -->
       <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col group">
         <div class="h-1 bg-brand-600"></div>
@@ -293,10 +319,10 @@
             <span class="text-[10px] font-bold tabular-nums text-brand-600 tracking-[0.15em]">01</span>
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Stack Sprawl</span>
           </div>
-          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">Too many subscriptions. No single picture.</h3>
-          <p class="text-sm text-slate-600 leading-relaxed flex-1">CRM in one place. Workflow in another. Scheduling, KYC, reporting, proposals and client comms spread across the rest. The firm spends time stitching the truth together.</p>
+          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">Eight to twelve tools. Zero single view.</h3>
+          <p class="text-sm text-slate-600 leading-relaxed flex-1">CRM here. Workflow there. KYC, scheduling, reporting, proposals, comms — all separate. Your team spends the day stitching truth together instead of doing the work.</p>
           <div class="mt-5 pt-4 border-t border-slate-100">
-            <span class="text-xs font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-full">~6 tools avg</span>
+            <span class="text-xs font-semibold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-full">8–12 tools &amp; subs</span>
           </div>
         </div>
       </div>
@@ -312,8 +338,8 @@
             <span class="text-[10px] font-bold tabular-nums text-orange-600 tracking-[0.15em]">02</span>
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Margin Pressure</span>
           </div>
-          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">What is stuck gets found too late.</h3>
-          <p class="text-sm text-slate-600 leading-relaxed flex-1">Jobs drift overdue. Clients go quiet. Reviews back up. Billing slips. Capacity issues appear after the damage is already done. More clients does not automatically mean more margin.</p>
+          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">You find out when it's already late.</h3>
+          <p class="text-sm text-slate-600 leading-relaxed flex-1">Jobs drift overdue. Clients go quiet. Reviews stack up. Billing slips. By the time you spot the bottleneck, margin's already gone. More clients ≠ more profit.</p>
           <div class="mt-5 pt-4 border-t border-slate-100">
             <span class="text-xs font-semibold text-orange-700 bg-orange-50 px-2.5 py-1 rounded-full">31% lower margin</span>
           </div>
@@ -331,8 +357,8 @@
             <span class="text-[10px] font-bold tabular-nums text-violet-600 tracking-[0.15em]">03</span>
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">AI Risk</span>
           </div>
-          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">AI added to silos becomes another thing to manage.</h3>
-          <p class="text-sm text-slate-600 leading-relaxed flex-1">Sole takes a different approach. AI sits inside the workflow itself so the team can see what is missing, what is overdue, who is overloaded and what should happen next.</p>
+          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">AI on top of silos is just more silos.</h3>
+          <p class="text-sm text-slate-600 leading-relaxed flex-1">Sole puts AI inside the workflow — not bolted on. It sees what's missing, what's overdue, who's overloaded, and what happens next. One brain, not ten.</p>
           <div class="mt-5 pt-4 border-t border-slate-100">
             <span class="text-xs font-semibold text-violet-700 bg-violet-50 px-2.5 py-1 rounded-full">AI-first by design</span>
           </div>
@@ -350,10 +376,34 @@
             <span class="text-[10px] font-bold tabular-nums text-emerald-600 tracking-[0.15em]">04</span>
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Client Control</span>
           </div>
-          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">The firm needs to own the client layer.</h3>
-          <p class="text-sm text-slate-600 leading-relaxed flex-1">The next platform shift is not just internal task management. It is a firm-owned client experience — branded onboarding, communication, review, payment and accounting software.</p>
+          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">You don't own the client layer.</h3>
+          <p class="text-sm text-slate-600 leading-relaxed flex-1">If clients log in to someone else's app, the relationship belongs to them. Firm-owned onboarding, comms, payments and accounting — branded as you.</p>
           <div class="mt-5 pt-4 border-t border-slate-100">
             <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">Your brand, your platform</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 Integrations (NEW) -->
+      <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col group">
+        <div class="h-1 bg-sky-600"></div>
+        <div class="p-6 flex flex-col flex-1">
+          <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-4 group-hover:bg-sky-100 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 015.656 0l1.414 1.414a4 4 0 010 5.656l-1.414 1.414a4 4 0 01-5.656 0M10.172 13.828a4 4 0 01-5.656 0L3.1 12.414a4 4 0 010-5.656l1.414-1.414a4 4 0 015.656 0M8 12h8"/></svg>
+          </div>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-[10px] font-bold tabular-nums text-sky-600 tracking-[0.15em]">05</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">Integrations</span>
+          </div>
+          <h3 class="text-base font-bold text-slate-900 leading-snug mb-3">Plays nicely with what you already run.</h3>
+          <p class="text-sm text-slate-600 leading-relaxed flex-1">Native Xero, MYOB, ASIC, ATO and bank feeds. Keep the ledger you trust — Sole runs the operating layer around it.</p>
+          <div class="mt-5 pt-4 border-t border-slate-100">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-50 border border-slate-200 pl-1 pr-2 py-0.5 rounded-full"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=xero.com&sz=64" class="w-3 h-3 rounded-sm" alt="" />Xero</span>
+              <span class="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-50 border border-slate-200 pl-1 pr-2 py-0.5 rounded-full"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=myob.com&sz=64" class="w-3 h-3 rounded-sm" alt="" />MYOB</span>
+              <span class="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-50 border border-slate-200 pl-1 pr-2 py-0.5 rounded-full"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=asic.gov.au&sz=64" class="w-3 h-3 rounded-sm" alt="" />ASIC</span>
+              <span class="inline-flex items-center gap-1 text-[10px] font-medium text-slate-600 bg-slate-50 border border-slate-200 pl-1 pr-2 py-0.5 rounded-full"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=ato.gov.au&sz=64" class="w-3 h-3 rounded-sm" alt="" />ATO</span>
+            </div>
           </div>
         </div>
       </div>
@@ -367,94 +417,108 @@
           <h3 class="text-xl font-bold text-slate-900 leading-snug">The work moves through one connected operating flow.</h3>
           <p class="mt-3 text-sm text-slate-500 leading-relaxed">From lead to proposal. Proposal to onboarding. Onboarding to job. Job to review. Review to billing. Billing to collection.</p>
         </div>
-        <div class="overflow-x-auto pb-1">
-          <div class="flex items-stretch gap-2 min-w-max">
-            <div class="flow-step bg-white border border-slate-200 rounded-xl p-4 min-w-[110px] flex flex-col gap-2 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
-              <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">01</span>
-              <span class="text-sm font-bold text-slate-900">Lead</span>
-              <span class="text-[11px] text-slate-500 leading-snug">Track prospects and the next step</span>
-            </div>
-            <div class="flex items-center text-brand-400 px-1"><svg class="w-4 h-4 shrink-0"><use href="#i-arrow-right"/></svg></div>
-            <div class="flow-step bg-white border border-slate-200 rounded-xl p-4 min-w-[110px] flex flex-col gap-2 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
-              <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">02</span>
-              <span class="text-sm font-bold text-slate-900">Proposal</span>
-              <span class="text-[11px] text-slate-500 leading-snug">Create, send, follow up and convert</span>
-            </div>
-            <div class="flex items-center text-brand-400 px-1"><svg class="w-4 h-4 shrink-0"><use href="#i-arrow-right"/></svg></div>
-            <div class="flow-step bg-white border border-slate-200 rounded-xl p-4 min-w-[110px] flex flex-col gap-2 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
-              <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">03</span>
-              <span class="text-sm font-bold text-slate-900">Onboarding</span>
-              <span class="text-[11px] text-slate-500 leading-snug">KYC, e-sign, setup, compliance</span>
-            </div>
-            <div class="flex items-center text-brand-400 px-1"><svg class="w-4 h-4 shrink-0"><use href="#i-arrow-right"/></svg></div>
-            <div class="flow-step bg-white border border-slate-200 rounded-xl p-4 min-w-[110px] flex flex-col gap-2 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
-              <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">04</span>
-              <span class="text-sm font-bold text-slate-900">Job</span>
-              <span class="text-[11px] text-slate-500 leading-snug">Tasks, time, scheduling, capacity</span>
-            </div>
-            <div class="flex items-center text-brand-400 px-1"><svg class="w-4 h-4 shrink-0"><use href="#i-arrow-right"/></svg></div>
-            <div class="flow-step bg-white border border-slate-200 rounded-xl p-4 min-w-[110px] flex flex-col gap-2 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
-              <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">05</span>
-              <span class="text-sm font-bold text-slate-900">Review</span>
-              <span class="text-[11px] text-slate-500 leading-snug">Sign-off, feedback collection</span>
-            </div>
-            <div class="flex items-center text-brand-400 px-1"><svg class="w-4 h-4 shrink-0"><use href="#i-arrow-right"/></svg></div>
-            <div class="flow-step bg-white border border-slate-200 rounded-xl p-4 min-w-[110px] flex flex-col gap-2 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
-              <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">06</span>
-              <span class="text-sm font-bold text-slate-900">Billing</span>
-              <span class="text-[11px] text-slate-500 leading-snug">Invoice, collect, follow up</span>
-            </div>
-            <div class="flex items-center text-brand-400 px-1"><svg class="w-4 h-4 shrink-0"><use href="#i-arrow-right"/></svg></div>
-            <div class="flow-step bg-brand-600 border border-brand-500 rounded-xl p-4 min-w-[110px] flex flex-col gap-2 hover:bg-brand-700 hover:border-brand-400 transition cursor-default">
-              <span class="text-[10px] font-bold text-brand-200 tabular-nums tracking-wider">07</span>
-              <span class="text-sm font-bold text-white">Client value</span>
-              <span class="text-[11px] text-brand-200 leading-snug">Own the relationship under your brand</span>
-            </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 items-stretch">
+          <div class="flow-step bg-white border border-slate-200 rounded-xl p-3 flex flex-col gap-1.5 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
+            <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">01</span>
+            <span class="text-sm font-bold text-slate-900">Lead</span>
+            <span class="text-[11px] text-slate-500 leading-snug">Track prospects and the next step</span>
+          </div>
+          <div class="flow-step bg-white border border-slate-200 rounded-xl p-3 flex flex-col gap-1.5 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
+            <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">02</span>
+            <span class="text-sm font-bold text-slate-900">Proposal</span>
+            <span class="text-[11px] text-slate-500 leading-snug">Create, send, follow up and convert</span>
+          </div>
+          <div class="flow-step bg-white border border-slate-200 rounded-xl p-3 flex flex-col gap-1.5 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
+            <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">03</span>
+            <span class="text-sm font-bold text-slate-900">Onboarding</span>
+            <span class="text-[11px] text-slate-500 leading-snug">KYC, e-sign, setup, compliance</span>
+          </div>
+          <div class="flow-step bg-white border border-slate-200 rounded-xl p-3 flex flex-col gap-1.5 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
+            <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">04</span>
+            <span class="text-sm font-bold text-slate-900">Job</span>
+            <span class="text-[11px] text-slate-500 leading-snug">Tasks, time, scheduling, capacity</span>
+          </div>
+          <div class="flow-step bg-white border border-slate-200 rounded-xl p-3 flex flex-col gap-1.5 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
+            <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">05</span>
+            <span class="text-sm font-bold text-slate-900">Review</span>
+            <span class="text-[11px] text-slate-500 leading-snug">Sign-off, feedback collection</span>
+          </div>
+          <div class="flow-step bg-white border border-slate-200 rounded-xl p-3 flex flex-col gap-1.5 hover:bg-brand-50 hover:border-brand-300/60 transition cursor-default shadow-soft">
+            <span class="text-[10px] font-bold text-brand-500 tabular-nums tracking-wider">06</span>
+            <span class="text-sm font-bold text-slate-900">Billing</span>
+            <span class="text-[11px] text-slate-500 leading-snug">Invoice, collect, follow up</span>
+          </div>
+          <div class="flow-step bg-brand-600 border border-brand-500 rounded-xl p-3 flex flex-col gap-1.5 hover:bg-brand-700 hover:border-brand-400 transition cursor-default">
+            <span class="text-[10px] font-bold text-brand-200 tabular-nums tracking-wider">07</span>
+            <span class="text-sm font-bold text-white">Client value</span>
+            <span class="text-[11px] text-brand-200 leading-snug">Own the relationship under your brand</span>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Product demo video (placeholder) -->
+    <div class="mt-10 reveal" data-reveal-delay="250">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-5">
+          <span class="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700 bg-brand-50 border border-brand-200 px-3 py-1.5 rounded-full">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            Product demo · 2 min
+          </span>
+          <h3 class="mt-3 text-xl md:text-2xl font-bold text-slate-900">See the full platform in two minutes.</h3>
+        </div>
+        <div class="relative rounded-2xl overflow-hidden border border-slate-200 shadow-soft bg-slate-900" style="aspect-ratio:16/9;">
+          <!-- YouTube placeholder (drop in a real video ID later) -->
+          <iframe
+            class="absolute inset-0 w-full h-full"
+            src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
+            title="Sole Practice Platform — product demo"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen></iframe>
+        </div>
+        <p class="mt-3 text-center text-[11px] text-slate-400">Placeholder video — replace embed src with the real demo URL when ready.</p>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ================================================================ -->
-<!-- 5. PRODUCT TABS — LIFTED from landing.html (Image #7)             -->
+<!-- 5. PRODUCT TABS — COPIED VERBATIM from landing.html (no scroller) -->
 <!-- ================================================================ -->
-<section id="product" class="py-20 lg:py-24 bg-slate-50 border-y border-slate-200/60">
+<section id="product" class="py-20 lg:py-24 bg-gradient-to-b from-slate-50 to-white border-y border-slate-200/60">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-12 reveal">
-      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">See it in action</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">The operating model, in one platform.</h2>
-      <p class="mt-3 text-slate-600">From firm health and WIP to AI signals, capacity pressure and the work that needs attention now — Sole brings it together without the patchwork pricing.</p>
+    <div class="max-w-2xl mx-auto text-center mb-10 reveal">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">One platform · 13 workflows</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Everything your accounting firm needs, in one place</h2>
+      <p class="mt-3 text-slate-600">One subscription replaces the patchwork — without the patchwork pricing.</p>
     </div>
 
-    <div id="tab-strip" class="relative flex flex-nowrap overflow-x-auto justify-start lg:justify-center gap-1 mb-10 max-w-5xl mx-auto -mx-4 px-4 lg:mx-auto lg:px-0 border-b border-slate-200 reveal" data-reveal-delay="100">
-      <button data-tab="client" data-accent="brand" class="tab-btn group relative shrink-0 inline-flex items-center gap-2 px-4 lg:px-5 py-3.5 text-sm font-semibold text-brand-700 transition whitespace-nowrap">
+    <!-- Pill segmented tab strip -->
+    <div id="tab-strip" class="flex justify-start lg:justify-center bg-slate-100/80 rounded-2xl p-1.5 gap-1 mb-12 max-w-4xl mx-auto overflow-x-auto scrollbar-none reveal" data-reveal-delay="100">
+      <button data-tab="client" data-accent="brand" class="tab-btn group relative inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-brand-700 bg-white shadow-sm transition-all whitespace-nowrap">
         <span class="tab-icon w-6 h-6 rounded-md bg-brand-600 text-white flex items-center justify-center transition"><svg class="w-3.5 h-3.5"><use href="#i-users"/></svg></span>
         Client Management
-        <span class="tab-progress absolute left-0 -bottom-px h-0.5 bg-brand-600 origin-left scale-x-0" style="width:100%; transition: transform 100ms linear;"></span>
       </button>
-      <button data-tab="staff" data-accent="orange" class="tab-btn group relative shrink-0 inline-flex items-center gap-2 px-4 lg:px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap">
+      <button data-tab="staff" data-accent="orange" class="tab-btn group relative inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 transition-all whitespace-nowrap">
         <span class="tab-icon w-6 h-6 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center transition"><svg class="w-3.5 h-3.5"><use href="#i-calendar"/></svg></span>
         Staff &amp; Scheduling
-        <span class="tab-progress absolute left-0 -bottom-px h-0.5 bg-orange-500 origin-left scale-x-0" style="width:100%; transition: transform 100ms linear;"></span>
       </button>
-      <button data-tab="onboarding" data-accent="emerald" class="tab-btn group relative shrink-0 inline-flex items-center gap-2 px-4 lg:px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap">
+      <button data-tab="onboarding" data-accent="emerald" class="tab-btn group relative inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 transition-all whitespace-nowrap">
         <span class="tab-icon w-6 h-6 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center transition"><svg class="w-3.5 h-3.5"><use href="#i-shield"/></svg></span>
         Onboarding &amp; KYC
-        <span class="tab-progress absolute left-0 -bottom-px h-0.5 bg-emerald-600 origin-left scale-x-0" style="width:100%; transition: transform 100ms linear;"></span>
       </button>
-      <button data-tab="reporting" data-accent="violet" class="tab-btn group relative shrink-0 inline-flex items-center gap-2 px-4 lg:px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap">
-        <span class="tab-icon w-6 h-6 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center transition"><svg class="w-3.5 h-3.5"><use href="#i-trending"/></svg></span>
-        Reporting &amp; Insights
-        <span class="tab-progress absolute left-0 -bottom-px h-0.5 bg-violet-600 origin-left scale-x-0" style="width:100%; transition: transform 100ms linear;"></span>
+      <button data-tab="dashboards" data-accent="violet" class="tab-btn group relative inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 transition-all whitespace-nowrap">
+        <span class="tab-icon w-6 h-6 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center transition"><svg class="w-3.5 h-3.5"><use href="#i-layers"/></svg></span>
+        Dashboards
       </button>
-      <button data-tab="whitelabel" data-accent="amber" class="tab-btn group relative shrink-0 inline-flex items-center gap-2 px-4 lg:px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition whitespace-nowrap">
+      <button data-tab="whitelabel" data-accent="amber" class="tab-btn group relative inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 transition-all whitespace-nowrap">
         <span class="tab-icon w-6 h-6 rounded-md bg-slate-100 text-slate-500 flex items-center justify-center transition"><svg class="w-3.5 h-3.5"><use href="#i-sparkles"/></svg></span>
-        White Label
-        <span class="tab-progress absolute left-0 -bottom-px h-0.5 bg-amber-500 origin-left scale-x-0" style="width:100%; transition: transform 100ms linear;"></span>
+        Your Branding
       </button>
     </div>
+
 
     <!-- Panel: Client Management -->
     <div class="tab-panel" data-panel="client">
@@ -473,70 +537,53 @@
           <ul class="mt-6 space-y-3 text-sm text-slate-700">
             <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>360° client timeline with every touchpoint and document</span></li>
             <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Automated status updates — no more Slack chases</span></li>
+            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>NPS collection &amp; client review prompts — automated after key milestones</span></li>
+            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Automated review handling — requests, responses, and follow-ups managed for you</span></li>
             <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Role-based access for partners, seniors, and admin staff</span></li>
             <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Native Xero &amp; MYOB sync — contacts and engagements stay in step</span></li>
           </ul>
           <div class="mt-7 flex items-center gap-2 flex-wrap">
             <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider mr-1">Replaces</span>
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=karbonhq.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Karbon</span>
-            <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=xero.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />XPM</span>
+            <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=fyidocs.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />FYI Docs</span>
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=suitefiles.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Suitefiles</span>
           </div>
         </div>
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-soft p-5">
-          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <div>
-              <h4 class="text-sm font-bold text-slate-900">Clients</h4>
-              <p class="text-xs text-slate-500 mt-0.5">128 active · 4 new this month</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/client-group-details.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="flex items-center gap-2">
-              <div class="relative">
-                <input type="text" placeholder="Search…" class="text-xs border border-slate-200 rounded-md pl-7 pr-2 py-1.5 w-32 focus:outline-none" />
-                <svg class="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-users"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">CRM &amp; Client Portal</p>
               </div>
-              <button class="bg-brand-600 text-white text-xs font-semibold px-3 py-1.5 rounded-md">+ New</button>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">360° client view — every touchpoint, document, and engagement in one place.</p>
             </div>
           </div>
-          <div class="space-y-1.5">
-            <div class="flex items-center gap-3 p-2.5 rounded-lg bg-brand-50/60 border border-brand-100">
-              <div class="w-8 h-8 rounded-full bg-brand-200 text-brand-700 font-bold text-xs flex items-center justify-center">BC</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-900 truncate">Bennett &amp; Co.</p>
-                <p class="text-xs text-slate-500 truncate">Q1 BAS · Review pending</p>
-              </div>
-              <span class="text-[10px] font-semibold px-2 py-1 rounded-md bg-rose-100 text-rose-700">Due 2h</span>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/contacts-table.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition">
-              <div class="w-8 h-8 rounded-full bg-orange-200 text-orange-700 font-bold text-xs flex items-center justify-center">MP</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-900 truncate">Mortlock Partners</p>
-                <p class="text-xs text-slate-500 truncate">Tax planning · In progress</p>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-trending"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Sales &amp; Pipeline</p>
               </div>
-              <span class="text-[10px] font-semibold px-2 py-1 rounded-md bg-amber-100 text-amber-700">Active</span>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Opportunity tracking from first enquiry through to signed engagement.</p>
             </div>
-            <div class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition">
-              <div class="w-8 h-8 rounded-full bg-emerald-200 text-emerald-700 font-bold text-xs flex items-center justify-center">FH</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-900 truncate">Fairmount Holdings</p>
-                <p class="text-xs text-slate-500 truncate">ITR FY24 · Awaiting docs</p>
-              </div>
-              <span class="text-[10px] font-semibold px-2 py-1 rounded-md bg-slate-100 text-slate-600">Waiting</span>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/configure-chart-accounts.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition">
-              <div class="w-8 h-8 rounded-full bg-violet-200 text-violet-700 font-bold text-xs flex items-center justify-center">AT</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-900 truncate">Ashgrove Trading</p>
-                <p class="text-xs text-slate-500 truncate">FBT · Ready for review</p>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-doc"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Proposal Automation</p>
               </div>
-              <span class="text-[10px] font-semibold px-2 py-1 rounded-md bg-emerald-100 text-emerald-700">Ready</span>
-            </div>
-            <div class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition">
-              <div class="w-8 h-8 rounded-full bg-sky-200 text-sky-700 font-bold text-xs flex items-center justify-center">QA</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-900 truncate">Quay Advisory</p>
-                <p class="text-xs text-slate-500 truncate">Onboarding · KYC complete</p>
-              </div>
-              <span class="text-[10px] font-semibold px-2 py-1 rounded-md bg-brand-100 text-brand-700">New</span>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Branded proposals in minutes — with e-sign, packages, and payment built in.</p>
             </div>
           </div>
         </div>
@@ -570,85 +617,66 @@
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=harvestapp.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Harvest</span>
           </div>
         </div>
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-soft p-5">
-          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <div>
-              <h4 class="text-sm font-bold text-slate-900">This week</h4>
-              <p class="text-xs text-slate-500 mt-0.5">Capacity 87% · 5 staff · 22 jobs</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/kanban-board.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="flex items-center gap-1">
-              <button class="text-xs text-slate-500 px-2 py-1 hover:bg-slate-100 rounded">‹</button>
-              <span class="text-xs font-medium text-slate-700 tabular-nums">Wk 21 · May 19–23</span>
-              <button class="text-xs text-slate-500 px-2 py-1 hover:bg-slate-100 rounded">›</button>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-layers"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Project &amp; Task Management</p>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Jobs, milestones, and tasks with due dates, owners, and workflow stages.</p>
             </div>
           </div>
-          <div class="grid grid-cols-[80px_repeat(5,minmax(0,1fr))] gap-1 text-[10px] font-medium text-slate-500 mb-2">
-            <span></span>
-            <span class="text-center">Mon</span><span class="text-center">Tue</span><span class="text-center">Wed</span><span class="text-center">Thu</span><span class="text-center">Fri</span>
-          </div>
-          <div class="space-y-1.5">
-            <div class="grid grid-cols-[80px_repeat(5,minmax(0,1fr))] gap-1 items-center">
-              <div class="flex items-center gap-1.5">
-                <div class="w-5 h-5 rounded-full bg-brand-200 text-brand-700 text-[9px] font-bold flex items-center justify-center">JD</div>
-                <span class="text-[11px] font-medium text-slate-700">Jenny D.</span>
-              </div>
-              <div class="bg-brand-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Bennett BAS</div>
-              <div class="bg-brand-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Bennett BAS</div>
-              <div class="bg-orange-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Mortlock</div>
-              <div class="bg-orange-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Mortlock</div>
-              <div class="bg-emerald-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Review</div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/timesheet.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="grid grid-cols-[80px_repeat(5,minmax(0,1fr))] gap-1 items-center">
-              <div class="flex items-center gap-1.5">
-                <div class="w-5 h-5 rounded-full bg-orange-200 text-orange-700 text-[9px] font-bold flex items-center justify-center">MK</div>
-                <span class="text-[11px] font-medium text-slate-700">Marcus K.</span>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-clock"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Time Tracking &amp; Billing</p>
               </div>
-              <div class="bg-sky-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Fairmount ITR</div>
-              <div class="bg-sky-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Fairmount ITR</div>
-              <div class="bg-sky-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Fairmount ITR</div>
-              <div class="bg-violet-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Quay</div>
-              <div class="bg-slate-200 text-slate-400 text-[9px] font-semibold px-1.5 py-1 rounded truncate">—</div>
-            </div>
-            <div class="grid grid-cols-[80px_repeat(5,minmax(0,1fr))] gap-1 items-center">
-              <div class="flex items-center gap-1.5">
-                <div class="w-5 h-5 rounded-full bg-emerald-200 text-emerald-700 text-[9px] font-bold flex items-center justify-center">RT</div>
-                <span class="text-[11px] font-medium text-slate-700">Renee T.</span>
-              </div>
-              <div class="bg-rose-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Ashgrove FBT</div>
-              <div class="bg-rose-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Ashgrove FBT</div>
-              <div class="bg-slate-200 text-slate-400 text-[9px] font-semibold px-1.5 py-1 rounded truncate">—</div>
-              <div class="bg-emerald-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Bennett</div>
-              <div class="bg-emerald-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Bennett</div>
-            </div>
-            <div class="grid grid-cols-[80px_repeat(5,minmax(0,1fr))] gap-1 items-center">
-              <div class="flex items-center gap-1.5">
-                <div class="w-5 h-5 rounded-full bg-violet-200 text-violet-700 text-[9px] font-bold flex items-center justify-center">SP</div>
-                <span class="text-[11px] font-medium text-slate-700">Sam P.</span>
-              </div>
-              <div class="bg-amber-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Onboard 2 new</div>
-              <div class="bg-amber-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Onboard 2 new</div>
-              <div class="bg-brand-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Quay BAS</div>
-              <div class="bg-brand-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Quay BAS</div>
-              <div class="bg-violet-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Review</div>
-            </div>
-            <div class="grid grid-cols-[80px_repeat(5,minmax(0,1fr))] gap-1 items-center">
-              <div class="flex items-center gap-1.5">
-                <div class="w-5 h-5 rounded-full bg-sky-200 text-sky-700 text-[9px] font-bold flex items-center justify-center">LC</div>
-                <span class="text-[11px] font-medium text-slate-700">Lila C.</span>
-              </div>
-              <div class="bg-slate-200 text-slate-400 text-[9px] font-semibold px-1.5 py-1 rounded truncate">PTO</div>
-              <div class="bg-slate-200 text-slate-400 text-[9px] font-semibold px-1.5 py-1 rounded truncate">PTO</div>
-              <div class="bg-orange-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Mortlock</div>
-              <div class="bg-orange-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Mortlock</div>
-              <div class="bg-orange-500 text-white text-[9px] font-semibold px-1.5 py-1 rounded truncate">Mortlock</div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Log billable hours in real time and push directly to invoices.</p>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-            <p class="text-[10px] text-slate-500">Unallocated · <span class="text-rose-600 font-semibold">3 jobs</span></p>
-            <button class="text-[10px] font-semibold text-brand-600 hover:text-brand-700 inline-flex items-center gap-1">
-              <svg class="w-3 h-3"><use href="#i-sparkles"/></svg>
-              Smart allocate
-            </button>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/messages-multichannel.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
+            </div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-users"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Workforce &amp; Team</p>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Skills, capacity, PTO, and team load — all in one view.</p>
+            </div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/kanban-board.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
+            </div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-calendar"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Staff Scheduler</p>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Drag-and-drop workload canvas with skill-based allocation and AI suggestions.</p>
+            </div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/contacts-table.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
+            </div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-star"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Client Bookings</p>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Self-service booking and automated review collection after key milestones.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -679,152 +707,109 @@
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=ignitionapp.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Ignition</span>
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=fusesign.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />FuseSign</span>
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=frankieone.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />FrankieOne</span>
+            <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=calendly.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Calendly</span>
+            <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=docusign.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />DocuSign</span>
           </div>
         </div>
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-soft p-5">
-          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <div>
-              <h4 class="text-sm font-bold text-slate-900">Onboarding pipeline</h4>
-              <p class="text-xs text-slate-500 mt-0.5">10 in progress · 3.4 day avg</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/detail-client.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <button class="bg-brand-600 text-white text-xs font-semibold px-3 py-1.5 rounded-md">+ Invite client</button>
-          </div>
-          <div class="grid grid-cols-4 gap-2 mb-4">
-            <div class="bg-slate-50 rounded-lg p-2.5">
-              <p class="text-[9px] text-slate-500 uppercase tracking-wider font-medium">Invited</p>
-              <p class="text-xl font-bold text-slate-900 mt-0.5 tabular-nums">3</p>
-            </div>
-            <div class="bg-amber-50 rounded-lg p-2.5">
-              <p class="text-[9px] text-amber-700 uppercase tracking-wider font-medium">In KYC</p>
-              <p class="text-xl font-bold text-amber-700 mt-0.5 tabular-nums">5</p>
-            </div>
-            <div class="bg-brand-50 rounded-lg p-2.5">
-              <p class="text-[9px] text-brand-700 uppercase tracking-wider font-medium">Engagement</p>
-              <p class="text-xl font-bold text-brand-700 mt-0.5 tabular-nums">2</p>
-            </div>
-            <div class="bg-emerald-50 rounded-lg p-2.5">
-              <p class="text-[9px] text-emerald-700 uppercase tracking-wider font-medium">Active</p>
-              <p class="text-xl font-bold text-emerald-700 mt-0.5 tabular-nums">128</p>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-shield"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Client Onboarding &amp; KYC</p>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Standardised intake, ID verification, AML checks, and e-signed engagement letters.</p>
             </div>
           </div>
-          <div class="space-y-2">
-            <div class="flex items-center gap-3 p-2.5 rounded-lg bg-amber-50/50 border border-amber-100">
-              <div class="w-7 h-7 rounded-full bg-amber-200 text-amber-700 font-bold text-[10px] flex items-center justify-center">AC</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold text-slate-900">Acme Logistics Pty Ltd</p>
-                <div class="flex items-center gap-1.5 mt-1">
-                  <span class="text-[9px] text-emerald-600 font-medium">✓ Invite</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="text-[9px] text-amber-600 font-medium">⏵ KYC</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="text-[9px] text-slate-400">○ Engagement</span>
-                </div>
-              </div>
-              <span class="text-[10px] text-slate-500 tabular-nums">2d</span>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/transactions-matched.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="flex items-center gap-3 p-2.5 rounded-lg bg-brand-50/40 border border-brand-100">
-              <div class="w-7 h-7 rounded-full bg-brand-200 text-brand-700 font-bold text-[10px] flex items-center justify-center">BP</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold text-slate-900">Boost Partners</p>
-                <div class="flex items-center gap-1.5 mt-1">
-                  <span class="text-[9px] text-emerald-600 font-medium">✓ Invite</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="text-[9px] text-emerald-600 font-medium">✓ KYC</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="text-[9px] text-brand-600 font-semibold">⏵ Signing</span>
-                </div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-doc"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Tax Lodgement &amp; Payroll</p>
               </div>
-              <span class="text-[10px] text-slate-500 tabular-nums">5h</span>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">BAS, STP, PAYG, and ITR — tracked, lodged, and reconciled in one place.</p>
             </div>
-            <div class="flex items-center gap-3 p-2.5 rounded-lg bg-emerald-50/40 border border-emerald-100">
-              <div class="w-7 h-7 rounded-full bg-emerald-200 text-emerald-700 font-bold text-[10px] flex items-center justify-center">CT</div>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold text-slate-900">Carbon Trading Co.</p>
-                <div class="flex items-center gap-1.5 mt-1">
-                  <span class="text-[9px] text-emerald-600 font-medium">✓ Invite</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="text-[9px] text-emerald-600 font-medium">✓ KYC</span>
-                  <span class="text-slate-300">·</span>
-                  <span class="text-[9px] text-emerald-600 font-medium">✓ Signed</span>
-                </div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/new-invoice.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
+            </div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-zap"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Finance &amp; Payments</p>
               </div>
-              <span class="text-[10px] text-emerald-700 font-semibold">Onboarded</span>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Invoicing, recurring billing, direct debit, and payment collection — all automated.</p>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Panel: Reporting -->
-    <div class="tab-panel hidden" data-panel="reporting">
+    <!-- Panel: Dashboards -->
+    <div class="tab-panel hidden" data-panel="dashboards">
       <div class="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
         <div>
           <div class="inline-flex items-center gap-2 mb-4">
-            <span class="w-9 h-9 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-trending"/></svg></span>
-            <span class="text-xs font-semibold uppercase tracking-wider text-violet-700">Reporting &amp; Insights</span>
+            <span class="w-9 h-9 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-layers"/></svg></span>
+            <span class="text-xs font-semibold uppercase tracking-wider text-violet-700">Dashboards</span>
           </div>
           <h3 class="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">Insights partners can <span class="text-violet-700">actually act on</span>.</h3>
-          <p class="mt-4 text-slate-600 leading-relaxed">Real-time profitability, WIP ageing, and capacity views built for partners and ops leads — not just bookkeepers.</p>
-          <div class="mt-5 inline-flex items-center gap-3 bg-violet-50/70 border border-violet-100 rounded-xl px-4 py-2.5">
-            <span class="text-2xl font-extrabold text-violet-700 tabular-nums">+3.2pts</span>
-            <span class="text-xs text-slate-600 leading-tight">net margin gain on <br/>the typical practice</span>
-          </div>
+          <p class="mt-4 text-slate-600 leading-relaxed">Three live dashboards built for how accounting firms actually run — not generic BI tools bolted on after the fact.</p>
           <ul class="mt-6 space-y-3 text-sm text-slate-700">
-            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Practice-wide KPI dashboard out of the box</span></li>
-            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Helicopter client × service status matrix</span></li>
-            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>WIP, write-off and lock-up tracking across partners</span></li>
-            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Custom report builder — no Excel exports required</span></li>
+            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Practice Dashboard — KPI strip, financial health, WIP ageing, and team load</span></li>
+            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Helicopter View — client × service status matrix and AI insights at a glance</span></li>
+            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Staff Scheduler — capacity planning, skill matching, and workload balancing</span></li>
+            <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>No Excel exports needed — everything updates in real time</span></li>
           </ul>
           <div class="mt-7 flex items-center gap-2 flex-wrap">
             <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider mr-1">Replaces</span>
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=fathomhq.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Fathom</span>
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=spotlightreporting.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Spotlight</span>
+            <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=powerbi.microsoft.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Power BI</span>
           </div>
         </div>
-        <div class="bg-white border border-slate-200 rounded-2xl shadow-soft p-5">
-          <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <div>
-              <h4 class="text-sm font-bold text-slate-900">Practice insights</h4>
-              <p class="text-xs text-slate-500 mt-0.5">FY24 · YTD performance</p>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/dashboard-practice.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="Practice Dashboard" />
             </div>
-            <select class="text-xs border border-slate-200 rounded-md px-2 py-1 text-slate-700"><option>Last quarter</option></select>
-          </div>
-          <div class="grid grid-cols-3 gap-2 mb-4">
-            <div class="bg-slate-50 rounded-lg p-3">
-              <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Revenue</p>
-              <p class="text-lg font-bold text-slate-900 mt-1 tabular-nums">$1.42M</p>
-              <p class="text-[10px] text-emerald-600 font-semibold mt-0.5">↑ 18% YoY</p>
-            </div>
-            <div class="bg-slate-50 rounded-lg p-3">
-              <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Net margin</p>
-              <p class="text-lg font-bold text-slate-900 mt-1 tabular-nums">31.4%</p>
-              <p class="text-[10px] text-emerald-600 font-semibold mt-0.5">↑ 3.2 pts</p>
-            </div>
-            <div class="bg-slate-50 rounded-lg p-3">
-              <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Util.</p>
-              <p class="text-lg font-bold text-slate-900 mt-1 tabular-nums">82%</p>
-              <p class="text-[10px] text-amber-600 font-semibold mt-0.5">→ Flat</p>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-violet-50 text-violet-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-sparkles"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Practice Dashboard</p>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">KPI strip, financial health, WIP ageing, and today's focus — live.</p>
             </div>
           </div>
-          <div class="grid grid-cols-5 gap-3">
-            <div class="col-span-3">
-              <p class="text-[10px] font-semibold text-slate-700 mb-2">Revenue by service</p>
-              <div class="space-y-2">
-                <div><div class="flex items-center justify-between mb-1"><span class="text-[10px] text-slate-600">BAS &amp; tax</span><span class="text-[10px] text-slate-700 font-semibold tabular-nums">$612k</span></div><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-brand-500 rounded-full" style="width: 86%"></div></div></div>
-                <div><div class="flex items-center justify-between mb-1"><span class="text-[10px] text-slate-600">Bookkeeping</span><span class="text-[10px] text-slate-700 font-semibold tabular-nums">$384k</span></div><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-orange-500 rounded-full" style="width: 54%"></div></div></div>
-                <div><div class="flex items-center justify-between mb-1"><span class="text-[10px] text-slate-600">Advisory</span><span class="text-[10px] text-slate-700 font-semibold tabular-nums">$248k</span></div><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 rounded-full" style="width: 35%"></div></div></div>
-                <div><div class="flex items-center justify-between mb-1"><span class="text-[10px] text-slate-600">FBT &amp; other</span><span class="text-[10px] text-slate-700 font-semibold tabular-nums">$176k</span></div><div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-violet-500 rounded-full" style="width: 25%"></div></div></div>
-              </div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/dashboard-helicopter.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="Helicopter View" />
             </div>
-            <div class="col-span-2">
-              <p class="text-[10px] font-semibold text-slate-700 mb-2">Top clients</p>
-              <div class="space-y-1.5 text-[10px]">
-                <div class="flex items-center justify-between py-1 border-b border-slate-100"><span class="text-slate-700">Bennett &amp; Co.</span><span class="font-semibold text-slate-900 tabular-nums">$94k</span></div>
-                <div class="flex items-center justify-between py-1 border-b border-slate-100"><span class="text-slate-700">Fairmount</span><span class="font-semibold text-slate-900 tabular-nums">$67k</span></div>
-                <div class="flex items-center justify-between py-1 border-b border-slate-100"><span class="text-slate-700">Mortlock</span><span class="font-semibold text-slate-900 tabular-nums">$52k</span></div>
-                <div class="flex items-center justify-between py-1 border-b border-slate-100"><span class="text-slate-700">Quay Advisory</span><span class="font-semibold text-slate-900 tabular-nums">$48k</span></div>
-                <div class="flex items-center justify-between py-1"><span class="text-slate-700">Ashgrove</span><span class="font-semibold text-slate-900 tabular-nums">$41k</span></div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-globe"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Helicopter View</p>
               </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Client × service matrix, AI insights, and flagged work — at a glance.</p>
+            </div>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/dashboard-scheduler.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="Staff Scheduler" />
+            </div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-calendar"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">Staff Scheduler</p>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Capacity planning, skill matching, and workload balancing in one canvas.</p>
             </div>
           </div>
         </div>
@@ -837,13 +822,10 @@
         <div>
           <div class="inline-flex items-center gap-2 mb-4">
             <span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-sparkles"/></svg></span>
-            <span class="text-xs font-semibold uppercase tracking-wider text-amber-700">White Label</span>
+            <span class="text-xs font-semibold uppercase tracking-wider text-amber-700">Your Branding</span>
           </div>
           <h3 class="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">Your brand, your platform — <span class="text-amber-700">out of the box</span>.</h3>
-          <p class="mt-4 text-slate-600 leading-relaxed">Custom domain, logo, colours, and email sender. Your clients only ever see your firm — never Sole. Available as a branding add-on.</p>
-          <div class="mt-5 inline-flex items-center gap-3 bg-amber-50/70 border border-amber-200/60 rounded-xl px-4 py-2.5">
-            <span class="text-xs text-slate-600 leading-tight">Contact us for white-label pricing &amp; setup details</span>
-          </div>
+          <p class="mt-4 text-slate-600 leading-relaxed">Custom domain, logo, colours, and email sender. Your clients only ever see your firm — never Sole. Most competitors charge extra; we include it.</p>
           <ul class="mt-6 space-y-3 text-sm text-slate-700">
             <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Full white-label client portal under <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">portal.yourfirm.com.au</code></span></li>
             <li class="flex gap-3 items-start"><svg class="w-5 h-5 text-brand-600 mt-0.5 shrink-0"><use href="#i-check"/></svg> <span>Branded comms — emails, SMS, signed documents</span></li>
@@ -856,259 +838,35 @@
             <span class="inline-flex items-center gap-1.5 text-xs text-slate-700 bg-white border border-slate-200 pl-1.5 pr-3 py-1 rounded-full font-medium"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=zapier.com&amp;sz=128" class="w-4 h-4 rounded-sm" alt="" />Patchwork stack</span>
           </div>
         </div>
-        <!-- Multi-brand white-label showcase: 3 stacked portals -->
-        <div class="relative h-[460px] sm:h-[480px]">
-          <!-- Portal C (background, top-right, navy serif) -->
-          <div class="absolute top-0 right-0 w-[72%] sm:w-[64%] origin-top-right rotate-[5deg] rounded-2xl overflow-hidden border border-slate-200 shadow-soft bg-white">
-            <div class="bg-slate-900 px-4 py-3 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded bg-amber-300 flex items-center justify-center text-slate-900 font-extrabold text-xs" style="font-family: Georgia, serif;">M</div>
-                <p class="text-xs font-bold text-white tracking-tight" style="font-family: Georgia, serif;">Mortlock Partners</p>
-              </div>
-              <div class="w-5 h-5 rounded-full bg-amber-300 text-slate-900 text-[8px] font-bold flex items-center justify-center">RC</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/dashboard-sophia.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="p-4 bg-amber-50/30">
-              <p class="text-[9px] uppercase tracking-wider text-amber-700 font-semibold">Member portal</p>
-              <h5 class="text-base font-bold text-slate-900 mt-0.5" style="font-family: Georgia, serif;">Welcome, Rachel</h5>
-              <div class="mt-3 p-2.5 bg-white border border-amber-200 rounded-lg">
-                <p class="text-[10px] font-semibold text-slate-900">Q4 BAS · review &amp; sign</p>
-                <button class="mt-2 w-full bg-amber-700 text-white text-[10px] font-bold py-1.5 rounded">Open document →</button>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-sparkles"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">White-Label Practice Platform</p>
               </div>
-              <p class="mt-3 text-[8px] text-slate-400">mortlock.partners</p>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Custom domain, logo, colours, and email sender. Your clients only ever see your firm — never Sole.</p>
             </div>
           </div>
-          <!-- Portal B (mid, bottom-left, emerald clean) -->
-          <div class="absolute bottom-0 left-0 w-[68%] sm:w-[60%] origin-bottom-left -rotate-[6deg] rounded-2xl overflow-hidden border border-slate-200 shadow-lift bg-white">
-            <div class="bg-emerald-700 px-4 py-3 flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-md bg-white flex items-center justify-center text-emerald-700 font-black text-sm">N</div>
-                <div>
-                  <p class="text-xs font-bold text-white tracking-tight">North Star</p>
-                  <p class="text-[8px] text-emerald-200">Bookkeeping</p>
-                </div>
-              </div>
-              <div class="w-5 h-5 rounded-full bg-white text-emerald-700 text-[8px] font-bold flex items-center justify-center">PN</div>
+          <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden group hover:shadow-soft hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
+            <div class="h-36 shrink-0 overflow-hidden bg-slate-100">
+              <img loading="lazy" src="assets/feature-screenshots/welcome-back-login.png" class="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500" alt="" />
             </div>
-            <div class="p-4">
-              <p class="text-[9px] uppercase tracking-wider text-emerald-700 font-semibold">Your books</p>
-              <h5 class="text-base font-bold text-slate-900 mt-0.5">Hi Priya 👋</h5>
-              <div class="mt-2 grid grid-cols-2 gap-2">
-                <div class="bg-emerald-50 rounded p-2">
-                  <p class="text-[8px] text-emerald-700 font-semibold">PAID</p>
-                  <p class="text-xs font-bold text-emerald-700">$8,420</p>
-                </div>
-                <div class="bg-rose-50 rounded p-2">
-                  <p class="text-[8px] text-rose-700 font-semibold">OWING</p>
-                  <p class="text-xs font-bold text-rose-700">$1,240</p>
-                </div>
+            <div class="p-4 flex flex-col flex-1">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="w-5 h-5 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><svg class="w-3 h-3"><use href="#i-globe"/></svg></span>
+                <p class="text-xs font-bold text-slate-900 leading-tight">White-Label Client App</p>
               </div>
-              <p class="mt-3 text-[8px] text-slate-400">portal.northstar.com.au</p>
+              <p class="text-[11px] text-slate-500 leading-relaxed mt-auto pt-1">Your SME clients use your-firm-branded software. Optional partner programme and revenue share for advisor networks.</p>
             </div>
-          </div>
-          <!-- Portal A (foreground, centred, fuchsia/dark — primary) -->
-          <div class="absolute top-6 sm:top-10 left-1/2 -translate-x-1/2 w-[78%] sm:w-[78%] rounded-2xl overflow-hidden border border-slate-200 shadow-pop bg-white z-10">
-            <div class="px-4 py-3 flex items-center justify-between" style="background: linear-gradient(135deg, #1F1A3D 0%, #5B21B6 100%);">
-              <div class="flex items-center gap-2">
-                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-white font-extrabold text-sm" style="background: linear-gradient(135deg, #F472B6 0%, #FB7185 100%);">W</div>
-                <div>
-                  <p class="text-sm font-bold text-white tracking-tight">Whitfield &amp; Co.</p>
-                  <p class="text-[9px] text-violet-200">Chartered Accountants</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-[9px] text-violet-200">Sarah W.</span>
-                <div class="w-6 h-6 rounded-full text-white text-[9px] font-bold flex items-center justify-center" style="background: linear-gradient(135deg, #F472B6 0%, #FB7185 100%);">SW</div>
-              </div>
-            </div>
-            <div class="p-4">
-              <p class="text-[10px] uppercase tracking-wider text-fuchsia-600 font-semibold">Welcome back</p>
-              <h4 class="text-base font-bold text-slate-900 mt-0.5">Hello Sarah —</h4>
-              <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">Your FY24 tax return is ready for review. We'd love your sign-off by Friday.</p>
-              <div class="mt-3 p-3 rounded-lg" style="background: linear-gradient(135deg, #FDF4FF 0%, #FCE7F3 100%); border: 1px solid #F5D0FE;">
-                <div class="flex items-start gap-2">
-                  <div class="w-6 h-6 rounded-md flex items-center justify-center mt-0.5 shrink-0" style="background: #F472B6; color: white;"><svg class="w-3.5 h-3.5"><use href="#i-doc"/></svg></div>
-                  <div class="flex-1">
-                    <p class="text-[11px] font-semibold text-slate-900">FY24 Tax Return</p>
-                    <p class="text-[10px] text-slate-600">Prepared by Marcus K. · 3 documents</p>
-                  </div>
-                </div>
-                <button class="mt-2.5 w-full text-white text-[11px] font-bold py-2 rounded-md transition" style="background: linear-gradient(135deg, #DB2777 0%, #BE185D 100%);">Review &amp; sign →</button>
-              </div>
-              <div class="mt-3 flex items-center justify-between">
-                <p class="text-[8px] text-slate-400">portal.whitfield.com.au</p>
-                <span class="text-[8px] font-semibold text-fuchsia-600">whitfield.com.au</span>
-              </div>
-            </div>
-          </div>
-          <!-- "+ many more" floating chip -->
-          <div class="absolute bottom-3 right-3 z-20 bg-white border border-slate-200 rounded-full shadow-lift px-3 py-2 flex items-center gap-2">
-            <div class="flex -space-x-1.5">
-              <span class="w-5 h-5 rounded-full ring-2 ring-white" style="background: linear-gradient(135deg,#F472B6,#FB7185);"></span>
-              <span class="w-5 h-5 rounded-full ring-2 ring-white bg-emerald-600"></span>
-              <span class="w-5 h-5 rounded-full ring-2 ring-white bg-amber-300"></span>
-              <span class="w-5 h-5 rounded-full ring-2 ring-white bg-sky-600"></span>
-            </div>
-            <p class="text-[10px] font-semibold text-slate-700">+ 46 more brands live on Sole</p>
           </div>
         </div>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- ================================================================ -->
-<!-- 6. THIRTEEN WORKFLOWS catalogue                                   -->
-<!-- ================================================================ -->
-<section id="workflows" class="py-20 lg:py-24 bg-white">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-12 reveal">
-      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">The full catalogue</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Thirteen workflows. One platform.</h2>
-      <p class="mt-3 text-slate-600">Grouped by what your firm actually runs — so the product reads as an operating system, not a feature dump.</p>
-    </div>
-
-    <div class="space-y-10 reveal" data-reveal-delay="100">
-
-      <!-- Category 01: Client Management & Acquisition -->
-      <div>
-        <div class="flex items-center gap-3 mb-4">
-          <span class="w-9 h-9 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center shrink-0"><svg class="w-4 h-4"><use href="#i-users"/></svg></span>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-700">01 — Client Management &amp; Acquisition</p>
-            <h3 class="text-base font-bold text-slate-900 leading-snug">Own the client layer from first interaction.</h3>
-          </div>
-        </div>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-brand-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/client-group-details.png" alt="Centralised CRM for accounting firms" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Centralised CRM &amp; Client Portal</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Contacts, tasks, communications, documents and client history in one workspace.</p>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-orange-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/contacts-table.png" alt="Sales pipeline software for accounting firms" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Sales &amp; Pipeline Oversight</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Track prospects, opportunities, onboarding status and the next step to conversion.</p>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-cyan-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/configure-chart-accounts.png" alt="Proposal workflow automation for accounting firms" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Proposal Workflow Automation</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Create, send, follow up and convert accepted proposals into active work.</p>
-          </article>
-        </div>
-      </div>
-
-      <!-- Category 02: Work Delivery & Team Control -->
-      <div>
-        <div class="flex items-center gap-3 mb-4">
-          <span class="w-9 h-9 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center shrink-0"><svg class="w-4 h-4"><use href="#i-layers"/></svg></span>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700">02 — Work Delivery &amp; Team Control</p>
-            <h3 class="text-base font-bold text-slate-900 leading-snug">Run the work after the deal is won.</h3>
-          </div>
-        </div>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-sky-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/kanban-board.png" alt="Project and task management for accounting firms" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Project &amp; Task Management</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Jobs, approvals, deadlines, assignments and accountability, without extra workflow software.</p>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-amber-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/timesheet.png" alt="Time tracking software for accountants" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Time Tracking &amp; Billing</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Capture billable hours, fixed-fee work and billing data inside the operating flow.</p>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-yellow-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/messages-multichannel.png" alt="Workforce and team management for accounting firms" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Workforce &amp; Team Management</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Visibility across workload, performance, utilisation and the movement of work through the firm.</p>
-          </article>
-        </div>
-      </div>
-
-      <!-- Category 03: Capacity & Client Movement -->
-      <div>
-        <div class="flex items-center gap-3 mb-4">
-          <span class="w-9 h-9 rounded-lg bg-orange-50 text-orange-700 flex items-center justify-center shrink-0"><svg class="w-4 h-4"><use href="#i-calendar"/></svg></span>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-orange-700">03 — Capacity &amp; Client Movement</p>
-            <h3 class="text-base font-bold text-slate-900 leading-snug">See the bottlenecks before they become margin problems.</h3>
-          </div>
-        </div>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-orange-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/kanban-board.png" alt="Staff scheduler and capacity planning" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Staff Scheduler &amp; Capacity Planning</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Assign work by availability, skill level, timing and service-line need.</p>
-            <div class="mt-2 px-1 flex items-center gap-1.5 flex-wrap">
-              <span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Replaces</span>
-              <span class="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 border border-slate-200 pl-1 pr-2 py-0.5 rounded-full"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=calendly.com&sz=128" class="w-3 h-3 rounded-sm" alt="" />Calendly</span>
-              <span class="inline-flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 border border-slate-200 pl-1 pr-2 py-0.5 rounded-full"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=float.com&sz=128" class="w-3 h-3 rounded-sm" alt="" />Float</span>
-            </div>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-rose-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/contacts-table.png" alt="Client bookings and review collection" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Client Bookings &amp; Review Collection</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Calendly-style bookings, reminders, client feedback capture, review prompts and reputation workflows.</p>
-          </article>
-        </div>
-      </div>
-
-      <!-- Category 04: Compliance, Finance & Lodgement -->
-      <div>
-        <div class="flex items-center gap-3 mb-4">
-          <span class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0"><svg class="w-4 h-4"><use href="#i-shield"/></svg></span>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">04 — Compliance, Finance &amp; Lodgement</p>
-            <h3 class="text-base font-bold text-slate-900 leading-snug">From client setup to lodgement, billing and payment visibility.</h3>
-          </div>
-        </div>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-emerald-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/detail-client.png" alt="Client onboarding software for accountants — KYC and compliance" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Client Onboarding &amp; Compliance</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">KYC, AML, GST, PAYG and registration workflows from day one.</p>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-rose-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/transactions-matched.png" alt="Tax lodgement software for accountants — BAS, EOFY" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Tax Lodgement &amp; Payroll</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">BAS, EOFY, guided reporting and payroll workflows built for Australian firms.</p>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-fuchsia-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/new-invoice.png" alt="Accounting firm billing software" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Finance, Payments &amp; Collections</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Invoicing, payment collection, follow-up and finance opportunities inside the workflow.</p>
-          </article>
-        </div>
-      </div>
-
-      <!-- Category 05: Intelligence & Firm-Owned Client Experience -->
-      <div>
-        <div class="flex items-center gap-3 mb-4">
-          <span class="w-9 h-9 rounded-lg bg-violet-50 text-violet-700 flex items-center justify-center shrink-0"><svg class="w-4 h-4"><use href="#i-sparkles"/></svg></span>
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">05 — Intelligence &amp; Firm-Owned Client Experience</p>
-            <h3 class="text-base font-bold text-slate-900 leading-snug">The layer that makes Sole different from internal practice tools.</h3>
-          </div>
-        </div>
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-pink-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/dashboard-sophia.png" alt="Practice dashboard, reporting and AI insights" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">Practice Dashboard, Reporting &amp; AI Insights</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">Practice health, WIP, profitability, overdue work, AI action signals and management reporting in one view.</p>
-          </article>
-          <article class="bg-white border border-slate-200 rounded-2xl p-3 hover:border-brand-300 hover:shadow-soft transition flex flex-col">
-            <div class="relative h-40 rounded-xl bg-indigo-50 overflow-hidden ring-1 ring-slate-200/60"><img loading="lazy" src="assets/feature-screenshots/welcome-back-login.png" alt="White-label accounting app for SMEs" class="absolute inset-0 w-full h-full object-cover object-left-top" /></div>
-            <h4 class="mt-3 mb-1 px-1 font-bold text-slate-900 text-[14px]">White-Label Accounting App for SMEs</h4>
-            <p class="px-1 text-[12.5px] text-slate-600 leading-relaxed">A firm-branded client app and portal so the client experience stays under your brand, not someone else's.</p>
-          </article>
-        </div>
-      </div>
-
-    </div>
-
-    <p class="mt-12 text-center text-sm text-slate-500">
-      Every workflow included on Scale &amp; above · <a href="pricing.html" class="font-semibold text-brand-600 hover:text-brand-700">See plan-by-plan inclusions →</a>
-    </p>
   </div>
 </section>
 
@@ -1131,13 +889,14 @@
     </div>
 
     <!-- CTA row — above the comparison so users see it first -->
-    <div class="mb-8 max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
-      <a href="#book" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3.5 rounded-lg transition shadow-lift whitespace-nowrap">
+    <div class="mb-8 max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
+      <button type="button" data-tidycal-trigger class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3.5 rounded-lg transition shadow-lift whitespace-nowrap">
         Lock in cohort pricing &mdash; book a June call
         <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
-      </a>
-      <a href="#eoi" class="inline-flex items-center justify-center gap-2 text-slate-700 hover:text-slate-900 font-semibold px-2 py-3.5 transition">
-        Or sign up for pre-release access →
+      </button>
+      <a href="https://api.leadconnectorhq.com/widget/form/REPLACE_WITH_GHL_FORM_ID" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-brand-700 border border-brand-200 hover:border-brand-400 font-bold px-6 py-3.5 rounded-lg transition shadow-soft whitespace-nowrap">
+        Or sign up for pre-release access
+        <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
       </a>
     </div>
 
@@ -1334,343 +1093,366 @@
               <p class="text-xl font-bold mt-1 tabular-nums text-white"><span id="calc-sole">$399</span><span class="text-xs text-slate-400 font-medium">/mo</span></p>
             </div>
           </div>
-          <a href="#book" class="mt-6 w-full inline-flex items-center justify-center gap-2 bg-white text-slate-900 font-bold px-5 py-3.5 rounded-lg hover:bg-slate-100 transition shadow-lg">
+          <button type="button" data-tidycal-trigger class="mt-6 w-full inline-flex items-center justify-center gap-2 bg-white text-slate-900 font-bold px-5 py-3.5 rounded-lg hover:bg-slate-100 transition shadow-lg">
             Lock in cohort pricing
             <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
-          </a>
+          </button>
           <p class="mt-3 text-center text-[11px] text-slate-400">Pre-release cohort: 25% off Year 1, locked for 3 years.</p>
         </div>
       </div>
     </div>
 
     <!-- Pricing tiers -->
-    <div class="mt-14 max-w-5xl mx-auto reveal" data-reveal-delay="150">
-      <div class="text-center mb-8">
-        <h3 class="text-xl font-bold text-slate-900">Plans that grow with your firm</h3>
-        <p class="mt-2 text-sm text-slate-500">All plans include the full SPM platform. Flat-fee monthly — no per-seat counting.</p>
+    <div class="mt-14 max-w-6xl mx-auto reveal" data-reveal-delay="150">
+      <div class="text-center mb-6">
+        <h3 class="text-2xl font-bold text-slate-900">Grow your firm. We scale with you.</h3>
+        <p class="mt-2 text-sm text-slate-500">One proposal covers the whole group. Unlimited value.</p>
       </div>
-      <div class="grid sm:grid-cols-3 gap-4">
+
+      <!-- Billing cycle toggle (visual only) -->
+      <div class="flex items-center justify-center mb-8">
+        <div class="inline-flex items-center bg-slate-100 rounded-full p-1 text-xs font-semibold">
+          <button id="pricing-monthly" type="button" class="px-4 py-1.5 rounded-full bg-white text-slate-900 shadow-sm transition">Monthly</button>
+          <button id="pricing-yearly" type="button" class="px-4 py-1.5 rounded-full text-slate-500 hover:text-slate-700 transition inline-flex items-center gap-1.5">
+            Yearly <span class="inline-flex items-center text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">−20%</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid sm:grid-cols-3 gap-4 lg:gap-5">
 
         <!-- Start -->
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
           <div class="mb-5">
             <p class="text-sm font-bold text-slate-900">Start</p>
-            <div class="flex items-baseline gap-0.5 mt-1.5">
-              <span class="text-3xl font-extrabold text-slate-900 tracking-tight">$399</span>
+            <p class="mt-0.5 text-[11px] text-slate-500">For sole practitioners and small firms.</p>
+            <div class="flex items-baseline gap-0.5 mt-4">
+              <span class="text-4xl font-extrabold text-slate-900 tracking-tight"><span data-price-monthly="399" data-price-yearly="319">$399</span></span>
               <span class="text-xs text-slate-500 font-medium ml-1">/month</span>
             </div>
-            <p class="mt-2.5 text-[12px] text-slate-600 leading-snug">For sole practitioners and small firms taking their practice online — up to 500 active clients.</p>
+            <p class="mt-1 text-[11px] text-slate-400">+ GST · billed monthly</p>
           </div>
-          <ul class="space-y-2 flex-1 mt-1">
-            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Up to 500 active clients</li>
-            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>50 GB document storage</li>
-            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>All 13 platform modules</li>
+
+          <div class="bg-slate-50 rounded-xl px-4 py-3 mb-5">
+            <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Active clients</p>
+            <p class="text-base font-extrabold text-slate-900 mt-0.5">Up to 500</p>
+          </div>
+
+          <ul class="space-y-2 flex-1">
             <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Unlimited staff seats</li>
+            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>50 GB Sole document storage</li>
+            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>All 13 platform modules</li>
             <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Base support included</li>
           </ul>
+
+          <button type="button" data-tidycal-trigger class="mt-6 w-full inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-5 py-3 rounded-lg transition">Start now</button>
         </div>
 
         <!-- Grow — highlighted -->
-        <div class="relative rounded-2xl p-5 flex flex-col text-white shadow-pop" style="background:#191944;">
+        <div class="relative rounded-2xl p-6 flex flex-col text-white shadow-pop" style="background:#191944;">
           <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
             <span class="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] bg-brand-600 text-white px-3 py-1 rounded-full whitespace-nowrap shadow-soft">Most popular</span>
           </div>
           <div class="mb-5 mt-2">
             <p class="text-sm font-bold text-white">Grow</p>
-            <div class="flex items-baseline gap-0.5 mt-1.5">
-              <span class="text-3xl font-extrabold text-white tracking-tight">$1,199</span>
+            <p class="mt-0.5 text-[11px] text-slate-400">For growing firms running their whole practice in one place.</p>
+            <div class="flex items-baseline gap-0.5 mt-4">
+              <span class="text-4xl font-extrabold text-white tracking-tight"><span data-price-monthly="1199" data-price-yearly="959">$1,199</span></span>
               <span class="text-xs text-slate-300 font-medium ml-1">/month</span>
             </div>
-            <p class="mt-2.5 text-[12px] text-slate-300 leading-snug">For growing firms ready to run their whole practice in one place — up to 2,000 active clients.</p>
+            <p class="mt-1 text-[11px] text-slate-400">+ GST · billed monthly</p>
           </div>
-          <ul class="space-y-2 flex-1 mt-1">
-            <li class="flex items-start gap-2 text-[12px] text-slate-200"><svg class="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0"><use href="#i-check"/></svg>Everything in Start, plus</li>
-            <li class="flex items-start gap-2 text-[12px] text-slate-200"><svg class="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0"><use href="#i-check"/></svg>Up to 2,000 active clients</li>
-            <li class="flex items-start gap-2 text-[12px] text-slate-200"><svg class="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0"><use href="#i-check"/></svg>250 GB document storage</li>
+
+          <div class="bg-white/10 border border-white/15 rounded-xl px-4 py-3 mb-5">
+            <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300">Active clients</p>
+            <p class="text-base font-extrabold text-white mt-0.5">Up to 2,000</p>
+          </div>
+
+          <ul class="space-y-2 flex-1">
+            <li class="flex items-start gap-2 text-[12px] text-slate-200"><svg class="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0"><use href="#i-check"/></svg>Unlimited staff seats</li>
+            <li class="flex items-start gap-2 text-[12px] text-slate-200"><svg class="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0"><use href="#i-check"/></svg>250 GB Sole document storage</li>
             <li class="flex items-start gap-2 text-[12px] text-slate-200"><svg class="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0"><use href="#i-check"/></svg>Priority support</li>
             <li class="flex items-start gap-2 text-[12px] text-slate-200"><svg class="w-3.5 h-3.5 text-brand-400 mt-0.5 shrink-0"><use href="#i-check"/></svg>Onboarding specialist</li>
           </ul>
+
+          <button type="button" data-tidycal-trigger class="mt-6 w-full inline-flex items-center justify-center gap-2 bg-white text-slate-900 hover:bg-slate-100 font-semibold text-sm px-5 py-3 rounded-lg transition shadow-sm">Start now</button>
         </div>
 
         <!-- Scale -->
-        <div class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
           <div class="mb-5">
             <p class="text-sm font-bold text-slate-900">Scale</p>
-            <div class="flex items-baseline gap-0.5 mt-1.5">
-              <span class="text-3xl font-extrabold text-slate-900 tracking-tight">$2,399</span>
+            <p class="mt-0.5 text-[11px] text-slate-500">For established multi-partner firms.</p>
+            <div class="flex items-baseline gap-0.5 mt-4">
+              <span class="text-4xl font-extrabold text-slate-900 tracking-tight"><span data-price-monthly="2399" data-price-yearly="1919">$2,399</span></span>
               <span class="text-xs text-slate-500 font-medium ml-1">/month</span>
             </div>
-            <p class="mt-2.5 text-[12px] text-slate-600 leading-snug">For established multi-partner firms managing high client volumes — up to 5,000 active clients.</p>
+            <p class="mt-1 text-[11px] text-slate-400">+ GST · billed monthly</p>
           </div>
-          <ul class="space-y-2 flex-1 mt-1">
-            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Everything in Grow, plus</li>
-            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Up to 5,000 active clients</li>
-            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>1 TB document storage</li>
+
+          <div class="bg-slate-50 rounded-xl px-4 py-3 mb-5">
+            <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Active clients</p>
+            <p class="text-base font-extrabold text-slate-900 mt-0.5">Up to 5,000</p>
+          </div>
+
+          <ul class="space-y-2 flex-1">
+            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Unlimited staff seats</li>
+            <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>1 TB Sole document storage</li>
             <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Dedicated success manager</li>
             <li class="flex items-start gap-2 text-[12px] text-slate-700"><svg class="w-3.5 h-3.5 text-brand-500 mt-0.5 shrink-0"><use href="#i-check"/></svg>Custom integrations</li>
           </ul>
+
+          <button type="button" data-tidycal-trigger class="mt-6 w-full inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-5 py-3 rounded-lg transition">Start now</button>
         </div>
 
       </div>
     </div>
-  </div>
-</section>
 
-<!-- ================================================================ -->
-<!-- 6b. POSITIONING — quadrant diagram + copy                        -->
-<!-- ================================================================ -->
-<section id="positioning" class="py-20 lg:py-24 bg-slate-50 border-y border-slate-200/60">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="grid lg:grid-cols-[1fr_1fr] gap-12 lg:gap-16 items-start">
-
-      <!-- Left: heading + 3 points -->
-      <div class="reveal">
-        <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-5">Positioning</span>
-        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">Why Sole sits where firm control and client value meet.</h2>
-        <p class="mt-4 text-slate-600 leading-relaxed">Most platforms solve one layer of the practice. Sole connects the firm operating model with the client experience, so the firm can manage work, protect quality and create more client value from one connected platform.</p>
-        <div class="mt-8 space-y-3">
-          <div class="flex gap-4 items-start p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-colors">
-            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-brand-600 text-white shrink-0 shadow-soft">
-              <svg class="w-5 h-5"><use href="#i-layers"/></svg>
-            </span>
-            <div class="pt-0.5">
-              <p class="text-sm font-bold text-slate-900 leading-snug">Internal workflow is no longer enough.</p>
-              <p class="mt-1.5 text-sm text-slate-600 leading-relaxed">The next platform shift is a firm-owned client experience that combines workflow, onboarding, AI, payments, finance, review and the client app.</p>
+    <!-- Included in every plan — two-row infinite marquee (lifted from pricing.html) -->
+    <div class="mt-12 max-w-7xl mx-auto reveal" data-reveal-delay="200">
+      <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 mb-4 text-center">Included in every plan — no exceptions</p>
+      <div class="flex flex-col gap-2.5" style="-webkit-mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent); mask-image: linear-gradient(to right, transparent, black 7%, black 93%, transparent);">
+        <!-- Row 1 -->
+        <div class="overflow-hidden">
+          <div class="marquee-track">
+            <div class="flex gap-3 pr-3">
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-receipt"/></svg> Unlimited invoices</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-shield"/></svg> AML risk assessments</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-check"/></svg> Auto-payment reconciliation</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-orange-500 shrink-0"><use href="#i-tag"/></svg> Automatic payment collection</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-violet-500 shrink-0"><use href="#i-users"/></svg> Staff allocations</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-amber-500 shrink-0"><use href="#i-star"/></svg> Automated Google reviews</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-rose-500 shrink-0"><use href="#i-flag"/></svg> Client health on dashboard</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-database"/></svg> All 4 practice dashboards</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-rocket"/></svg> All 13 platform modules</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-leaf"/></svg> Unlimited staff seats</span>
             </div>
-          </div>
-          <div class="flex gap-4 items-start p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-colors">
-            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-brand-600 text-white shrink-0 shadow-soft">
-              <svg class="w-5 h-5"><use href="#i-rocket"/></svg>
-            </span>
-            <div class="pt-0.5">
-              <p class="text-sm font-bold text-slate-900 leading-snug">Sole replaces the stack, then adds the client layer.</p>
-              <p class="mt-1.5 text-sm text-slate-600 leading-relaxed">Not just another practice management subscription. Replaces fragmented operating software and keeps the client relationship connected to the firm.</p>
-            </div>
-          </div>
-          <div class="flex gap-4 items-start p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-colors">
-            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-brand-600 text-white shrink-0 shadow-soft">
-              <svg class="w-5 h-5"><use href="#i-trending"/></svg>
-            </span>
-            <div class="pt-0.5">
-              <p class="text-sm font-bold text-slate-900 leading-snug">Why this matters commercially.</p>
-              <p class="mt-1.5 text-sm text-slate-600 leading-relaxed">Reduce tool sprawl, improve visibility, create a cleaner branded experience — and open the door to advisory, payments, finance and retention opportunities.</p>
+            <div class="flex gap-3 pr-3" aria-hidden="true">
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-receipt"/></svg> Unlimited invoices</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-shield"/></svg> AML risk assessments</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-check"/></svg> Auto-payment reconciliation</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-orange-500 shrink-0"><use href="#i-tag"/></svg> Automatic payment collection</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-violet-500 shrink-0"><use href="#i-users"/></svg> Staff allocations</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-amber-500 shrink-0"><use href="#i-star"/></svg> Automated Google reviews</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-rose-500 shrink-0"><use href="#i-flag"/></svg> Client health on dashboard</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-database"/></svg> All 4 practice dashboards</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-rocket"/></svg> All 13 platform modules</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-leaf"/></svg> Unlimited staff seats</span>
             </div>
           </div>
         </div>
-        <div class="mt-8 flex flex-wrap gap-3">
-          <a href="#book" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm px-5 py-3 rounded-lg transition shadow-soft">Book a walkthrough</a>
-          <a href="#pricing" class="inline-flex items-center gap-2 bg-white text-brand-700 border border-brand-200 hover:border-brand-400 font-semibold text-sm px-5 py-3 rounded-lg transition">See pricing</a>
+        <!-- Row 2 — reversed order, slower speed -->
+        <div class="overflow-hidden">
+          <div class="marquee-track" style="animation-duration: 52s; animation-direction: reverse;">
+            <div class="flex gap-3 pr-3">
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-leaf"/></svg> Unlimited staff seats</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-rocket"/></svg> All 13 platform modules</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-database"/></svg> All 4 practice dashboards</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-rose-500 shrink-0"><use href="#i-flag"/></svg> Client health on dashboard</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-amber-500 shrink-0"><use href="#i-star"/></svg> Automated Google reviews</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-violet-500 shrink-0"><use href="#i-users"/></svg> Staff allocations</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-orange-500 shrink-0"><use href="#i-tag"/></svg> Automatic payment collection</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-check"/></svg> Auto-payment reconciliation</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-shield"/></svg> AML risk assessments</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-receipt"/></svg> Unlimited invoices</span>
+            </div>
+            <div class="flex gap-3 pr-3" aria-hidden="true">
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-leaf"/></svg> Unlimited staff seats</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-rocket"/></svg> All 13 platform modules</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-database"/></svg> All 4 practice dashboards</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-rose-500 shrink-0"><use href="#i-flag"/></svg> Client health on dashboard</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-amber-500 shrink-0"><use href="#i-star"/></svg> Automated Google reviews</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-violet-500 shrink-0"><use href="#i-users"/></svg> Staff allocations</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-orange-500 shrink-0"><use href="#i-tag"/></svg> Automatic payment collection</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-cyan-500 shrink-0"><use href="#i-check"/></svg> Auto-payment reconciliation</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-shield"/></svg> AML risk assessments</span>
+              <span class="inline-flex items-center gap-2 bg-white border border-slate-200 rounded-full px-4 py-2 text-[13px] font-medium text-slate-700 whitespace-nowrap shrink-0"><svg class="w-4 h-4 text-brand-500 shrink-0"><use href="#i-receipt"/></svg> Unlimited invoices</span>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- Right: interactive quadrant diagram -->
-      <div class="reveal" data-reveal-delay="150">
-        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-soft select-none">
-          <div class="relative" style="height:420px;">
+    <!-- Add-ons & Extensions heading (lifted from pricing.html) -->
+    <div id="addons" class="mt-16 max-w-7xl mx-auto reveal" data-reveal-delay="250">
+      <div class="mb-8">
+        <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 leading-tight">Add-ons &amp; Extensions</h2>
+        <p class="mt-2 text-slate-500 text-sm">Stack only what your firm needs on top of any plan. Add it when you need it, drop it any time.</p>
+      </div>
 
-            <!-- Axis labels -->
-            <div class="absolute top-0 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 text-center leading-tight">Higher client value<br/><span class="font-normal normal-case tracking-normal text-slate-400">Revenue, advisory &amp; retention</span></div>
-            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Lower client value</div>
-            <div class="absolute left-0 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 text-center" style="writing-mode:vertical-rl;transform:translateY(-50%) rotate(180deg);line-height:1.3">Fragmented &amp; siloed</div>
-            <div class="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 text-center" style="writing-mode:vertical-rl;transform:translateY(-50%);line-height:1.3">Unified platform</div>
+      <!-- Payment processing — 6 cards (lifted from pricing.html) -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
+        <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+          <div class="flex items-start justify-between mb-4">
+            <span class="w-11 h-11 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-shield"/></svg></span>
+            <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">$4</p><p class="text-[10px] text-slate-500 mt-1">per check</p></div>
+          </div>
+          <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Auto ID verification</h4>
+          <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Identity checks via Document Verification Service, AUSTRAC face match and ABN lookup.</p>
+        </article>
 
-            <!-- Grid lines -->
-            <div class="absolute inset-x-8 inset-y-8">
-              <div class="absolute inset-0 border border-slate-100 rounded-lg"></div>
-              <!-- Vertical centre -->
-              <div class="absolute left-1/2 inset-y-0 border-l border-dashed border-slate-200"></div>
-              <!-- Horizontal centre -->
-              <div class="absolute top-1/2 inset-x-0 border-t border-dashed border-slate-200"></div>
+        <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+          <div class="flex items-start justify-between mb-4">
+            <span class="w-11 h-11 rounded-xl bg-orange-50 text-orange-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-database"/></svg></span>
+            <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">$24</p><p class="text-[10px] text-slate-500 mt-1">/month</p></div>
+          </div>
+          <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Storage pack</h4>
+          <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Add 100 GB of document storage on top of your plan allowance. Australian-region, encrypted at rest.</p>
+        </article>
 
-              <!-- Quadrant labels -->
-              <div class="absolute top-2 left-3 text-[9px] text-slate-300 font-semibold uppercase tracking-wider">Advisory &amp; client platform</div>
-              <div class="absolute top-2 right-3 text-[9px] text-brand-400 font-bold uppercase tracking-wider text-right">Sole territory</div>
-              <div class="absolute bottom-2 left-3 text-[9px] text-slate-300 font-semibold uppercase tracking-wider">Internal tools</div>
-              <div class="absolute bottom-2 right-3 text-[9px] text-slate-300 font-semibold uppercase tracking-wider text-right">Growing platforms</div>
+        <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+          <div class="flex items-start justify-between mb-4">
+            <span class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-users"/></svg></span>
+            <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">$79</p><p class="text-[10px] text-slate-500 mt-1">/month</p></div>
+          </div>
+          <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Additional client block</h4>
+          <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Add 500 active clients on top of your plan limit — ideal for firms growing between tiers.</p>
+        </article>
 
-              <!-- Competitor dots — favicon logos positioned as % of the quadrant area -->
-              <!-- Dext: bottom-left (data capture, fragmented, low client value) -->
-              <div class="quad-dot absolute" style="left:12%;bottom:18%;" data-name="Dext" data-desc="Data capture &amp; bookkeeping automation · Some client comms">
-                <div class="w-9 h-9 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden hover:border-slate-400 hover:shadow-md transition cursor-pointer shadow-soft">
-                  <img src="https://www.google.com/s2/favicons?domain=dext.com&sz=128" class="w-5 h-5 object-contain" alt="Dext" />
+        <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+          <div class="flex items-start justify-between mb-4">
+            <span class="w-11 h-11 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-users"/></svg></span>
+            <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">$5</p><p class="text-[10px] text-slate-500 mt-1">/staff/month</p></div>
+          </div>
+          <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Payroll</h4>
+          <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">STP Phase 2 compliant payroll for your clients' staff — priced per staff member per month.</p>
+        </article>
+
+        <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+          <div class="flex items-start justify-between mb-4">
+            <span class="w-11 h-11 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-receipt"/></svg></span>
+            <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">1.2%</p><p class="text-[10px] text-slate-500 mt-1">+ $0.30</p></div>
+          </div>
+          <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Bank direct debit</h4>
+          <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Collect payments directly from client bank accounts via BECS direct debit.</p>
+        </article>
+
+        <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+          <div class="flex items-start justify-between mb-4">
+            <span class="w-11 h-11 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-tag"/></svg></span>
+            <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">1.2%</p><p class="text-[10px] text-slate-500 mt-1">+ $0.20</p></div>
+          </div>
+          <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Credit card</h4>
+          <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Accept Visa, Mastercard, Google Pay and Apple Pay for client invoices — no monthly gateway fee.</p>
+        </article>
+      </div>
+
+      <!-- Your Branding — full-width purple card -->
+      <div id="addon-branding" class="mt-5 max-w-6xl mx-auto">
+        <div class="relative rounded-2xl overflow-hidden" style="background: linear-gradient(135deg, #1E1B4B 0%, #2D1B69 50%, #1F1A52 100%);">
+          <div class="absolute top-0 right-0 w-72 h-72 rounded-full blur-3xl opacity-20 -translate-y-1/3 translate-x-1/4" style="background: #7C3AED;"></div>
+          <div class="grid md:grid-cols-[1fr_1.2fr] gap-0">
+            <div class="p-8 lg:p-10 text-white">
+              <p class="text-sm text-violet-200 leading-relaxed mb-6">If you want full brand control across the practice platform and the client app, we can configure a branded deployment for your firm.</p>
+              <p class="text-sm text-violet-200 leading-relaxed">What this gets you is a tailored practice management software in your branding, your client portal is in your brand and you can sell an accounting application under your brand (or powered by Sole if you prefer).</p>
+              <p class="mt-8 text-xs text-violet-300"><button type="button" data-tidycal-trigger class="underline hover:text-violet-100 transition font-semibold">Contact us</button> to discuss rollout options and timelines.</p>
+            </div>
+            <div class="bg-white/[0.05] border-l border-white/10 p-8 lg:p-10">
+              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-300 mb-5">Branding pricing</p>
+              <div class="space-y-4">
+                <div class="bg-white/[0.08] border border-white/10 rounded-xl p-5">
+                  <p class="text-base font-bold text-white">Establishment fee</p>
+                  <p class="text-xs text-violet-200 mt-1">Once-off. Covers branded deployment configuration, custom domain, login screens, and launch checklist. Contact us for current pricing.</p>
                 </div>
-              </div>
-              <!-- MYOB: bottom-right (accounting, more unified, lower client value) -->
-              <div class="quad-dot absolute" style="left:46%;bottom:20%;" data-name="MYOB" data-desc="Accounting &amp; compliance, limited client management">
-                <div class="w-9 h-9 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden hover:border-slate-400 hover:shadow-md transition cursor-pointer shadow-soft">
-                  <img src="https://www.google.com/s2/favicons?domain=myob.com&sz=128" class="w-5 h-5 object-contain" alt="MYOB" />
-                </div>
-              </div>
-              <!-- FYI Elite: center-right (document workflows, mid client value) -->
-              <div class="quad-dot absolute" style="left:52%;top:56%;" data-name="FYI Elite" data-desc="Document management &amp; practice workflows, no client platform">
-                <div class="w-9 h-9 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden hover:border-slate-400 hover:shadow-md transition cursor-pointer shadow-soft">
-                  <img src="https://www.google.com/s2/favicons?domain=fyidocs.com&sz=128" class="w-5 h-5 object-contain" alt="FYI Elite" />
-                </div>
-              </div>
-              <!-- Karbon: left-center (strong workflows, fragmented, mid client value) -->
-              <div class="quad-dot absolute" style="left:22%;top:34%;" data-name="Karbon" data-desc="Strong workflows &amp; billing, limited client-facing layer">
-                <div class="w-9 h-9 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden hover:border-slate-400 hover:shadow-md transition cursor-pointer shadow-soft">
-                  <img src="https://www.google.com/s2/favicons?domain=karbonhq.com&sz=128" class="w-5 h-5 object-contain" alt="Karbon" />
-                </div>
-              </div>
-              <!-- Cone: upper-left (proposals + practice mgmt, fragmented) -->
-              <div class="quad-dot absolute" style="left:28%;top:24%;" data-name="Cone" data-desc="Practice management &amp; proposals, early-stage platform">
-                <div class="w-9 h-9 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden hover:border-slate-400 hover:shadow-md transition cursor-pointer shadow-soft">
-                  <img src="https://www.google.com/s2/favicons?domain=cone.is&sz=128" class="w-5 h-5 object-contain" alt="Cone" />
-                </div>
-              </div>
-              <!-- Ignition: upper-left (proposals/billing, high client value focus, narrow scope) -->
-              <div class="quad-dot absolute" style="left:10%;top:20%;" data-name="Ignition" data-desc="Proposals, billing &amp; client payments · No firm-wide operating model">
-                <div class="w-9 h-9 rounded-full bg-white border-2 border-orange-200 flex items-center justify-center overflow-hidden hover:border-orange-400 hover:shadow-md transition cursor-pointer shadow-soft">
-                  <img src="https://www.google.com/s2/favicons?domain=ignitionapp.com&sz=128" class="w-5 h-5 object-contain" alt="Ignition" />
-                </div>
-              </div>
-              <!-- TaxDome: upper-right area (client portal + tax, strong client layer) -->
-              <div class="quad-dot absolute" style="left:60%;top:14%;" data-name="TaxDome" data-desc="Client portal &amp; tax workflow · Stronger client layer, limited AU compliance depth">
-                <div class="w-9 h-9 rounded-full bg-white border-2 border-slate-200 flex items-center justify-center overflow-hidden hover:border-slate-400 hover:shadow-md transition cursor-pointer shadow-soft">
-                  <img src="https://www.google.com/s2/favicons?domain=taxdome.com&sz=128" class="w-5 h-5 object-contain" alt="TaxDome" />
-                </div>
-              </div>
-              <!-- Sole: top-right — highlighted -->
-              <div class="quad-dot absolute" style="right:6%;top:6%;" data-name="Sole Practice Manager" data-desc="Full operating model + firm-owned client experience · AI inside the work · Built for Australian firms">
-                <div class="relative w-12 h-12 rounded-full flex items-center justify-center cursor-pointer">
-                  <div class="absolute inset-0 rounded-full bg-brand-600 opacity-20 animate-ping" style="animation-duration:2.5s;"></div>
-                  <div class="relative w-12 h-12 rounded-full bg-brand-600 flex items-center justify-center shadow-lift hover:bg-brand-700 transition">
-                    <span class="text-[9px] font-extrabold text-white tracking-tight">Sole</span>
+                <div class="bg-white/[0.08] border border-white/10 rounded-xl p-5">
+                  <div class="flex items-start justify-between gap-4">
+                    <div>
+                      <p class="text-base font-bold text-white">Client app licence</p>
+                      <p class="text-xs text-violet-200 mt-1">Per user of your branded accounting app — full access and features. Annual billing, 20% off not applied.</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                      <p class="text-2xl font-extrabold text-white tabular-nums leading-none">$24.99</p>
+                      <p class="text-[10px] text-violet-300 mt-1">+ GST · per user/mo</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <!-- Tooltip -->
-            <div id="quad-tooltip" class="hidden absolute z-10 bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-pop max-w-[180px] leading-snug pointer-events-none">
-              <p class="font-bold mb-0.5" id="quad-tooltip-name"></p>
-              <p class="text-slate-300" id="quad-tooltip-desc"></p>
-            </div>
           </div>
-
-          <p class="mt-4 text-center text-[10px] text-slate-400">Hover any dot to see where each platform plays · Sole positioned top-right by design</p>
         </div>
       </div>
+
+      <!-- Enterprise — dark bottom band -->
+      <div class="mt-8 max-w-6xl mx-auto bg-slate-900 rounded-2xl p-7 lg:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-5">
+          <span class="w-12 h-12 rounded-xl bg-white/10 text-white flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5"><use href="#i-database"/></svg>
+          </span>
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-0.5">More than 5,000 clients? Group of practices?</p>
+            <h4 class="text-base font-bold text-white">Enterprise — built around your structure</h4>
+            <p class="text-sm text-slate-400 mt-1">Volume pricing, custom contracts, white-glove migration, and named SLAs.</p>
+          </div>
+        </div>
+        <button type="button" data-tidycal-trigger class="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-5 py-3 rounded-lg transition whitespace-nowrap">
+          Talk to us
+          <svg class="w-3.5 h-3.5"><use href="#i-arrow-right"/></svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Monthly / yearly toggle behaviour -->
+  <script>
+    (function () {
+      const monthlyBtn = document.getElementById('pricing-monthly');
+      const yearlyBtn = document.getElementById('pricing-yearly');
+      if (!monthlyBtn || !yearlyBtn) return;
+      const priceEls = document.querySelectorAll('[data-price-monthly]');
+      function setCycle(cycle) {
+        const isYearly = cycle === 'yearly';
+        priceEls.forEach(function (el) {
+          const v = isYearly ? el.getAttribute('data-price-yearly') : el.getAttribute('data-price-monthly');
+          el.textContent = '$' + Number(v).toLocaleString('en-AU');
+        });
+        [monthlyBtn, yearlyBtn].forEach(function (b) {
+          b.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+          b.classList.add('text-slate-500');
+        });
+        const active = isYearly ? yearlyBtn : monthlyBtn;
+        active.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+        active.classList.remove('text-slate-500');
+      }
+      monthlyBtn.addEventListener('click', function () { setCycle('monthly'); });
+      yearlyBtn.addEventListener('click', function () { setCycle('yearly'); });
+    })();
+  </script>
+</section>
+
+<!-- ================================================================ -->
+<!-- 6b. POSITIONING — vertical layout with SWOT placeholder (no 3pts) -->
+<!-- ================================================================ -->
+<section id="positioning" class="py-20 lg:py-24 bg-slate-50 border-y border-slate-200/60">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- Heading / copy stacked on top -->
+    <div class="text-center max-w-3xl mx-auto mb-12 reveal">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-5">Positioning</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">Why Sole sits where firm control and client value meet.</h2>
+      <p class="mt-4 text-slate-600 leading-relaxed">Most platforms solve one layer of the practice. Sole connects the firm operating model with the client experience, so the firm can manage work, protect quality and create more client value from one connected platform.</p>
+    </div>
+
+    <!-- SWOT image placeholder — replace with SWOT graphic when ready -->
+    <div class="bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center py-24 px-8 text-center gap-4 reveal" data-reveal-delay="100">
+      <svg class="w-12 h-12 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
+      <p class="text-lg font-bold text-slate-400">SWOT Analysis Image</p>
+      <p class="text-sm text-slate-400 max-w-sm">Replace this placeholder with the Sole SWOT graphic once it's ready. Keep the same section wrapper and heading.</p>
+    </div>
+
+    <!-- CTAs -->
+    <div class="mt-8 flex flex-wrap justify-center gap-3 reveal" data-reveal-delay="150">
+      <button type="button" data-tidycal-trigger class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm px-5 py-3 rounded-lg transition shadow-soft">Book a walkthrough</button>
+      <a href="#pricing" class="inline-flex items-center gap-2 bg-white text-brand-700 border border-brand-200 hover:border-brand-400 font-semibold text-sm px-5 py-3 rounded-lg transition">See pricing</a>
     </div>
   </div>
 </section>
-
-<script>
-  (function () {
-    const dots = document.querySelectorAll('.quad-dot');
-    const tooltip = document.getElementById('quad-tooltip');
-    const tName = document.getElementById('quad-tooltip-name');
-    const tDesc = document.getElementById('quad-tooltip-desc');
-    dots.forEach(function (dot) {
-      dot.addEventListener('mouseenter', function (e) {
-        tName.textContent = dot.dataset.name;
-        tDesc.textContent = dot.dataset.desc;
-        tooltip.classList.remove('hidden');
-        positionTooltip(e);
-      });
-      dot.addEventListener('mousemove', positionTooltip);
-      dot.addEventListener('mouseleave', function () { tooltip.classList.add('hidden'); });
-    });
-    function positionTooltip(e) {
-      var container = tooltip.parentElement;
-      var rect = container.getBoundingClientRect();
-      var x = e.clientX - rect.left + 14;
-      var y = e.clientY - rect.top - 36;
-      if (x + 190 > rect.width) x = e.clientX - rect.left - 194;
-      tooltip.style.left = x + 'px';
-      tooltip.style.top = y + 'px';
-    }
-  })();
-</script>
 
 <!-- ================================================================ -->
 <!-- 9. SOCIAL PROOF / TESTIMONIALS — LIFTED from landing              -->
 <!-- ================================================================ -->
 <section class="py-20 lg:py-24 bg-slate-50 border-y border-slate-200/60 overflow-hidden">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
-    <!-- Stat band -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16 max-w-5xl mx-auto reveal">
-      <div class="text-center">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">50+</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Australian firms onboarded</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">12,400+</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Clients managed on Sole</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">$4.2M</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Tool spend saved annually</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums inline-flex items-center justify-center gap-2">
-          4.9
-          <svg class="w-9 h-9 md:w-10 md:h-10 text-amber-400 drop-shadow-sm"><use href="#i-star"/></svg>
-        </p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Customer review score</p>
-      </div>
-    </div>
-
-    <div class="max-w-2xl mx-auto text-center mb-10 reveal" data-reveal-delay="100">
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">What Australian firms are saying</h2>
-      <p class="mt-3 text-slate-600">Real teams. Real outcomes. Real Aussie firms.</p>
-    </div>
-
-    <!-- Marquee testimonials -->
-    <div id="testimonial-marquee" class="relative -mx-4 sm:-mx-6 lg:-mx-8 mb-14" style="-webkit-mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%); mask-image: linear-gradient(to right, transparent 0, black 6%, black 94%, transparent 100%);">
-      <div id="testimonial-track" class="flex gap-5 py-3 will-change-transform" style="width: max-content;">
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"The migration was painless. They moved everything over a weekend and we were live on Monday. Three tools down to one — the team noticed by Wednesday."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=5" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Megan Thornton</p><p class="text-xs text-slate-500">Director, Thornton Advisory · Melbourne</p></div>
-          </div>
-        </article>
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"Finally we can see capacity across the whole team in one view. Smart allocate has saved us hours every Monday — and helped us spot a senior who was actually underloaded."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=12" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">David Reynolds</p><p class="text-xs text-slate-500">Ops Manager, Reynolds &amp; Hart · Brisbane</p></div>
-          </div>
-        </article>
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"White-label portal means clients only ever see our brand. They think we built it. A cleaner experience for them, no awkward third-party logins for us."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=44" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Priya Nair</p><p class="text-xs text-slate-500">Founder, North Star Bookkeeping · Perth</p></div>
-          </div>
-        </article>
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"BAS week used to be chaos. Now the team just sees what's due and Sole drafts most of it. We've reclaimed three days a quarter, easy."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=33" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Liam O'Connor</p><p class="text-xs text-slate-500">Partner, O'Connor Tax · Adelaide</p></div>
-          </div>
-        </article>
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"Onboarding a new client used to mean four tools and a week of chasing. Now it's a single workflow and we're often done in 48 hours."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=29" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">Hannah Park</p><p class="text-xs text-slate-500">Director, Park &amp; Levy CPAs · Sydney</p></div>
-          </div>
-        </article>
-        <article class="testimonial-card w-[340px] sm:w-[380px] shrink-0 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col">
-          <div class="flex gap-0.5 text-amber-400 mb-4"><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg></div>
-          <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">"Support is the difference. I email at 4pm AEST and have a useful reply by 4:14pm — from someone who knows what a Div 7A loan looks like."</blockquote>
-          <div class="mt-5 pt-5 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="https://i.pravatar.cc/120?img=68" class="w-11 h-11 rounded-full object-cover" alt="" />
-            <div><p class="font-semibold text-sm text-slate-900">James Whitfield</p><p class="text-xs text-slate-500">Director, Accountants Direct · Melbourne</p></div>
-          </div>
-        </article>
-      </div>
-    </div>
 
     <!-- Featured customer story -->
     <div class="max-w-5xl mx-auto reveal">
@@ -1704,12 +1486,12 @@
 
         <div class="p-7 md:p-9 flex flex-col justify-center">
           <svg class="w-9 h-9 text-brand-200" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M9.667 8C5.985 8 3 10.985 3 14.667v9.333h9.333v-9.333H6.667c0-1.657 1.343-3 3-3v-3.667zm14 0c-3.682 0-6.667 2.985-6.667 6.667v9.333h9.333v-9.333H20c0-1.657 1.343-3 3-3v-3.667z"/></svg>
-          <blockquote class="mt-3 text-lg md:text-xl font-medium text-slate-800 leading-snug">After trialling various practice management options for over a year, SPM is the best and most cost-effective solution on the market. <span class="text-slate-500">A user-friendly one-stop platform that helps us convert more leads, streamline onboarding, and improve communication.</span></blockquote>
+          <blockquote class="mt-3 text-lg md:text-xl font-medium text-slate-800 leading-snug">After trialling various practice management options for over a year, SPM is the best and most cost-effective solution on the market. <span class="text-slate-700">A user-friendly one-stop platform that helps us convert more leads, streamline onboarding, and improve communication.</span></blockquote>
           <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
             <img loading="lazy" src="assets/stephen-burns.png" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100" style="object-position:center 15%;" alt="Stephen Burns" />
             <div>
               <p class="text-sm font-semibold text-slate-900">Stephen Burns</p>
-              <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Melbourne</p>
+              <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Gold Coast</p>
             </div>
           </div>
         </div>
@@ -1843,10 +1625,10 @@
 
     <!-- Final CTA strip -->
     <div class="mt-12 flex flex-col sm:flex-row gap-3 justify-center reveal" data-reveal-delay="300">
-      <a href="#book" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold uppercase tracking-wider text-xs px-6 py-3.5 rounded-lg transition shadow-lift">
+      <button type="button" data-tidycal-trigger class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold uppercase tracking-wider text-xs px-6 py-3.5 rounded-lg transition shadow-lift">
         <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
         Book a June discovery call
-      </a>
+      </button>
       <a href="#eoi" class="inline-flex justify-center items-center gap-2 bg-white text-brand-700 border border-brand-200 hover:border-brand-400 font-semibold text-sm px-6 py-3.5 rounded-lg transition shadow-soft">
         Sign up for Pre-Release Access
       </a>
@@ -1883,10 +1665,10 @@
             <li class="flex items-center gap-3 text-sm text-slate-200"><svg class="w-4 h-4 text-brand-400 shrink-0"><use href="#i-check-thin"/></svg>Staff onboarding, training and support calls</li>
           </ul>
           <div class="mt-7">
-            <a href="#book" class="inline-flex items-center gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-sm px-6 py-3.5 rounded-lg transition shadow-lg">
+            <button type="button" data-tidycal-trigger class="inline-flex items-center gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-sm px-6 py-3.5 rounded-lg transition shadow-lg">
               Book a June product walkthrough
               <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
-            </a>
+            </button>
           </div>
         </div>
         <div class="text-center lg:text-right shrink-0">
@@ -1918,10 +1700,10 @@
 
     <!-- CTAs -->
     <div class="mt-10 flex flex-col sm:flex-row gap-3 justify-center reveal" data-reveal-delay="300">
-      <a href="#book" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm px-6 py-3.5 rounded-lg transition shadow-lift">
+      <button type="button" data-tidycal-trigger class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm px-6 py-3.5 rounded-lg transition shadow-lift">
         Book a June product walkthrough
         <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
-      </a>
+      </button>
       <a href="#pricing" class="inline-flex justify-center items-center gap-2 bg-white text-brand-700 border border-brand-200 hover:border-brand-400 font-semibold text-sm px-6 py-3.5 rounded-lg transition">See pricing</a>
     </div>
 
@@ -1960,13 +1742,13 @@
     </div>
 
     <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center reveal" data-reveal-delay="400">
-      <a href="#book" class="inline-flex justify-center items-center gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold px-6 py-4 rounded-lg transition shadow-lg">
+      <button type="button" data-tidycal-trigger class="inline-flex justify-center items-center gap-2 bg-white text-slate-900 hover:bg-slate-100 font-bold px-6 py-4 rounded-lg transition shadow-lg">
         Book a June discovery call
         <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
-      </a>
-      <a href="#book" class="inline-flex justify-center items-center gap-2 bg-white/10 text-white border border-white/20 hover:border-white/40 font-semibold px-6 py-4 rounded-lg transition">
+      </button>
+      <button type="button" data-tidycal-trigger class="inline-flex justify-center items-center gap-2 bg-white/10 text-white border border-white/20 hover:border-white/40 font-semibold px-6 py-4 rounded-lg transition">
         Sign up for Pre-Release Access
-      </a>
+      </button>
     </div>
   </div>
 </section>
@@ -1974,77 +1756,15 @@
 <!-- ================================================================ -->
 <!-- FOOTER — LIFTED verbatim from landing.html                         -->
 <!-- ================================================================ -->
-<footer class="bg-slate-950 text-slate-400 border-t border-white/5 pt-16 pb-10 text-sm">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="grid lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-10 pb-12 border-b border-white/10">
-      <div>
-        <a href="landing.html" class="flex items-baseline gap-2">
-          <span class="text-2xl font-extrabold text-white">Sole</span>
-          <span class="text-xs text-slate-500 uppercase tracking-[0.15em] font-medium">Practice Manager</span>
-        </a>
-        <p class="mt-4 text-xs leading-relaxed text-slate-400 max-w-xs">
-          Practice management software built for Australian accounting firms and bookkeepers. Made in Australia. ABN Network partner.
-        </p>
-        <div class="mt-5 flex items-center gap-3">
-          <a href="#" class="w-8 h-8 rounded-md border border-white/10 flex items-center justify-center hover:bg-white/5 transition" aria-label="LinkedIn">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14C2.24 0 0 2.24 0 5v14c0 2.76 2.24 5 5 5h14c2.76 0 5-2.24 5-5V5c0-2.76-2.24-5-5-5zM8 19H5V8h3v11zM6.5 6.732c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zM20 19h-3v-5.604c0-3.368-4-3.113-4 0V19h-3V8h3v1.765c1.396-2.586 7-2.777 7 2.476V19z"/></svg>
-          </a>
-          <a href="#" class="w-8 h-8 rounded-md border border-white/10 flex items-center justify-center hover:bg-white/5 transition" aria-label="Twitter">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-          </a>
-        </div>
+<footer class="bg-slate-950 text-slate-400 border-t border-white/5 py-10 text-sm">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div class="flex items-baseline gap-2">
+        <span class="text-lg font-extrabold text-white">Sole</span>
+        <span class="text-[10px] text-slate-500 uppercase tracking-[0.15em] font-medium">Practice Manager</span>
       </div>
-
-      <div>
-        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">Product</p>
-        <ul class="space-y-2.5 text-xs">
-          <li><a href="#product" class="hover:text-white transition">Client management</a></li>
-          <li><a href="#product" class="hover:text-white transition">Staff &amp; scheduling</a></li>
-          <li><a href="#product" class="hover:text-white transition">Onboarding &amp; KYC</a></li>
-          <li><a href="#product" class="hover:text-white transition">Reporting &amp; insights</a></li>
-          <li><a href="#product" class="hover:text-white transition">White label</a></li>
-          <li><a href="pricing.html" class="hover:text-white transition">Pricing</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">For</p>
-        <ul class="space-y-2.5 text-xs">
-          <li><a href="landing.html#audience" class="hover:text-white transition">Accounting firms</a></li>
-          <li><a href="landing.html#audience" class="hover:text-white transition">Bookkeepers</a></li>
-          <li><a href="landing.html#audience" class="hover:text-white transition">BAS agents</a></li>
-          <li><a href="landing.html#audience" class="hover:text-white transition">Sole practitioners</a></li>
-          <li><a href="landing.html#audience" class="hover:text-white transition">Multi-partner firms</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">Company</p>
-        <ul class="space-y-2.5 text-xs">
-          <li><a href="#" class="hover:text-white transition">About</a></li>
-          <li><a href="#" class="hover:text-white transition">Customers</a></li>
-          <li><a href="#" class="hover:text-white transition">Roadmap</a></li>
-          <li><a href="#" class="hover:text-white transition">Careers</a></li>
-          <li><a href="#" class="hover:text-white transition">Contact</a></li>
-        </ul>
-      </div>
-
-      <div>
-        <p class="text-xs font-semibold text-white mb-4 uppercase tracking-wider">Resources</p>
-        <ul class="space-y-2.5 text-xs">
-          <li><a href="#" class="hover:text-white transition">Help centre</a></li>
-          <li><a href="#" class="hover:text-white transition">Migration guides</a></li>
-          <li><a href="#" class="hover:text-white transition">ATO &amp; compliance</a></li>
-          <li><a href="#" class="hover:text-white transition">Privacy</a></li>
-          <li><a href="#" class="hover:text-white transition">Security</a></li>
-          <li><a href="#" class="hover:text-white transition">Terms</a></li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-      <p>© 2026 Sole Practice Manager Pty Ltd · ABN 12 345 678 901 · Made in Sydney</p>
-      <p>Endorsed by the Australian Bookkeepers Network</p>
+      <p>© 2026 Sole Practice Manager Pty Ltd · Made in Gold Coast, Australia</p>
+      <button type="button" data-tidycal-trigger class="text-brand-300 font-semibold hover:text-brand-200 transition">Book a call →</button>
     </div>
   </div>
 </footer>
@@ -2182,7 +1902,7 @@
         const ac = ACCENT[x.dataset.accent] || ACCENT.brand;
         const iconWrap = x.querySelector('.tab-icon');
         const fill = x.querySelector('.tab-progress');
-        x.classList.remove(...ALL_TEXT, 'font-semibold');
+        x.classList.remove('bg-white', 'shadow-sm', ...ALL_TEXT, 'font-semibold');
         x.classList.add('text-slate-500', 'font-medium');
         if (iconWrap) {
           iconWrap.classList.remove(...ALL_ICON, 'text-white');
@@ -2191,7 +1911,7 @@
         if (fill) fill.style.transform = 'scaleX(0)';
         if (i === idx) {
           x.classList.remove('text-slate-500', 'font-medium');
-          x.classList.add(ac.text, 'font-semibold');
+          x.classList.add('bg-white', 'shadow-sm', ac.text, 'font-semibold');
           if (iconWrap) {
             iconWrap.classList.remove('bg-slate-100', 'text-slate-500');
             iconWrap.classList.add(ac.icon, 'text-white');
@@ -2361,6 +2081,72 @@
     el.appendChild(d);
   });
 })();
+</script>
+
+<!-- ================================================================ -->
+<!-- TidyCal booking modal — opened by any [data-tidycal-trigger]     -->
+<!-- ================================================================ -->
+<div id="tidycal-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4" aria-hidden="true" role="dialog" aria-labelledby="tidycal-title">
+  <div class="relative w-full max-w-3xl h-[85vh] max-h-[760px] bg-white rounded-2xl shadow-pop overflow-hidden flex flex-col">
+    <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-md bg-brand-600 text-white flex items-center justify-center"><svg class="w-3.5 h-3.5"><use href="#i-calendar"/></svg></span>
+        <p id="tidycal-title" class="text-sm font-bold text-slate-900">Book your June discovery call</p>
+      </div>
+      <button type="button" id="tidycal-close" class="w-8 h-8 rounded-md hover:bg-slate-100 text-slate-500 flex items-center justify-center transition" aria-label="Close booking modal">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <iframe
+      id="tidycal-frame"
+      src="about:blank"
+      title="Book a discovery call with Sole"
+      class="flex-1 w-full bg-white"
+      frameborder="0"></iframe>
+  </div>
+</div>
+
+<script>
+  /* TidyCal modal — opens for any element with [data-tidycal-trigger].
+     Replace TIDYCAL_BOOKING_URL with the real TidyCal embed URL when ready. */
+  (function () {
+    const TIDYCAL_BOOKING_URL = 'https://tidycal.com/sole-practice/june-discovery';
+    const modal = document.getElementById('tidycal-modal');
+    const frame = document.getElementById('tidycal-frame');
+    const closeBtn = document.getElementById('tidycal-close');
+    if (!modal || !frame || !closeBtn) return;
+
+    function open() {
+      // Lazy-load the iframe so it doesn't fetch until first open
+      if (frame.src === 'about:blank' || frame.src === window.location.href) {
+        frame.src = TIDYCAL_BOOKING_URL;
+      }
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('[data-tidycal-trigger]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        open();
+      });
+    });
+    closeBtn.addEventListener('click', close);
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) close();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+    });
+  })();
 </script>
 
 </body>
