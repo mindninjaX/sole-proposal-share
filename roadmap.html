@@ -68,6 +68,18 @@
     .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
     @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
     .floaty { animation: floaty 6s ease-in-out infinite; }
+    /* Scroll-reveal — fade-up as content enters viewport (lifted from eoi.html) */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+    .reveal.reveal-in { opacity: 1; transform: translateY(0); }
+    .reveal[data-reveal-delay="100"] { transition-delay: 0.10s; }
+    .reveal[data-reveal-delay="200"] { transition-delay: 0.20s; }
+    .reveal[data-reveal-delay="300"] { transition-delay: 0.30s; }
+    .reveal[data-reveal-delay="400"] { transition-delay: 0.40s; }
+    .reveal[data-reveal-delay="500"] { transition-delay: 0.55s; }
+    .reveal[data-reveal-delay="600"] { transition-delay: 0.70s; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal.reveal-in { opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
     /* dotted background for the timeline rail */
     .rail-dots {
       background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
@@ -134,7 +146,7 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <a href="landing.html" class="flex items-center" aria-label="Sole Practice Manager — home">
-        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-20 w-auto" />
+        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-12 w-auto" />
       </a>
       <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
         <a href="landing.html#product" class="hover:text-slate-900 transition">Product</a>
@@ -160,7 +172,7 @@
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
-      <div>
+      <div class="reveal">
         <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full">
           <span class="w-1.5 h-1.5 rounded-full bg-brand-500 pulse-dot"></span>
           Public product roadmap
@@ -175,28 +187,12 @@
           Our current focus and future considerations are shaped by feedback from real Australian firms — your votes decide what we build next.
         </p>
 
-        <!-- meta strip: counts -->
-        <div class="mt-7 flex flex-wrap items-center gap-2.5">
-          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-soft">
-            <svg class="w-3.5 h-3.5 text-brand-600"><use href="#i-sparkles"/></svg>
-            <span class="tabular-nums font-semibold text-slate-900">23</span> in progress
-          </span>
-          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-soft">
-            <svg class="w-3.5 h-3.5 text-emerald-600"><use href="#i-check"/></svg>
-            <span class="tabular-nums font-semibold text-slate-900">142</span> shipped
-          </span>
-          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-full px-3 py-1.5 shadow-soft">
-            <svg class="w-3.5 h-3.5 text-amber-500"><use href="#i-thumb"/></svg>
-            <span class="tabular-nums font-semibold text-slate-900">3,418</span> votes counted
-          </span>
-        </div>
-
         <div class="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
           <a href="#request" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3.5 rounded-lg transition shadow-lift">
             Request a feature
             <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
           </a>
-          <a href="#building" class="inline-flex justify-center items-center gap-2.5 text-slate-700 hover:text-slate-900 font-medium px-5 py-3.5 transition bg-white border border-slate-200 rounded-lg hover:border-slate-300">
+          <a href="#building" class="inline-flex justify-center items-center gap-2.5 text-slate-700 hover:text-slate-900 font-medium px-6 py-3.5 transition bg-white border border-slate-200 rounded-lg hover:border-slate-300">
             <svg class="w-4 h-4 text-brand-600"><use href="#i-thumb"/></svg>
             Vote for a feature
           </a>
@@ -1901,6 +1897,28 @@
     el.appendChild(d);
   });
 })();
+</script>
+
+<script>
+  /* Scroll-reveal — fade-up content as it enters the viewport (respects reduced-motion). Lifted from eoi.html. */
+  (function () {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced || !('IntersectionObserver' in window)) {
+      els.forEach(el => el.classList.add('reveal-in'));
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('reveal-in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.04 });
+    els.forEach(el => io.observe(el));
+  })();
 </script>
 
 </body>

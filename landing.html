@@ -76,6 +76,24 @@
     .floaty { animation: floaty 6s ease-in-out infinite; }
     @keyframes pulseDot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
     .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+    /* Pre-footer dashboard carousel (lifted from bootcamp.html) */
+    @keyframes dashCarousel { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .dash-carousel-strip { display: flex; animation: dashCarousel 20s linear infinite; will-change: transform; }
+    .dash-carousel-strip:hover { animation-play-state: paused; }
+    .dash-carousel-strip img { height: 280px; width: auto; flex-shrink: 0; margin-right: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 28px 60px -20px rgba(74,63,190,0.35); }
+    @media (prefers-reduced-motion: reduce) { .dash-carousel-strip { animation: none; } }
+    /* Scroll-reveal — fade-up as content enters viewport (lifted from eoi.html) */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+    .reveal.reveal-in { opacity: 1; transform: translateY(0); }
+    .reveal[data-reveal-delay="100"] { transition-delay: 0.10s; }
+    .reveal[data-reveal-delay="200"] { transition-delay: 0.20s; }
+    .reveal[data-reveal-delay="300"] { transition-delay: 0.30s; }
+    .reveal[data-reveal-delay="400"] { transition-delay: 0.40s; }
+    .reveal[data-reveal-delay="500"] { transition-delay: 0.55s; }
+    .reveal[data-reveal-delay="600"] { transition-delay: 0.70s; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal.reveal-in { opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
   </style>
 
   <!-- SVG sprite: reusable icons -->
@@ -110,7 +128,7 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <a href="#" class="flex items-center" aria-label="Sole Practice Manager — home">
-        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-20 w-auto" />
+        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-12 w-auto" />
       </a>
       <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
         <a href="#product" class="hover:text-slate-900 transition">Product</a>
@@ -136,7 +154,7 @@
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
-      <div>
+      <div class="reveal">
         <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full">
           <span class="w-1.5 h-1.5 rounded-full bg-brand-500 pulse-dot"></span>
           Built for Australian accounting firms
@@ -173,9 +191,14 @@
         </p>
       </div>
 
-      <!-- Hero video container (poster = dashboard mockup) -->
-      <div class="relative">
-        <div id="hero-video" class="relative bg-white rounded-2xl shadow-lift border border-slate-200 overflow-hidden group" data-video-state="poster">
+      <!-- Hero video container — YouTube placeholder; swap embed URL when the real product tour is recorded -->
+      <div class="relative reveal" data-reveal-delay="200">
+        <div id="hero-video" class="relative bg-white rounded-2xl shadow-lift border border-slate-200 overflow-hidden group aspect-video">
+          <iframe class="absolute inset-0 w-full h-full" src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="Product tour video — placeholder" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+        <!-- ORIGINAL dashboard-mockup poster preserved below for reference; hidden so it doesn't render. Remove once a real video is wired up. -->
+        <div class="hidden" data-original-poster>
+          <div class="relative bg-white rounded-2xl shadow-lift border border-slate-200 overflow-hidden group" data-video-state="poster">
 
           <!-- Real video element — drop a video file URL into <source> when ready -->
           <video class="hidden w-full h-auto" poster="" controls preload="metadata" playsinline>
@@ -320,6 +343,7 @@
             </div>
           </div>
         </div>
+        </div>
 
         <div class="absolute -top-4 -right-4 bg-white shadow-lift rounded-xl px-4 py-3 border border-slate-200 hidden md:block floaty">
           <p class="text-[10px] text-slate-500 uppercase tracking-wider">This month</p>
@@ -373,11 +397,6 @@
           </div>
           <h3 class="text-lg font-bold text-slate-900 leading-snug">Hours lost to routine admin</h3>
           <p class="mt-3 text-sm text-slate-600 leading-relaxed flex-1">Every week, billable staff vanish into data entry, status chasing, and tool switching that shouldn't need a human in the loop.</p>
-          <div class="mt-5 flex items-baseline gap-1">
-            <p class="text-3xl font-extrabold text-slate-900 tabular-nums">~12 hrs</p>
-            <p class="text-sm text-slate-500 font-medium">/staff/wk</p>
-          </div>
-          <p class="mt-1 text-[11px] text-slate-400 italic">Survey of 38 Australian firms, 2025</p>
         </div>
       </div>
 
@@ -392,11 +411,6 @@
           </div>
           <h3 class="text-lg font-bold text-slate-900 leading-snug">Tool chaos across 8–12 apps</h3>
           <p class="mt-3 text-sm text-slate-600 leading-relaxed flex-1">CRM here, scheduler there, KYC somewhere else. Client information lives in silos and nothing tells the whole story.</p>
-          <div class="mt-5 flex items-baseline gap-1">
-            <p class="text-3xl font-extrabold text-slate-900 tabular-nums">$1,510</p>
-            <p class="text-sm text-slate-500 font-medium">avg /mo</p>
-          </div>
-          <p class="mt-1 text-[11px] text-slate-400 italic">Typical 10-person AU firm tool stack, 2025</p>
         </div>
       </div>
 
@@ -411,11 +425,6 @@
           </div>
           <h3 class="text-lg font-bold text-slate-900 leading-snug">Growth without leverage</h3>
           <p class="mt-3 text-sm text-slate-600 leading-relaxed flex-1">More clients should mean more margin — but with legacy tools, more clients just means more headcount and more chaos.</p>
-          <div class="mt-5 flex items-baseline gap-1">
-            <p class="text-3xl font-extrabold text-slate-900 tabular-nums">31%</p>
-            <p class="text-sm text-slate-500 font-medium">lower margin</p>
-          </div>
-          <p class="mt-1 text-[11px] text-slate-400 italic">vs category leaders running modern stacks</p>
         </div>
       </div>
     </div>
@@ -425,7 +434,7 @@
 <!-- 6. PRODUCT -->
 <section id="product" class="py-20 lg:py-24 bg-gradient-to-b from-slate-50 to-white border-y border-slate-200/60">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-10">
+    <div class="max-w-2xl mx-auto text-center mb-10 reveal">
       <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">One platform · 13 workflows</span>
       <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Everything your accounting firm needs, in one place</h2>
       <p class="mt-3 text-slate-600">One subscription replaces the patchwork — without the patchwork pricing.</p>
@@ -810,23 +819,23 @@
 <!-- 8. COMPARISON / SWOT -->
 <section id="compare" class="py-20 lg:py-24 bg-slate-50/80 border-y border-slate-200/60">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-12">
+    <div class="max-w-2xl mx-auto text-center mb-12 reveal">
       <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Why accountants choose Sole</span>
       <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">How Sole compares</h2>
       <p class="mt-3 text-slate-600">See where Sole sits in the market — and what makes it different.</p>
     </div>
 
-    <!-- SWOT image placeholder — replace with SWOT graphic when ready -->
-    <div class="max-w-5xl mx-auto bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center py-24 px-8 text-center gap-4">
-      <svg class="w-12 h-12 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
-      <p class="text-lg font-bold text-slate-400">SWOT Analysis Image</p>
-      <p class="text-sm text-slate-400 max-w-sm">Replace this placeholder with the Sole SWOT graphic once it's ready. Keep the same section wrapper and heading.</p>
+    <!-- SWOT diagram placeholder — replace with real SWOT graphic when ready -->
+    <div class="max-w-5xl mx-auto reveal">
+      <div class="bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center py-24 px-8 text-center gap-4">
+        <svg class="w-12 h-12 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
+        <p class="text-lg font-bold text-slate-400">SWOT diagram coming soon</p>
+        <p class="text-sm text-slate-400 max-w-sm">For a side-by-side capability breakdown vs Karbon, Xero Practice Manager, FYI, MYOB Practice, TaxDome and Cone, see the <a href="sole-vs-others.html" class="text-brand-700 font-semibold hover:text-brand-800 transition">Sole vs Others</a> comparison.</p>
+      </div>
     </div>
-
-    <!-- placeholder end -->
     <div class="mt-8 text-center">
-      <a href="#cta" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-lg transition shadow-lift text-sm">
-        Book a demo to see Sole in action
+      <a href="sole-vs-others.html" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-lg transition shadow-lift text-sm">
+        See how Sole compares
         <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
       </a>
     </div>
@@ -841,8 +850,8 @@
     <div class="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center mb-16">
       <div>
         <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Switching from multiple tools?</span>
-        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Migration support is <span class="text-brand-600">part of the deal</span>.</h2>
-        <p class="mt-4 text-slate-600 leading-relaxed">Consolidating from a patchwork stack is a real undertaking — and we don't pretend otherwise. You get a dedicated migration assistant from day one, and your existing tools stay live throughout. No forced cutover. Just a steady, paced move at a rhythm that makes sense for your practice.</p>
+        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Migration support is <span class="text-brand-600">available to make the switch easy</span>.</h2>
+        <p class="mt-4 text-slate-600 leading-relaxed">Consolidating from a patchwork stack is a real undertaking — and we don't pretend otherwise. Optional migration support is available alongside your subscription: a dedicated specialist plans the move, maps your data, and keeps your existing tools live throughout. No forced cutover. Just a steady, paced switch at a rhythm that makes sense for your practice.</p>
         <div class="mt-6 flex flex-col sm:flex-row gap-3 text-sm text-slate-700">
           <span class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-check-thin"/></svg>Data mapped before you commit</span>
           <span class="flex items-center gap-2"><svg class="w-4 h-4 text-emerald-500 shrink-0"><use href="#i-check-thin"/></svg>Old tools stay live throughout</span>
@@ -913,30 +922,7 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
     <div id="social-proof-unverified">
-    <!-- Stat band — hidden until data is verified; see dev annotation -->
-    <div id="stat-band" class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16 max-w-5xl mx-auto">
-      <div class="text-center">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">50+</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Australian firms onboarded</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">12,400+</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Clients managed on Sole</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums">$4.2M</p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Tool spend saved annually</p>
-      </div>
-      <div class="text-center md:border-l md:border-slate-200">
-        <p class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight tabular-nums inline-flex items-center justify-center gap-2">
-          4.9
-          <svg class="w-9 h-9 md:w-10 md:h-10 text-amber-400 drop-shadow-sm"><use href="#i-star"/></svg>
-        </p>
-        <p class="text-xs text-slate-500 mt-1 font-medium">Customer review score</p>
-      </div>
-    </div>
-
-    <div class="max-w-2xl mx-auto text-center mb-10">
+    <div class="max-w-2xl mx-auto text-center mb-10 reveal">
       <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">What Australian firms are saying</h2>
       <p class="mt-3 text-slate-600">Real teams. Real outcomes. Real Aussie firms.</p>
     </div>
@@ -1039,7 +1025,7 @@
             <img loading="lazy" src="assets/stephen-burns.png" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100" style="object-position:center 15%;" alt="Stephen Burns" />
             <div>
               <p class="text-sm font-semibold text-slate-900">Stephen Burns</p>
-              <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Melbourne</p>
+              <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Gold Coast</p>
             </div>
           </div>
         </div>
@@ -1342,7 +1328,7 @@
           <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
         </summary>
         <div class="px-6 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
-          30-day free trial on every plan, no credit card required. After that, we bill monthly — <strong>no annual lock-in</strong>. Cancel anytime, and we'll help you export your data.
+          30-day free trial on every plan, no credit card required. After that, we bill monthly — <strong>no annual lock-in</strong>. Cancel anytime, and we'll help you export your data. Annual pricing locks in for 12 months; cancel after the first month and we'll refund the rest.
         </div>
       </details>
     </div>
@@ -1353,69 +1339,49 @@
   </div>
 </section>
 
-<!-- 14. FINAL CTA -->
-<section id="cta" class="bg-slate-950 text-white py-20 lg:py-28 relative overflow-hidden">
+<!-- 14. FINAL CTA — canonical pre-footer pattern (matches features/bootcamp/pricing/sole-vs-others) -->
+<section id="cta" class="bg-slate-950 text-white py-20 lg:py-24 relative overflow-hidden">
   <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-brand-600 rounded-full blur-[140px] opacity-25 -translate-y-1/2 translate-x-1/4"></div>
   <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500 rounded-full blur-[140px] opacity-15 translate-y-1/2 -translate-x-1/4"></div>
   <div class="absolute inset-0 grain-dark opacity-30"></div>
 
-  <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-    <h2 class="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.05]">
-      Ready to consolidate<br class="hidden sm:block" /> your stack?
-    </h2>
-    <p class="mt-6 text-lg text-slate-300 max-w-xl mx-auto leading-relaxed">
-      We'll handle the migration. Your team can be live on Sole with real Aussie support from day one.
-    </p>
-    <div class="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
-      <a href="#" class="inline-flex items-center justify-center gap-2 bg-white text-slate-900 font-bold px-8 py-4 rounded-lg hover:bg-slate-100 transition shadow-xl">
-        Book a demo
-        <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
-      </a>
-      <a href="#" class="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-white border border-white/15 font-semibold px-8 py-4 rounded-lg transition">
-        Start free 30-day trial
-      </a>
-      <a href="#" class="inline-flex items-center text-white/80 hover:text-white font-medium transition">
-        Talk to a founder →
-      </a>
-    </div>
-    <p class="mt-8 text-xs text-slate-400">No credit card required · Free migration support · Cancel anytime</p>
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-16 items-center">
 
-    <div class="mt-14 pt-10 border-t border-white/10 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto text-left">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-          <svg class="w-5 h-5 text-emerald-400"><use href="#i-shield"/></svg>
-        </div>
-        <div>
-          <p class="text-xs font-semibold">Australian hosted</p>
-          <p class="text-[10px] text-slate-400">AWS Sydney region</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-          <svg class="w-5 h-5 text-amber-300"><use href="#i-globe"/></svg>
-        </div>
-        <div>
-          <p class="text-xs font-semibold">Data sovereignty</p>
-          <p class="text-[10px] text-slate-400">Your data stays in AU</p>
+      <!-- Left: infinite dashboard carousel -->
+      <div class="relative h-[360px] lg:h-[420px] overflow-hidden flex items-center reveal">
+        <div class="dash-carousel-strip">
+          <img src="assets/dashboard-practice.png" alt="Practice Dashboard" loading="lazy" />
+          <img src="assets/dashboard-helicopter.png" alt="Helicopter View" loading="lazy" />
+          <img src="assets/dashboard-scheduler.png" alt="Staff Scheduler" loading="lazy" />
+          <img src="assets/dashboard-practice.png" alt="" aria-hidden="true" loading="lazy" />
+          <img src="assets/dashboard-helicopter.png" alt="" aria-hidden="true" loading="lazy" />
+          <img src="assets/dashboard-scheduler.png" alt="" aria-hidden="true" loading="lazy" />
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-          <svg class="w-5 h-5 text-brand-300"><use href="#i-check"/></svg>
+
+      <!-- Right: copy + CTAs -->
+      <div class="reveal" data-reveal-delay="200">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-200 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+          Ready when you are
+        </span>
+        <h2 class="mt-5 text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.05]">
+          Ready to consolidate your stack?
+        </h2>
+        <p class="mt-5 text-slate-300 leading-relaxed max-w-lg">
+          Migration support is available to make the switch smooth. Your team can be live on Sole with real Aussie support — no big-bang cutover, no lost data.
+        </p>
+        <div class="mt-7 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <a href="#" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-7 py-3.5 rounded-lg transition shadow-xl">
+            Book a demo
+            <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
+          </a>
+          <a href="#" class="inline-flex items-center justify-center gap-2 text-white/80 hover:text-white font-semibold px-2 py-3.5 transition">
+            Start free 30-day trial →
+          </a>
         </div>
-        <div>
-          <p class="text-xs font-semibold">ATO SBR2</p>
-          <p class="text-[10px] text-slate-400">Registered DSP</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-          <svg class="w-5 h-5 text-orange-300"><use href="#i-users"/></svg>
-        </div>
-        <div>
-          <p class="text-xs font-semibold">ABN partner</p>
-          <p class="text-[10px] text-slate-400">Endorsed by 4,000+ bookkeepers</p>
-        </div>
+        <p class="mt-5 text-xs text-slate-400">No credit card required · Migration support available · Cancel anytime</p>
       </div>
     </div>
   </div>
@@ -1753,6 +1719,28 @@
     el.appendChild(d);
   });
 })();
+</script>
+
+<script>
+  /* Scroll-reveal — fade-up content as it enters the viewport (respects reduced-motion). Lifted from eoi.html. */
+  (function () {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced || !('IntersectionObserver' in window)) {
+      els.forEach(el => el.classList.add('reveal-in'));
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('reveal-in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.04 });
+    els.forEach(el => io.observe(el));
+  })();
 </script>
 
 </body>

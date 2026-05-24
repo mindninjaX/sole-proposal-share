@@ -64,6 +64,18 @@
     .floaty { animation: floaty 6s ease-in-out infinite; }
     @keyframes pulseDot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
     .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+    /* Scroll-reveal — fade-up as content enters viewport (lifted from eoi.html) */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+    .reveal.reveal-in { opacity: 1; transform: translateY(0); }
+    .reveal[data-reveal-delay="100"] { transition-delay: 0.10s; }
+    .reveal[data-reveal-delay="200"] { transition-delay: 0.20s; }
+    .reveal[data-reveal-delay="300"] { transition-delay: 0.30s; }
+    .reveal[data-reveal-delay="400"] { transition-delay: 0.40s; }
+    .reveal[data-reveal-delay="500"] { transition-delay: 0.55s; }
+    .reveal[data-reveal-delay="600"] { transition-delay: 0.70s; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal.reveal-in { opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
 
     /* Comparison toggle */
     .cmp-pill[aria-pressed="true"] { background: white; color: #0F172A; box-shadow: 0 2px 8px -2px rgba(15,23,42,0.18); }
@@ -128,7 +140,7 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <a href="landing.html" class="flex items-center" aria-label="Sole Practice Manager — home">
-        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-20 w-auto" />
+        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-12 w-auto" />
       </a>
       <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
         <a href="landing.html#product" class="hover:text-slate-900 transition">Product</a>
@@ -154,7 +166,7 @@
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
-      <div>
+      <div class="reveal">
         <span class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-100 bg-white/10 border border-white/15 px-3 py-1.5 rounded-full">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-300 pulse-dot"></span>
           Features
@@ -182,7 +194,7 @@
       </div>
 
       <!-- Hero dashboard mockup -->
-      <div class="relative">
+      <div class="relative reveal" data-reveal-delay="200">
         <div class="relative bg-white rounded-2xl shadow-pop border border-white/20 overflow-hidden">
           <!-- Browser chrome -->
           <div class="flex items-center gap-1.5 px-5 py-3 border-b border-slate-200 bg-slate-50">
@@ -284,7 +296,7 @@
   <div class="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-violet-200/25 rounded-full blur-3xl pointer-events-none"></div>
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-12">
+    <div class="max-w-2xl mx-auto text-center mb-12 reveal">
       <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-100 border border-brand-200 px-3 py-1.5 rounded-full mb-4">The Sole effect</span>
       <h2 class="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 leading-[1.06]">Same week. <span class="text-brand-600">Completely different</span> outcome.</h2>
       <p class="mt-4 text-slate-600 text-lg">See exactly what changes when your practice runs on Sole.</p>
@@ -1506,6 +1518,28 @@
     el.appendChild(d);
   });
 })();
+</script>
+
+<script>
+  /* Scroll-reveal — fade-up content as it enters the viewport (respects reduced-motion). Lifted from eoi.html. */
+  (function () {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced || !('IntersectionObserver' in window)) {
+      els.forEach(el => el.classList.add('reveal-in'));
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('reveal-in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.04 });
+    els.forEach(el => io.observe(el));
+  })();
 </script>
 
 </body>

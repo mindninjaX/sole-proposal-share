@@ -59,6 +59,18 @@
     .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
     @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
     .floaty { animation: floaty 7s ease-in-out infinite; }
+    /* Scroll-reveal — fade-up as content enters viewport (lifted from eoi.html) */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+    .reveal.reveal-in { opacity: 1; transform: translateY(0); }
+    .reveal[data-reveal-delay="100"] { transition-delay: 0.10s; }
+    .reveal[data-reveal-delay="200"] { transition-delay: 0.20s; }
+    .reveal[data-reveal-delay="300"] { transition-delay: 0.30s; }
+    .reveal[data-reveal-delay="400"] { transition-delay: 0.40s; }
+    .reveal[data-reveal-delay="500"] { transition-delay: 0.55s; }
+    .reveal[data-reveal-delay="600"] { transition-delay: 0.70s; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal.reveal-in { opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
     /* Bootcamp lesson card hover treatment */
     .lesson-card { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; display: flex; flex-direction: column; height: 300px; }
     .lesson-card:hover { transform: translateY(-2px); border-color: #C7CBFF; box-shadow: 0 14px 32px -12px rgba(74,63,190,0.18); }
@@ -154,17 +166,18 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <a href="landing.html" class="flex items-center" aria-label="Sole — home">
-        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-20 w-auto" />
+        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-12 w-auto" />
       </a>
       <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
-        <a href="landing.html" class="hover:text-slate-900 transition">Sole app</a>
-        <a href="#lessons" class="text-brand-700 font-semibold">Resources</a>
-        <a href="#" class="hover:text-slate-900 transition">Partnerships</a>
-        <a href="#" class="hover:text-slate-900 transition">About</a>
+        <a href="landing.html#product" class="hover:text-slate-900 transition">Product</a>
+        <a href="landing.html#audience" class="hover:text-slate-900 transition">For accountants &amp; bookkeepers</a>
+        <a href="sole-vs-others.html" class="hover:text-slate-900 transition">Compare</a>
+        <a href="pricing.html" class="hover:text-slate-900 transition">Pricing</a>
+        <a href="landing.html#faq" class="hover:text-slate-900 transition">FAQ</a>
       </div>
       <div class="flex items-center gap-3">
         <a href="#" class="hidden sm:inline text-sm font-medium text-slate-700 hover:text-slate-900 transition">Sign in</a>
-        <a href="#try-cta" class="text-sm bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2.5 rounded-lg transition shadow-soft">Get it free</a>
+        <a href="eoi.html#eoi" class="text-sm bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2.5 rounded-lg transition shadow-soft">Book a demo</a>
       </div>
     </div>
   </div>
@@ -179,7 +192,7 @@
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid lg:grid-cols-[1fr_1.05fr] gap-12 lg:gap-16 items-center">
-      <div>
+      <div class="reveal">
         <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full">
           <span class="w-1.5 h-1.5 rounded-full bg-brand-500 pulse-dot"></span>
           Sole Bootcamp
@@ -694,7 +707,7 @@
             See pricing →
           </a>
         </div>
-        <p class="mt-5 text-xs text-slate-400">No credit card required · Free migration support · Cancel anytime</p>
+        <p class="mt-5 text-xs text-slate-400">No credit card required · Migration support available · Cancel anytime</p>
       </div>
     </div>
   </div>
@@ -867,6 +880,28 @@
     el.appendChild(d);
   });
 })();
+</script>
+
+<script>
+  /* Scroll-reveal — fade-up content as it enters the viewport (respects reduced-motion). Lifted from eoi.html. */
+  (function () {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced || !('IntersectionObserver' in window)) {
+      els.forEach(el => el.classList.add('reveal-in'));
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('reveal-in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.04 });
+    els.forEach(el => io.observe(el));
+  })();
 </script>
 
 </body>

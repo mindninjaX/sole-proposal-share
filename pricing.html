@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pricing — Sole Practice Manager</title>
-  <meta name="description" content="Transparent pricing for Sole Practice Manager — three plans built to scale with your practice. From $399/month flat. No per-seat counting, no annual lock-in, free migration support." />
+  <meta name="description" content="Transparent pricing for Sole Practice Manager — three plans built to scale with your practice. From $399/month flat. No per-seat counting, no annual lock-in, migration support available." />
   <link rel="canonical" href="https://soleapp.com.au/practice/pricing/" />
   <meta property="og:title" content="Pricing — Sole Practice Manager" />
   <meta property="og:description" content="Three transparent plans. From $399/month flat. Replace your stack of 6+ tools with one platform built for Australian firms." />
@@ -51,6 +51,24 @@
     .floaty { animation: floaty 6s ease-in-out infinite; }
     @keyframes pulseDot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
     .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+    /* Pre-footer dashboard carousel (lifted from bootcamp.html) */
+    @keyframes dashCarousel { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .dash-carousel-strip { display: flex; animation: dashCarousel 20s linear infinite; will-change: transform; }
+    .dash-carousel-strip:hover { animation-play-state: paused; }
+    .dash-carousel-strip img { height: 280px; width: auto; flex-shrink: 0; margin-right: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 28px 60px -20px rgba(74,63,190,0.35); }
+    @media (prefers-reduced-motion: reduce) { .dash-carousel-strip { animation: none; } }
+    /* Scroll-reveal — fade-up as content enters viewport (lifted from eoi.html) */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+    .reveal.reveal-in { opacity: 1; transform: translateY(0); }
+    .reveal[data-reveal-delay="100"] { transition-delay: 0.10s; }
+    .reveal[data-reveal-delay="200"] { transition-delay: 0.20s; }
+    .reveal[data-reveal-delay="300"] { transition-delay: 0.30s; }
+    .reveal[data-reveal-delay="400"] { transition-delay: 0.40s; }
+    .reveal[data-reveal-delay="500"] { transition-delay: 0.55s; }
+    .reveal[data-reveal-delay="600"] { transition-delay: 0.70s; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal.reveal-in { opacity: 1 !important; transform: none !important; transition: none !important; }
+    }
     .table-zebra tbody tr:nth-child(even) { background-color: rgba(248, 250, 252, 0.6); }
     /* monthly/annual segmented control */
     .seg-btn[aria-selected="true"] { background:#0F172A; color:#fff; box-shadow: 0 6px 14px -6px rgba(15,23,42,0.45); }
@@ -119,7 +137,7 @@
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <a href="landing.html" class="flex items-center" aria-label="Sole Practice Manager — home">
-        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-20 w-auto" />
+        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-12 w-auto" />
       </a>
       <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
         <a href="landing.html#product" class="hover:text-slate-900 transition">Product</a>
@@ -148,7 +166,7 @@
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-14 items-center">
-      <div>
+      <div class="reveal">
         <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full">
           <span class="w-1.5 h-1.5 rounded-full bg-brand-500 pulse-dot"></span>
           Pricing
@@ -177,12 +195,12 @@
           <span class="inline-flex items-center gap-2 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>30-day free trial</span>
           <span class="inline-flex items-center gap-2 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>No credit card</span>
           <span class="inline-flex items-center gap-2 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Cancel anytime</span>
-          <span class="inline-flex items-center gap-2 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Free migration</span>
+          <span class="inline-flex items-center gap-2 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Migration support available</span>
         </p>
       </div>
 
       <!-- HERO RIGHT: single inspiring image -->
-      <div class="relative">
+      <div class="relative reveal" data-reveal-delay="200">
         <div class="relative rounded-2xl overflow-hidden shadow-lift ring-1 ring-slate-900/5 aspect-[4/5] lg:aspect-[5/6]">
           <img loading="lazy"
                src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=900&h=1080&fit=crop&q=85"
@@ -197,7 +215,7 @@
 <!-- 4. HOW PRICING WORKS -->
 <section class="bg-slate-50/70 border-y border-slate-200/70 py-16 lg:py-20">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-12">
+    <div class="max-w-2xl mx-auto text-center mb-12 reveal">
       <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">How pricing works</span>
       <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">A pricing model that grows with your practice — not against it</h2>
       <p class="mt-3 text-slate-600">Three promises that hold from day one through your hundredth client.</p>
@@ -501,6 +519,24 @@
         <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Credit card</h4>
         <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Accept Visa, Mastercard, Google Pay and Apple Pay for client invoices — no monthly gateway fee.</p>
       </article>
+
+      <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+        <div class="flex items-start justify-between mb-4">
+          <span class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-shield"/></svg></span>
+          <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">$4</p><p class="text-[10px] text-slate-500 mt-1">per check</p></div>
+        </div>
+        <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Additional KYC checks</h4>
+        <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Extra identity checks beyond your monthly plan allowance — keep onboarding moving without changing tiers.</p>
+      </article>
+
+      <article class="bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition flex flex-col">
+        <div class="flex items-start justify-between mb-4">
+          <span class="w-11 h-11 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-database"/></svg></span>
+          <div class="text-right"><p class="text-xl font-extrabold text-slate-900 tabular-nums leading-none">$2</p><p class="text-[10px] text-slate-500 mt-1">per GB</p></div>
+        </div>
+        <h4 class="text-[15px] font-bold text-slate-900 leading-snug">Document storage</h4>
+        <p class="mt-1.5 text-[12.5px] text-slate-600 leading-relaxed flex-1">Pay-as-you-grow document storage beyond your tier allowance — billed monthly by usage.</p>
+      </article>
     </div>
 
     <!-- Your Branding — full-width purple card, restored -->
@@ -511,6 +547,7 @@
           <div class="p-8 lg:p-10 text-white">
             <p class="text-sm text-violet-200 leading-relaxed mb-6">If you want full brand control across the practice platform and the client app, we can configure a branded deployment for your firm.</p>
             <p class="text-sm text-violet-200 leading-relaxed">What this gets you is a tailored practice management software in your branding, your client portal is in your brand and you can sell an accounting application under your brand (or powered by Sole if you prefer).</p>
+            <p class="mt-4 text-[11px] text-violet-300/90 italic flex items-start gap-2"><svg class="w-3.5 h-3.5 mt-0.5 shrink-0"><use href="#i-shield"/></svg><span>Custom branding requires a minimum of Gold support tier.</span></p>
             <p class="mt-8 text-xs text-violet-300"><a href="eoi.html#eoi" class="underline hover:text-violet-100 transition font-semibold">Contact us</a> to discuss rollout options and timelines.</p>
           </div>
           <div class="bg-white/[0.05] border-l border-white/10 p-8 lg:p-10">
@@ -558,6 +595,139 @@
 
   </div>
 </section>
+
+<!-- 10b. SUPPORT TIERS — dedicated support to keep the lights on -->
+<section id="support" class="py-20 lg:py-24 bg-slate-50/80 border-y border-slate-200/60">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-2xl mx-auto text-center mb-12 reveal">
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Want dedicated support to keep the lights on?</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Choose the support level that matches your operation</h2>
+      <p class="mt-3 text-slate-600">Base support is included for every plan. Upgrade when your firm needs tighter response times, named owners, or 24/7 cover.</p>
+    </div>
+
+    <div class="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 reveal">
+      <!-- Base -->
+      <article class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col hover:border-slate-300 transition">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Base</p>
+          <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5">Included</span>
+        </div>
+        <p class="text-2xl font-extrabold text-slate-900 tabular-nums leading-none">A$0</p>
+        <p class="text-[11px] text-slate-500 mt-1">+ GST · per month</p>
+        <div class="mt-5 pt-4 border-t border-slate-100 space-y-2 text-[12.5px] text-slate-700">
+          <p class="flex items-center justify-between"><span class="text-slate-500">First response</span><span class="font-semibold tabular-nums">48h</span></p>
+          <p class="flex items-center justify-between"><span class="text-slate-500">Resolution</span><span class="font-semibold tabular-nums">5 days</span></p>
+        </div>
+        <ul class="mt-5 space-y-2 text-[12.5px] text-slate-600 leading-snug flex-1">
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Self-service knowledge base</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-slate-400 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Email support</span></li>
+        </ul>
+      </article>
+
+      <!-- Bronze -->
+      <article class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col hover:border-amber-300 transition">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-bold uppercase tracking-[0.14em]" style="color:#B45309;">Bronze</p>
+        </div>
+        <p class="text-2xl font-extrabold text-slate-900 tabular-nums leading-none">A$750</p>
+        <p class="text-[11px] text-slate-500 mt-1">+ GST · per month</p>
+        <div class="mt-5 pt-4 border-t border-slate-100 space-y-2 text-[12.5px] text-slate-700">
+          <p class="flex items-center justify-between"><span class="text-slate-500">First response</span><span class="font-semibold tabular-nums">24h</span></p>
+          <p class="flex items-center justify-between"><span class="text-slate-500">Resolution</span><span class="font-semibold tabular-nums">3 days</span></p>
+        </div>
+        <ul class="mt-5 space-y-2 text-[12.5px] text-slate-600 leading-snug flex-1">
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-amber-500 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Email + live chat support</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-amber-500 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Full knowledge base</span></li>
+        </ul>
+      </article>
+
+      <!-- Silver -->
+      <article class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col hover:border-slate-400 transition">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-600">Silver</p>
+        </div>
+        <p class="text-2xl font-extrabold text-slate-900 tabular-nums leading-none">A$1,500</p>
+        <p class="text-[11px] text-slate-500 mt-1">+ GST · per month</p>
+        <div class="mt-5 pt-4 border-t border-slate-100 space-y-2 text-[12.5px] text-slate-700">
+          <p class="flex items-center justify-between"><span class="text-slate-500">First response</span><span class="font-semibold tabular-nums">8h</span></p>
+          <p class="flex items-center justify-between"><span class="text-slate-500">Resolution</span><span class="font-semibold tabular-nums">2 days</span></p>
+        </div>
+        <ul class="mt-5 space-y-2 text-[12.5px] text-slate-600 leading-snug flex-1">
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-slate-500 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Email + live chat support</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-slate-500 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Quarterly check-ins</span></li>
+        </ul>
+      </article>
+
+      <!-- Gold (highlighted — required for custom branding) -->
+      <article class="relative bg-white border-2 border-amber-300 rounded-2xl p-5 flex flex-col shadow-lift lg:-translate-y-2 hover:border-amber-400 transition">
+        <span class="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-white bg-amber-500 px-2.5 py-0.5 rounded-full whitespace-nowrap">Required for branding</span>
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-bold uppercase tracking-[0.14em]" style="color:#92400E;">Gold</p>
+        </div>
+        <p class="text-2xl font-extrabold text-slate-900 tabular-nums leading-none">A$3,000</p>
+        <p class="text-[11px] text-slate-500 mt-1">+ GST · per month</p>
+        <div class="mt-5 pt-4 border-t border-slate-100 space-y-2 text-[12.5px] text-slate-700">
+          <p class="flex items-center justify-between"><span class="text-slate-500">First response</span><span class="font-semibold tabular-nums">4h</span></p>
+          <p class="flex items-center justify-between"><span class="text-slate-500">Resolution</span><span class="font-semibold tabular-nums">1 day</span></p>
+        </div>
+        <ul class="mt-5 space-y-2 text-[12.5px] text-slate-600 leading-snug flex-1">
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Dedicated success manager</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Migration help &amp; training</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>On-call for urgent issues</span></li>
+        </ul>
+      </article>
+
+      <!-- Platinum -->
+      <article class="bg-slate-900 text-white border border-slate-800 rounded-2xl p-5 flex flex-col hover:border-slate-700 transition">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-bold uppercase tracking-[0.14em] text-violet-300">Platinum</p>
+        </div>
+        <p class="text-2xl font-extrabold text-white tabular-nums leading-none">A$5,000</p>
+        <p class="text-[11px] text-slate-400 mt-1">+ GST · per month</p>
+        <div class="mt-5 pt-4 border-t border-white/10 space-y-2 text-[12.5px] text-slate-200">
+          <p class="flex items-center justify-between"><span class="text-slate-400">First response</span><span class="font-semibold tabular-nums">2h critical</span></p>
+          <p class="flex items-center justify-between"><span class="text-slate-400">Resolution</span><span class="font-semibold tabular-nums">&lt; 4h</span></p>
+        </div>
+        <ul class="mt-5 space-y-2 text-[12.5px] text-slate-300 leading-snug flex-1">
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-violet-300 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>All Gold inclusions</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-violet-300 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>24/7 hotline</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-violet-300 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Early feature access</span></li>
+          <li class="flex gap-2 items-start"><svg class="w-4 h-4 text-violet-300 mt-0.5 shrink-0"><use href="#i-check-thin"/></svg><span>Executive check-ins</span></li>
+        </ul>
+      </article>
+    </div>
+
+    <p class="mt-8 text-center text-xs text-slate-500 italic">Annual billing on support tiers receives 20% off. Custom branding requires a minimum of Gold support.</p>
+
+    <div class="mt-6 text-center">
+      <a href="eoi.html#eoi" class="inline-flex items-center gap-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-semibold px-5 py-3 rounded-lg transition shadow-sm">
+        Talk to us about support
+        <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
+      </a>
+    </div>
+
+    <!-- Implementation services band -->
+    <div class="mt-14 max-w-6xl mx-auto bg-white border border-slate-200 rounded-2xl p-7 lg:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 reveal">
+      <div class="flex items-center gap-5">
+        <span class="w-12 h-12 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5"><use href="#i-rocket"/></svg>
+        </span>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-brand-700 mb-0.5">Implementation services</p>
+          <h4 class="text-base font-bold text-slate-900">From <span class="tabular-nums">$1,000</span> + GST per day</h4>
+          <p class="text-sm text-slate-600 mt-1">Delivered alongside your team to make the transition seamless — data migration, template setup, staff training, and a phased cutover.</p>
+        </div>
+      </div>
+      <a href="eoi.html#eoi" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-3 rounded-lg transition whitespace-nowrap shadow-soft">
+        Request branding and rollout options
+        <svg class="w-3.5 h-3.5"><use href="#i-arrow-right"/></svg>
+      </a>
+    </div>
+
+  </div>
+</section>
+
 <!-- 11. SOCIAL PROOF — video testimonial -->
 <section class="py-20 lg:py-24 bg-slate-50 border-y border-slate-200/60 overflow-hidden">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -598,7 +768,7 @@
             <img loading="lazy" src="assets/stephen-burns.png" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100" style="object-position:center 15%;" alt="Stephen Burns" />
             <div>
               <p class="text-sm font-semibold text-slate-900">Stephen Burns</p>
-              <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Melbourne</p>
+              <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Gold Coast</p>
             </div>
           </div>
         </div>
@@ -608,8 +778,56 @@
   </div>
 </section>
 
+<!-- 12. FINAL CTA — canonical pre-footer pattern -->
+<section id="cta" class="bg-slate-950 text-white py-20 lg:py-24 relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-[600px] h-[600px] bg-brand-600 rounded-full blur-[140px] opacity-25 -translate-y-1/2 translate-x-1/4"></div>
+  <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500 rounded-full blur-[140px] opacity-15 translate-y-1/2 -translate-x-1/4"></div>
+  <div class="absolute inset-0 grain-dark opacity-30"></div>
+
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid lg:grid-cols-[1.05fr_1fr] gap-12 lg:gap-16 items-center">
+
+      <!-- Left: infinite dashboard carousel -->
+      <div class="relative h-[360px] lg:h-[420px] overflow-hidden flex items-center reveal">
+        <div class="dash-carousel-strip">
+          <img src="assets/dashboard-practice.png" alt="Practice Dashboard" loading="lazy" />
+          <img src="assets/dashboard-helicopter.png" alt="Helicopter View" loading="lazy" />
+          <img src="assets/dashboard-scheduler.png" alt="Staff Scheduler" loading="lazy" />
+          <img src="assets/dashboard-practice.png" alt="" aria-hidden="true" loading="lazy" />
+          <img src="assets/dashboard-helicopter.png" alt="" aria-hidden="true" loading="lazy" />
+          <img src="assets/dashboard-scheduler.png" alt="" aria-hidden="true" loading="lazy" />
+        </div>
+      </div>
+
+      <!-- Right: copy + CTAs -->
+      <div class="reveal" data-reveal-delay="200">
+        <span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-200 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+          Free 30-day trial
+        </span>
+        <h2 class="mt-5 text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.05]">
+          Want to try before you buy?
+        </h2>
+        <p class="mt-5 text-slate-300 leading-relaxed max-w-lg">
+          Start the free trial — no credit card required. Your plan only kicks in when you're ready, and migration support is available to move your data across.
+        </p>
+        <div class="mt-7 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <a href="eoi.html#eoi" class="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-500 text-white font-bold px-7 py-3.5 rounded-lg transition shadow-xl">
+            Get started
+            <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
+          </a>
+          <a href="eoi.html#eoi" class="inline-flex items-center justify-center gap-2 text-white/80 hover:text-white font-semibold px-2 py-3.5 transition">
+            Book a 30-min demo →
+          </a>
+        </div>
+        <p class="mt-5 text-xs text-slate-400">No credit card required · Migration support available · Cancel anytime</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- FOOTER -->
-<footer class="bg-slate-950 text-slate-400 pt-16 pb-10 text-sm">
+<footer class="bg-slate-950 text-slate-400 border-t border-white/5 pt-16 pb-10 text-sm">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-10 pb-12 border-b border-white/10">
       <div>
@@ -873,6 +1091,28 @@
     el.appendChild(d);
   });
 })();
+</script>
+
+<script>
+  /* Scroll-reveal — fade-up content as it enters the viewport (respects reduced-motion). Lifted from eoi.html. */
+  (function () {
+    const els = document.querySelectorAll('.reveal');
+    if (!els.length) return;
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced || !('IntersectionObserver' in window)) {
+      els.forEach(el => el.classList.add('reveal-in'));
+      return;
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('reveal-in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.04 });
+    els.forEach(el => io.observe(el));
+  })();
 </script>
 
 </body>
