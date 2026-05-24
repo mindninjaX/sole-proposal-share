@@ -69,6 +69,21 @@
     .floaty { animation: floaty 6s ease-in-out infinite; }
     @keyframes pulseDot { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
     .pulse-dot { animation: pulseDot 1.8s ease-in-out infinite; }
+
+    /* Infinite dashboard carousel */
+    @keyframes dashMarquee {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+    .dashboard-marquee-track {
+      width: max-content;
+      animation: dashMarquee 32s linear infinite;
+      will-change: transform;
+    }
+    .dashboard-marquee:hover .dashboard-marquee-track { animation-play-state: paused; }
+    @media (prefers-reduced-motion: reduce) {
+      .dashboard-marquee-track { animation: none; }
+    }
   </style>
 
   <!-- SVG sprite -->
@@ -145,22 +160,14 @@
 
 
         <div class="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
-          <a href="#cta" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3.5 rounded-lg transition shadow-lift">
+          <a href="https://tidycal.com/sole/demo" class="inline-flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3.5 rounded-lg transition shadow-lift">
             Get started
             <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
           </a>
-          <a href="#cta" class="inline-flex justify-center items-center gap-2.5 text-slate-700 hover:text-slate-900 font-medium px-2 py-3.5 transition">
+          <a href="https://tidycal.com/sole/demo" class="inline-flex justify-center items-center gap-2.5 text-slate-700 hover:text-slate-900 font-medium px-2 py-3.5 transition">
             See our team &amp; call
           </a>
         </div>
-
-        <p class="mt-5 text-xs text-slate-500 flex items-center gap-3 flex-wrap">
-          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>No credit card</span>
-          <span class="text-slate-300">·</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>30-day free trial</span>
-          <span class="text-slate-300">·</span>
-          <span class="inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Free migration support</span>
-        </p>
       </div>
 
       <!-- Hero visual: dashboard mockup with floating cards (echoes screenshot) -->
@@ -297,71 +304,44 @@
   </div>
 </section>
 
-<!-- 4. QUICK TRUST STRIP -->
-<section class="border-y border-slate-200 bg-white py-10">
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-      <div class="text-center md:text-left">
-        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums">50+</p>
-        <p class="text-[11px] text-slate-500 mt-1 font-medium">Australian firms onboarded</p>
-      </div>
-      <div class="text-center md:text-left md:border-l md:border-slate-200 md:pl-6">
-        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums">12,400+</p>
-        <p class="text-[11px] text-slate-500 mt-1 font-medium">Clients managed on Sole</p>
-      </div>
-      <div class="text-center md:text-left md:border-l md:border-slate-200 md:pl-6">
-        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums">$4.2M</p>
-        <p class="text-[11px] text-slate-500 mt-1 font-medium">Tool spend saved annually</p>
-      </div>
-      <div class="text-center md:text-left md:border-l md:border-slate-200 md:pl-6">
-        <p class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight tabular-nums inline-flex items-center gap-2">
-          4.9
-          <svg class="w-6 h-6 text-amber-400"><use href="#i-star"/></svg>
-        </p>
-        <p class="text-[11px] text-slate-500 mt-1 font-medium">Customer review score</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- 5. WHY SOLE — three-pillar pitch row (improves reading flow into compare table) -->
 <section class="py-16 lg:py-20 bg-slate-50/60">
   <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="max-w-2xl mx-auto text-center mb-12">
       <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">The Sole difference</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">One connected platform — not a patchwork.</h2>
-      <p class="mt-3 text-slate-600">Disconnected systems are harder to run at scale. They cause inefficiency, gaps, and chaos. Sole SPM brings everything into one connected workflow.</p>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">The AI moat for accountants — end to end.</h2>
+      <p class="mt-3 text-slate-600">Built for Australian firms ready to move beyond referrals and disconnected tools — with an Aussie-made system that understands local tax requirements. Partner with Sole to protect clients, cut costs, and unlock growth.</p>
     </div>
 
     <div class="grid md:grid-cols-3 gap-5">
-      <!-- Pillar 1 — Connected -->
+      <!-- Pillar 1 — End-to-end -->
       <div class="bg-white border border-slate-200 rounded-2xl p-6 hover:border-brand-300 hover:shadow-soft transition">
         <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center mb-4">
           <svg class="w-5 h-5"><use href="#i-layers"/></svg>
         </div>
-        <p class="text-xs font-semibold text-brand-700 uppercase tracking-wider mb-1.5">Connected workflows</p>
-        <h3 class="text-lg font-bold text-slate-900 leading-snug">Client, jobs, billing — all in one timeline.</h3>
-        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Stop hunting across tabs and tools. Every client touchpoint, document and engagement lives on one record.</p>
+        <p class="text-xs font-semibold text-brand-700 uppercase tracking-wider mb-1.5">End-to-end practice management</p>
+        <h3 class="text-lg font-bold text-slate-900 leading-snug">From onboarding to tax lodgement, on one record.</h3>
+        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Sole Practice Manager is a purpose-built platform for accounting and bookkeeping firms — real-time visibility across clients, streamlined onboarding, and scalable workflows.</p>
       </div>
 
-      <!-- Pillar 2 — Australian-native -->
+      <!-- Pillar 2 — Aussie-made -->
       <div class="bg-white border border-slate-200 rounded-2xl p-6 hover:border-brand-300 hover:shadow-soft transition">
         <div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-4">
           <svg class="w-5 h-5"><use href="#i-shield"/></svg>
         </div>
-        <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1.5">Australian-native</p>
+        <p class="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1.5">Aussie-made &amp; ATO-aligned</p>
         <h3 class="text-lg font-bold text-slate-900 leading-snug">BAS, STP, ASIC — built in, not bolted on.</h3>
-        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Lodge directly via SBR2, run STP Phase 2, register companies through ASIC — without leaving the platform.</p>
+        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Lodge directly via SBR2, run STP Phase 2, register companies through ASIC — without leaving the platform. Built locally, for local tax requirements.</p>
       </div>
 
-      <!-- Pillar 3 — Automation -->
+      <!-- Pillar 3 — AI moat -->
       <div class="bg-white border border-slate-200 rounded-2xl p-6 hover:border-brand-300 hover:shadow-soft transition">
         <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-4">
           <svg class="w-5 h-5"><use href="#i-sparkles"/></svg>
         </div>
-        <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-1.5">AI &amp; automation</p>
-        <h3 class="text-lg font-bold text-slate-900 leading-snug">Designed to scale a modern firm.</h3>
-        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Strong workflow controls, deeper client visibility, native automation and AI — designed for modern Australian practices.</p>
+        <p class="text-xs font-semibold text-emerald-700 uppercase tracking-wider mb-1.5">AI-powered automation</p>
+        <h3 class="text-lg font-bold text-slate-900 leading-snug">Protect clients, cut costs, unlock growth.</h3>
+        <p class="mt-2.5 text-sm text-slate-600 leading-relaxed">Specialised AI for your firm and your clients — predictive insights, smart task suggestions, and automation of the repetitive work that drains margin.</p>
       </div>
     </div>
   </div>
@@ -370,6 +350,21 @@
 <!-- 6. COMPARISON TABLE (the centrepiece) -->
 <section id="compare" class="py-20 lg:py-24 bg-white border-y border-slate-200/60">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <!-- SWOT image placeholder — replace with SWOT graphic when ready -->
+    <div class="max-w-5xl mx-auto mb-16 lg:mb-20">
+      <div class="max-w-2xl mx-auto text-center mb-6">
+        <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-3">Where Sole stands</span>
+        <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">A structured view of strengths and opportunities</h2>
+      </div>
+      <div class="bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center py-24 px-8 text-center gap-4">
+        <svg class="w-12 h-12 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
+        <p class="text-lg font-bold text-slate-400">SWOT Analysis Image</p>
+        <p class="text-sm text-slate-400 max-w-sm">Replace this placeholder with the Sole SWOT graphic once it's ready. Keep the same section wrapper and heading.</p>
+      </div>
+    </div>
+    <!-- SWOT placeholder end -->
+
     <div class="max-w-3xl mx-auto text-center mb-12">
       <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Sole SPM vs. others</span>
       <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">See how Sole SPM compares</h2>
@@ -604,20 +599,6 @@
       Sole SPM gives firms a connected way to operate, with stronger workflow control, clearer client visibility, built-in automation, and a platform designed to support modern Australian practice growth.
     </p>
 
-    <!-- SWOT placeholder — to be replaced with SWOT graphic when ready -->
-    <div class="mt-14">
-      <div class="max-w-2xl mx-auto text-center mb-8">
-        <h3 class="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">Where Sole stands</h3>
-        <p class="mt-2 text-slate-500 text-sm">A structured view of strengths, opportunities, and context.</p>
-      </div>
-      <div class="max-w-5xl mx-auto bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center py-24 px-8 text-center gap-4">
-        <svg class="w-12 h-12 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
-        <p class="text-lg font-bold text-slate-400">SWOT Analysis Image</p>
-        <p class="text-sm text-slate-400 max-w-sm">Replace this placeholder with the Sole SWOT graphic once it's ready. Keep the same section wrapper and heading.</p>
-      </div>
-    </div>
-    <!-- SWOT placeholder end -->
-
   </div>
 </section>
 
@@ -653,11 +634,11 @@
             If your firm is ready to transition away from disconnected systems, Sole SPM gives you a more connected way to manage clients, staff, workflows, and growth in one platform.
           </p>
           <div class="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center">
-            <a href="#" class="inline-flex justify-center items-center gap-2 bg-white text-slate-900 font-bold px-6 py-3 rounded-lg hover:bg-slate-100 transition">
+            <a href="https://tidycal.com/sole/demo" class="inline-flex justify-center items-center gap-2 bg-white text-slate-900 font-bold px-6 py-3 rounded-lg hover:bg-slate-100 transition">
               Get started
               <svg class="w-4 h-4"><use href="#i-arrow-right"/></svg>
             </a>
-            <a href="#" class="inline-flex justify-center items-center gap-2 bg-white/5 hover:bg-white/10 text-white border border-white/15 font-semibold px-6 py-3 rounded-lg transition">
+            <a href="https://tidycal.com/sole/demo" class="inline-flex justify-center items-center gap-2 bg-white/5 hover:bg-white/10 text-white border border-white/15 font-semibold px-6 py-3 rounded-lg transition">
               See our team &amp; call
             </a>
           </div>
@@ -667,65 +648,47 @@
   </div>
 </section>
 
-<!-- 8. TESTIMONIALS (3-card grid — matches screenshot layout) -->
+<!-- 8. FEATURED CUSTOMER STORY — Stephen Burns video (lifted from landing.html) -->
 <section id="testimonials" class="py-20 lg:py-24 bg-slate-50/60 border-y border-slate-200/60">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="max-w-2xl mx-auto text-center mb-12">
-      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Testimonials</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Trusted by businesses across Australia</h2>
-      <p class="mt-3 text-slate-600">Real teams. Real outcomes. Real Aussie firms.</p>
-    </div>
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-6">
+        <span class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-rose-700 bg-rose-50 border border-rose-100 px-3 py-1.5 rounded-full">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+          Featured customer story
+        </span>
+      </div>
 
-    <div class="grid md:grid-cols-3 gap-5 lg:gap-6 max-w-6xl mx-auto">
-      <!-- Card 1 -->
-      <article class="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
-        <div class="flex gap-0.5 text-amber-400 mb-4">
-          <svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg>
-        </div>
-        <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">
-          "Sole is a founding member of the Australian Bookkeepers Network (ABN) and built directly with our members. Sole SPM is a significant step forward for the industry."
-        </blockquote>
-        <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
-          <div class="w-11 h-11 rounded-full bg-gradient-to-br from-brand-200 to-brand-100 flex items-center justify-center">
-            <svg class="w-5 h-5 text-brand-700"><use href="#i-sparkles"/></svg>
-          </div>
-          <div>
-            <p class="font-semibold text-sm text-slate-900">Jenny Burns</p>
-            <p class="text-xs text-slate-500">CEO, Australian Bookkeepers Network</p>
-          </div>
-        </div>
-      </article>
+      <article id="customer-video" class="relative bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-soft grid md:grid-cols-[1.15fr_1fr] items-stretch">
+        <video class="hidden w-full h-auto" controls preload="metadata" playsinline><source src="" type="video/mp4" /></video>
 
-      <!-- Card 2 -->
-      <article class="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
-        <div class="flex gap-0.5 text-amber-400 mb-4">
-          <svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg>
-        </div>
-        <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">
-          "Running my forecast-heavy practice was an oxymoron until we adopted Sole. Workflow visibility has improved, and the workspaces have transformed how we operate day to day."
-        </blockquote>
-        <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
-          <img loading="lazy" src="https://i.pravatar.cc/96?img=12" class="w-11 h-11 rounded-full object-cover" alt="" />
-          <div>
-            <p class="font-semibold text-sm text-slate-900">Shannon Cooper</p>
-            <p class="text-xs text-slate-500">Director, Cooper Forecast Advisory</p>
+        <div class="relative aspect-video md:aspect-auto md:h-full overflow-hidden" style="background:#191944;">
+          <img loading="lazy" src="assets/stephen-burns.png" class="absolute inset-0 w-full h-full object-contain" style="object-position:center 75%;" alt="Stephen Burns, CEO and Founder, Accountants Direct" />
+          <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 78% 88% at 50% 62%, transparent 42%, #191944 88%);"></div>
+          <div class="absolute inset-x-0 top-0 h-20 pointer-events-none" style="background:linear-gradient(to bottom, #191944, transparent);"></div>
+          <div class="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style="background:linear-gradient(to top, #191944cc, transparent);"></div>
+          <div class="absolute top-4 left-4">
+            <span class="inline-flex items-center gap-1.5 bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold uppercase tracking-[0.15em] px-2.5 py-1.5 rounded-full">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              Customer story · 2:48
+            </span>
           </div>
+          <button id="customer-video-play" type="button" class="absolute inset-0 flex items-center justify-center group cursor-pointer" aria-label="Play customer story">
+            <span class="relative w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-2xl ring-1 ring-slate-900/10 group-hover:scale-105 transition">
+              <svg class="w-6 h-6 md:w-7 md:h-7 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </span>
+          </button>
         </div>
-      </article>
 
-      <!-- Card 3 -->
-      <article class="bg-white border border-slate-200 rounded-2xl p-7 flex flex-col hover:border-slate-300 hover:shadow-soft transition">
-        <div class="flex gap-0.5 text-amber-400 mb-4">
-          <svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg><svg class="w-4 h-4"><use href="#i-star"/></svg>
-        </div>
-        <blockquote class="text-slate-700 text-sm leading-relaxed flex-1">
-          "After 23 months of running solo, we hit five South Coast Queensland clients in five months. Sole's accounting software is what we'd been chasing — my wife and I love it."
-        </blockquote>
-        <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
-          <img loading="lazy" src="https://i.pravatar.cc/96?img=68" class="w-11 h-11 rounded-full object-cover" alt="" />
-          <div>
-            <p class="font-semibold text-sm text-slate-900">Kyel Grant</p>
-            <p class="text-xs text-slate-500">Founder, Grant &amp; Co. Bookkeeping</p>
+        <div class="p-7 md:p-9 flex flex-col justify-center">
+          <svg class="w-9 h-9 text-brand-200" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M9.667 8C5.985 8 3 10.985 3 14.667v9.333h9.333v-9.333H6.667c0-1.657 1.343-3 3-3v-3.667zm14 0c-3.682 0-6.667 2.985-6.667 6.667v9.333h9.333v-9.333H20c0-1.657 1.343-3 3-3v-3.667z"/></svg>
+          <blockquote class="mt-3 text-lg md:text-xl font-medium text-slate-800 leading-snug">After trialling various practice management options for over a year, SPM is the best and most cost-effective solution on the market. A user-friendly one-stop platform that helps us convert more leads, streamline onboarding, and improve communication.</blockquote>
+          <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
+            <img loading="lazy" src="assets/stephen-burns.png" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100" style="object-position:center 15%;" alt="Stephen Burns" />
+            <div>
+              <p class="text-sm font-semibold text-slate-900">Stephen Burns</p>
+              <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Melbourne</p>
+            </div>
           </div>
         </div>
       </article>
@@ -733,78 +696,78 @@
   </div>
 </section>
 
-<!-- 9. FAQ -->
+<!-- 9. FAQ — lifted from landing.html -->
 <section id="faq" class="py-20 lg:py-24 bg-white">
   <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="text-center mb-12">
-      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">FAQ</span>
-      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Frequently asked questions</h2>
+      <span class="inline-block text-xs font-semibold uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-100 px-3 py-1.5 rounded-full mb-4">Common questions</span>
+      <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">Questions firms ask before signing</h2>
       <p class="mt-3 text-slate-600">Honest answers to the things that matter most.</p>
     </div>
 
-    <div class="grid md:grid-cols-2 gap-3">
-      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
-        <summary class="px-5 py-4 flex items-center justify-between gap-4">
-          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Can Sole SPM help practice managers oversee the whole firm?</h3>
+    <div class="space-y-3">
+      <details class="bg-white border border-slate-200 rounded-xl group hover:border-slate-300 transition">
+        <summary class="px-6 py-5 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-base">Can I keep using Xero or MYOB for my clients' books?</h3>
           <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
         </summary>
-        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
-          Yes. Sole SPM gives you a single end-to-end view of every client and engagement: status, ownership, deadlines, billing, and capacity. Partners and ops leads get a real-time helicopter view — and can drill into any cell.
+        <div class="px-6 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes. Sole is the <strong>practice layer</strong> that sits above your bookkeeping software, not a replacement for it. We integrate deeply with Xero (including Xero Practice Manager), MYOB AccountRight and Essentials. Clients, contacts, and engagement data sync both ways. Your bookkeepers keep their workflow; you get a single practice view across the firm.
         </div>
       </details>
 
-      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
-        <summary class="px-5 py-4 flex items-center justify-between gap-4">
-          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Does Sole SPM support staff management and workload visibility?</h3>
+      <details class="bg-white border border-slate-200 rounded-xl group hover:border-slate-300 transition">
+        <summary class="px-6 py-5 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-base">How does migration actually work?</h3>
           <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
         </summary>
-        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
-          Yes. Drag-and-drop weekly workload, a skill matrix per staff member (L1–L5), capacity forecasts by team and service line, and AI suggestions for the right person on the right job — all in one place.
+        <div class="px-6 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          A dedicated migration assistant is assigned to your practice from day one. They'll audit your current stack, map out what can move across (client and CRM data, templates, questionnaires, and master data typically migrate well), and identify what needs a manual transition plan. We run your old tools and Sole side-by-side — there's no forced cutover. The timeline is set together with your team; every practice is different and we don't make promises we can't keep. Talk to us about your specific setup and we'll give you a straight answer.
         </div>
       </details>
 
-      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
-        <summary class="px-5 py-4 flex items-center justify-between gap-4">
-          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Does Sole SPM include payments and client management?</h3>
+      <details class="bg-white border border-slate-200 rounded-xl group hover:border-slate-300 transition">
+        <summary class="px-6 py-5 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-base">Is Sole compliant with the ATO's BAS, STP, and PAYG requirements?</h3>
           <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
         </summary>
-        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
-          Yes. Take payments inline at the billing step, send branded invoices, and manage every client interaction in one timeline. No extra subscriptions or third-party plugins.
+        <div class="px-6 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes. Sole lodges BAS, IAS and TFN declarations via <strong>Standard Business Reporting (SBR2)</strong> directly to the ATO. STP Phase 2 is fully supported. PAYG instalments, super (via SuperStream), FBT and Div 7A are built into the workflow. We're a registered software provider on the ATO's digital service provider register, and our compliance team tracks every legislative change.
         </div>
       </details>
 
-      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
-        <summary class="px-5 py-4 flex items-center justify-between gap-4">
-          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">What kind of brand customisation is available with Sole SPM?</h3>
+      <details class="bg-white border border-slate-200 rounded-xl group hover:border-slate-300 transition">
+        <summary class="px-6 py-5 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-base">Can I white-label the client portal with my firm's brand?</h3>
           <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
         </summary>
-        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
-          White-label client portal under your own domain, your logo and colours, branded comms (email, SMS, signed documents). Most competitors charge extra for this — we include it on Scale and above.
+        <div class="px-6 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          Yes. You can white-label the client portal and the practice platform under your brand — custom domain (e.g. <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">portal.yourfirm.com.au</code>), your logo and colours, your email sender. Clients never see "Sole" anywhere. White-label is available as a branding add-on — speak to our team for current pricing and what's included.
         </div>
       </details>
 
-      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
-        <summary class="px-5 py-4 flex items-center justify-between gap-4">
-          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Is Sole SPM for Australian practice management firms?</h3>
+      <details class="bg-white border border-slate-200 rounded-xl group hover:border-slate-300 transition">
+        <summary class="px-6 py-5 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-base">What happens to my existing client data?</h3>
           <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
         </summary>
-        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
-          Yes, Sole SPM is designed for Australian firms and supports the operational workflow, client management research and accounting workflows local practices rely on.
+        <div class="px-6 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          We migrate it for you. Your data is hosted in <strong>Australian data centres</strong> (AWS Sydney), encrypted at rest and in transit, and you own it — you can export everything at any time, and we keep nothing on cancellation. Sole is built to Australian Privacy Act standards and takes data security seriously. Ask our team about our current compliance posture if you have specific requirements.
         </div>
       </details>
 
-      <details class="bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition">
-        <summary class="px-5 py-4 flex items-center justify-between gap-4">
-          <h3 class="font-semibold text-slate-900 text-[15px] leading-snug">Is Sole SPM suitable for growing accounting and bookkeeping firms?</h3>
+      <details class="bg-white border border-slate-200 rounded-xl group hover:border-slate-300 transition">
+        <summary class="px-6 py-5 flex items-center justify-between gap-4">
+          <h3 class="font-semibold text-slate-900 text-base">Do you offer a free trial? Is there a contract?</h3>
           <svg class="faq-icon w-5 h-5 text-slate-400 shrink-0"><use href="#i-chevron-down"/></svg>
         </summary>
-        <div class="px-5 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
-          Yes. Sole SPM is built for Australian accounting and bookkeeping firms, helping them improve visibility, create scalable operating models as they grow, and stay close to compliance.
+        <div class="px-6 pb-5 -mt-1 text-sm text-slate-600 leading-relaxed">
+          30-day free trial on every plan, no credit card required. After that, we bill monthly — <strong>no annual lock-in</strong>. Cancel anytime, and we'll help you export your data.
         </div>
       </details>
     </div>
 
-    <div class="mt-10 text-center">
+    <div class="mt-12 text-center">
       <p class="text-sm text-slate-600">Still have questions? <a href="#cta" class="font-semibold text-brand-600 hover:text-brand-700">Talk to our team →</a></p>
     </div>
   </div>
@@ -818,73 +781,71 @@
 
   <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid lg:grid-cols-[1fr_1fr] gap-12 lg:gap-16 items-center">
-      <!-- LEFT: Dashboard mock -->
-      <div class="relative order-2 lg:order-1">
-        <div class="relative bg-white rounded-2xl shadow-pop border border-white/10 overflow-hidden">
-          <div class="flex items-center gap-1.5 px-4 py-2.5 border-b border-slate-200 bg-slate-50">
-            <span class="w-2 h-2 rounded-full bg-red-400"></span>
-            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span class="ml-3 text-[10px] text-slate-400 font-medium">app.soleapp.com.au</span>
-          </div>
-          <div class="p-4 bg-slate-50/40">
-            <div class="grid grid-cols-5 gap-3">
-              <div class="col-span-3 bg-white border border-slate-200 rounded-lg p-3">
-                <div class="flex items-center justify-between mb-2">
-                  <p class="text-[10px] font-semibold text-slate-700">Receivables Pipeline</p>
-                  <span class="text-[9px] text-brand-600 font-semibold">This Week</span>
-                </div>
-                <p class="text-[10px] text-slate-500">Pending Payments</p>
-                <p class="text-base font-extrabold text-slate-900 mb-2 tabular-nums">$4,200</p>
-                <svg viewBox="0 0 200 40" preserveAspectRatio="none" class="w-full h-8">
-                  <path d="M 0 32 Q 14 28, 22 24 T 44 22 T 66 20 T 88 16 T 110 14 T 132 12 T 154 8 T 176 6 T 200 4" stroke="#5A4FCF" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-                  <circle cx="200" cy="4" r="2.5" fill="#5A4FCF"/>
-                </svg>
+      <!-- LEFT: Infinite carousel of the 3 dashboards -->
+      <div class="relative order-2 lg:order-1 min-w-0">
+        <div class="dashboard-marquee relative w-full overflow-hidden rounded-2xl border border-white/10 shadow-pop bg-white/5">
+          <div class="dashboard-marquee-track flex gap-4 py-4">
+            <!-- Slides (duplicated for seamless loop) -->
+            <figure class="dashboard-slide shrink-0 w-[320px] sm:w-[400px] lg:w-[440px] bg-white rounded-xl overflow-hidden border border-slate-200">
+              <div class="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="ml-2 text-[10px] text-slate-400 font-medium">app.soleapp.com.au/practice/dashboard</span>
               </div>
-              <div class="col-span-2 bg-white border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center">
-                <p class="text-[10px] font-semibold text-slate-700 self-start">Timeline</p>
-                <div class="relative w-16 h-16 mt-1">
-                  <svg viewBox="0 0 36 36" class="w-full h-full -rotate-90">
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#EEF0FF" stroke-width="3.4"/>
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#5A4FCF" stroke-width="3.4" stroke-dasharray="70, 100" stroke-linecap="round"/>
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#F97316" stroke-width="3.4" stroke-dasharray="22, 100" stroke-dashoffset="-70" stroke-linecap="round"/>
-                  </svg>
-                  <div class="absolute inset-0 flex flex-col items-center justify-center">
-                    <span class="text-[8px] text-slate-400">Total</span>
-                    <span class="text-[10px] font-extrabold text-slate-900 tabular-nums">$128k</span>
-                  </div>
-                </div>
+              <img loading="lazy" src="assets/dashboard-practice.png" alt="Practice Dashboard" class="w-full h-auto object-cover object-top block" />
+            </figure>
+            <figure class="dashboard-slide shrink-0 w-[320px] sm:w-[400px] lg:w-[440px] bg-white rounded-xl overflow-hidden border border-slate-200">
+              <div class="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="ml-2 text-[10px] text-slate-400 font-medium">app.soleapp.com.au/helicopter-view</span>
               </div>
-            </div>
-            <div class="mt-3 bg-white border border-slate-200 rounded-lg p-3">
-              <p class="text-[10px] font-semibold text-slate-700">Outstanding</p>
-              <p class="text-base font-extrabold text-slate-900 mt-0.5 tabular-nums">$4,200</p>
-            </div>
-          </div>
-        </div>
+              <img loading="lazy" src="assets/dashboard-helicopter.png" alt="Helicopter View" class="w-full h-auto object-cover object-top block" />
+            </figure>
+            <figure class="dashboard-slide shrink-0 w-[320px] sm:w-[400px] lg:w-[440px] bg-white rounded-xl overflow-hidden border border-slate-200">
+              <div class="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="ml-2 text-[10px] text-slate-400 font-medium">app.soleapp.com.au/staff-scheduler</span>
+              </div>
+              <img loading="lazy" src="assets/dashboard-scheduler.png" alt="Staff Scheduler" class="w-full h-auto object-cover object-top block" />
+            </figure>
 
-        <!-- Floating chips -->
-        <div class="absolute -top-4 -right-3 bg-white shadow-pop rounded-xl px-3 py-2.5 border border-slate-200 hidden md:block floaty z-10">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-md bg-brand-100 flex items-center justify-center">
-              <svg class="w-4 h-4 text-brand-700"><use href="#i-trending"/></svg>
-            </div>
-            <div>
-              <p class="text-[9px] text-slate-500 uppercase tracking-wider">Practice Mgr</p>
-              <p class="text-xs font-bold text-slate-900">$128,450</p>
-            </div>
+            <!-- Duplicate set for seamless infinite loop -->
+            <figure class="dashboard-slide shrink-0 w-[320px] sm:w-[400px] lg:w-[440px] bg-white rounded-xl overflow-hidden border border-slate-200" aria-hidden="true">
+              <div class="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="ml-2 text-[10px] text-slate-400 font-medium">app.soleapp.com.au/practice/dashboard</span>
+              </div>
+              <img loading="lazy" src="assets/dashboard-practice.png" alt="" class="w-full h-auto object-cover object-top block" />
+            </figure>
+            <figure class="dashboard-slide shrink-0 w-[320px] sm:w-[400px] lg:w-[440px] bg-white rounded-xl overflow-hidden border border-slate-200" aria-hidden="true">
+              <div class="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="ml-2 text-[10px] text-slate-400 font-medium">app.soleapp.com.au/helicopter-view</span>
+              </div>
+              <img loading="lazy" src="assets/dashboard-helicopter.png" alt="" class="w-full h-auto object-cover object-top block" />
+            </figure>
+            <figure class="dashboard-slide shrink-0 w-[320px] sm:w-[400px] lg:w-[440px] bg-white rounded-xl overflow-hidden border border-slate-200" aria-hidden="true">
+              <div class="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200 bg-slate-50">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="ml-2 text-[10px] text-slate-400 font-medium">app.soleapp.com.au/staff-scheduler</span>
+              </div>
+              <img loading="lazy" src="assets/dashboard-scheduler.png" alt="" class="w-full h-auto object-cover object-top block" />
+            </figure>
           </div>
-        </div>
-        <div class="absolute -bottom-4 -left-3 bg-white shadow-pop rounded-xl px-3 py-2.5 border border-slate-200 hidden md:block floaty z-10" style="animation-delay: 1.5s;">
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-md bg-emerald-100 flex items-center justify-center">
-              <svg class="w-4 h-4 text-emerald-700"><use href="#i-check"/></svg>
-            </div>
-            <div>
-              <p class="text-[9px] text-slate-500 uppercase tracking-wider">Live</p>
-              <p class="text-xs font-bold text-slate-900">Migration ready</p>
-            </div>
-          </div>
+          <!-- Edge fades -->
+          <div class="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-slate-950 to-transparent pointer-events-none"></div>
+          <div class="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-slate-950 to-transparent pointer-events-none"></div>
         </div>
       </div>
 
