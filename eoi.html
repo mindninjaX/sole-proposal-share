@@ -130,9 +130,9 @@
 <!-- ================================================================ -->
 <nav class="bg-white/85 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex items-center justify-between h-16">
+    <div class="flex items-center justify-between h-24">
       <a href="#" class="flex items-center" aria-label="Sole — practice management software for Australian accounting firms">
-        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-12 w-auto" />
+        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-24 w-auto" />
       </a>
       <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
         <a href="landing.html#product" class="hover:text-slate-900 transition">Product</a>
@@ -920,7 +920,7 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold text-slate-900">CRM and comms</p>
               <div class="flex flex-wrap gap-1 mt-1.5">
-                <span class="inline-flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full text-[11px] font-medium text-slate-500"><img src="https://logo.clearbit.com/karbonhq.com" class="w-3.5 h-3.5 rounded-sm object-contain" onerror="this.src='https://www.google.com/s2/favicons?domain=karbonhq.com&sz=32'" />Karbon</span>
+                <span class="inline-flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full text-[11px] font-medium text-slate-500"><img src="https://www.google.com/s2/favicons?domain=karbonhq.com&sz=256" class="w-3.5 h-3.5 rounded-sm object-contain" onerror="this.src='https://www.google.com/s2/favicons?domain=karbonhq.com&sz=32'" />Karbon</span>
                 <span class="inline-flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full text-[11px] font-medium text-slate-500"><img src="https://logo.clearbit.com/fyidocs.com" class="w-3.5 h-3.5 rounded-sm object-contain" onerror="this.src='https://www.google.com/s2/favicons?domain=fyidocs.com&sz=32'" />FYI Elite</span>
                 <span class="inline-flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full text-[11px] font-medium text-slate-500"><img src="https://logo.clearbit.com/hubspot.com" class="w-3.5 h-3.5 rounded-sm object-contain" onerror="this.src='https://www.google.com/s2/favicons?domain=hubspot.com&sz=32'" />HubSpot</span>
               </div>
@@ -1438,11 +1438,132 @@
       <p class="mt-4 text-slate-600 leading-relaxed">Most platforms solve one layer of the practice. Sole connects the firm operating model with the client experience, so the firm can manage work, protect quality and create more client value from one connected platform.</p>
     </div>
 
-    <!-- SWOT image placeholder — replace with SWOT graphic when ready -->
-    <div class="bg-white border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center py-24 px-8 text-center gap-4 reveal" data-reveal-delay="100">
-      <svg class="w-12 h-12 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/></svg>
-      <p class="text-lg font-bold text-slate-400">SWOT Analysis Image</p>
-      <p class="text-sm text-slate-400 max-w-sm">Replace this placeholder with the Sole SWOT graphic once it's ready. Keep the same section wrapper and heading.</p>
+    <!-- SWOT diagram -->
+    <div class="reveal" data-reveal-delay="100">
+<style id="swot-styles">
+.swot-dot{position:absolute;transform:translate(-50%,-50%);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;z-index:5;}
+.swot-dot:hover{transform:translate(-50%,-50%) scale(1.15);}
+.swot-dot-sole{width:68px;height:68px;background:#fff;border:2px solid #C7D2FE;box-shadow:0 0 0 8px rgba(99,102,241,.18),0 8px 24px rgba(79,70,229,.3);z-index:10;}
+.swot-dot-sole:hover{transform:translate(-50%,-50%) scale(1.1);box-shadow:0 0 0 14px rgba(99,102,241,.22),0 12px 32px rgba(79,70,229,.4);}
+.swot-dot-sole img{width:42px;height:42px;}
+.swot-dot-other{width:50px;height:50px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.12);border:1.5px solid #e2e8f0;overflow:hidden;}
+.swot-dot-other img{width:30px;height:30px;object-fit:contain;display:block;}
+.swot-quad{position:absolute;z-index:2;transition:background .25s ease;background:transparent;cursor:default;}
+.swot-quad-tr{background:linear-gradient(135deg,rgba(238,242,255,0) 0%,rgba(238,242,255,.4) 100%);}
+.swot-quad.is-on{background:rgba(99,102,241,.06);}
+.swot-quad-tr.is-on{background:linear-gradient(135deg,rgba(238,242,255,.3) 0%,rgba(199,210,254,.55) 100%);}
+.swot-qlabel{position:absolute;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#64748B;pointer-events:none;transition:color .2s ease,transform .2s ease;transform-origin:left top;z-index:3;}
+.swot-qlabel-tr{color:#6366F1;transform-origin:right top;}
+.swot-qlabel-br{transform-origin:right bottom;}
+.swot-qlabel-bl{transform-origin:left bottom;}
+.swot-qlabel.is-on{color:#1e293b;transform:scale(1.12);}
+.swot-qlabel-tr.is-on{color:#4F46E5;}
+.swot-axislabel{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#475569;}
+#swot-tooltip{position:fixed;background:#0f172a;color:#fff;border-radius:12px;padding:12px 16px;pointer-events:none;opacity:0;transition:opacity .12s ease;z-index:9999;width:230px;box-shadow:0 8px 32px rgba(0,0,0,.3);font-family:inherit;}
+#swot-tooltip.swot-tt-on{opacity:1;}
+.swot-tt-row{display:flex;align-items:center;gap:7px;font-size:11px;line-height:1.6;padding:1px 0;}
+</style>
+<div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+  <div class="text-center py-5 border-b border-slate-100">
+    <p class="swot-axislabel" style="margin:0;">Higher Client Value</p>
+    <p style="font-size:11px;color:#64748B;margin-top:4px;">Revenue, advisory &amp; retention</p>
+  </div>
+  <div class="flex items-stretch">
+    <div class="flex items-center justify-center" style="writing-mode:vertical-rl;transform:rotate(180deg);min-width:40px;padding:0 12px;">
+      <span class="swot-axislabel">Fragmented &amp; Siloed</span>
+    </div>
+    <div id="swot-canvas" style="position:relative;flex:1;height:540px;">
+      <div class="swot-quad" data-q="tl" style="left:0;top:0;width:50%;height:50%;"></div>
+      <div class="swot-quad swot-quad-tr" data-q="tr" style="left:50%;top:0;width:50%;height:50%;"></div>
+      <div class="swot-quad" data-q="bl" style="left:0;top:50%;width:50%;height:50%;"></div>
+      <div class="swot-quad" data-q="br" style="left:50%;top:50%;width:50%;height:50%;"></div>
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#f1f5f9;z-index:3;pointer-events:none;"></div>
+      <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:#f1f5f9;z-index:3;pointer-events:none;"></div>
+      <span class="swot-qlabel swot-qlabel-tl" data-q="tl" style="left:3%;top:3%;">Advisory &amp; Client Platform</span>
+      <span class="swot-qlabel swot-qlabel-tr" data-q="tr" style="right:3%;top:3%;">Sole Territory</span>
+      <span class="swot-qlabel swot-qlabel-bl" data-q="bl" style="left:3%;bottom:3%;">Internal Tools</span>
+      <span class="swot-qlabel swot-qlabel-br" data-q="br" style="right:3%;bottom:3%;">Growing Platforms</span>
+      <div class="swot-dot swot-dot-sole" style="left:87%;top:15%;" data-q="tr" data-name="Sole Practice Manager" data-checks="Built around accounting &amp; advisory,Client portal,Proposal builder,Payroll,Practice ops,Born from an accounting practice" data-crosses=""><img src="sole-icon.png" alt="Sole"></div>
+      <div class="swot-dot swot-dot-other" style="left:48%;top:14%;" data-q="tr" data-name="TaxDome" data-checks="Broad client portal,Workflow product,White-label capability" data-crosses="Accounting platform,Payroll,Advisory tools">
+        <img src="https://www.google.com/s2/favicons?domain=taxdome.com&sz=256" alt="TaxDome" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#2563EB;">TD</span>
+      </div>
+      <div class="swot-dot swot-dot-other" style="left:51%;top:30%;" data-q="tr" data-name="Cone" data-checks="Practice management,Proposals,Billing &amp; payments" data-crosses="Full accounting platform,Payroll,Advisory tools">
+        <img src="https://www.google.com/s2/favicons?domain=cone.app&sz=256" alt="Cone" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#0D9488;">Con</span>
+      </div>
+      <div class="swot-dot swot-dot-other" style="left:25%;top:17%;" data-q="tl" data-name="Ignition" data-checks="Strong proposals,Billing &amp; payments" data-crosses="Full practice platform,Client portal,Payroll">
+        <img src="https://www.google.com/s2/favicons?domain=ignitionapp.com&sz=256" alt="Ignition" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#F97316;">Ig</span>
+      </div>
+      <div class="swot-dot swot-dot-other" style="left:36%;top:56%;" data-q="bl" data-name="Karbon" data-checks="Strong workflow,Collaboration,Client management" data-crosses="Proposals,Payroll,Client portal">
+        <img src="https://www.google.com/s2/favicons?domain=karbonhq.com&sz=256" alt="Karbon" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#1E293B;">Kb</span>
+      </div>
+      <div class="swot-dot swot-dot-other" style="left:56%;top:58%;" data-q="br" data-name="FYI Elite" data-checks="Strong document management,Automation,Workflows" data-crosses="Client portal,Proposals,Payroll">
+        <img src="https://www.google.com/s2/favicons?domain=usefyi.com&sz=256" alt="FYI Elite" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#1E40AF;">fyi</span>
+      </div>
+      <div class="swot-dot swot-dot-other" style="left:73%;top:48%;" data-q="br" data-name="Practice Manager" data-checks="Strong job &amp; time tracking,Billing,Workflow management" data-crosses="Client portal,Proposals,Advisory tools">
+        <img src="https://www.google.com/s2/favicons?domain=xero.com&sz=256" alt="Practice Manager" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#0EA5E9;">PM</span>
+      </div>
+      <div class="swot-dot swot-dot-other" style="left:53%;top:76%;" data-q="br" data-name="MYOB Practice" data-checks="Established practice platform,Compliance" data-crosses="Client portal,Proposals,Advisory tools">
+        <img src="https://www.google.com/s2/favicons?domain=myob.com&sz=256" alt="MYOB" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#7C3AED;">m</span>
+      </div>
+      <div class="swot-dot swot-dot-other" style="left:12%;top:72%;" data-q="bl" data-name="Dext" data-checks="Data capture,Bookkeeping automation" data-crosses="Practice management,Client portal,Proposals">
+        <img src="https://www.google.com/s2/favicons?domain=dext.com&sz=256" alt="Dext" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:10px;font-weight:700;color:#334155;">Dxt</span>
+      </div>
+    </div>
+    <div class="flex items-center justify-center" style="writing-mode:vertical-rl;min-width:40px;padding:0 12px;">
+      <span class="swot-axislabel">Unified Platform</span>
+    </div>
+  </div>
+  <div class="text-center py-5 border-t border-slate-100">
+    <p class="swot-axislabel" style="margin:0;">Lower Client Value</p>
+  </div>
+</div>
+<p class="text-center mt-4" style="font-size:11px;color:#64748B;">Hover any dot to see what each platform offers · Hover a quadrant to explore its positioning</p>
+<div id="swot-tooltip">
+  <p id="swot-tt-name" style="font-size:13px;font-weight:700;margin:0 0 8px;color:#fff;"></p>
+  <div id="swot-tt-feats"></div>
+</div>
+<script>
+(function(){
+  var tt=document.getElementById('swot-tooltip');
+  if(!tt) return;
+  document.body.appendChild(tt);
+  var tN=document.getElementById('swot-tt-name'),tF=document.getElementById('swot-tt-feats');
+  var canvas=document.getElementById('swot-canvas');
+  var quads=document.querySelectorAll('.swot-quad');
+  var qlabels=document.querySelectorAll('.swot-qlabel');
+  function setActive(q){
+    quads.forEach(function(el){el.classList.toggle('is-on',!!q&&el.dataset.q===q);});
+    qlabels.forEach(function(el){el.classList.toggle('is-on',!!q&&el.dataset.q===q);});
+  }
+  function row(icon,color,t){return '<div class="swot-tt-row"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="flex-shrink:0">'+icon+'</svg><span style="color:'+color+'">'+t+'</span></div>';}
+  function chk(t){return row('<path d="M2 6.5l2.5 2.5 5-5" stroke="#86efac" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>','#e2e8f0',t);}
+  function crs(t){return row('<path d="M3 3l6 6M9 3l-6 6" stroke="#fca5a5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>','#94a3b8',t);}
+  quads.forEach(function(q){q.addEventListener('mouseenter',function(){setActive(q.dataset.q);});});
+  if(canvas){canvas.addEventListener('mouseleave',function(){setActive(null);});}
+  document.querySelectorAll('.swot-dot').forEach(function(d){
+    d.addEventListener('mouseenter',function(){
+      tN.textContent=d.dataset.name;
+      var checks=(d.dataset.checks||'').split(',').filter(Boolean);
+      var crosses=(d.dataset.crosses||'').split(',').filter(Boolean);
+      var html='';
+      checks.forEach(function(f){html+=chk(f);});
+      crosses.forEach(function(f){html+=crs(f);});
+      tF.innerHTML=html;
+      tt.classList.add('swot-tt-on');
+      if(d.dataset.q) setActive(d.dataset.q);
+      requestAnimationFrame(function(){
+        var r=d.getBoundingClientRect(),w=tt.offsetWidth||230,h=tt.offsetHeight||100;
+        var x=r.right+10,y=r.top-8;
+        if(x+w>window.innerWidth-16) x=r.left-w-10;
+        if(y<10) y=r.bottom+8;
+        if(y+h>window.innerHeight-16) y=window.innerHeight-h-16;
+        tt.style.left=x+'px';tt.style.top=y+'px';
+      });
+    });
+    d.addEventListener('mouseleave',function(){tt.classList.remove('swot-tt-on');});
+  });
+})();
+</script>
     </div>
 
     <!-- CTAs -->
@@ -1469,31 +1590,18 @@
       </div>
 
       <article id="customer-video" class="relative bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-soft grid md:grid-cols-[1.15fr_1fr] items-stretch">
-        <video class="hidden w-full h-auto" controls preload="metadata" playsinline><source src="" type="video/mp4" /></video>
 
         <div class="relative aspect-video md:aspect-auto md:h-full overflow-hidden" style="background:#191944;">
           <img loading="lazy" src="assets/stephen-burns.png" class="absolute inset-0 w-full h-full object-contain" style="object-position:center 75%;" alt="Stephen Burns, CEO and Founder, Accountants Direct" />
           <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 78% 88% at 50% 62%, transparent 42%, #191944 88%);"></div>
           <div class="absolute inset-x-0 top-0 h-20 pointer-events-none" style="background:linear-gradient(to bottom, #191944, transparent);"></div>
           <div class="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style="background:linear-gradient(to top, #191944cc, transparent);"></div>
-          <div class="absolute top-4 left-4">
-            <span class="inline-flex items-center gap-1.5 bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold uppercase tracking-[0.15em] px-2.5 py-1.5 rounded-full">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-              Customer story · 2:48
-            </span>
-          </div>
-          <button id="customer-video-play" type="button" class="absolute inset-0 flex items-center justify-center group cursor-pointer" aria-label="Play customer story">
-            <span class="relative w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-2xl ring-1 ring-slate-900/10 group-hover:scale-105 transition">
-              <svg class="w-6 h-6 md:w-7 md:h-7 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </span>
-          </button>
         </div>
 
         <div class="p-7 md:p-9 flex flex-col justify-center">
           <svg class="w-9 h-9 text-brand-200" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M9.667 8C5.985 8 3 10.985 3 14.667v9.333h9.333v-9.333H6.667c0-1.657 1.343-3 3-3v-3.667zm14 0c-3.682 0-6.667 2.985-6.667 6.667v9.333h9.333v-9.333H20c0-1.657 1.343-3 3-3v-3.667z"/></svg>
           <blockquote class="mt-3 text-lg md:text-xl font-medium text-slate-800 leading-snug">After trialling various practice management options for over a year, SPM is the best and most cost-effective solution on the market. <span class="text-slate-700">A user-friendly one-stop platform that helps us convert more leads, streamline onboarding, and improve communication.</span></blockquote>
           <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="assets/stephen-burns.png" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100" style="object-position:center 15%;" alt="Stephen Burns" />
             <div>
               <p class="text-sm font-semibold text-slate-900">Stephen Burns</p>
               <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Gold Coast</p>
@@ -1604,27 +1712,6 @@
           BAS · STP · PAYG-ready
         </div>
       </article>
-    </div>
-
-    <!-- Cohort welcome kit — matches grid width above -->
-    <div class="mt-12 bg-brand-50/50 border border-brand-100 rounded-3xl p-8 lg:p-10 reveal" data-reveal-delay="200">
-      <div class="grid md:grid-cols-[auto_1fr] gap-6 items-center">
-        <span class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 text-white shadow-lift mx-auto md:mx-0">
-          <svg class="w-7 h-7"><use href="#i-gift"/></svg>
-        </span>
-        <div class="text-center md:text-left">
-          <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-700">Cohort welcome kit</p>
-          <h3 class="mt-1 text-xl md:text-2xl font-extrabold tracking-tight text-slate-900">Everything you get on day one.</h3>
-          <ul class="mt-4 grid sm:grid-cols-2 gap-y-2 gap-x-6 text-sm text-slate-700">
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-brand-600 shrink-0"><use href="#i-check"/></svg>25% off Year 1 subscription</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-brand-600 shrink-0"><use href="#i-check"/></svg>3-year pricing freeze</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-brand-600 shrink-0"><use href="#i-check"/></svg>Supported migration · up to $4,800 value</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-brand-600 shrink-0"><use href="#i-check"/></svg>Dedicated Aussie success manager</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-brand-600 shrink-0"><use href="#i-check"/></svg>Direct line to the product team</li>
-            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-brand-600 shrink-0"><use href="#i-check"/></svg>Co-design access to roadmap</li>
-          </ul>
-        </div>
-      </div>
     </div>
 
     <!-- Final CTA strip -->
@@ -1968,21 +2055,6 @@
     wrap.addEventListener('mouseenter', () => paused = true);
     wrap.addEventListener('mouseleave', () => paused = false);
     requestAnimationFrame(loop);
-  })();
-
-  /* Customer video play (graceful no-op until src wired) */
-  (function () {
-    const c = document.getElementById('customer-video');
-    const btn = document.getElementById('customer-video-play');
-    if (!c || !btn) return;
-    btn.addEventListener('click', () => {
-      const v = c.querySelector('video');
-      const s = v && v.querySelector('source');
-      if (!s || !s.src) return;
-      c.querySelectorAll(':scope > div, :scope > button').forEach(el => el.classList.add('hidden'));
-      v.classList.remove('hidden');
-      v.play().catch(() => {});
-    });
   })();
 
   /* Savings calculator */

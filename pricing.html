@@ -135,9 +135,9 @@
 <!-- 2. NAV -->
 <nav class="bg-white/85 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex items-center justify-between h-16">
+    <div class="flex items-center justify-between h-24">
       <a href="landing.html" class="flex items-center" aria-label="Sole Practice Manager — home">
-        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-12 w-auto" />
+        <img src="logo-spm.png" alt="Sole Practice Manager" class="block h-24 w-auto" />
       </a>
       <div class="hidden lg:flex items-center gap-7 text-sm text-slate-700">
         <a href="landing.html#product" class="hover:text-slate-900 transition">Product</a>
@@ -741,31 +741,18 @@
       </div>
 
       <article id="customer-video" class="relative bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-soft grid md:grid-cols-[1.15fr_1fr] items-stretch">
-        <video class="hidden w-full h-auto" controls preload="metadata" playsinline><source src="" type="video/mp4" /></video>
 
         <div class="relative aspect-video md:aspect-auto md:h-full overflow-hidden" style="background:#191944;">
           <img loading="lazy" src="assets/stephen-burns.png" class="absolute inset-0 w-full h-full object-contain" style="object-position:center 75%;" alt="Stephen Burns, CEO and Founder, Accountants Direct" />
           <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 78% 88% at 50% 62%, transparent 42%, #191944 88%);"></div>
           <div class="absolute inset-x-0 top-0 h-20 pointer-events-none" style="background:linear-gradient(to bottom, #191944, transparent);"></div>
           <div class="absolute inset-x-0 bottom-0 h-16 pointer-events-none" style="background:linear-gradient(to top, #191944cc, transparent);"></div>
-          <div class="absolute top-4 left-4">
-            <span class="inline-flex items-center gap-1.5 bg-white/95 backdrop-blur-sm text-slate-800 text-[10px] font-bold uppercase tracking-[0.15em] px-2.5 py-1.5 rounded-full">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-              Customer story · 2:48
-            </span>
-          </div>
-          <button id="customer-video-play" type="button" class="absolute inset-0 flex items-center justify-center group cursor-pointer" aria-label="Play customer story">
-            <span class="relative w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-2xl ring-1 ring-slate-900/10 group-hover:scale-105 transition">
-              <svg class="w-6 h-6 md:w-7 md:h-7 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </span>
-          </button>
         </div>
 
         <div class="p-7 md:p-9 flex flex-col justify-center">
           <svg class="w-9 h-9 text-brand-200" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M9.667 8C5.985 8 3 10.985 3 14.667v9.333h9.333v-9.333H6.667c0-1.657 1.343-3 3-3v-3.667zm14 0c-3.682 0-6.667 2.985-6.667 6.667v9.333h9.333v-9.333H20c0-1.657 1.343-3 3-3v-3.667z"/></svg>
           <blockquote class="mt-3 text-lg md:text-xl font-medium text-slate-800 leading-snug">After trialling various practice management options for over a year, SPM is the best and most cost-effective solution on the market. <span class="text-slate-500">A user-friendly one-stop platform that helps us convert more leads, streamline onboarding, and improve communication.</span></blockquote>
           <div class="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
-            <img loading="lazy" src="assets/stephen-burns.png" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100" style="object-position:center 15%;" alt="Stephen Burns" />
             <div>
               <p class="text-sm font-semibold text-slate-900">Stephen Burns</p>
               <p class="text-xs text-slate-500">CEO &amp; Founder, Accountants Direct · Gold Coast</p>
@@ -1006,21 +993,6 @@
     cards.forEach(c => {
       c.addEventListener('mouseenter', () => cards.forEach(o => o.classList.toggle('opacity-60', o !== c)));
       c.addEventListener('mouseleave', () => cards.forEach(o => o.classList.remove('opacity-60')));
-    });
-  })();
-
-  /* === Customer story video play handler — graceful no-op until video uploaded === */
-  (function () {
-    const c = document.getElementById('customer-video');
-    const btn = document.getElementById('customer-video-play');
-    if (!c || !btn) return;
-    btn.addEventListener('click', () => {
-      const v = c.querySelector('video');
-      const s = v && v.querySelector('source');
-      if (!s || !s.src) { return; }
-      c.querySelectorAll(':scope > div, :scope > button').forEach(el => el.classList.add('hidden'));
-      v.classList.remove('hidden');
-      v.play().catch(() => {});
     });
   })();
 
