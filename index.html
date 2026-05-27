@@ -26102,6 +26102,16 @@ const AppSidebar = ({
   }, {
     id: 'work-management',
     label: 'Work Management'
+  },
+  // SPM Forecast + Project Tracking — financial/forecasting dashboards
+  // ported from the spm-forecast-full.html reference. Each is one page
+  // with internal tabs (see SpmForecastPage / ProjectTrackingPage).
+  {
+    id: 'spm-forecast',
+    label: 'SPM Forecast'
+  }, {
+    id: 'project-tracking',
+    label: 'Project Tracking'
   }];
   const goPractice = subId => {
     window.location.hash = `#/practice/${subId}`;
@@ -68788,6 +68798,2912 @@ const WorkManagementPage = ({
   }));
 };
 
+// --- spm forecast + project tracking ---
+// Two new dashboards driven from a self-contained pipeline/projects data
+// model. Marquee surface is the weighted forecast pipeline (CEO ask). The
+// project-tracking dashboard mirrors the four "different views of the same
+// data" the team wanted (financials / WIP / budget WIP / resourcing).
+// Both pages re-use the existing atoms (PageHeader, DashSection, Card,
+// CardTitle, Pill, Chip, SegToggle, Btn, Select, Delta, ProgressBar) and
+// reuse PdDrillSheet for cell drill-downs — so look-and-feel matches the
+// other dashboard surfaces with no new chrome.
+const SPM_MONTHS = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+
+// Chart palette curated specifically for SPM stacks. The atom palette mixes
+// `T.text` (near-black) and `T.primarySoft` (too pale to read on white)
+// which made the screenshot bars unreadable — `T.text` swallowed siblings,
+// `T.primarySoft` disappeared. This palette stays inside the same visual
+// language but with each colour calibrated for chart legibility at thumbnail
+// size: every series stays distinguishable when shrunk to a 240-px bar.
+const SPM_CHART = {
+  signed: T.greenDark,
+  // signed / won — celebratory
+  forecast: T.primary,
+  // weighted forecast — confident
+  upside: '#A5A6F6',
+  // medium indigo (replaces T.primarySoft which was too pale)
+  risk: T.red,
+  // delivery risk overlays only — not stacked
+  budget: '#475569',
+  // slate grey for "budget" reference series — less heavy than T.text
+  actual: T.primary,
+  // matches forecast
+  expected: '#F59E0B',
+  // amber for unallocated / upside-secondary
+  nonbill: '#CBD5E1',
+  // grey for non-billable
+  target: '#1F2937' // near-black reserved for the "target" reference line
+};
+const SPM_STAGES = ['Qualified lead', 'Discovery booked', 'Proposal sent', 'Verbal yes', 'Signed'];
+const SPM_STAGE_PROB = {
+  'Qualified lead': 20,
+  'Discovery booked': 30,
+  'Proposal sent': 55,
+  'Verbal yes': 80,
+  'Signed': 100
+};
+const SPM_SERVICES = ['All', 'Tax compliance', 'Bookkeeping', 'Advisory', 'Payroll', 'BAS/GST', 'Client onboarding'];
+const SPM_STAFF = [{
+  id: 's1',
+  name: 'Sarah Mitchell',
+  role: 'Senior accountant',
+  initials: 'SM',
+  line: 'Tax compliance',
+  std: 40,
+  target: 80,
+  committed: 31,
+  nonbill: 7,
+  cost: 150,
+  rate: 245
+}, {
+  id: 's2',
+  name: 'Alex Chen',
+  role: 'Bookkeeper',
+  initials: 'AC',
+  line: 'Bookkeeping',
+  std: 38,
+  target: 78,
+  committed: 25,
+  nonbill: 8,
+  cost: 95,
+  rate: 165
+}, {
+  id: 's3',
+  name: 'Jordan Lee',
+  role: 'Tax senior',
+  initials: 'JL',
+  line: 'Tax compliance',
+  std: 40,
+  target: 82,
+  committed: 36,
+  nonbill: 5,
+  cost: 145,
+  rate: 235
+}, {
+  id: 's4',
+  name: 'Taylor Brown',
+  role: 'Payroll specialist',
+  initials: 'TB',
+  line: 'Payroll',
+  std: 35,
+  target: 75,
+  committed: 24,
+  nonbill: 6,
+  cost: 110,
+  rate: 185
+}, {
+  id: 's5',
+  name: 'Morgan Davis',
+  role: 'Advisor',
+  initials: 'MD',
+  line: 'Advisory',
+  std: 40,
+  target: 72,
+  committed: 28,
+  nonbill: 9,
+  cost: 180,
+  rate: 310
+}, {
+  id: 's6',
+  name: 'Priya Nair',
+  role: 'Client manager',
+  initials: 'PN',
+  line: 'Client onboarding',
+  std: 32,
+  target: 65,
+  committed: 19,
+  nonbill: 7,
+  cost: 125,
+  rate: 205
+}];
+const spmStaffBy = id => SPM_STAFF.find(s => s.id === id);
+
+// Deals — open opportunities in the pipeline. `prob` is derived from the
+// stage; `override` lets a partner manually pin a different likelihood.
+// `alloc[]` = [staffId, role, hours] — staffing intent if the deal lands.
+const SPM_DEALS = [{
+  id: 'd1',
+  client: 'Anderson Group',
+  service: 'Advisory',
+  stage: 'Proposal sent',
+  prob: 55,
+  override: null,
+  value: 42000,
+  hours: 118,
+  month: 'Jun',
+  start: '2026-06-10',
+  grossMarginTarget: 42,
+  alloc: [['s5', 'Lead advisor', 60], ['s1', 'Tax input', 18]],
+  won: false
+}, {
+  id: 'd2',
+  client: 'Fletcher Corp',
+  service: 'Tax compliance',
+  stage: 'Verbal yes',
+  prob: 75,
+  override: 80,
+  value: 28500,
+  hours: 96,
+  month: 'Jun',
+  start: '2026-06-24',
+  grossMarginTarget: 48,
+  alloc: [['s1', 'Partner review', 24], ['s3', 'Tax senior', 54]],
+  won: false
+}, {
+  id: 'd3',
+  client: 'NewCo Ltd',
+  service: 'Bookkeeping',
+  stage: 'Discovery booked',
+  prob: 30,
+  override: null,
+  value: 36000,
+  hours: 180,
+  month: 'Jul',
+  start: '2026-07-08',
+  grossMarginTarget: 38,
+  alloc: [['s2', 'Bookkeeping lead', 92]],
+  won: false
+}, {
+  id: 'd4',
+  client: 'Northwind Medical',
+  service: 'Payroll',
+  stage: 'Proposal sent',
+  prob: 50,
+  override: null,
+  value: 22000,
+  hours: 70,
+  month: 'Jul',
+  start: '2026-07-15',
+  grossMarginTarget: 44,
+  alloc: [['s4', 'Payroll specialist', 58]],
+  won: false
+}, {
+  id: 'd5',
+  client: 'Green Energy Co',
+  service: 'BAS/GST',
+  stage: 'Qualified lead',
+  prob: 20,
+  override: null,
+  value: 18000,
+  hours: 54,
+  month: 'Aug',
+  start: '2026-08-05',
+  grossMarginTarget: 45,
+  alloc: [['s1', 'GST review', 10], ['s2', 'Data clean-up', 26]],
+  won: false
+}, {
+  id: 'd6',
+  client: 'Harbour Retail',
+  service: 'Bookkeeping',
+  stage: 'Verbal yes',
+  prob: 80,
+  override: null,
+  value: 48000,
+  hours: 210,
+  month: 'Aug',
+  start: '2026-08-12',
+  grossMarginTarget: 40,
+  alloc: [['s2', 'Bookkeeping lead', 140], ['s6', 'Client manager', 28]],
+  won: false
+}, {
+  id: 'd7',
+  client: 'Smith & Partners',
+  service: 'Tax compliance',
+  stage: 'Proposal sent',
+  prob: 45,
+  override: null,
+  value: 31000,
+  hours: 104,
+  month: 'Sep',
+  start: '2026-09-03',
+  grossMarginTarget: 46,
+  alloc: [['s3', 'Tax senior', 72], ['s1', 'Review', 18]],
+  won: false
+}, {
+  id: 'd8',
+  client: 'Blue Crane Studio',
+  service: 'Advisory',
+  stage: 'Discovery booked',
+  prob: 25,
+  override: null,
+  value: 26000,
+  hours: 75,
+  month: 'Sep',
+  start: '2026-09-18',
+  grossMarginTarget: 44,
+  alloc: [['s5', 'Advisor', 36]],
+  won: false
+}, {
+  id: 'd9',
+  client: 'Luna Fitness',
+  service: 'BAS/GST',
+  stage: 'Signed',
+  prob: 100,
+  override: null,
+  value: 12000,
+  hours: 42,
+  month: 'May',
+  start: '2026-05-14',
+  grossMarginTarget: 45,
+  alloc: [['s6', 'Client manager', 12], ['s1', 'GST review', 16], ['s2', 'Processing', 14]],
+  won: true
+}, {
+  id: 'd10',
+  client: 'Tidewater Allied Health',
+  service: 'Payroll',
+  stage: 'Proposal sent',
+  prob: 60,
+  override: null,
+  value: 24000,
+  hours: 82,
+  month: 'Oct',
+  start: '2026-10-02',
+  grossMarginTarget: 42,
+  alloc: [['s4', 'Payroll specialist', 60], ['s6', 'Client manager', 8]],
+  won: false
+}];
+
+// Live projects. `alloc[]` here is [staffId, role, budgetHrs, actualHrs] so
+// resourcing can compare planned vs delivered effort per person per project.
+const SPM_PROJECTS = [{
+  id: 'p1',
+  name: 'FY26 tax compliance bundle',
+  client: 'Fletcher Corp',
+  service: 'Tax compliance',
+  partner: 'Sarah Mitchell',
+  budgetFee: 28500,
+  budgetHrs: 96,
+  actualHrs: 104,
+  actualCost: 24100,
+  expenses: 850,
+  forecastCost: 31500,
+  wipTime: 10800,
+  wipExpenses: 3400,
+  age: '31-60 days',
+  billing: 'Part billed',
+  alloc: [['s1', 'Partner review', 28, 31], ['s3', 'Tax senior', 68, 73]]
+}, {
+  id: 'p2',
+  name: 'Monthly bookkeeping rollout',
+  client: 'Harbour Retail',
+  service: 'Bookkeeping',
+  partner: 'Alex Chen',
+  budgetFee: 48000,
+  budgetHrs: 210,
+  actualHrs: 162,
+  actualCost: 33800,
+  expenses: 1240,
+  forecastCost: 46200,
+  wipTime: 16600,
+  wipExpenses: 2200,
+  age: '0-30 days',
+  billing: 'Ready to bill',
+  alloc: [['s2', 'Bookkeeping lead', 150, 118], ['s6', 'Client manager', 60, 44]]
+}, {
+  id: 'p3',
+  name: 'Advisory operating model',
+  client: 'Anderson Group',
+  service: 'Advisory',
+  partner: 'Morgan Davis',
+  budgetFee: 42000,
+  budgetHrs: 118,
+  actualHrs: 91,
+  actualCost: 29250,
+  expenses: 2100,
+  forecastCost: 40100,
+  wipTime: 21300,
+  wipExpenses: 1400,
+  age: '61-90 days',
+  billing: 'Partner review',
+  alloc: [['s5', 'Lead advisor', 84, 70], ['s1', 'Tax input', 34, 21]]
+}, {
+  id: 'p4',
+  name: 'Payroll transition and STP setup',
+  client: 'Northwind Medical',
+  service: 'Payroll',
+  partner: 'Taylor Brown',
+  budgetFee: 22000,
+  budgetHrs: 70,
+  actualHrs: 68,
+  actualCost: 18400,
+  expenses: 480,
+  forecastCost: 23800,
+  wipTime: 8800,
+  wipExpenses: 800,
+  age: '31-60 days',
+  billing: 'Draft invoice',
+  alloc: [['s4', 'Payroll specialist', 58, 55], ['s6', 'Client manager', 12, 13]]
+}, {
+  id: 'p5',
+  name: 'BAS clean-up and lodgement',
+  client: 'Green Energy Co',
+  service: 'BAS/GST',
+  partner: 'Alex Chen',
+  budgetFee: 18000,
+  budgetHrs: 54,
+  actualHrs: 71,
+  actualCost: 19650,
+  expenses: 620,
+  forecastCost: 22900,
+  wipTime: 10500,
+  wipExpenses: 1200,
+  age: '90+ days',
+  billing: 'Blocked',
+  alloc: [['s2', 'Data clean-up', 34, 46], ['s1', 'GST review', 20, 25]]
+}, {
+  id: 'p6',
+  name: 'Client onboarding remediation',
+  client: 'Luna Fitness',
+  service: 'Client onboarding',
+  partner: 'Priya Nair',
+  budgetFee: 12000,
+  budgetHrs: 42,
+  actualHrs: 31,
+  actualCost: 7900,
+  expenses: 150,
+  forecastCost: 11100,
+  wipTime: 3900,
+  wipExpenses: 300,
+  age: '0-30 days',
+  billing: 'Ready to bill',
+  alloc: [['s6', 'Client manager', 26, 19], ['s2', 'Processing', 16, 12]]
+}];
+
+// --- spm calculation helpers ---
+// Likelihood used for weighted maths — manual override wins when present.
+const spmProb = d => d.override == null ? d.prob : d.override;
+// Scenario: 'weighted' multiplies by likelihood; 'full' assumes 100% won.
+const spmWeighted = (v, p, scenario) => scenario === 'full' ? v : v * p / 100;
+const spmAllocHours = d => d.alloc.reduce((a, x) => a + x[2], 0);
+const spmUnalloc = d => Math.max(0, d.hours - spmAllocHours(d));
+const spmWipTotal = p => p.wipTime + p.wipExpenses;
+const spmBandFor = p => {
+  const cost = (p.actualCost + p.expenses) / p.budgetFee;
+  const hrs = p.actualHrs / p.budgetHrs;
+  if (cost > 1 || hrs > 1) return 'Over budget';
+  if (cost > 0.76) return '76-100% used';
+  if (cost > 0.51) return '51-75% used';
+  return '0-50% used';
+};
+const spmProjectStatus = p => {
+  const b = (p.actualCost + p.expenses) / p.budgetFee * 100;
+  const h = p.actualHrs / p.budgetHrs * 100;
+  if (b > 105 || h > 115 || p.age === '90+ days' || p.billing === 'Blocked') return 'High risk';
+  if (b > 85 || h > 90 || p.age === '61-90 days' || p.billing === 'Partner review') return 'Watch';
+  return 'On track';
+};
+// Weekly→monthly multiplier. `std`, `target`, `committed` and `cap` are
+// expressed in weekly hours; `pipe` (pulled from deal allocs scoped to a
+// month) is monthly. To compare them on the same scale we lift the weekly
+// numbers into a per-month projection.
+const SPM_WEEKS_PER_MONTH = 4.33;
+// Person × month forecast usage. `scenario === 'full'` treats every deal as
+// landing; otherwise hours are weighted by win likelihood. Returned values
+// are all **per-month projections** so cell-level and aggregate maths line
+// up — the screenshot bug was caused by comparing monthly `pipe` to weekly
+// `cap`, which inflated util by ~4×.
+const spmCapacityFor = (staffId, month, scenario, dealsList) => {
+  const s = spmStaffBy(staffId);
+  const pipe = dealsList.filter(d => d.month === month).reduce((a, d) => {
+    return a + d.alloc.filter(x => x[0] === staffId).reduce((z, x) => {
+      return z + (scenario === 'full' ? x[2] : x[2] * spmProb(d) / 100);
+    }, 0);
+  }, 0);
+  const capMonthly = s.std * s.target / 100 * SPM_WEEKS_PER_MONTH;
+  const committedMonthly = s.committed * SPM_WEEKS_PER_MONTH;
+  const total = committedMonthly + pipe;
+  return {
+    pipe,
+    total,
+    cap: capMonthly,
+    committed: committedMonthly,
+    util: Math.round(total / capMonthly * 100)
+  };
+};
+const spmSignalDeal = (d, dealsList) => {
+  const over = d.alloc.some(a => spmCapacityFor(a[0], d.month, 'full', dealsList).util > 110);
+  const u = spmUnalloc(d);
+  if (u > 20 || over) return 'High risk';
+  if (u > 0) return 'Watch';
+  if (d.won) return 'Won';
+  return 'Balanced';
+};
+// Maps a status word to one of the existing Pill colour variants so the
+// visual vocabulary matches the rest of the practice surface.
+const spmStatusColor = s => {
+  if (['High risk', 'Over budget', 'Blocked', 'Over used'].indexOf(s) > -1) return 'red';
+  if (['Watch', 'At risk', 'Partner review', 'Draft invoice', '76-100% used'].indexOf(s) > -1) return 'amber';
+  if (['Won', 'On track', 'Ready to bill', 'Balanced', '0-50% used', '51-75% used'].indexOf(s) > -1) return 'green';
+  return 'accent';
+};
+
+// --- spm chart atoms ---
+// Vertical stacked-bar chart used by the SPM forecast surfaces. Tighter
+// styling than LineChart so it sits comfortably inside a Card. `series` is
+// [{ key, name, color, money?, suffix? }]; `data` is [{ label, [seriesKey]: number }].
+// Bar chart for SPM dashboards. Supports two layouts:
+//   - stacked (default) — series sum into one bar per slot.
+//   - grouped — series sit side-by-side, one bar per series per slot.
+// Optional `target` draws a dashed horizontal reference line at that value
+// (used by the Margin % chart to mark the 30% at-risk threshold).
+// Legend renders **above** the chart so the colour key is visible before
+// the eye parses the bars (standard data-viz practice).
+const SpmBars = ({
+  data,
+  series,
+  height = 240,
+  grouped = false,
+  target = null
+}) => {
+  if (!data || data.length === 0) return null;
+  const totals = data.map(d => grouped ? Math.max(...series.map(s => Number(d[s.key]) || 0)) : series.reduce((a, s) => a + (Number(d[s.key]) || 0), 0));
+  const max = Math.max(1, ...totals, target == null ? 0 : target * 1.1) * 1.15;
+  const padT = 14,
+    padB = 26,
+    padL = 40,
+    padR = 8;
+  const vw = 600,
+    vh = height;
+  const slotW = (vw - padL - padR) / data.length;
+  // Grouped: leave gap between bars within a slot. Stacked: one bar per slot.
+  const barW = grouped ? Math.min(24, slotW * 0.7 / series.length) : Math.min(36, slotW * 0.62);
+  const yTicks = 4;
+  const fmtTick = v => {
+    if (series[0] && series[0].suffix === '%') return `${Math.round(v)}%`;
+    if (series[0] && series[0].suffix === 'h') return `${Math.round(v)}h`;
+    if (v >= 1000) return `$${(v / 1000).toFixed(0)}k`;
+    return `$${Math.round(v)}`;
+  };
+  const fmtVal = (v, s) => {
+    if (s.money) return fmtMoneyCompact(Math.round(v));
+    if (s.suffix === '%') return `${Math.round(v)}%`;
+    if (s.suffix === 'h') return `${Math.round(v)}h`;
+    return `${Math.round(v)}`;
+  };
+  const [hover, setHover] = useState(-1);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: 8,
+      alignItems: 'center'
+    }
+  }, series.map((s, i) => /*#__PURE__*/React.createElement("span", {
+    key: i,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 11,
+      color: T.textSoft,
+      fontWeight: 500
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 10,
+      height: 10,
+      borderRadius: 3,
+      background: s.color,
+      display: 'inline-block'
+    }
+  }), s.name)), target != null && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 11,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 14,
+      height: 2,
+      background: T.muted,
+      display: 'inline-block',
+      borderRadius: 2
+    }
+  }), "Target ", target, series[0] && series[0].suffix === '%' ? '%' : '')), /*#__PURE__*/React.createElement("svg", {
+    viewBox: `0 0 ${vw} ${vh}`,
+    width: "100%",
+    height: vh,
+    preserveAspectRatio: "none",
+    style: {
+      display: 'block'
+    }
+  }, Array.from({
+    length: yTicks + 1
+  }, (_, i) => {
+    const y = vh - padB - i / yTicks * (vh - padT - padB);
+    const v = i / yTicks * max;
+    return /*#__PURE__*/React.createElement("g", {
+      key: i
+    }, /*#__PURE__*/React.createElement("line", {
+      x1: padL,
+      x2: vw - padR,
+      y1: y,
+      y2: y,
+      stroke: T.border,
+      strokeDasharray: i === 0 ? '0' : '3 4'
+    }), /*#__PURE__*/React.createElement("text", {
+      x: padL - 6,
+      y: y + 3,
+      fontSize: "10",
+      textAnchor: "end",
+      fill: T.muted
+    }, fmtTick(v)));
+  }), target != null && (() => {
+    const ty = vh - padB - target / max * (vh - padT - padB);
+    return /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("line", {
+      x1: padL,
+      x2: vw - padR,
+      y1: ty,
+      y2: ty,
+      stroke: T.muted,
+      strokeWidth: 1.4,
+      strokeDasharray: "5 4"
+    }), /*#__PURE__*/React.createElement("text", {
+      x: vw - padR - 4,
+      y: ty - 4,
+      fontSize: "9.5",
+      textAnchor: "end",
+      fill: T.muted,
+      fontWeight: "600"
+    }, "Target ", target, series[0] && series[0].suffix === '%' ? '%' : ''));
+  })(), data.map((d, i) => {
+    const cx = padL + i * slotW + slotW / 2;
+    if (grouped) {
+      const groupSpan = barW * series.length + 2 * (series.length - 1);
+      return /*#__PURE__*/React.createElement("g", {
+        key: i,
+        onMouseEnter: () => setHover(i),
+        onMouseLeave: () => setHover(-1),
+        style: {
+          cursor: 'default'
+        }
+      }, /*#__PURE__*/React.createElement("rect", {
+        x: cx - slotW / 2,
+        y: padT,
+        width: slotW,
+        height: vh - padT - padB,
+        fill: "transparent"
+      }), series.map((s, j) => {
+        const v = Number(d[s.key]) || 0;
+        const bh = v / max * (vh - padT - padB);
+        const bx = cx - groupSpan / 2 + j * (barW + 2);
+        return /*#__PURE__*/React.createElement("rect", {
+          key: j,
+          x: bx,
+          y: vh - padB - bh,
+          width: barW,
+          height: Math.max(0, bh),
+          fill: s.color,
+          rx: 3,
+          ry: 3,
+          opacity: hover === -1 || hover === i ? 1 : 0.45
+        });
+      }), /*#__PURE__*/React.createElement("text", {
+        x: cx,
+        y: vh - 8,
+        fontSize: "10",
+        textAnchor: "middle",
+        fill: T.muted
+      }, d.label));
+    }
+    let yCursor = vh - padB;
+    const segs = series.map(s => {
+      const v = Number(d[s.key]) || 0;
+      const h = v / max * (vh - padT - padB);
+      yCursor -= h;
+      return {
+        y: yCursor,
+        h,
+        v,
+        s
+      };
+    });
+    return /*#__PURE__*/React.createElement("g", {
+      key: i,
+      onMouseEnter: () => setHover(i),
+      onMouseLeave: () => setHover(-1),
+      style: {
+        cursor: 'default'
+      }
+    }, /*#__PURE__*/React.createElement("rect", {
+      x: cx - slotW / 2,
+      y: padT,
+      width: slotW,
+      height: vh - padT - padB,
+      fill: "transparent"
+    }), segs.map((seg, j) => /*#__PURE__*/React.createElement("rect", {
+      key: j,
+      x: cx - barW / 2,
+      y: seg.y,
+      width: barW,
+      height: Math.max(0, seg.h),
+      fill: seg.s.color,
+      rx: j === segs.length - 1 ? 3 : 0,
+      ry: j === segs.length - 1 ? 3 : 0,
+      opacity: hover === -1 || hover === i ? 1 : 0.45
+    })), /*#__PURE__*/React.createElement("text", {
+      x: cx,
+      y: vh - 8,
+      fontSize: "10",
+      textAnchor: "middle",
+      fill: T.muted
+    }, d.label));
+  }), hover >= 0 && (() => {
+    const cx = padL + hover * slotW + slotW / 2;
+    const totalH = totals[hover];
+    const ty = Math.max(padT + 8, vh - padB - totalH / max * (vh - padT - padB) - 14);
+    const w = 160,
+      h = 18 + series.length * 14;
+    const x0 = Math.min(vw - padR - w, Math.max(padL, cx - w / 2));
+    return /*#__PURE__*/React.createElement("g", {
+      transform: `translate(${x0}, ${Math.max(padT, ty - h - 6)})`
+    }, /*#__PURE__*/React.createElement("rect", {
+      width: w,
+      height: h,
+      rx: "6",
+      fill: T.text,
+      opacity: 0.95
+    }), /*#__PURE__*/React.createElement("text", {
+      x: "9",
+      y: "14",
+      fontSize: "10",
+      fill: "#fff",
+      opacity: 0.7
+    }, data[hover].label), series.map((s, j) => /*#__PURE__*/React.createElement("g", {
+      key: j
+    }, /*#__PURE__*/React.createElement("rect", {
+      x: "9",
+      y: 20 + j * 14,
+      width: "8",
+      height: "8",
+      fill: s.color,
+      rx: "2"
+    }), /*#__PURE__*/React.createElement("text", {
+      x: "22",
+      y: 28 + j * 14,
+      fontSize: "10",
+      fill: "#fff"
+    }, s.name, ": ", fmtVal(Number(data[hover][s.key]) || 0, s)))));
+  })()));
+};
+
+// Donut atom used by the Capacity Impact tab. Colours by threshold so
+// over-target rings shout red without us having to thread tones through.
+// Ring caps visually at 140% — if the underlying value spills above the
+// cap we surface that with a small "above target" pill so the number and
+// the visual stay coherent (the screenshot bug was a "256%" centre label
+// next to a ring that visually capped at 140 — disorienting).
+const SpmDonut = ({
+  label,
+  pct,
+  sub
+}) => {
+  const r = 52,
+    c = 2 * Math.PI * r;
+  const overflow = pct > 140;
+  const clamped = Math.max(0, Math.min(140, pct));
+  const off = c * (1 - clamped / 140);
+  const color = pct > 110 ? T.red : pct > 95 ? T.amber : T.primary;
+  return /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      placeItems: 'center',
+      position: 'relative',
+      height: 170,
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "150",
+    height: "150",
+    viewBox: "0 0 140 140"
+  }, /*#__PURE__*/React.createElement("circle", {
+    cx: "70",
+    cy: "70",
+    r: r,
+    fill: "none",
+    stroke: T.fieldBg,
+    strokeWidth: "14"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "70",
+    cy: "70",
+    r: r,
+    fill: "none",
+    stroke: color,
+    strokeWidth: "14",
+    strokeDasharray: c,
+    strokeDashoffset: off,
+    strokeLinecap: "round",
+    transform: "rotate(-90 70 70)"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 26,
+      fontWeight: 700,
+      letterSpacing: -0.4,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, pct, "%"), sub && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      marginTop: 2
+    }
+  }, sub))), overflow && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      marginTop: -6
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: "red"
+  }, "ring caps at 140%")));
+};
+
+// KPI tile shared by both SPM dashboards. Matches the PracticeDashboardPage
+// KPI strip pattern (data-hover, 12px radius, 11px label / 22px value).
+// Optional `spark` is a 6-point series shown bottom-right; matches the
+// Practice Dashboard pattern so eyes trained on one surface read the other.
+const SpmKpi = ({
+  label,
+  value,
+  hint,
+  tone,
+  onClick,
+  spark
+}) => {
+  const tones = {
+    red: {
+      bg: T.redSoft,
+      fg: T.red
+    },
+    amber: {
+      bg: T.amberSoft,
+      fg: T.amber
+    },
+    green: {
+      bg: T.greenSoft,
+      fg: T.greenDark
+    }
+  };
+  const t = tones[tone];
+  return /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    "data-hover": "kpi",
+    style: {
+      textAlign: 'left',
+      padding: '14px 14px 12px',
+      borderRadius: 12,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      cursor: onClick ? 'pointer' : 'default',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+      minHeight: 100,
+      transition: 'transform .12s ease, box-shadow .12s ease, border-color .12s ease'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      fontWeight: 500,
+      lineHeight: 1.3
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.4,
+      fontVariantNumeric: 'tabular-nums',
+      lineHeight: 1.15
+    }
+  }, value), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginTop: 'auto'
+    }
+  }, hint ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: t ? t.fg : T.muted,
+      fontWeight: t ? 600 : 500
+    }
+  }, t && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-block',
+      padding: '1px 6px',
+      borderRadius: 999,
+      background: t.bg,
+      marginRight: 4
+    }
+  }, "!"), hint) : /*#__PURE__*/React.createElement("span", null), Array.isArray(spark) && spark.length >= 2 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      opacity: 0.75,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(MiniSpark, {
+    data: spark,
+    w: 56,
+    h: 20,
+    color: t ? t.fg : T.primary,
+    fill: false
+  }))));
+};
+
+// Compact table used by every SPM tab. Supports column-level filter
+// (search input above the head), client-side sort, and per-row click.
+// Keeps the chrome consistent across forecast / project / resourcing
+// tables — and matches existing EmployeesPage table density.
+const SpmTable = ({
+  columns,
+  rows,
+  onRowClick,
+  exportName,
+  onExport,
+  scrollX = true
+}) => {
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState({
+    idx: -1,
+    dir: 1
+  });
+  const clean = v => String(v == null ? '' : v).replace(/<[^>]*>/g, '');
+  const filtered = q ? rows.filter(r => r.cells.map(clean).join(' ').toLowerCase().indexOf(q.toLowerCase()) > -1) : rows;
+  const sorted = sort.idx >= 0 ? [...filtered].sort((a, b) => clean(a.cells[sort.idx]).localeCompare(clean(b.cells[sort.idx]), undefined, {
+    numeric: true
+  }) * sort.dir) : filtered;
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginBottom: 8,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: q,
+    onChange: e => setQ(e.target.value),
+    placeholder: "Filter this table\u2026",
+    style: {
+      minWidth: 260
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), exportName && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "download",
+    onClick: () => onExport && onExport(exportName, sorted)
+  }, "Export CSV")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.card,
+      overflow: scrollX ? 'auto' : 'visible',
+      maxHeight: 560
+    }
+  }, /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      minWidth: scrollX ? 920 : undefined,
+      borderCollapse: 'collapse'
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, columns.map((c, i) => /*#__PURE__*/React.createElement("th", {
+    key: i,
+    onClick: () => setSort(s => ({
+      idx: i,
+      dir: s.idx === i ? -s.dir : 1
+    })),
+    style: {
+      textAlign: 'left',
+      padding: '10px 12px',
+      fontSize: 11,
+      fontWeight: 600,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.06 * 16 / 16,
+      background: T.fieldBg,
+      borderBottom: `1px solid ${T.border}`,
+      cursor: 'pointer',
+      whiteSpace: 'nowrap',
+      position: 'sticky',
+      top: 0,
+      zIndex: 1
+    }
+  }, c, sort.idx === i ? sort.dir === 1 ? ' ↑' : ' ↓' : '')))), /*#__PURE__*/React.createElement("tbody", null, sorted.length === 0 ? /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+    colSpan: columns.length,
+    style: {
+      padding: '24px 12px',
+      textAlign: 'center',
+      color: T.muted,
+      fontSize: 13
+    }
+  }, "No rows match.")) : sorted.map((row, i) => /*#__PURE__*/React.createElement("tr", {
+    key: row.key || i,
+    onClick: () => onRowClick && onRowClick(row),
+    style: {
+      borderBottom: i === sorted.length - 1 ? 'none' : `1px solid ${T.border}`,
+      cursor: onRowClick ? 'pointer' : 'default',
+      // Zebra striping at the 12-row density of these tables.
+      background: i % 2 === 0 ? T.card : T.fieldBg
+    }
+  }, row.cells.map((cell, j) => /*#__PURE__*/React.createElement("td", {
+    key: j,
+    style: {
+      padding: '11px 12px',
+      fontSize: 13,
+      color: T.textSoft,
+      verticalAlign: 'middle'
+    }
+  }, cell))))))));
+};
+
+// Generic CSV export — bound to the per-table Export button. Mirrors the
+// reference's exportCSV() but adapts column headers from `columns`.
+const spmExportCsv = (name, columns, rows, getCell) => {
+  const lines = [];
+  lines.push(columns.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
+  rows.forEach(r => {
+    const vals = getCell ? getCell(r) : r;
+    lines.push(vals.map(v => `"${String(v == null ? '' : v).replace(/<[^>]*>/g, '').replace(/"/g, '""')}"`).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {
+    type: 'text/csv'
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sole-spm-${name}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
+// Underlined tab strip — the canonical "section navigation" pattern that
+// reads visually distinct from filter chips below. Active tab sits on the
+// hairline border with its own 2px indigo bottom border; inactive tabs
+// keep the hairline showing.
+const SpmTabs = ({
+  tabs,
+  value,
+  onChange
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: 4,
+    borderBottom: `1px solid ${T.border}`,
+    marginBottom: 16,
+    overflowX: 'auto'
+  }
+}, tabs.map(t => {
+  const active = value === t.id;
+  return /*#__PURE__*/React.createElement("button", {
+    key: t.id,
+    onClick: () => onChange(t.id),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      padding: '10px 14px',
+      marginBottom: -1,
+      borderBottom: `2px solid ${active ? T.primary : 'transparent'}`,
+      color: active ? T.primary : T.muted,
+      fontWeight: active ? 700 : 500,
+      fontSize: 13,
+      cursor: 'pointer',
+      whiteSpace: 'nowrap',
+      transition: 'color .12s ease, border-color .12s ease'
+    }
+  }, t.label);
+}));
+
+// Shared filter toolbar — service select + period select + (optional)
+// Weighted/Full scenario toggle. Returns a flex row of atoms so each
+// page wraps it in its own card or toolbar context.
+const SpmFilterBar = ({
+  service,
+  setService,
+  period,
+  setPeriod,
+  scenario,
+  setScenario,
+  q,
+  setQ,
+  showScenario
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+    marginBottom: 14
+  }
+}, /*#__PURE__*/React.createElement(Select, {
+  value: service,
+  onChange: e => setService(e.target.value),
+  style: {
+    width: 'auto',
+    minWidth: 160
+  }
+}, SPM_SERVICES.map(s => /*#__PURE__*/React.createElement("option", {
+  key: s
+}, s))), /*#__PURE__*/React.createElement(Select, {
+  value: period,
+  onChange: e => setPeriod(e.target.value),
+  style: {
+    width: 'auto',
+    minWidth: 140
+  }
+}, /*#__PURE__*/React.createElement("option", {
+  value: "6m"
+}, "Next 6 months"), /*#__PURE__*/React.createElement("option", {
+  value: "q"
+}, "This quarter"), /*#__PURE__*/React.createElement("option", {
+  value: "m"
+}, "This month")), q !== undefined && /*#__PURE__*/React.createElement(Input, {
+  value: q,
+  onChange: e => setQ(e.target.value),
+  placeholder: "Search clients, deals, projects\u2026",
+  prefix: /*#__PURE__*/React.createElement(Icon, {
+    name: "search",
+    size: 14,
+    color: T.muted
+  }),
+  style: {
+    minWidth: 260
+  }
+}), /*#__PURE__*/React.createElement("div", {
+  style: {
+    flex: 1
+  }
+}), showScenario && /*#__PURE__*/React.createElement(SegToggle, {
+  value: scenario,
+  onChange: setScenario,
+  options: [{
+    value: 'weighted',
+    label: 'Weighted likelihood'
+  }, {
+    value: 'full',
+    label: '100% won scenario'
+  }]
+}));
+
+// Build a PdDrillSheet-shaped payload for an SPM entity so the drill
+// drawer can be reused with the same look as Practice Dashboard / Helicopter.
+const spmDealPayload = (d, dealsList, scenario) => {
+  const p = spmProb(d);
+  const sig = spmSignalDeal(d, dealsList);
+  const fr = spmWeighted(d.value, p, scenario);
+  const fh = spmWeighted(d.hours, p, scenario);
+  const alloc = d.alloc.map(a => {
+    const s = spmStaffBy(a[0]);
+    return {
+      name: `${s.name} — ${a[1]}`,
+      sub: `${a[2]}h planned`,
+      tag: `${a[2]}h`,
+      tone: 'accent'
+    };
+  });
+  return {
+    eyebrow: `${d.service} · ${d.month}`,
+    title: d.client,
+    headline: fmtMoneyCompact(Math.round(fr)),
+    delta: {
+      value: `${p}% likelihood`,
+      dir: 'up',
+      tone: sig === 'High risk' ? 'negative' : sig === 'Watch' ? 'neutral' : 'positive'
+    },
+    blurb: `${d.stage} · expected start ${d.start}. Forecast hours: ${Math.round(fh)}h · ${Math.round(spmUnalloc(d))}h unallocated. Signal: ${sig}.`,
+    drivers: [{
+      label: 'Forecast revenue',
+      value: fmtMoneyCompact(Math.round(fr)),
+      share: Math.min(100, p),
+      color: T.primary
+    }, {
+      label: 'Forecast hours',
+      value: `${Math.round(fh)}h`,
+      share: Math.min(100, fh / d.hours * 100),
+      color: T.greenDark
+    }, {
+      label: 'Unallocated',
+      value: `${Math.round(spmUnalloc(d))}h`,
+      share: Math.min(100, spmUnalloc(d) / Math.max(1, d.hours) * 100),
+      color: T.amber
+    }],
+    list: alloc,
+    next: 'Open: Staffing plan for this deal'
+  };
+};
+const spmProjectPayload = p => {
+  const st = spmProjectStatus(p);
+  const bUsed = (p.actualCost + p.expenses) / p.budgetFee * 100;
+  const hUsed = p.actualHrs / p.budgetHrs * 100;
+  return {
+    eyebrow: `${p.service} · ${p.client}`,
+    title: p.name,
+    headline: fmtMoneyCompact(p.budgetFee),
+    delta: {
+      value: st,
+      dir: st === 'On track' ? 'down' : 'up',
+      tone: st === 'High risk' ? 'negative' : st === 'Watch' ? 'neutral' : 'positive'
+    },
+    blurb: `Partner ${p.partner}. Billing status: ${p.billing}. WIP age band: ${p.age}.`,
+    drivers: [{
+      label: 'Budget used',
+      value: `${Math.round(bUsed)}%`,
+      share: Math.min(100, bUsed),
+      color: bUsed > 100 ? T.red : bUsed > 85 ? T.amber : T.greenDark
+    }, {
+      label: 'Hours used',
+      value: `${Math.round(hUsed)}%`,
+      share: Math.min(100, hUsed),
+      color: hUsed > 100 ? T.red : hUsed > 85 ? T.amber : T.primary
+    }, {
+      label: 'WIP total',
+      value: fmtMoneyCompact(spmWipTotal(p)),
+      share: 60,
+      color: T.amber
+    }, {
+      label: 'Forecast cost',
+      value: fmtMoneyCompact(p.forecastCost),
+      share: Math.min(100, p.forecastCost / p.budgetFee * 100),
+      color: T.text
+    }],
+    list: p.alloc.map(a => {
+      const s = spmStaffBy(a[0]);
+      const used = a[3] / a[2] * 100;
+      return {
+        name: `${s.name} — ${a[1]}`,
+        sub: `${a[3]}h of ${a[2]}h (${Math.round(used)}%)`,
+        tag: `${Math.round(used)}%`,
+        tone: used > 110 ? 'red' : used > 90 ? 'accent' : 'neutral'
+      };
+    }),
+    next: 'Open: Project detail with full timesheet'
+  };
+};
+const spmPersonPayload = (s, dealsList, scenario) => {
+  const pipe = dealsList.reduce((a, d) => a + d.alloc.filter(x => x[0] === s.id).reduce((z, x) => z + spmWeighted(x[2], spmProb(d), scenario), 0), 0);
+  const cap = s.std * s.target / 100;
+  const total = s.committed + pipe;
+  const util = Math.round(total / cap * 100);
+  return {
+    eyebrow: `${s.line} · ${s.role}`,
+    title: s.name,
+    headline: `${util}%`,
+    delta: {
+      value: `${Math.round(total)}h / ${Math.round(cap)}h`,
+      dir: util > 100 ? 'up' : 'down',
+      tone: util > 110 ? 'negative' : util > 95 ? 'neutral' : 'positive'
+    },
+    blurb: `Standard ${s.std}h/week, billable target ${s.target}%. Cost rate ${fmtMoneyCompact(s.cost)}/h, billing rate ${fmtMoneyCompact(s.rate)}/h.`,
+    drivers: [{
+      label: 'Committed billable',
+      value: `${s.committed}h`,
+      share: Math.min(100, s.committed / cap * 100),
+      color: T.primary
+    }, {
+      label: 'Forecast pipeline',
+      value: `${Math.round(pipe)}h`,
+      share: Math.min(100, pipe / cap * 100),
+      color: T.amber
+    }, {
+      label: 'Non-billable',
+      value: `${s.nonbill}h`,
+      share: Math.min(100, s.nonbill / s.std * 100),
+      color: '#9CA3AF'
+    }],
+    next: 'Open: Staff scheduler for this person'
+  };
+};
+
+// --- spm forecast dashboard ---
+const SpmForecastPage = ({
+  fireToast
+}) => {
+  const [tab, setTab] = useState('forecast');
+  const [period, setPeriod] = useState('6m');
+  const [service, setService] = useState('All');
+  const [scenario, setScenario] = useState('weighted');
+  const [q, setQ] = useState('');
+  const [drill, setDrill] = useState(null);
+  const [report, setReport] = useState('Weighted forecast by month');
+
+  // Filter pipeline by service + free-text. Period only narrows the
+  // displayed months — the underlying dataset already covers 6 months.
+  const months = period === 'm' ? SPM_MONTHS.slice(0, 1) : period === 'q' ? SPM_MONTHS.slice(0, 3) : SPM_MONTHS;
+  const deals = useMemo(() => SPM_DEALS.filter(d => {
+    if (service !== 'All' && d.service !== service) return false;
+    if (months.indexOf(d.month) < 0) return false;
+    if (q && JSON.stringify(d).toLowerCase().indexOf(q.toLowerCase()) < 0) return false;
+    return true;
+  }), [service, q, period]);
+
+  // KPI maths run on the filtered slice.
+  const openPipe = deals.reduce((s, d) => s + d.value, 0);
+  const forecast = deals.reduce((s, d) => s + spmWeighted(d.value, spmProb(d), scenario), 0);
+  const fHours = deals.reduce((s, d) => s + spmWeighted(d.hours, spmProb(d), scenario), 0);
+  const unAlloc = deals.reduce((s, d) => s + spmWeighted(spmUnalloc(d), spmProb(d), scenario), 0);
+  const overCap = SPM_STAFF.filter(s => months.some(m => spmCapacityFor(s.id, m, 'full', deals).util > 110)).length;
+
+  // ---------- Tab: Forecast Pipeline ----------
+  // Monthly revenue chart — three non-overlapping stacks (signed → weighted
+  // forecast → unweighted upside). "High delivery risk" was previously a
+  // fourth stack but it double-counted the same revenue already in
+  // `forecast`, inflating heights for high-risk months. Risk is now exposed
+  // in the pipeline table's Signal column + the People-over-capacity KPI.
+  const monthlyRevData = months.map(m => {
+    const r = deals.filter(d => d.month === m);
+    const won = r.filter(d => d.won).reduce((a, d) => a + d.value, 0);
+    const open = r.filter(d => !d.won).reduce((a, d) => a + d.value, 0);
+    const wt = r.filter(d => !d.won).reduce((a, d) => a + d.value * spmProb(d) / 100, 0);
+    const up = Math.max(0, open - wt);
+    return {
+      label: m,
+      won,
+      forecast: scenario === 'full' ? wt + up : wt,
+      upside: scenario === 'full' ? 0 : up
+    };
+  });
+  const monthlyRevSeries = [{
+    key: 'won',
+    name: 'Signed / won',
+    color: SPM_CHART.signed,
+    money: true
+  }, {
+    key: 'forecast',
+    name: scenario === 'full' ? '100% won forecast' : 'Weighted forecast',
+    color: SPM_CHART.forecast,
+    money: true
+  }, {
+    key: 'upside',
+    name: 'Unweighted upside',
+    color: SPM_CHART.upside,
+    money: true
+  }];
+  // Monthly hours chart — drop the redundant `Estimated` series (it equals
+  // Allocated + Unallocated by definition, so stacking it on top tripled
+  // the visual height for no information gain).
+  const monthlyHoursData = months.map(m => {
+    const r = deals.filter(d => d.month === m);
+    return {
+      label: m,
+      allocated: r.reduce((a, d) => a + spmWeighted(spmAllocHours(d), spmProb(d), scenario), 0),
+      unallocated: r.reduce((a, d) => a + spmWeighted(spmUnalloc(d), spmProb(d), scenario), 0)
+    };
+  });
+  const monthlyHoursSeries = [{
+    key: 'allocated',
+    name: 'Allocated hours',
+    color: SPM_CHART.forecast,
+    suffix: 'h'
+  }, {
+    key: 'unallocated',
+    name: 'Unallocated hours',
+    color: SPM_CHART.expected,
+    suffix: 'h'
+  }];
+
+  // Resource-impact grid (staff × month). Each cell is clickable; the
+  // colour band reads as "are we breaking this person's target?"
+  const ResourceGrid = () => /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: `180px repeat(${months.length}, minmax(110px, 1fr))`,
+      gap: 8,
+      minWidth: 180 + 110 * months.length
+    }
+  }, /*#__PURE__*/React.createElement("div", null), months.map(m => /*#__PURE__*/React.createElement("div", {
+    key: m,
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: T.muted,
+      padding: '0 8px',
+      textTransform: 'uppercase',
+      letterSpacing: 0.6
+    }
+  }, m)), SPM_STAFF.filter(s => service === 'All' || s.line === service).map(s => /*#__PURE__*/React.createElement(Fragment, {
+    key: s.id
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '4px 0'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 26,
+      height: 26,
+      borderRadius: 999,
+      background: T.primarySoft,
+      color: T.primary,
+      display: 'grid',
+      placeItems: 'center',
+      fontSize: 10.5,
+      fontWeight: 700
+    }
+  }, s.initials), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text,
+      lineHeight: 1.2
+    }
+  }, s.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      color: T.muted
+    }
+  }, s.role))), months.map(m => {
+    const c = spmCapacityFor(s.id, m, scenario === 'full', deals);
+    const color = c.util > 110 ? T.red : c.util > 95 ? T.amber : T.greenDark;
+    return /*#__PURE__*/React.createElement("button", {
+      key: m,
+      "data-hover": "row",
+      onClick: () => setDrill({
+        eyebrow: `${s.name} · ${m}`,
+        title: `${c.util}% of target capacity`,
+        headline: `${Math.round(c.total)}h`,
+        delta: {
+          value: `${Math.round(c.cap)}h capacity`,
+          dir: c.util > 100 ? 'up' : 'down',
+          tone: c.util > 110 ? 'negative' : c.util > 95 ? 'neutral' : 'positive'
+        },
+        blurb: `Pipeline adds ${Math.round(c.pipe)}h this month on top of ${Math.round(c.committed)}h already committed.`,
+        drivers: [{
+          label: 'Committed billable',
+          value: `${Math.round(c.committed)}h`,
+          share: Math.min(100, c.committed / c.cap * 100),
+          color: T.primary
+        }, {
+          label: 'Forecast pipeline',
+          value: `${Math.round(c.pipe)}h`,
+          share: Math.min(100, c.pipe / c.cap * 100),
+          color: SPM_CHART.expected
+        }],
+        next: 'Open: Capacity & Workload Planner'
+      }),
+      style: {
+        textAlign: 'left',
+        cursor: 'pointer',
+        padding: '8px 10px',
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        minHeight: 68,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, c.util, "%"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 8,
+        height: 8,
+        borderRadius: 999,
+        background: color,
+        display: 'inline-block'
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: T.fieldBg,
+        borderRadius: 999,
+        height: 6,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${Math.min(100, c.util / 140 * 100)}%`,
+        background: color,
+        borderRadius: 999
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10.5,
+        color: T.muted
+      }
+    }, "+", Math.round(c.pipe), "h pipeline"));
+  })))));
+
+  // Static pipeline-stage board (kanban tally). Drag-and-drop intentionally
+  // deferred for the POC — the value is the per-stage rollup + drill into
+  // each deal card.
+  const StageBoard = () => {
+    const cols = SPM_STAGES.map(st => {
+      const ds = deals.filter(d => d.stage === st);
+      const rev = ds.reduce((a, d) => a + spmWeighted(d.value, spmProb(d), scenario), 0);
+      const hrs = ds.reduce((a, d) => a + spmWeighted(d.hours, spmProb(d), scenario), 0);
+      return {
+        st,
+        ds,
+        rev,
+        hrs
+      };
+    });
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cols.length}, minmax(180px, 1fr))`,
+        gap: 12,
+        overflowX: 'auto'
+      }
+    }, cols.map(col => /*#__PURE__*/React.createElement("div", {
+      key: col.st,
+      style: {
+        background: T.fieldBg,
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        padding: 10,
+        minHeight: 220
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: T.muted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6
+      }
+    }, col.st), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: T.textSoft,
+        marginTop: 2
+      }
+    }, fmtMoneyCompact(col.rev), " \xB7 ", Math.round(col.hrs), "h"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 10,
+        display: 'grid',
+        gap: 8
+      }
+    }, col.ds.length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.mutedSoft
+      }
+    }, "No deals"), col.ds.map(d => /*#__PURE__*/React.createElement("button", {
+      key: d.id,
+      onClick: () => setDrill(spmDealPayload(d, deals, scenario)),
+      style: {
+        textAlign: 'left',
+        padding: '8px 10px',
+        cursor: 'pointer',
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderRadius: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, d.client), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10.5,
+        color: T.muted,
+        marginTop: 1
+      }
+    }, d.service, " \xB7 ", spmProb(d), "% \xB7 ", d.start), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6,
+        marginTop: 6
+      }
+    }, /*#__PURE__*/React.createElement(Pill, {
+      color: "accent"
+    }, fmtMoneyCompact(Math.round(spmWeighted(d.value, spmProb(d), scenario)))), /*#__PURE__*/React.createElement(Pill, {
+      color: "neutral"
+    }, Math.round(spmWeighted(d.hours, spmProb(d), scenario)), "h"))))))));
+  };
+
+  // Pipeline table — sortable, filterable. Each row click opens the deal drawer.
+  const dealColumns = ['Deal', 'Service', 'Start', 'Stage', 'Likelihood', 'Revenue', 'Forecast rev', 'Hours', 'Allocated', 'Unallocated', 'Signal'];
+  const dealRows = deals.map(d => {
+    const p = spmProb(d);
+    const sig = spmSignalDeal(d, deals);
+    return {
+      key: d.id,
+      raw: d,
+      cells: [/*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, d.client), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: T.muted
+        }
+      }, d.month, " \xB7 ", d.won ? 'Signed' : 'Open')), /*#__PURE__*/React.createElement(Pill, {
+        color: "accent"
+      }, d.service), d.start, /*#__PURE__*/React.createElement(Pill, {
+        color: spmStatusColor(sig)
+      }, d.stage), `${p}%${d.override != null ? ' (override)' : ''}`, fmtMoneyCompact(d.value), fmtMoneyCompact(Math.round(spmWeighted(d.value, p, scenario))), `${d.hours}h`, `${Math.round(spmWeighted(spmAllocHours(d), p, scenario))}h`, `${Math.round(spmWeighted(spmUnalloc(d), p, scenario))}h`, /*#__PURE__*/React.createElement(Pill, {
+        color: spmStatusColor(sig)
+      }, sig)]
+    };
+  });
+
+  // ---------- Tab: Capacity Impact ----------
+  // Donut maths: project both sides onto the selected period (N months) so
+  // committed (weekly) and pipeline (monthly) compare on the same scale.
+  const totalCommittedPeriod = SPM_STAFF.reduce((a, s) => a + s.committed, 0) * SPM_WEEKS_PER_MONTH * months.length;
+  const totalCapPeriod = SPM_STAFF.reduce((a, s) => a + s.std * s.target / 100, 0) * SPM_WEEKS_PER_MONTH * months.length;
+  const utilPct = Math.round(totalCommittedPeriod / Math.max(1, totalCapPeriod) * 100);
+  const pipelineHours = deals.reduce((a, d) => a + spmWeighted(spmAllocHours(d), spmProb(d), scenario), 0);
+  const pipelinePct = Math.round(pipelineHours / Math.max(1, totalCapPeriod) * 100);
+  const billableData = SPM_STAFF.filter(s => service === 'All' || s.line === service).map(s => ({
+    label: s.initials,
+    billable: s.committed,
+    nonbill: s.nonbill,
+    target: Math.round(s.std * s.target / 100)
+  }));
+  const billableSeries = [{
+    key: 'billable',
+    name: 'Billable committed',
+    color: SPM_CHART.forecast,
+    suffix: 'h'
+  }, {
+    key: 'nonbill',
+    name: 'Non-billable',
+    color: SPM_CHART.nonbill,
+    suffix: 'h'
+  }, {
+    key: 'target',
+    name: 'Target',
+    color: SPM_CHART.target,
+    suffix: 'h'
+  }];
+
+  // ---------- Tab: Margin by Person ----------
+  const marginRows = SPM_STAFF.map(s => {
+    let rev = 0,
+      cost = 0;
+    SPM_PROJECTS.forEach(p => {
+      p.alloc.forEach(a => {
+        if (a[0] === s.id) {
+          rev += p.budgetFee * (a[3] / Math.max(1, p.actualHrs));
+          cost += a[3] * s.cost;
+        }
+      });
+    });
+    const m = rev ? Math.round((rev - cost) / rev * 100) : 0;
+    return {
+      s,
+      rev,
+      cost,
+      m
+    };
+  });
+  const marginAvg = Math.round(marginRows.reduce((a, x) => a + x.m, 0) / Math.max(1, marginRows.length));
+  const marginAtRisk = marginRows.filter(x => x.m < 30).reduce((s, x) => s + x.rev, 0);
+  const marginLowest = Math.min(...marginRows.map(x => x.m));
+  const marginBest = Math.max(...marginRows.map(x => x.m));
+  // Per Tier 1.4 — margin chart is split into TWO side-by-side charts so we
+  // never stack `%` next to `$`. Left chart shows margin % per person (with
+  // a dashed 30% "at risk" target line that the KPI already references).
+  // Right chart shows revenue vs labour cost as a grouped two-series bar.
+  const marginPctData = marginRows.map(x => ({
+    label: x.s.initials,
+    margin: x.m
+  }));
+  const marginPctSeries = [{
+    key: 'margin',
+    name: 'Margin %',
+    color: SPM_CHART.forecast,
+    suffix: '%'
+  }];
+  const marginRevCostData = marginRows.map(x => ({
+    label: x.s.initials,
+    revenue: Math.round(x.rev),
+    cost: Math.round(x.cost)
+  }));
+  const marginRevCostSeries = [{
+    key: 'revenue',
+    name: 'Revenue share',
+    color: SPM_CHART.signed,
+    money: true
+  }, {
+    key: 'cost',
+    name: 'Labour cost',
+    color: SPM_CHART.expected,
+    money: true
+  }];
+
+  // Staff capacity / margin shared table (used on Capacity and Margin tabs).
+  // `pipe` here is total weighted pipeline hours across the selected months,
+  // so to compare on the same scale we lift the weekly `committed` + `cap`
+  // up to a period-level monthly projection (×weeks×months) — same approach
+  // as spmCapacityFor for cell-level utilisation.
+  const capColumns = ['Person', 'Service line', 'Std hrs', 'Target %', 'Committed', 'Forecast', 'Total', 'Use', 'Margin %', 'Status'];
+  const periodMonths = months.length;
+  const capRows = SPM_STAFF.filter(s => service === 'All' || s.line === service).map(s => {
+    const pipe = deals.reduce((a, d) => a + d.alloc.filter(x => x[0] === s.id).reduce((z, x) => z + spmWeighted(x[2], spmProb(d), scenario), 0), 0);
+    const capPeriod = s.std * s.target / 100 * SPM_WEEKS_PER_MONTH * periodMonths;
+    const committedPeriod = s.committed * SPM_WEEKS_PER_MONTH * periodMonths;
+    const total = committedPeriod + pipe;
+    const u = Math.round(total / capPeriod * 100);
+    const mr = marginRows.find(x => x.s.id === s.id);
+    const m = mr ? mr.m : 0;
+    const status = u > 110 ? 'Over committed' : u > 95 ? 'At risk' : 'Available';
+    return {
+      key: s.id,
+      raw: s,
+      cells: [/*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 26,
+          height: 26,
+          borderRadius: 999,
+          background: T.primarySoft,
+          color: T.primary,
+          display: 'grid',
+          placeItems: 'center',
+          fontSize: 10.5,
+          fontWeight: 700
+        }
+      }, s.initials), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, s.name), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: T.muted
+        }
+      }, s.role))), s.line, `${s.std}h/wk`, `${s.target}%`, `${Math.round(committedPeriod)}h`, `${Math.round(pipe)}h`, `${Math.round(total)}h`, /*#__PURE__*/React.createElement("span", {
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          minWidth: 130
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 70,
+          display: 'inline-block'
+        }
+      }, /*#__PURE__*/React.createElement(ProgressBar, {
+        pct: Math.min(100, u),
+        color: u > 110 ? T.red : u > 95 ? T.amber : T.primary,
+        height: 6
+      })), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: T.text,
+          fontVariantNumeric: 'tabular-nums'
+        }
+      }, u, "%")), `${m}%`, /*#__PURE__*/React.createElement(Pill, {
+        color: u > 110 ? 'red' : u > 95 ? 'amber' : 'green'
+      }, status)]
+    };
+  });
+
+  // ---------- Tab: Reports ----------
+  const REPORTS = ['Weighted forecast by month', 'Forecast by service line', 'Forecast by staff capacity', 'Pipeline conversion report', 'Unallocated work report', 'Margin by person', 'Utilisation target report', 'Project financials', 'Budget versus actual', 'Project WIP ageing', 'Project resourcing', 'Budget WIP'];
+  const reportSource = r => r.indexOf('Project') > -1 || r.indexOf('WIP') > -1 || r.indexOf('Budget') > -1 || r.indexOf('Margin') > -1 || r.indexOf('Utilisation') > -1 ? 'Source: won/project, time and resourcing data' : 'Source: deals/pipeline data';
+  const handleExport = (name, rows) => {
+    const cols = name === 'pipeline' ? dealColumns : name === 'capacity' ? capColumns : name === 'margin' ? capColumns : ['Item'];
+    spmExportCsv(name, cols, rows, r => r.cells);
+    fireToast && fireToast(`Exported ${rows.length} rows to CSV`);
+  };
+
+  // ---------- Render ----------
+  const TABS = [{
+    id: 'forecast',
+    label: 'Forecast Pipeline'
+  }, {
+    id: 'capacity',
+    label: 'Capacity Impact'
+  }, {
+    id: 'margin',
+    label: 'Margin by Person'
+  }, {
+    id: 'reports',
+    label: 'Reports & Exports'
+  }];
+
+  // Rebalance suggestions — deterministic top-line recommendation. Picks the
+  // 2 most over-utilised staff and proposes shifting some of their pipeline
+  // hours to the lowest-utilised peer. Computed against the current scenario
+  // so the numbers track the page state.
+  const overStaff = SPM_STAFF.map(s => {
+    const summed = months.reduce((acc, m) => {
+      const c = spmCapacityFor(s.id, m, scenario === 'full', deals);
+      return {
+        util: acc.util + c.util,
+        pipe: acc.pipe + c.pipe
+      };
+    }, {
+      util: 0,
+      pipe: 0
+    });
+    return {
+      s,
+      avgUtil: summed.util / months.length,
+      pipe: summed.pipe
+    };
+  }).sort((a, b) => b.avgUtil - a.avgUtil);
+  const underStaff = [...overStaff].reverse();
+  const rebalanceSuggestions = overStaff.slice(0, 2).filter(x => x.avgUtil > 110).map((hot, i) => {
+    const cool = underStaff.find(u => u.s.id !== hot.s.id && u.avgUtil < 100) || underStaff[0];
+    const shiftH = Math.max(6, Math.round(hot.pipe * 0.2));
+    return {
+      label: `Move ${shiftH}h ${hot.s.line.toLowerCase()} work from ${hot.s.name} → ${cool.s.name}`,
+      value: `${Math.round(hot.avgUtil)}% → ~${Math.round(hot.avgUtil - shiftH / (hot.s.std * hot.s.target / 100 * SPM_WEEKS_PER_MONTH) * 100)}%`,
+      share: Math.min(100, hot.avgUtil - 100),
+      color: T.red
+    };
+  });
+  const openRebalanceDrawer = () => setDrill({
+    eyebrow: 'Rebalance suggestions',
+    title: rebalanceSuggestions.length === 0 ? 'No reallocation needed' : `${rebalanceSuggestions.length} move${rebalanceSuggestions.length > 1 ? 's' : ''} to reduce risk`,
+    blurb: rebalanceSuggestions.length === 0 ? 'Everyone is currently within target capacity in the selected period. Rerun once new deals enter the pipeline.' : 'Suggestions are computed against the current scenario filter. Apply moves in Staff Scheduler.',
+    drivers: rebalanceSuggestions.length === 0 ? [{
+      label: 'Team headroom',
+      value: 'Healthy',
+      share: 60,
+      color: T.greenDark
+    }] : rebalanceSuggestions,
+    next: 'Open: Staff Scheduler to execute these moves'
+  });
+  const openLogicDrawer = () => setDrill({
+    eyebrow: 'Calculation logic',
+    title: 'How these numbers are derived',
+    blurb: 'Each deal carries a stage-driven likelihood (manual override possible). Weighted scenario multiplies value/hours by likelihood; 100%-won scenario treats every deal as landing. Capacity use is (committed + forecast hours) ÷ billable target hours, projected onto the selected period. Project status comes from budget used %, hours used %, WIP age and billing state.'
+  });
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 56px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 2,
+      color: T.primary,
+      fontWeight: 600
+    }
+  }, "SPM \xB7 Forecast"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      background: T.primarySoft,
+      color: T.primary,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "chartBar",
+    size: 18,
+    color: T.primary
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, "SPM Forecast")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "Win work profitably, and check delivery capacity before you say yes.", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft,
+      marginLeft: 6
+    }
+  }, "\xB7 ", deals.length, " deals \xB7 ", SPM_STAFF.length, " people")), /*#__PURE__*/React.createElement("button", {
+    onClick: openLogicDrawer,
+    style: {
+      marginTop: 6,
+      padding: 0,
+      border: 'none',
+      background: 'transparent',
+      color: T.primary,
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: 'pointer'
+    }
+  }, "How are these numbers calculated? \u2192")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center',
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "download",
+    onClick: () => {
+      spmExportCsv('forecast-overview', ['KPI', 'Value'], [['Open pipeline', fmtMoneyCompact(openPipe)], ['Weighted forecast', fmtMoneyCompact(forecast)], ['Forecast hours', Math.round(fHours) + 'h'], ['Unallocated hours', Math.round(unAlloc) + 'h'], ['People over capacity', overCap]], r => r);
+      fireToast && fireToast('Exported forecast overview');
+    }
+  }, "Export"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "info",
+    onClick: openRebalanceDrawer
+  }, "Rebalance", rebalanceSuggestions.length > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 4,
+      padding: '1px 6px',
+      borderRadius: 999,
+      background: 'rgba(255,255,255,.25)',
+      fontSize: 10.5,
+      fontWeight: 700
+    }
+  }, rebalanceSuggestions.length)))), /*#__PURE__*/React.createElement(SpmTabs, {
+    tabs: TABS,
+    value: tab,
+    onChange: setTab
+  }), /*#__PURE__*/React.createElement(SpmFilterBar, {
+    service: service,
+    setService: setService,
+    period: period,
+    setPeriod: setPeriod,
+    scenario: scenario,
+    setScenario: setScenario,
+    q: q,
+    setQ: setQ,
+    showScenario: tab !== 'reports' || report.indexOf('Project') < 0 && report.indexOf('WIP') < 0 && report.indexOf('Budget') < 0
+  }), tab === 'forecast' && (() => {
+    // Per-month sparkline data for the KPI strip. Each KPI gets a
+    // 6-point series so the user sees the shape behind the number.
+    const sparkOpen = months.map(m => deals.filter(d => d.month === m).reduce((a, d) => a + d.value, 0));
+    const sparkForecast = months.map(m => deals.filter(d => d.month === m).reduce((a, d) => a + spmWeighted(d.value, spmProb(d), scenario), 0));
+    const sparkHours = months.map(m => deals.filter(d => d.month === m).reduce((a, d) => a + spmWeighted(d.hours, spmProb(d), scenario), 0));
+    const sparkUnalloc = months.map(m => deals.filter(d => d.month === m).reduce((a, d) => a + spmWeighted(spmUnalloc(d), spmProb(d), scenario), 0));
+    const sparkOverCap = months.map(m => SPM_STAFF.filter(s => spmCapacityFor(s.id, m, 'full', deals).util > 110).length);
+    const sparkStarts = months.map(m => deals.filter(d => d.month === m).length);
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement(SpmKpi, {
+      label: "Open pipeline",
+      value: fmtMoneyCompact(openPipe),
+      hint: "raw deal value",
+      spark: sparkOpen
+    }), /*#__PURE__*/React.createElement(SpmKpi, {
+      label: scenario === 'full' ? '100% won exposure' : 'Weighted forecast',
+      value: fmtMoneyCompact(forecast),
+      hint: "scenario revenue",
+      spark: sparkForecast
+    }), /*#__PURE__*/React.createElement(SpmKpi, {
+      label: "Forecast hours",
+      value: `${Math.round(fHours)}h`,
+      hint: "delivery load",
+      spark: sparkHours
+    }), /*#__PURE__*/React.createElement(SpmKpi, {
+      label: "Unallocated hours",
+      value: `${Math.round(unAlloc)}h`,
+      hint: "staffing gap",
+      tone: unAlloc > 60 ? 'amber' : null,
+      spark: sparkUnalloc
+    }), /*#__PURE__*/React.createElement(SpmKpi, {
+      label: "People over capacity",
+      value: overCap,
+      hint: overCap > 0 ? 'owner action required' : 'all within target',
+      tone: overCap > 0 ? 'red' : 'green',
+      spark: sparkOverCap
+    }), /*#__PURE__*/React.createElement(SpmKpi, {
+      label: "Expected starts",
+      value: `${deals.length} deals`,
+      hint: "dated pipeline",
+      spark: sparkStarts
+    })), /*#__PURE__*/React.createElement(DashSection, {
+      title: "Pipeline forecast",
+      subtitle: "Monthly revenue and delivery load by likelihood scenario"
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: PD.rowGap
+      }
+    }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
+      sub: "Weighted likelihood or 100% won exposure."
+    }, "Monthly revenue forecast"), /*#__PURE__*/React.createElement(SpmBars, {
+      data: monthlyRevData,
+      series: monthlyRevSeries
+    })), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
+      sub: "Estimated, allocated and unallocated delivery load."
+    }, "Monthly forecast hours"), /*#__PURE__*/React.createElement(SpmBars, {
+      data: monthlyHoursData,
+      series: monthlyHoursSeries
+    })))), /*#__PURE__*/React.createElement(DashSection, {
+      title: "Resource impact",
+      subtitle: "Click any cell to see what the pipeline is doing to that person's month."
+    }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(ResourceGrid, null))), /*#__PURE__*/React.createElement(DashSection, {
+      title: "Pipeline by stage",
+      subtitle: "Static rollup \u2014 click any deal card to drill."
+    }, /*#__PURE__*/React.createElement(Card, {
+      padded: false
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 14
+      }
+    }, /*#__PURE__*/React.createElement(StageBoard, null)))), /*#__PURE__*/React.createElement(DashSection, {
+      title: "Pipeline table",
+      subtitle: "Sortable + filterable."
+    }, /*#__PURE__*/React.createElement(SpmTable, {
+      columns: dealColumns,
+      rows: dealRows,
+      onRowClick: row => setDrill(spmDealPayload(row.raw, deals, scenario)),
+      exportName: "pipeline",
+      onExport: handleExport
+    })));
+  })(), tab === 'capacity' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      gap: PD.rowGap
+    }
+  }, /*#__PURE__*/React.createElement(SpmDonut, {
+    label: "Current utilisation",
+    pct: utilPct,
+    sub: "committed work"
+  }), /*#__PURE__*/React.createElement(SpmDonut, {
+    label: "Pipeline overlay",
+    pct: pipelinePct,
+    sub: "forecast as target %"
+  }), /*#__PURE__*/React.createElement(SpmDonut, {
+    label: "If accepted",
+    pct: Math.min(140, utilPct + pipelinePct),
+    sub: "committed + forecast"
+  })), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Billable vs target",
+    subtitle: "Per-person committed work, non-billable allocation, and billable target."
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SpmBars, {
+    data: billableData,
+    series: billableSeries
+  }))), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Service line capacity",
+    subtitle: "Click any card to filter the page to that service line."
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      gap: PD.rowGap
+    }
+  }, SPM_SERVICES.filter(s => s !== 'All').map(svc => {
+    const slice = deals.filter(d => d.service === svc);
+    const rev = slice.reduce((a, d) => a + spmWeighted(d.value, spmProb(d), scenario), 0);
+    const hrs = slice.reduce((a, d) => a + spmWeighted(d.hours, spmProb(d), scenario), 0);
+    const selected = service === svc;
+    return /*#__PURE__*/React.createElement("button", {
+      key: svc,
+      onClick: () => setService(selected ? 'All' : svc),
+      "data-hover": "kpi",
+      style: {
+        textAlign: 'left',
+        cursor: 'pointer',
+        padding: 18,
+        borderRadius: 12,
+        background: selected ? T.primarySoft : T.card,
+        border: `1px solid ${selected ? T.primary : T.border}`
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: selected ? T.primary : T.muted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6
+      }
+    }, svc), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 18,
+        fontWeight: 700,
+        marginTop: 6,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, fmtMoneyCompact(Math.round(rev))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: T.muted,
+        marginTop: 2
+      }
+    }, Math.round(hrs), "h forecast"));
+  }))), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Capacity exposure",
+    subtitle: "Same grid as the forecast tab \u2014 click to drill."
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(ResourceGrid, null))), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Staff capacity table"
+  }, /*#__PURE__*/React.createElement(SpmTable, {
+    columns: capColumns,
+    rows: capRows,
+    onRowClick: row => setDrill(spmPersonPayload(row.raw, deals, scenario)),
+    exportName: "capacity",
+    onExport: handleExport
+  }))), tab === 'margin' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gap: PD.rowGap
+    }
+  }, /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Average margin",
+    value: `${marginAvg}%`,
+    hint: "allocation basis"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Margin at risk",
+    value: fmtMoneyCompact(marginAtRisk),
+    hint: "below 30% target",
+    tone: "red"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Lowest margin",
+    value: `${marginLowest}%`,
+    hint: "owner review",
+    tone: "amber"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Best margin",
+    value: `${marginBest}%`,
+    hint: "profitable delivery",
+    tone: "green"
+  })), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Margin by person",
+    subtitle: "Split into two views so units don't fight: percentage on the left, dollars on the right."
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: PD.rowGap
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
+    sub: "Dashed line marks the 30% at-risk threshold."
+  }, "Margin %"), /*#__PURE__*/React.createElement(SpmBars, {
+    data: marginPctData,
+    series: marginPctSeries,
+    target: 30
+  })), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
+    sub: "Grouped bars \u2014 revenue share earned vs labour cost incurred."
+  }, "Revenue vs labour cost"), /*#__PURE__*/React.createElement(SpmBars, {
+    data: marginRevCostData,
+    series: marginRevCostSeries,
+    grouped: true
+  })))), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Margin detail"
+  }, /*#__PURE__*/React.createElement(SpmTable, {
+    columns: capColumns,
+    rows: capRows,
+    onRowClick: row => setDrill(spmPersonPayload(row.raw, deals, scenario)),
+    exportName: "margin",
+    onExport: handleExport
+  }))), tab === 'reports' && /*#__PURE__*/React.createElement(DashSection, {
+    title: "Report library",
+    subtitle: "A fixed library of saved views \u2014 each can export to CSV."
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      overflowX: 'auto',
+      paddingBottom: 8,
+      marginBottom: 12,
+      scrollbarWidth: 'thin'
+    }
+  }, REPORTS.map(r => /*#__PURE__*/React.createElement("button", {
+    key: r,
+    onClick: () => setReport(r),
+    style: {
+      flex: '0 0 auto',
+      textAlign: 'left',
+      padding: '10px 14px',
+      cursor: 'pointer',
+      borderRadius: 10,
+      background: report === r ? T.primarySoft : T.card,
+      border: `1px solid ${report === r ? T.primary : T.border}`,
+      minWidth: 200,
+      maxWidth: 260
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: report === r ? T.primary : T.text,
+      whiteSpace: 'normal',
+      lineHeight: 1.25
+    }
+  }, r), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      color: T.muted,
+      marginTop: 4,
+      whiteSpace: 'normal'
+    }
+  }, reportSource(r))))), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      minWidth: 0,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement(CardTitle, {
+    sub: "Numbers update with the page filters above.",
+    right: /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      icon: "download",
+      onClick: () => {
+        const inferRows = report.indexOf('Margin') > -1 || report.indexOf('Utilisation') > -1 || report.indexOf('capacity') > -1 ? capRows : report.indexOf('Forecast') > -1 || report.indexOf('Pipeline') > -1 || report.indexOf('Unallocated') > -1 ? dealRows : [];
+        handleExport(report.replace(/\s+/g, '-').toLowerCase(), inferRows);
+      }
+    }, "Export CSV"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      onClick: () => fireToast && fireToast('PDF export coming soon')
+    }, "Export PDF"))
+  }, report), (() => {
+    if (report.indexOf('Margin') > -1) {
+      return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 14
+        }
+      }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, null, "Margin %"), /*#__PURE__*/React.createElement(SpmBars, {
+        data: marginPctData,
+        series: marginPctSeries,
+        target: 30
+      })), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, null, "Revenue vs labour cost"), /*#__PURE__*/React.createElement(SpmBars, {
+        data: marginRevCostData,
+        series: marginRevCostSeries,
+        grouped: true
+      }))), /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 14
+        }
+      }, /*#__PURE__*/React.createElement(SpmTable, {
+        columns: capColumns,
+        rows: capRows,
+        onRowClick: row => setDrill(spmPersonPayload(row.raw, deals, scenario))
+      })));
+    }
+    if (report.indexOf('Utilisation') > -1 || report.indexOf('capacity') > -1) {
+      return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(SpmBars, {
+        data: billableData,
+        series: billableSeries
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 14
+        }
+      }, /*#__PURE__*/React.createElement(SpmTable, {
+        columns: capColumns,
+        rows: capRows,
+        onRowClick: row => setDrill(spmPersonPayload(row.raw, deals, scenario))
+      })));
+    }
+    if (report.indexOf('Project') > -1 || report.indexOf('WIP') > -1 || report.indexOf('Budget') > -1) {
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: 12,
+          borderRadius: 10,
+          background: T.fieldBg,
+          border: `1px solid ${T.border}`
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 13,
+          color: T.textSoft
+        }
+      }, "Project-scope reports render on the ", /*#__PURE__*/React.createElement("b", null, "Project Tracking"), " dashboard.", ' ', /*#__PURE__*/React.createElement("button", {
+        onClick: () => {
+          window.location.hash = '#/practice/project-tracking';
+        },
+        style: {
+          border: 'none',
+          background: 'transparent',
+          color: T.primary,
+          fontWeight: 600,
+          cursor: 'pointer',
+          padding: 0
+        }
+      }, "Open Project Tracking \u2192")));
+    }
+    if (report.indexOf('service line') > -1) {
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 10
+        }
+      }, SPM_SERVICES.filter(s => s !== 'All').map(svc => {
+        const slice = deals.filter(d => d.service === svc);
+        const rev = slice.reduce((a, d) => a + spmWeighted(d.value, spmProb(d), scenario), 0);
+        return /*#__PURE__*/React.createElement(Card, {
+          key: svc
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            fontSize: 11,
+            color: T.muted,
+            textTransform: 'uppercase'
+          }
+        }, svc), /*#__PURE__*/React.createElement("div", {
+          style: {
+            fontSize: 18,
+            fontWeight: 700,
+            marginTop: 6
+          }
+        }, fmtMoneyCompact(Math.round(rev))));
+      }));
+    }
+    if (report.indexOf('Unallocated') > -1) {
+      return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(SpmBars, {
+        data: monthlyHoursData,
+        series: monthlyHoursSeries
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 14
+        }
+      }, /*#__PURE__*/React.createElement(SpmTable, {
+        columns: dealColumns,
+        rows: dealRows.filter(r => r.cells[9] !== '0h'),
+        onRowClick: row => setDrill(spmDealPayload(row.raw, deals, scenario))
+      })));
+    }
+    // default — weighted forecast by month
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(SpmBars, {
+      data: monthlyRevData,
+      series: monthlyRevSeries
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 14
+      }
+    }, /*#__PURE__*/React.createElement(SpmTable, {
+      columns: dealColumns,
+      rows: dealRows,
+      onRowClick: row => setDrill(spmDealPayload(row.raw, deals, scenario))
+    })));
+  })())), /*#__PURE__*/React.createElement(PdDrillSheet, {
+    payload: drill,
+    onClose: () => setDrill(null),
+    fireToast: fireToast
+  }));
+};
+
+// --- spm project tracking dashboard ---
+const ProjectTrackingPage = ({
+  fireToast
+}) => {
+  const [tab, setTab] = useState('financials');
+  const [service, setService] = useState('All');
+  const [period, setPeriod] = useState('6m');
+  const [healthBand, setHealthBand] = useState('All');
+  const [q, setQ] = useState('');
+  const [drill, setDrill] = useState(null);
+  const baseProjects = useMemo(() => SPM_PROJECTS.filter(p => {
+    if (service !== 'All' && p.service !== service) return false;
+    if (q && JSON.stringify(p).toLowerCase().indexOf(q.toLowerCase()) < 0) return false;
+    return true;
+  }), [service, q, period]);
+  const projects = healthBand === 'All' ? baseProjects : baseProjects.filter(p => spmBandFor(p) === healthBand);
+
+  // Charts
+  const budgetVsActualData = projects.map(p => ({
+    label: (p.client || '').split(' ')[0],
+    budget: p.budgetFee,
+    actual: p.actualCost + p.expenses,
+    forecast: p.forecastCost
+  }));
+  const budgetVsActualSeries = [{
+    key: 'budget',
+    name: 'Budget fee',
+    color: SPM_CHART.budget,
+    money: true
+  }, {
+    key: 'actual',
+    name: 'Actual cost',
+    color: SPM_CHART.actual,
+    money: true
+  }, {
+    key: 'forecast',
+    name: 'Forecast cost',
+    color: SPM_CHART.upside,
+    money: true
+  }];
+  const budgetUsedData = projects.map(p => ({
+    label: (p.client || '').split(' ')[0],
+    budget: Math.round((p.actualCost + p.expenses) / p.budgetFee * 100),
+    hours: Math.round(p.actualHrs / p.budgetHrs * 100)
+  }));
+  const budgetUsedSeries = [{
+    key: 'budget',
+    name: 'Budget used %',
+    color: SPM_CHART.forecast,
+    suffix: '%'
+  }, {
+    key: 'hours',
+    name: 'Hours used %',
+    color: SPM_CHART.expected,
+    suffix: '%'
+  }];
+  const wipAgeBands = ['0-30 days', '31-60 days', '61-90 days', '90+ days'];
+  const wipAgeData = wipAgeBands.map(b => ({
+    label: b,
+    time: projects.filter(p => p.age === b).reduce((s, p) => s + p.wipTime, 0),
+    expenses: projects.filter(p => p.age === b).reduce((s, p) => s + p.wipExpenses, 0)
+  }));
+  const wipAgeSeries = [{
+    key: 'time',
+    name: 'WIP time',
+    color: SPM_CHART.forecast,
+    money: true
+  }, {
+    key: 'expenses',
+    name: 'WIP expenses',
+    color: SPM_CHART.expected,
+    money: true
+  }];
+  const wipByProjectData = projects.map(p => ({
+    label: (p.client || '').split(' ')[0],
+    time: p.wipTime,
+    expenses: p.wipExpenses
+  }));
+
+  // Health-band selector — click filters the table below.
+  const BANDS = ['All', 'Over budget', '76-100% used', '51-75% used', '0-50% used'];
+  const BandStrip = () => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: `repeat(${BANDS.length}, minmax(0, 1fr))`,
+      gap: 12
+    }
+  }, BANDS.map(b => {
+    const arr = b === 'All' ? baseProjects : baseProjects.filter(p => spmBandFor(p) === b);
+    const sel = healthBand === b;
+    return /*#__PURE__*/React.createElement("button", {
+      key: b,
+      onClick: () => setHealthBand(b),
+      "data-hover": "kpi",
+      style: {
+        textAlign: 'left',
+        padding: '12px 14px',
+        borderRadius: 12,
+        border: `1px solid ${sel ? T.primary : T.border}`,
+        background: sel ? T.primarySoft : T.card,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: sel ? T.primary : T.muted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6
+      }
+    }, b), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 22,
+        fontWeight: 700,
+        marginTop: 4
+      }
+    }, arr.length), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        marginTop: 2
+      }
+    }, fmtMoneyCompact(arr.reduce((s, p) => s + p.budgetFee, 0)), " budget"));
+  }));
+
+  // Project table
+  const projectColumns = ['Project', 'Service', 'Budget fee', 'Budget hrs', 'Actual hrs', 'Budget used', 'Hours used', 'WIP', 'Age', 'Status'];
+  const projectRows = projects.map(p => {
+    const b = (p.actualCost + p.expenses) / p.budgetFee * 100;
+    const h = p.actualHrs / p.budgetHrs * 100;
+    const st = spmProjectStatus(p);
+    return {
+      key: p.id,
+      raw: p,
+      cells: [/*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, p.name), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: T.muted
+        }
+      }, p.client, " \xB7 ", p.billing)), /*#__PURE__*/React.createElement(Pill, {
+        color: "accent"
+      }, p.service), fmtMoneyCompact(p.budgetFee), `${p.budgetHrs}h`, `${p.actualHrs}h`, /*#__PURE__*/React.createElement("span", {
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 80,
+          display: 'inline-block'
+        }
+      }, /*#__PURE__*/React.createElement(ProgressBar, {
+        pct: Math.min(100, b),
+        color: b > 105 ? T.red : b > 85 ? T.amber : T.greenDark,
+        height: 6
+      })), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontVariantNumeric: 'tabular-nums',
+          fontWeight: 600
+        }
+      }, Math.round(b), "%")), /*#__PURE__*/React.createElement("span", {
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 80,
+          display: 'inline-block'
+        }
+      }, /*#__PURE__*/React.createElement(ProgressBar, {
+        pct: Math.min(100, h),
+        color: h > 105 ? T.red : h > 85 ? T.amber : T.greenDark,
+        height: 6
+      })), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontVariantNumeric: 'tabular-nums',
+          fontWeight: 600
+        }
+      }, Math.round(h), "%")), fmtMoneyCompact(spmWipTotal(p)), p.age, /*#__PURE__*/React.createElement(Pill, {
+        color: spmStatusColor(st)
+      }, st)]
+    };
+  });
+
+  // Resourcing table
+  const resourcingColumns = ['Project', 'Staff', 'Role', 'Budget hrs', 'Actual hrs', 'Remaining', 'Used', 'Status'];
+  const resourcingRows = [];
+  projects.forEach(p => {
+    p.alloc.forEach(a => {
+      const s = spmStaffBy(a[0]);
+      const used = a[3] / a[2] * 100;
+      const st = used > 110 ? 'Over used' : used > 90 ? 'Watch' : 'On track';
+      resourcingRows.push({
+        key: `${p.id}-${a[0]}-${a[1]}`,
+        raw: p,
+        cells: [/*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, p.name), /*#__PURE__*/React.createElement("div", {
+          style: {
+            fontSize: 11,
+            color: T.muted
+          }
+        }, p.client)), /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            width: 26,
+            height: 26,
+            borderRadius: 999,
+            background: T.primarySoft,
+            color: T.primary,
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: 10.5,
+            fontWeight: 700
+          }
+        }, s.initials), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, s.name), /*#__PURE__*/React.createElement("div", {
+          style: {
+            fontSize: 11,
+            color: T.muted
+          }
+        }, s.role))), a[1], `${a[2]}h`, `${a[3]}h`, `${Math.max(0, a[2] - a[3])}h`, /*#__PURE__*/React.createElement("span", {
+          style: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            width: 80,
+            display: 'inline-block'
+          }
+        }, /*#__PURE__*/React.createElement(ProgressBar, {
+          pct: Math.min(100, used),
+          color: used > 110 ? T.red : used > 90 ? T.amber : T.greenDark,
+          height: 6
+        })), /*#__PURE__*/React.createElement("span", {
+          style: {
+            fontVariantNumeric: 'tabular-nums',
+            fontWeight: 600
+          }
+        }, Math.round(used), "%")), /*#__PURE__*/React.createElement(Pill, {
+          color: spmStatusColor(st)
+        }, st)]
+      });
+    });
+  });
+  const handleExport = (name, rows) => {
+    const cols = name === 'resourcing' ? resourcingColumns : projectColumns;
+    spmExportCsv(name, cols, rows, r => r.cells);
+    fireToast && fireToast(`Exported ${rows.length} rows to CSV`);
+  };
+
+  // KPI counts
+  const k = {
+    activeBudget: projects.reduce((s, p) => s + p.budgetFee, 0),
+    budgetHrs: projects.reduce((s, p) => s + p.budgetHrs, 0),
+    actualHrs: projects.reduce((s, p) => s + p.actualHrs, 0),
+    totalWip: projects.reduce((s, p) => s + spmWipTotal(p), 0),
+    highRisk: projects.filter(p => spmProjectStatus(p) === 'High risk').length,
+    agedWip: projects.filter(p => ['61-90 days', '90+ days'].indexOf(p.age) > -1).reduce((s, p) => s + spmWipTotal(p), 0),
+    readyToBill: projects.filter(p => p.billing === 'Ready to bill').reduce((s, p) => s + spmWipTotal(p), 0),
+    blockedWip: projects.filter(p => p.billing === 'Blocked').reduce((s, p) => s + spmWipTotal(p), 0),
+    overBudget: baseProjects.filter(p => spmBandFor(p) === 'Over budget').length,
+    watchBand: baseProjects.filter(p => spmBandFor(p) === '76-100% used').length,
+    healthyBand: baseProjects.filter(p => ['51-75% used', '0-50% used'].indexOf(spmBandFor(p)) > -1).length,
+    allocations: projects.reduce((s, p) => s + p.alloc.length, 0),
+    overUsedRoles: projects.flatMap(p => p.alloc).filter(a => a[3] > a[2]).length
+  };
+  const TABS = [{
+    id: 'financials',
+    label: 'Financials'
+  }, {
+    id: 'wip',
+    label: 'WIP'
+  }, {
+    id: 'budget-wip',
+    label: 'Budget WIP'
+  }, {
+    id: 'resourcing',
+    label: 'Resourcing'
+  }];
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 56px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 2,
+      color: T.primary,
+      fontWeight: 600
+    }
+  }, "SPM \xB7 Projects"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      background: T.primarySoft,
+      color: T.primary,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "building",
+    size: 18,
+    color: T.primary
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, "Project Tracking")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "Budget, actuals, forecast cost, WIP and resourcing \u2014 all for live engagements.", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft,
+      marginLeft: 6
+    }
+  }, "\xB7 ", projects.length, " of ", SPM_PROJECTS.length, " projects"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center',
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "download",
+    onClick: () => handleExport(tab === 'resourcing' ? 'resourcing' : 'projects', tab === 'resourcing' ? resourcingRows : projectRows)
+  }, "Export"))), /*#__PURE__*/React.createElement(SpmTabs, {
+    tabs: TABS,
+    value: tab,
+    onChange: setTab
+  }), /*#__PURE__*/React.createElement(SpmFilterBar, {
+    service: service,
+    setService: setService,
+    period: period,
+    setPeriod: setPeriod,
+    q: q,
+    setQ: setQ
+  }), tab === 'financials' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Active budgets",
+    value: fmtMoneyCompact(k.activeBudget),
+    hint: "project budget fees"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Budget hours",
+    value: `${k.budgetHrs}h`,
+    hint: "delivery budget"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Actual hours",
+    value: `${k.actualHrs}h`,
+    hint: "time recorded"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "WIP",
+    value: fmtMoneyCompact(k.totalWip),
+    hint: "unbilled work"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "High risk",
+    value: k.highRisk,
+    hint: "budget, hours or aged WIP",
+    tone: k.highRisk > 0 ? 'red' : 'green'
+  })), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Budget, actual and forecast cost"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: PD.rowGap
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
+    sub: "Three separate measures \u2014 grouped, not stacked."
+  }, "Budget fee vs actual vs forecast cost"), /*#__PURE__*/React.createElement(SpmBars, {
+    data: budgetVsActualData,
+    series: budgetVsActualSeries,
+    grouped: true
+  })), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
+    sub: "Two independent %s \u2014 read side-by-side."
+  }, "Budget used vs hours used"), /*#__PURE__*/React.createElement(SpmBars, {
+    data: budgetUsedData,
+    series: budgetUsedSeries,
+    grouped: true,
+    target: 100
+  })))), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Budget health bands",
+    subtitle: "Click a band to filter the table below."
+  }, /*#__PURE__*/React.createElement(BandStrip, null)), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Project financials",
+    subtitle: healthBand !== 'All' ? `Filtered to: ${healthBand}` : null
+  }, /*#__PURE__*/React.createElement(SpmTable, {
+    columns: projectColumns,
+    rows: projectRows,
+    onRowClick: row => setDrill(spmProjectPayload(row.raw)),
+    exportName: "projects",
+    onExport: handleExport
+  }))), tab === 'wip' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Total WIP",
+    value: fmtMoneyCompact(k.totalWip),
+    hint: "time + expenses"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Aged > 60d",
+    value: fmtMoneyCompact(k.agedWip),
+    hint: "write-off risk",
+    tone: k.agedWip > 0 ? 'red' : 'green'
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Ready to bill",
+    value: fmtMoneyCompact(k.readyToBill),
+    hint: "cash conversion",
+    tone: "green"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Blocked WIP",
+    value: fmtMoneyCompact(k.blockedWip),
+    hint: "requires action",
+    tone: k.blockedWip > 0 ? 'red' : 'green'
+  })), /*#__PURE__*/React.createElement(DashSection, {
+    title: "WIP ageing"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: PD.rowGap
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, null, "WIP by age band"), /*#__PURE__*/React.createElement(SpmBars, {
+    data: wipAgeData,
+    series: wipAgeSeries
+  })), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, null, "WIP by project"), /*#__PURE__*/React.createElement(SpmBars, {
+    data: wipByProjectData,
+    series: wipAgeSeries
+  })))), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Project WIP table"
+  }, /*#__PURE__*/React.createElement(SpmTable, {
+    columns: projectColumns,
+    rows: projectRows,
+    onRowClick: row => setDrill(spmProjectPayload(row.raw)),
+    exportName: "wip",
+    onExport: handleExport
+  }))), tab === 'budget-wip' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Total WIP",
+    value: fmtMoneyCompact(k.totalWip),
+    hint: "time + expenses"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Aged > 60d",
+    value: fmtMoneyCompact(k.agedWip),
+    hint: "write-off risk",
+    tone: k.agedWip > 0 ? 'red' : 'green'
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Over budget",
+    value: `${k.overBudget} projects`,
+    hint: "cost or hours breach",
+    tone: k.overBudget > 0 ? 'red' : 'green'
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Active filter",
+    value: healthBand,
+    hint: "click a band to change"
+  })), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Budget health bands",
+    subtitle: "Click any band to filter the table below."
+  }, /*#__PURE__*/React.createElement(BandStrip, null)), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Budget and hours pressure"
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
+    sub: "Grouped bars \u2014 each project's two pressures side-by-side, with the 100% reference line."
+  }, "Budget used % and hours used %"), /*#__PURE__*/React.createElement(SpmBars, {
+    data: budgetUsedData,
+    series: budgetUsedSeries,
+    grouped: true,
+    target: 100
+  }))), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Budget WIP table"
+  }, /*#__PURE__*/React.createElement(SpmTable, {
+    columns: projectColumns,
+    rows: projectRows,
+    onRowClick: row => setDrill(spmProjectPayload(row.raw)),
+    exportName: "budget-wip",
+    onExport: handleExport
+  }))), tab === 'resourcing' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Staff allocations",
+    value: k.allocations,
+    hint: "role records"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Budgeted hours",
+    value: `${k.budgetHrs}h`,
+    hint: "planned effort"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Actual hours",
+    value: `${k.actualHrs}h`,
+    hint: "recorded"
+  }), /*#__PURE__*/React.createElement(SpmKpi, {
+    label: "Over-used roles",
+    value: k.overUsedRoles,
+    hint: "role-level breach",
+    tone: k.overUsedRoles > 0 ? 'red' : 'green'
+  })), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Project staff allocation",
+    subtitle: "One row per (project \xD7 staff \xD7 role)."
+  }, /*#__PURE__*/React.createElement(SpmTable, {
+    columns: resourcingColumns,
+    rows: resourcingRows,
+    onRowClick: row => setDrill(spmProjectPayload(row.raw)),
+    exportName: "resourcing",
+    onExport: handleExport
+  }))), /*#__PURE__*/React.createElement(PdDrillSheet, {
+    payload: drill,
+    onClose: () => setDrill(null),
+    fireToast: fireToast
+  }));
+};
+
 // --- practice app shell ---
 // Parse the practice hash into {section, id}. Allows nested routes
 // like #/practice/payrun-detail/pr-028 so detail screens can carry
@@ -68880,6 +71796,14 @@ const PracticeApp = () => {
         });
       case 'work-management':
         return /*#__PURE__*/React.createElement(WorkManagementPage, {
+          fireToast: fireToast
+        });
+      case 'spm-forecast':
+        return /*#__PURE__*/React.createElement(SpmForecastPage, {
+          fireToast: fireToast
+        });
+      case 'project-tracking':
+        return /*#__PURE__*/React.createElement(ProjectTrackingPage, {
           fireToast: fireToast
         });
       // Legacy hash routes redirect to their replacements (Workload Mgmt →
