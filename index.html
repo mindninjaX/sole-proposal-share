@@ -430,6 +430,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   }
   @keyframes drawerin { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
+  /* Deals likelihood slider — clean track (filled via inline gradient) + thumb. */
+  input[type="range"].dl-range { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; outline: none; cursor: pointer; }
+  input[type="range"].dl-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 2px solid #5B5BF6; box-shadow: 0 1px 3px rgba(15,17,23,0.25); cursor: pointer; }
+  input[type="range"].dl-range::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 2px solid #5B5BF6; box-shadow: 0 1px 3px rgba(15,17,23,0.25); cursor: pointer; }
+
   /* Rich block editor — placeholder for empty contenteditable. The :empty
      selector matches when the element contains nothing, including a single
      <br> that browsers leave after the user deletes all content (so we also
@@ -1576,6 +1581,18 @@ const Icon = ({
       points: "2 17 12 22 22 17"
     }), /*#__PURE__*/React.createElement("polyline", {
       points: "2 12 12 17 22 12"
+    })),
+    phone: /*#__PURE__*/React.createElement("path", {
+      d: "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"
+    }),
+    mail: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("rect", {
+      x: "2",
+      y: "4",
+      width: "20",
+      height: "16",
+      rx: "2"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M22 7l-10 6L2 7"
     }))
   };
   return /*#__PURE__*/React.createElement("svg", {
@@ -26176,9 +26193,11 @@ const AppSidebar = ({
     id: 'proposal',
     i: 'proposal',
     l: 'Proposal',
-    active: activeSubId === 'proposal',
+    active: activeSubId === 'proposal' || activeSubId === 'deals',
     sub: ['Overview', 'Proposals', 'Deals', 'Services'],
-    activeSub: activeSubId === 'proposal' ? 'Proposals' : null,
+    // Deals is a real practice route; the other three open the proposal editor.
+    subOnClicks: [leavePractice, leavePractice, () => goPractice('deals'), leavePractice],
+    activeSub: activeSubId === 'deals' ? 'Deals' : activeSubId === 'proposal' ? 'Proposals' : null,
     onSub: leavePractice,
     onClick: leavePractice
   }, {
@@ -26345,7 +26364,7 @@ const AppSidebar = ({
     }
   }, m.sub.map((s, idx) => {
     const isActive = m.activeSub === s;
-    const onClick = m.subIds ? () => goPractice(m.subIds[idx]) : m.onSub || m.onClick;
+    const onClick = m.subOnClicks && m.subOnClicks[idx] || (m.subIds ? () => goPractice(m.subIds[idx]) : m.onSub || m.onClick);
     return /*#__PURE__*/React.createElement("button", {
       key: s,
       "data-hover": "row",
@@ -71713,6 +71732,4427 @@ const ProjectTrackingPage = ({
   }));
 };
 
+// --- deals / pipeline ---
+// A Pipedrive-style sales pipeline for the practice's own business development
+// — open opportunities to win new clients / engagements. Distinct from
+// SPM_DEALS (the forecast dashboard's dataset, deliberately left untouched):
+// this is the operational Kanban surface. Organizations come from
+// PRACTICE_CLIENTS, owners from SPM_STAFF, service lines from SPM_SERVICES, and
+// money is formatted with fmtMoney — so nothing here reads as foreign to the
+// rest of the practice app.
+const DEALS_TODAY = new Date('2026-05-29');
+
+// Stage IS the status — the final two stages (Won / Lost) are terminal, which
+// mirrors the live deals module. `prob` drives the weighted "forecast" shown on
+// each column header and on the KPI strip.
+const DEAL_STAGES = [{
+  id: 'new-lead',
+  label: 'New Lead',
+  color: 'neutral',
+  prob: 10
+}, {
+  id: 'prospecting',
+  label: 'Prospecting',
+  color: 'blue',
+  prob: 25
+}, {
+  id: 'qualified',
+  label: 'Qualified',
+  color: 'accent',
+  prob: 45
+}, {
+  id: 'proposal-sent',
+  label: 'Proposal Sent',
+  color: 'amber',
+  prob: 65
+}, {
+  id: 'negotiating',
+  label: 'Negotiating',
+  color: 'amber',
+  prob: 80
+}, {
+  id: 'won',
+  label: 'Won',
+  color: 'green',
+  prob: 100
+}, {
+  id: 'lost',
+  label: 'Lost',
+  color: 'red',
+  prob: 0
+}];
+const dealStageMeta = id => DEAL_STAGES.find(s => s.id === id) || DEAL_STAGES[0];
+const dealStageIndex = id => Math.max(0, DEAL_STAGES.findIndex(s => s.id === id));
+const dealStageProb = id => dealStageMeta(id).prob;
+const dealIsOpen = d => d.stage !== 'won' && d.stage !== 'lost';
+const stageBarColor = color => ({
+  neutral: T.mutedSoft,
+  blue: T.blue,
+  accent: T.primary,
+  amber: T.amber,
+  green: T.green,
+  red: T.red
+})[color] || T.mutedSoft;
+const DEAL_PRIORITIES = [{
+  id: 'high',
+  label: 'High',
+  color: 'red',
+  hint: 'Serious buyer or large opportunity'
+}, {
+  id: 'medium',
+  label: 'Medium',
+  color: 'amber',
+  hint: 'Engaged lead with potential'
+}, {
+  id: 'low',
+  label: 'Low',
+  color: 'blue',
+  hint: 'Early-stage or low-value lead'
+}];
+const dealPriorityMeta = id => DEAL_PRIORITIES.find(p => p.id === id) || DEAL_PRIORITIES[2];
+const PROPOSAL_STATUS_COLOR = {
+  Draft: 'neutral',
+  Sent: 'blue',
+  Accepted: 'green',
+  Declined: 'red'
+};
+
+// Relative "x days ago" against the demo's fixed today.
+const daysAgo = dateStr => {
+  if (!dateStr) return '';
+  const diff = Math.floor((DEALS_TODAY - new Date(dateStr)) / 86400000);
+  if (diff <= 0) return 'today';
+  if (diff === 1) return '1 day ago';
+  if (diff < 30) return diff + ' days ago';
+  const m = Math.floor(diff / 30);
+  return m + (m === 1 ? ' month ago' : ' months ago');
+};
+const dealActivityIcon = type => ({
+  note: 'fileText',
+  call: 'phone',
+  meeting: 'calendar',
+  email: 'mail',
+  stage: 'arrow',
+  created: 'sparkle',
+  task: 'check',
+  proposal: 'docs',
+  file: 'paperclip'
+})[type] || 'fileText';
+const dealActivityLabel = type => ({
+  note: 'Note',
+  call: 'Call',
+  meeting: 'Meeting',
+  email: 'Email',
+  stage: 'Stage change',
+  created: 'Deal created',
+  task: 'Task',
+  proposal: 'Proposal',
+  file: 'File'
+})[type] || 'Activity';
+const dealSourceIcon = s => ({
+  'Sole link': 'link',
+  'Cold email': 'mail',
+  'Referral': 'users',
+  'Inbound': 'download',
+  'Other': 'info'
+})[s] || 'link';
+const PIPELINE_DEALS = [{
+  id: 'dl-001',
+  title: 'Annual bookkeeping onboarding',
+  orgId: 'c-bondi',
+  contact: {
+    name: 'Pete Bondi',
+    role: 'Owner',
+    email: 'pete@bondimowing.au',
+    phone: '+61 467 890 123'
+  },
+  ownerId: 's6',
+  service: 'Client onboarding',
+  value: 9000,
+  stage: 'new-lead',
+  priority: 'low',
+  expectedClose: '2026-07-30',
+  createdAt: '2026-05-26',
+  nextActivity: {
+    type: 'call',
+    label: 'Intro call',
+    due: '2026-06-02'
+  },
+  proposals: [],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-001-0',
+    type: 'created',
+    body: 'Deal created from inbound enquiry',
+    who: 'You',
+    at: '2026-05-26T09:12:00'
+  }]
+}, {
+  id: 'dl-002',
+  title: 'Sole-trader tax return',
+  orgId: 'c-kim',
+  contact: {
+    name: 'Kim Tran',
+    role: 'Principal',
+    email: 'kim@example.com',
+    phone: '+61 456 789 012'
+  },
+  ownerId: 's1',
+  service: 'Tax compliance',
+  value: 6500,
+  stage: 'new-lead',
+  priority: 'medium',
+  expectedClose: '2026-07-15',
+  createdAt: '2026-05-24',
+  nextActivity: {
+    type: 'email',
+    label: 'Send intro email',
+    due: '2026-05-28'
+  },
+  proposals: [],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-002-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-05-24T14:40:00'
+  }]
+}, {
+  id: 'dl-003',
+  title: 'Group advisory scoping',
+  orgId: 'c-greenleaf',
+  contact: {
+    name: 'Daniel Greenleaf',
+    role: 'Trustee',
+    email: 'trust@greenleaf.au',
+    phone: '+61 412 556 778'
+  },
+  ownerId: 's5',
+  service: 'Advisory',
+  value: 22000,
+  stage: 'prospecting',
+  priority: 'medium',
+  expectedClose: '2026-08-20',
+  createdAt: '2026-05-20',
+  nextActivity: {
+    type: 'task',
+    label: 'Qualify budget',
+    due: '2026-06-05'
+  },
+  proposals: [],
+  docs: [],
+  notes: 'Referred by North Coast Partners — warm intro.',
+  activities: [{
+    id: 'a-dl-003-0',
+    type: 'created',
+    body: 'Referred by North Coast Partners',
+    who: 'Morgan',
+    at: '2026-05-20T11:05:00'
+  }]
+}, {
+  id: 'dl-004',
+  title: 'Operating model review',
+  orgId: 'c-northcoast',
+  contact: {
+    name: 'Priya Menon',
+    role: 'Managing Partner',
+    email: 'priya@northcoast.au',
+    phone: '+61 489 012 345'
+  },
+  ownerId: 's5',
+  service: 'Advisory',
+  value: 38000,
+  stage: 'prospecting',
+  priority: 'high',
+  expectedClose: '2026-07-10',
+  createdAt: '2026-05-10',
+  nextActivity: {
+    type: 'call',
+    label: 'Scoping call',
+    due: '2026-06-01'
+  },
+  proposals: [],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-004-1',
+    type: 'call',
+    body: 'Spoke with Priya — keen to review FY27 structure',
+    who: 'Morgan',
+    at: '2026-05-18T10:30:00'
+  }, {
+    id: 'a-dl-004-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-05-10T09:00:00'
+  }]
+}, {
+  id: 'dl-005',
+  title: 'FY26 company tax',
+  orgId: 'c-marlow',
+  contact: {
+    name: 'Amit Sharma',
+    role: 'Director',
+    email: 'amit@marlowsons.au',
+    phone: '+61 401 234 567'
+  },
+  ownerId: 's3',
+  service: 'Tax compliance',
+  value: 28000,
+  stage: 'qualified',
+  priority: 'medium',
+  expectedClose: '2026-07-22',
+  createdAt: '2026-05-08',
+  nextActivity: {
+    type: 'meeting',
+    label: 'Discovery meeting',
+    due: '2026-06-04'
+  },
+  proposals: [],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-005-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-05-08T16:20:00'
+  }]
+}, {
+  id: 'dl-006',
+  title: 'Advisory retainer',
+  orgId: 'c-solepay',
+  contact: {
+    name: 'Shravya Rao',
+    role: 'Finance Lead',
+    email: 'shravya@solepay.com',
+    phone: '+61 478 901 234'
+  },
+  ownerId: 's5',
+  service: 'Advisory',
+  value: 42000,
+  stage: 'qualified',
+  priority: 'high',
+  expectedClose: '2026-06-30',
+  createdAt: '2026-04-28',
+  nextActivity: {
+    type: 'meeting',
+    label: 'Proposal walkthrough',
+    due: '2026-06-03'
+  },
+  proposals: [{
+    id: 'p-dl-006-0',
+    title: 'Tax & Advisory Retainer',
+    status: 'Draft'
+  }],
+  docs: [],
+  notes: 'Budget signed off by board.',
+  activities: [{
+    id: 'a-dl-006-2',
+    type: 'meeting',
+    body: 'Discovery call — confirmed monthly advisory scope',
+    who: 'Morgan',
+    at: '2026-05-15T13:00:00'
+  }, {
+    id: 'a-dl-006-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-04-28T10:00:00'
+  }]
+}, {
+  id: 'dl-007',
+  title: 'SMSF annual compliance',
+  orgId: 'c-acme',
+  contact: {
+    name: 'Helen Park',
+    role: 'Fund Administrator',
+    email: 'admin@acmesuper.au',
+    phone: '+61 423 778 110'
+  },
+  ownerId: 's1',
+  service: 'Tax compliance',
+  value: 16500,
+  stage: 'qualified',
+  priority: 'low',
+  expectedClose: '2026-07-05',
+  createdAt: '2026-05-02',
+  nextActivity: {
+    type: 'call',
+    label: 'Follow-up call',
+    due: '2026-05-27'
+  },
+  proposals: [],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-007-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-05-02T15:10:00'
+  }]
+}, {
+  id: 'dl-008',
+  title: 'Payroll setup & STP',
+  orgId: 'c-bondi',
+  contact: {
+    name: 'Pete Bondi',
+    role: 'Owner',
+    email: 'pete@bondimowing.au',
+    phone: '+61 467 890 123'
+  },
+  ownerId: 's4',
+  service: 'Payroll',
+  value: 12000,
+  stage: 'proposal-sent',
+  priority: 'medium',
+  expectedClose: '2026-07-18',
+  createdAt: '2026-05-05',
+  nextActivity: {
+    type: 'email',
+    label: 'Chase proposal response',
+    due: '2026-06-06'
+  },
+  proposals: [{
+    id: 'p-dl-008-0',
+    title: 'Payroll Outsourcing — Tier 2',
+    status: 'Sent'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-008-1',
+    type: 'proposal',
+    body: 'Sent proposal: Payroll Outsourcing — Tier 2',
+    who: 'Taylor',
+    at: '2026-05-21T09:00:00'
+  }, {
+    id: 'a-dl-008-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-05-05T08:45:00'
+  }]
+}, {
+  id: 'dl-009',
+  title: 'Monthly bookkeeping rollout',
+  orgId: 'c-northcoast',
+  contact: {
+    name: 'Priya Menon',
+    role: 'Managing Partner',
+    email: 'priya@northcoast.au',
+    phone: '+61 489 012 345'
+  },
+  ownerId: 's2',
+  service: 'Bookkeeping',
+  value: 36000,
+  stage: 'proposal-sent',
+  priority: 'high',
+  expectedClose: '2026-06-25',
+  createdAt: '2026-04-20',
+  nextActivity: {
+    type: 'task',
+    label: 'Follow up on proposal',
+    due: '2026-06-02'
+  },
+  proposals: [{
+    id: 'p-dl-009-0',
+    title: 'Cloud Bookkeeping Plan',
+    status: 'Sent'
+  }, {
+    id: 'p-dl-009-1',
+    title: 'Setup & Migration Sprint',
+    status: 'Draft'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-009-1',
+    type: 'proposal',
+    body: 'Sent proposal: Cloud Bookkeeping Plan',
+    who: 'Alex',
+    at: '2026-05-22T11:00:00'
+  }, {
+    id: 'a-dl-009-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-04-20T10:15:00'
+  }]
+}, {
+  id: 'dl-010',
+  title: 'Trust tax & distributions',
+  orgId: 'c-greenleaf',
+  contact: {
+    name: 'Daniel Greenleaf',
+    role: 'Trustee',
+    email: 'trust@greenleaf.au',
+    phone: '+61 412 556 778'
+  },
+  ownerId: 's1',
+  service: 'Tax compliance',
+  value: 24500,
+  stage: 'negotiating',
+  priority: 'medium',
+  expectedClose: '2026-07-02',
+  createdAt: '2026-04-18',
+  nextActivity: {
+    type: 'call',
+    label: 'Decision-maker call',
+    due: '2026-06-05'
+  },
+  proposals: [{
+    id: 'p-dl-010-0',
+    title: 'Annual Compliance Package',
+    status: 'Sent'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-010-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-04-18T09:00:00'
+  }]
+}, {
+  id: 'dl-011',
+  title: 'CFO advisory engagement',
+  orgId: 'c-marlow',
+  contact: {
+    name: 'Amit Sharma',
+    role: 'Director',
+    email: 'amit@marlowsons.au',
+    phone: '+61 401 234 567'
+  },
+  ownerId: 's5',
+  service: 'Advisory',
+  value: 52000,
+  stage: 'negotiating',
+  priority: 'high',
+  expectedClose: '2026-06-18',
+  createdAt: '2026-04-05',
+  nextActivity: {
+    type: 'meeting',
+    label: 'Final terms meeting',
+    due: '2026-06-01'
+  },
+  proposals: [{
+    id: 'p-dl-011-0',
+    title: 'Tax & Advisory Retainer',
+    status: 'Sent'
+  }],
+  docs: [],
+  notes: 'Negotiating monthly vs quarterly billing.',
+  activities: [{
+    id: 'a-dl-011-1',
+    type: 'email',
+    body: 'Sent revised engagement letter',
+    who: 'Morgan',
+    at: '2026-05-25T16:00:00'
+  }, {
+    id: 'a-dl-011-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-04-05T10:00:00'
+  }]
+}, {
+  id: 'dl-012',
+  title: 'Bookkeeping + BAS package',
+  orgId: 'c-solepay',
+  contact: {
+    name: 'Shravya Rao',
+    role: 'Finance Lead',
+    email: 'shravya@solepay.com',
+    phone: '+61 478 901 234'
+  },
+  ownerId: 's2',
+  service: 'Bookkeeping',
+  value: 30000,
+  stage: 'negotiating',
+  priority: 'medium',
+  expectedClose: '2026-06-20',
+  createdAt: '2026-04-10',
+  nextActivity: {
+    type: 'email',
+    label: 'Send revised quote',
+    due: '2026-05-30'
+  },
+  proposals: [{
+    id: 'p-dl-012-0',
+    title: 'Cloud Bookkeeping Plan',
+    status: 'Sent'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-012-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-04-10T11:30:00'
+  }]
+}, {
+  id: 'dl-013',
+  title: 'Payroll managed service',
+  orgId: 'c-acme',
+  contact: {
+    name: 'Helen Park',
+    role: 'Fund Administrator',
+    email: 'admin@acmesuper.au',
+    phone: '+61 423 778 110'
+  },
+  ownerId: 's4',
+  service: 'Payroll',
+  value: 18000,
+  stage: 'won',
+  priority: 'medium',
+  expectedClose: '2026-05-20',
+  createdAt: '2026-03-15',
+  nextActivity: null,
+  proposals: [{
+    id: 'p-dl-013-0',
+    title: 'Payroll Outsourcing — Tier 2',
+    status: 'Accepted'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-013-3',
+    type: 'stage',
+    body: 'Deal marked won',
+    who: 'Taylor',
+    at: '2026-05-20T15:00:00'
+  }, {
+    id: 'a-dl-013-2',
+    type: 'proposal',
+    body: 'Proposal accepted',
+    who: 'Taylor',
+    at: '2026-05-19T10:00:00'
+  }, {
+    id: 'a-dl-013-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-03-15T09:00:00'
+  }]
+}, {
+  id: 'dl-014',
+  title: 'Quarterly BAS lodgement',
+  orgId: 'c-kim',
+  contact: {
+    name: 'Kim Tran',
+    role: 'Principal',
+    email: 'kim@example.com',
+    phone: '+61 456 789 012'
+  },
+  ownerId: 's3',
+  service: 'BAS/GST',
+  value: 8000,
+  stage: 'lost',
+  priority: 'low',
+  expectedClose: '2026-05-15',
+  createdAt: '2026-03-28',
+  nextActivity: null,
+  proposals: [{
+    id: 'p-dl-014-0',
+    title: 'Quarterly Advisory Add-on',
+    status: 'Declined'
+  }],
+  docs: [],
+  notes: 'Went with incumbent on price.',
+  activities: [{
+    id: 'a-dl-014-1',
+    type: 'stage',
+    body: 'Deal marked lost — went with incumbent',
+    who: 'Jordan',
+    at: '2026-05-15T14:00:00'
+  }, {
+    id: 'a-dl-014-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-03-28T13:20:00'
+  }]
+}, {
+  id: 'dl-015',
+  title: 'Strategic advisory program',
+  orgId: 'c-northcoast',
+  contact: {
+    name: 'Priya Menon',
+    role: 'Managing Partner',
+    email: 'priya@northcoast.au',
+    phone: '+61 489 012 345'
+  },
+  ownerId: 's1',
+  service: 'Advisory',
+  value: 45000,
+  stage: 'won',
+  priority: 'high',
+  expectedClose: '2026-05-12',
+  createdAt: '2026-02-20',
+  nextActivity: null,
+  proposals: [{
+    id: 'p-dl-015-0',
+    title: 'Tax & Advisory Retainer',
+    status: 'Accepted'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-015-2',
+    type: 'stage',
+    body: 'Deal marked won',
+    who: 'Sarah',
+    at: '2026-05-12T11:00:00'
+  }, {
+    id: 'a-dl-015-0',
+    type: 'created',
+    body: 'Deal created',
+    who: 'You',
+    at: '2026-02-20T10:00:00'
+  }]
+}];
+
+// Funnel-planning vocab (from the partner's brief): a prospect's lead source,
+// firm size, and the rough work window we'd deliver the engagement in.
+const DEAL_SOURCES = ['Sole link', 'Cold email', 'Referral', 'Inbound', 'Other'];
+const DEAL_FIRM_SIZES = ['1–5', '6–20', '21–50', '50+'];
+const DEAL_WORK_WINDOWS = ['Jul–Aug 2026', 'Aug–Sep 2026', 'Sep–Oct 2026', 'Oct–Nov 2026', 'Q3 2026', 'Q4 2026'];
+
+// Enrich the seed deals deterministically with funnel fields, a starter
+// checklist, and follow-up tasks — so the demo is stable across reloads. New
+// in-app deals pick these up from the modal / sensible defaults.
+PIPELINE_DEALS.forEach((d, i) => {
+  if (d.likelihood == null) d.likelihood = dealStageProb(d.stage);
+  if (d.estHours == null) d.estHours = 40 + i * 17 % 9 * 10; // 40–120h
+  if (!d.workWindow) d.workWindow = DEAL_WORK_WINDOWS[i % DEAL_WORK_WINDOWS.length];
+  if (!d.firmSize) d.firmSize = DEAL_FIRM_SIZES[i * 3 % DEAL_FIRM_SIZES.length];
+  if (!d.source) d.source = ['Sole link', 'Cold email', 'Referral', 'Inbound'][i % 4];
+  if (!d.checklist) {
+    const si = dealStageIndex(d.stage);
+    d.checklist = [{
+      id: `${d.id}-c0`,
+      text: 'Initial discovery call',
+      done: true
+    }, {
+      id: `${d.id}-c1`,
+      text: 'Confirm scope & timing',
+      done: si >= 2
+    }, {
+      id: `${d.id}-c2`,
+      text: 'Send proposal',
+      done: si >= 3
+    }, {
+      id: `${d.id}-c3`,
+      text: 'Agree fee & terms',
+      done: si >= 5
+    }];
+  }
+  if (!d.tasks) {
+    d.tasks = d.nextActivity ? [{
+      id: `${d.id}-t0`,
+      label: d.nextActivity.label,
+      due: d.nextActivity.due,
+      type: d.nextActivity.type,
+      done: false
+    }] : [];
+  }
+});
+
+// Likelihood-to-win — per-deal override falls back to the stage's base prob.
+const dealLikelihood = d => d.likelihood == null ? dealStageProb(d.stage) : d.likelihood;
+const checklistDone = d => {
+  const l = d.checklist || [];
+  return {
+    done: l.filter(x => x.done).length,
+    total: l.length
+  };
+};
+const dealOpenTasks = d => (d.tasks || []).filter(t => !t.done);
+const dealNextTask = d => dealOpenTasks(d).slice().sort((a, b) => new Date(a.due || '2999-01-01') - new Date(b.due || '2999-01-01'))[0] || null;
+const taskOverdue = t => t && t.due && new Date(t.due) < DEALS_TODAY;
+
+// Cross-module links for the Staff drawer.
+const staffDeals = (staffId, deals) => deals.filter(d => d.ownerId === staffId);
+const staffProjects = staffId => {
+  const s = spmStaffBy(staffId);
+  return (typeof SPM_PROJECTS !== 'undefined' ? SPM_PROJECTS : []).filter(p => s && p.partner === s.name || (p.alloc || []).some(a => a[0] === staffId));
+};
+
+// Company context — mirrors buildEmployeeContext: links a client to its deals,
+// employees, projects, proposals and payruns so the CompanyDrawer can navigate
+// across the whole practice. `deals` is the live pipeline state (passed in).
+const buildCompanyContext = (client, deals) => {
+  if (!client) return null;
+  const cDeals = deals.filter(d => d.orgId === client.id);
+  const employees = (typeof PRACTICE_EMPLOYEES !== 'undefined' ? PRACTICE_EMPLOYEES : []).filter(e => e.clientId === client.id);
+  const projects = (typeof SPM_PROJECTS !== 'undefined' ? SPM_PROJECTS : []).filter(p => p.client === client.name);
+  const dealProps = cDeals.flatMap(d => (d.proposals || []).map(p => ({
+    id: p.id,
+    title: p.title,
+    status: p.status,
+    dealTitle: d.title
+  })));
+  const mockProps = (typeof MOCK_PROPOSALS !== 'undefined' ? MOCK_PROPOSALS : []).filter(p => (client.name || '').includes(p.client)).map(p => ({
+    id: p.id,
+    title: p.proposal,
+    status: p.status.charAt(0).toUpperCase() + p.status.slice(1),
+    amount: p.amount,
+    raw: p
+  }));
+  const proposals = [...mockProps, ...dealProps.filter(dp => !mockProps.some(mp => mp.title === dp.title))];
+  const payruns = (typeof PRACTICE_PAYRUNS !== 'undefined' ? PRACTICE_PAYRUNS : []).filter(r => (r.clientIds || []).includes(client.id));
+  const openVal = cDeals.filter(dealIsOpen).reduce((a, d) => a + d.value, 0);
+  const wonVal = cDeals.filter(d => d.stage === 'won').reduce((a, d) => a + d.value, 0);
+  const forecast = cDeals.filter(dealIsOpen).reduce((a, d) => a + d.value * dealLikelihood(d) / 100, 0);
+  return {
+    client,
+    deals: cDeals,
+    employees,
+    projects,
+    proposals,
+    payruns,
+    kpis: {
+      openVal,
+      wonVal,
+      forecast,
+      employees: employees.length
+    }
+  };
+};
+
+// Clipboard helper (graceful in private mode) — used by contact email/phone.
+const copyToClip = (text, fireToast) => {
+  try {
+    navigator.clipboard && navigator.clipboard.writeText(text);
+  } catch (_) {}
+  if (fireToast) fireToast(`Copied ${text}`);
+};
+const dealOrg = d => clientById(d.orgId);
+const dealOwner = d => spmStaffBy(d.ownerId);
+// Company name + a ClientMark-compatible object — falls back to the typed
+// company for "new client" deals that aren't linked to a PRACTICE_CLIENTS row.
+const dealCompany = d => {
+  const o = dealOrg(d);
+  return o ? o.name : d.contact && d.contact.company || 'New client';
+};
+const dealOrgMark = d => dealOrg(d) || {
+  name: dealCompany(d),
+  color: 'neutral'
+};
+
+// Small priority tag (High / Medium / Low) — mirrors the live module's pill.
+const PriorityTag = ({
+  priority,
+  style
+}) => {
+  const p = dealPriorityMeta(priority);
+  return /*#__PURE__*/React.createElement(Pill, {
+    color: p.color,
+    style: style
+  }, p.label);
+};
+
+// --- linked-entity atoms ---
+// Everything in the Deals surface is a clickable record. These chips render an
+// entity (company / owner / proposal) and, when given an `onOpen`, open its
+// detail surface — always stopPropagation so they don't also fire the card.
+const likelihoodColor = pct => pct >= 70 ? T.green : pct >= 40 ? T.primary : T.mutedSoft;
+const LikelihoodBar = ({
+  pct,
+  width = 64,
+  showLabel = true
+}) => {
+  const v = Math.round(pct);
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width,
+      display: 'inline-block'
+    }
+  }, /*#__PURE__*/React.createElement(HoverableProgressBar, {
+    pct: v,
+    color: likelihoodColor(v),
+    height: 6,
+    tooltip: `${v}% likely to win`
+  })), showLabel && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: likelihoodColor(v)
+    }
+  }, v, "%"));
+};
+const CompanyChip = ({
+  client,
+  onOpen,
+  size = 16,
+  style
+}) => {
+  const [hover, setHover] = useState(false);
+  if (!client) return null;
+  const clickable = !!(onOpen && client.id);
+  return /*#__PURE__*/React.createElement("span", {
+    onClick: clickable ? e => {
+      e.stopPropagation();
+      onOpen(client.id);
+    } : undefined,
+    onMouseEnter: () => setHover(true),
+    onMouseLeave: () => setHover(false),
+    title: clickable ? `Open ${client.name}` : client.name,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      minWidth: 0,
+      cursor: clickable ? 'pointer' : 'default',
+      ...style
+    }
+  }, /*#__PURE__*/React.createElement(ClientMark, {
+    client: client,
+    size: size
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: hover && clickable ? T.primary : T.muted,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      textDecoration: hover && clickable ? 'underline' : 'none'
+    }
+  }, client.name));
+};
+const OwnerChip = ({
+  staff,
+  onOpen,
+  size = 20,
+  showName = true
+}) => {
+  const [hover, setHover] = useState(false);
+  if (!staff) return null;
+  const clickable = !!onOpen;
+  return /*#__PURE__*/React.createElement("span", {
+    onClick: clickable ? e => {
+      e.stopPropagation();
+      onOpen(staff.id);
+    } : undefined,
+    onMouseEnter: () => setHover(true),
+    onMouseLeave: () => setHover(false),
+    title: clickable ? `Open ${staff.name}` : staff.name,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      cursor: clickable ? 'pointer' : 'default',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: staff.name,
+    size: size
+  }), showName && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: hover && clickable ? T.primary : T.textSoft,
+      textDecoration: hover && clickable ? 'underline' : 'none',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, staff.name));
+};
+const ProposalChip = ({
+  proposal,
+  onOpen,
+  style
+}) => /*#__PURE__*/React.createElement("span", {
+  onClick: onOpen ? e => {
+    e.stopPropagation();
+    onOpen(proposal);
+  } : undefined,
+  title: proposal.title,
+  style: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '3px 8px',
+    borderRadius: 999,
+    border: `1px solid ${T.border}`,
+    background: T.fieldBg,
+    cursor: onOpen ? 'pointer' : 'default',
+    minWidth: 0,
+    maxWidth: '100%',
+    ...style
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "docs",
+  size: 11,
+  color: T.muted
+}), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 11.5,
+    color: T.textSoft,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  }
+}, proposal.title), proposal.status && /*#__PURE__*/React.createElement(Pill, {
+  color: PROPOSAL_STATUS_COLOR[proposal.status] || 'neutral',
+  style: {
+    fontSize: 10,
+    padding: '1px 6px'
+  }
+}, proposal.status));
+
+// Generic clickable row used inside the entity drawers' linked lists.
+const LinkRow = ({
+  left,
+  primary,
+  sub,
+  right,
+  onClick
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  "data-hover": "row",
+  style: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '9px 20px',
+    border: 'none',
+    borderTop: `1px solid ${T.border}`,
+    background: 'transparent',
+    cursor: onClick ? 'pointer' : 'default',
+    textAlign: 'left'
+  }
+}, left, /*#__PURE__*/React.createElement("span", {
+  style: {
+    flex: 1,
+    minWidth: 0
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'block',
+    fontSize: 12.5,
+    fontWeight: 500,
+    color: T.text,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  }
+}, primary), sub && /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'block',
+    fontSize: 11,
+    color: T.muted,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  }
+}, sub)), right && /*#__PURE__*/React.createElement("span", {
+  style: {
+    flexShrink: 0
+  }
+}, right), onClick && /*#__PURE__*/React.createElement(Icon, {
+  name: "chevronRight",
+  size: 13,
+  color: T.mutedSoft
+}));
+
+// Mini KPI tile used inside the entity drawers.
+const MiniKpi = ({
+  label,
+  value,
+  tone
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    flex: 1,
+    minWidth: 0,
+    padding: '8px 10px',
+    border: `1px solid ${T.border}`,
+    borderRadius: 10,
+    background: T.card
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 10.5,
+    color: T.muted,
+    fontWeight: 500,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, label), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 15,
+    fontWeight: 700,
+    letterSpacing: -0.3,
+    marginTop: 2,
+    color: tone === 'green' ? T.greenDark : T.text
+  }
+}, value));
+
+// Flat key/value row for the deal drawer (mirrors EmployeeDetailsDrawer's Fact).
+const DealFact = ({
+  label,
+  value,
+  mono
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '8px 20px',
+    borderTop: `1px solid ${T.border}`
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12,
+    color: T.muted
+  }
+}, label), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12.5,
+    color: T.text,
+    fontWeight: 500,
+    fontFamily: mono ? 'ui-monospace, SFMono-Regular, monospace' : undefined,
+    textAlign: 'right',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    maxWidth: '60%'
+  }
+}, value || /*#__PURE__*/React.createElement("span", {
+  style: {
+    color: T.mutedSoft
+  }
+}, "\u2014")));
+
+// Compact inline key/value used in the drawer header (no dividers).
+const KV = ({
+  label,
+  value
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 10
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12,
+    color: T.muted,
+    width: 120,
+    flexShrink: 0
+  }
+}, label), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12.5,
+    color: T.text,
+    fontWeight: 500
+  }
+}, value || /*#__PURE__*/React.createElement("span", {
+  style: {
+    color: T.mutedSoft
+  }
+}, "\u2014")));
+
+// Editable property row in the deal drawer (label + control). Module-scope so
+// the controls passed as children never remount (which would drop focus).
+const PropRow = ({
+  label,
+  children
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'grid',
+    gridTemplateColumns: '116px 1fr',
+    alignItems: 'center',
+    gap: 10,
+    padding: '7px 0',
+    borderTop: `1px solid ${T.border}`
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12,
+    color: T.muted
+  }
+}, label), /*#__PURE__*/React.createElement("div", {
+  style: {
+    minWidth: 0
+  }
+}, children));
+
+// Square checkbox for checklist / task items.
+const CheckBox = ({
+  checked,
+  onClick
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  style: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    flexShrink: 0,
+    padding: 0,
+    cursor: 'pointer',
+    border: `1.5px solid ${checked ? T.green : T.borderStrong}`,
+    background: checked ? T.green : T.card,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
+}, checked && /*#__PURE__*/React.createElement(Icon, {
+  name: "check",
+  size: 11,
+  color: "#fff"
+}));
+
+// Contact row with mailto/tel link + copy button.
+const ContactRow = ({
+  label,
+  value,
+  href,
+  mono,
+  fireToast
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '8px 20px',
+    borderTop: `1px solid ${T.border}`
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12,
+    color: T.muted
+  }
+}, label), value ? /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0
+  }
+}, /*#__PURE__*/React.createElement("a", {
+  href: href,
+  style: {
+    fontSize: 12.5,
+    color: T.primary,
+    textDecoration: 'none',
+    fontFamily: mono ? 'ui-monospace, SFMono-Regular, monospace' : undefined,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  }
+}, value), /*#__PURE__*/React.createElement("button", {
+  onClick: () => copyToClip(value, fireToast),
+  title: "Copy",
+  style: {
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    color: T.muted,
+    padding: 2,
+    display: 'inline-flex'
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "copy",
+  size: 12
+}))) : /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12.5,
+    color: T.mutedSoft
+  }
+}, "\u2014"));
+
+// Small due-date chip shown on a deal card / row. Red when overdue.
+const DealNextChip = ({
+  activity
+}) => {
+  if (!activity) return null;
+  const overdue = new Date(activity.due) < DEALS_TODAY;
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 11,
+      fontWeight: 500,
+      padding: '2px 7px',
+      borderRadius: 999,
+      background: overdue ? T.redSoft : T.fieldBg,
+      color: overdue ? T.red : T.muted,
+      border: `1px solid ${overdue ? '#FECACA' : T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: dealActivityIcon(activity.type),
+    size: 11,
+    color: overdue ? T.red : T.muted
+  }), fmtDate(new Date(activity.due)));
+};
+
+// Tiny property chip on a deal card (hours / window / firm size).
+const CardMeta = ({
+  icon,
+  text
+}) => text ? /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    fontSize: 10.5,
+    color: T.muted,
+    background: T.fieldBg,
+    border: `1px solid ${T.border}`,
+    borderRadius: 6,
+    padding: '2px 6px'
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: icon,
+  size: 10,
+  color: T.mutedSoft
+}), text) : null;
+
+// Draggable Kanban card — a fully-linked record: clickable company/owner,
+// likelihood bar, planning chips, checklist + next-task footer, hover ⋯ menu.
+const DealCard = ({
+  deal,
+  onOpen,
+  onDragStart,
+  onDragEnd,
+  dragging,
+  onOpenCompany,
+  onOpenOwner,
+  onQuick
+}) => {
+  const [hover, setHover] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const owner = dealOwner(deal);
+  const org = dealOrg(deal);
+  const mark = dealOrgMark(deal);
+  const lost = deal.stage === 'lost';
+  const won = deal.stage === 'won';
+  const props = deal.proposals || [];
+  const cl = checklistDone(deal);
+  const nextTask = dealNextTask(deal);
+  const overdue = taskOverdue(nextTask);
+  const pct = dealLikelihood(deal);
+  return /*#__PURE__*/React.createElement("div", {
+    draggable: !menu,
+    onDragStart: e => onDragStart(e, deal),
+    onDragEnd: onDragEnd,
+    onClick: () => onOpen(deal.id),
+    onMouseEnter: () => setHover(true),
+    onMouseLeave: () => setHover(false),
+    style: {
+      position: 'relative',
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: '10px 12px',
+      cursor: 'grab',
+      display: 'grid',
+      gap: 7,
+      transition: 'box-shadow .12s',
+      boxShadow: hover && !dragging ? '0 4px 12px rgba(15,17,23,0.10)' : '0 1px 2px rgba(15,17,23,0.04)',
+      opacity: dragging ? 0.4 : lost ? 0.72 : 1,
+      borderLeft: `3px solid ${won ? T.green : lost ? T.mutedSoft : stageBarColor(dealPriorityMeta(deal.priority).color)}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(PriorityTag, {
+    priority: deal.priority
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 3,
+      fontSize: 10.5,
+      color: T.mutedSoft,
+      whiteSpace: 'nowrap'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: dealSourceIcon(deal.source),
+    size: 10,
+    color: T.mutedSoft
+  }), deal.source), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      setMenu(m => !m);
+    },
+    title: "Actions",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      padding: 2,
+      borderRadius: 6,
+      opacity: hover || menu ? 1 : 0,
+      color: T.muted,
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "moreHorizontal",
+    size: 15
+  })), /*#__PURE__*/React.createElement(Popover, {
+    open: menu,
+    onClose: () => setMenu(false),
+    width: 172,
+    anchorAlign: "right"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 4
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "eye",
+    onClick: () => {
+      setMenu(false);
+      onOpen(deal.id);
+    }
+  }, "Open"), /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "edit",
+    onClick: () => {
+      setMenu(false);
+      onQuick('edit', deal);
+    }
+  }, "Edit"), dealIsOpen(deal) ? /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "check",
+    onClick: () => {
+      setMenu(false);
+      onQuick('won', deal);
+    }
+  }, "Mark won"), /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "close",
+    onClick: () => {
+      setMenu(false);
+      onQuick('lost', deal);
+    }
+  }, "Mark lost")) : /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "undo",
+    onClick: () => {
+      setMenu(false);
+      onQuick('reopen', deal);
+    }
+  }, "Reopen"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 1,
+      background: T.border,
+      margin: '4px 0'
+    }
+  }), /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "trash",
+    danger: true,
+    onClick: () => {
+      setMenu(false);
+      onQuick('delete', deal);
+    }
+  }, "Delete"))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      lineHeight: 1.3,
+      textDecoration: lost ? 'line-through' : 'none'
+    }
+  }, deal.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.textSoft
+    }
+  }, fmtMoney(deal.value)), /*#__PURE__*/React.createElement(LikelihoodBar, {
+    pct: pct,
+    width: 46
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft,
+      marginLeft: 'auto'
+    }
+  }, daysAgo(deal.createdAt))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(CompanyChip, {
+    client: mark,
+    onOpen: org ? onOpenCompany : undefined,
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(OwnerChip, {
+    staff: owner,
+    onOpen: onOpenOwner,
+    showName: false
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(CardMeta, {
+    icon: "clock",
+    text: `${deal.estHours}h`
+  }), /*#__PURE__*/React.createElement(CardMeta, {
+    icon: "calendar",
+    text: deal.workWindow
+  }), /*#__PURE__*/React.createElement(CardMeta, {
+    icon: "users",
+    text: deal.firmSize
+  })), (cl.total > 0 || nextTask || props.length > 0) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      paddingTop: 7,
+      borderTop: `1px solid ${T.border}`,
+      minWidth: 0
+    }
+  }, cl.total > 0 && /*#__PURE__*/React.createElement("span", {
+    title: "Checklist",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 11,
+      color: cl.done === cl.total ? T.greenDark : T.muted
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: cl.done === cl.total ? T.greenDark : T.muted
+  }), cl.done, "/", cl.total), props.length > 0 && /*#__PURE__*/React.createElement("span", {
+    title: "Attached proposals",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 11,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "docs",
+    size: 11,
+    color: T.muted
+  }), props.length), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), nextTask && /*#__PURE__*/React.createElement("span", {
+    title: nextTask.label,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 11,
+      fontWeight: 500,
+      padding: '2px 7px',
+      borderRadius: 999,
+      background: overdue ? T.redSoft : T.fieldBg,
+      color: overdue ? T.red : T.muted,
+      border: `1px solid ${overdue ? '#FECACA' : T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: dealActivityIcon(nextTask.type || 'task'),
+    size: 10,
+    color: overdue ? T.red : T.muted
+  }), fmtDate(new Date(nextTask.due)))));
+};
+
+// Deal create / edit modal — Contact (new or saved client) · Deal details ·
+// Priority · Attach proposal · Attach docs · Notes. Mirrors the live module's
+// "Add New Deal" form.
+const NewDealModal = ({
+  open,
+  onClose,
+  onSave,
+  deal
+}) => {
+  const editing = !!deal;
+  const makeBlank = () => ({
+    clientMode: 'saved',
+    orgId: PRACTICE_CLIENTS[0].id,
+    contactName: '',
+    company: '',
+    email: '',
+    phone: '',
+    title: '',
+    stage: 'new-lead',
+    ownerId: SPM_STAFF[0].id,
+    service: SPM_SERVICES[1],
+    value: '',
+    expectedClose: '',
+    priority: 'medium',
+    likelihood: '',
+    estHours: '',
+    workWindow: DEAL_WORK_WINDOWS[1],
+    firmSize: DEAL_FIRM_SIZES[1],
+    source: DEAL_SOURCES[0],
+    proposals: [],
+    docs: [],
+    notes: '',
+    proposalPick: ''
+  });
+  const seedFromDeal = d => ({
+    clientMode: d.orgId ? 'saved' : 'new',
+    orgId: d.orgId || PRACTICE_CLIENTS[0].id,
+    contactName: d.contact && d.contact.name || '',
+    company: d.contact && d.contact.company || '',
+    email: d.contact && d.contact.email || '',
+    phone: d.contact && d.contact.phone || '',
+    title: d.title,
+    stage: d.stage,
+    ownerId: d.ownerId,
+    service: d.service || SPM_SERVICES[1],
+    value: String(d.value || ''),
+    expectedClose: d.expectedClose || '',
+    priority: d.priority || 'medium',
+    likelihood: d.likelihood == null ? '' : String(d.likelihood),
+    estHours: String(d.estHours || ''),
+    workWindow: d.workWindow || DEAL_WORK_WINDOWS[1],
+    firmSize: d.firmSize || DEAL_FIRM_SIZES[1],
+    source: d.source || DEAL_SOURCES[0],
+    proposals: [...(d.proposals || [])],
+    docs: [...(d.docs || [])],
+    notes: d.notes || '',
+    proposalPick: ''
+  });
+  const [form, setForm] = useState(makeBlank);
+  useEffect(() => {
+    if (open) setForm(editing ? seedFromDeal(deal) : makeBlank());
+  }, [open, deal && deal.id]);
+  const upd = patch => setForm(f => ({
+    ...f,
+    ...patch
+  }));
+  const addProposal = title => {
+    if (!title) return;
+    setForm(f => f.proposals.some(p => p.title === title) ? f : {
+      ...f,
+      proposals: [...f.proposals, {
+        id: 'p-new-' + Date.now(),
+        title,
+        status: 'Draft'
+      }],
+      proposalPick: ''
+    });
+  };
+  const removeProposal = id => setForm(f => ({
+    ...f,
+    proposals: f.proposals.filter(p => p.id !== id)
+  }));
+  const addDoc = () => setForm(f => ({
+    ...f,
+    docs: [...f.docs, {
+      id: 'doc-' + Date.now(),
+      name: `Document ${f.docs.length + 1}.pdf`
+    }]
+  }));
+  const removeDoc = id => setForm(f => ({
+    ...f,
+    docs: f.docs.filter(x => x.id !== id)
+  }));
+  const submit = () => {
+    const orgId = form.clientMode === 'saved' ? form.orgId : null;
+    const company = form.clientMode === 'saved' ? (clientById(form.orgId) || {}).name || '' : form.company.trim();
+    const contact = {
+      name: form.contactName.trim() || 'Primary contact',
+      role: '',
+      company,
+      email: form.email.trim(),
+      phone: form.phone.trim()
+    };
+    onSave({
+      title: form.title,
+      stage: form.stage,
+      ownerId: form.ownerId,
+      service: form.service,
+      orgId,
+      contact,
+      value: Number(form.value) || 0,
+      expectedClose: form.expectedClose,
+      priority: form.priority,
+      proposals: form.proposals,
+      docs: form.docs,
+      notes: form.notes,
+      likelihood: form.likelihood === '' ? null : Number(form.likelihood),
+      estHours: Number(form.estHours) || 0,
+      workWindow: form.workWindow,
+      firmSize: form.firmSize,
+      source: form.source
+    });
+  };
+  const SubHead = ({
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      margin: '4px 0 2px'
+    }
+  }, children);
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: editing ? 'Edit deal' : 'Add new deal',
+    subtitle: editing ? 'Update this opportunity.' : 'Add an opportunity to the pipeline.',
+    width: 640
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(SubHead, null, "Contact"), /*#__PURE__*/React.createElement(SegToggle, {
+    value: form.clientMode,
+    onChange: v => upd({
+      clientMode: v
+    }),
+    options: [{
+      value: 'new',
+      label: 'New client'
+    }, {
+      value: 'saved',
+      label: 'Saved client'
+    }]
+  }), form.clientMode === 'saved' ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Company"), /*#__PURE__*/React.createElement(Select, {
+    value: form.orgId,
+    onChange: e => upd({
+      orgId: e.target.value
+    })
+  }, PRACTICE_CLIENTS.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c.id,
+    value: c.id
+  }, c.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Contact name"), /*#__PURE__*/React.createElement(Input, {
+    value: form.contactName,
+    onChange: e => upd({
+      contactName: e.target.value
+    }),
+    placeholder: "Contact name"
+  }))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Contact name"), /*#__PURE__*/React.createElement(Input, {
+    value: form.contactName,
+    onChange: e => upd({
+      contactName: e.target.value
+    }),
+    placeholder: "Enter contact name"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Company"), /*#__PURE__*/React.createElement(Input, {
+    value: form.company,
+    onChange: e => upd({
+      company: e.target.value
+    }),
+    placeholder: "Enter company name"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Email"), /*#__PURE__*/React.createElement(Input, {
+    value: form.email,
+    onChange: e => upd({
+      email: e.target.value
+    }),
+    placeholder: "eg. johndoe@example.com"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Phone number"), /*#__PURE__*/React.createElement(Input, {
+    value: form.phone,
+    onChange: e => upd({
+      phone: e.target.value
+    }),
+    prefix: "+61",
+    placeholder: "--- --- ---"
+  })))), /*#__PURE__*/React.createElement(SubHead, null, "Deal details"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Deal name"), /*#__PURE__*/React.createElement(Input, {
+    value: form.title,
+    onChange: e => upd({
+      title: e.target.value
+    }),
+    placeholder: "Enter deal name",
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Status"), /*#__PURE__*/React.createElement(Select, {
+    value: form.stage,
+    onChange: e => upd({
+      stage: e.target.value
+    })
+  }, DEAL_STAGES.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.label)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Owner"), /*#__PURE__*/React.createElement(Select, {
+    value: form.ownerId,
+    onChange: e => upd({
+      ownerId: e.target.value
+    })
+  }, SPM_STAFF.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.name))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Service line"), /*#__PURE__*/React.createElement(Select, {
+    value: form.service,
+    onChange: e => upd({
+      service: e.target.value
+    })
+  }, SPM_SERVICES.filter(s => s !== 'All').map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Deal value"), /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    prefix: "$",
+    value: form.value,
+    onChange: e => upd({
+      value: e.target.value
+    }),
+    placeholder: "0"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Projected close date"), /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: form.expectedClose,
+    onChange: e => upd({
+      expectedClose: e.target.value
+    })
+  }))), /*#__PURE__*/React.createElement(SubHead, null, "Planning"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Win likelihood (%)"), /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    suffix: "%",
+    value: form.likelihood,
+    onChange: e => upd({
+      likelihood: e.target.value
+    }),
+    placeholder: `Defaults to ${dealStageProb(form.stage)}% for ${dealStageMeta(form.stage).label}`
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Estimated hours"), /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    suffix: "h",
+    value: form.estHours,
+    onChange: e => upd({
+      estHours: e.target.value
+    }),
+    placeholder: "0"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Work window"), /*#__PURE__*/React.createElement(Select, {
+    value: form.workWindow,
+    onChange: e => upd({
+      workWindow: e.target.value
+    })
+  }, DEAL_WORK_WINDOWS.map(w => /*#__PURE__*/React.createElement("option", {
+    key: w,
+    value: w
+  }, w)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Firm size"), /*#__PURE__*/React.createElement(Select, {
+    value: form.firmSize,
+    onChange: e => upd({
+      firmSize: e.target.value
+    })
+  }, DEAL_FIRM_SIZES.map(f => /*#__PURE__*/React.createElement("option", {
+    key: f,
+    value: f
+  }, f)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Lead source"), /*#__PURE__*/React.createElement(Select, {
+    value: form.source,
+    onChange: e => upd({
+      source: e.target.value
+    })
+  }, DEAL_SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "link",
+    size: 11,
+    color: T.mutedSoft
+  }), " Deals can be auto-created from your Sole-link bookings."), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Priority"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr 1fr',
+      gap: 10
+    }
+  }, DEAL_PRIORITIES.map(p => {
+    const sel = form.priority === p.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: p.id,
+      onClick: () => upd({
+        priority: p.id
+      }),
+      style: {
+        textAlign: 'left',
+        cursor: 'pointer',
+        padding: '10px 12px',
+        borderRadius: 10,
+        border: `1px solid ${sel ? T.primary : T.border}`,
+        background: sel ? T.primarySofter : T.card
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }
+    }, /*#__PURE__*/React.createElement(Pill, {
+      color: p.color
+    }, p.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 14,
+        height: 14,
+        borderRadius: '50%',
+        border: `1px solid ${sel ? T.primary : T.borderStrong}`,
+        background: sel ? T.primary : T.card,
+        display: 'inline-block'
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        marginTop: 6
+      }
+    }, p.hint));
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Attach proposal"), /*#__PURE__*/React.createElement(Select, {
+    value: form.proposalPick,
+    onChange: e => addProposal(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Select proposal\u2026"), EMP_PROPOSAL_TITLES.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t,
+    value: t
+  }, t))), form.proposals.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 8
+    }
+  }, form.proposals.map(p => /*#__PURE__*/React.createElement("span", {
+    key: p.id,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '4px 6px 4px 10px',
+      borderRadius: 999,
+      border: `1px solid ${T.border}`,
+      background: T.fieldBg,
+      fontSize: 12,
+      color: T.textSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "docs",
+    size: 11,
+    color: T.muted
+  }), p.title, /*#__PURE__*/React.createElement("button", {
+    onClick: () => removeProposal(p.id),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.muted,
+      padding: 2,
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 11
+  })))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Attach other docs ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft,
+      fontWeight: 400
+    }
+  }, "(optional)")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '12px 14px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 8,
+      background: T.fieldBg,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "upload",
+    size: 16,
+    color: T.muted
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, "Upload file"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted
+    }
+  }, "PDF, Docx, Image"))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    onClick: addDoc
+  }, "Upload")), form.docs.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 8
+    }
+  }, form.docs.map(d => /*#__PURE__*/React.createElement("span", {
+    key: d.id,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '4px 6px 4px 10px',
+      borderRadius: 999,
+      border: `1px solid ${T.border}`,
+      background: T.fieldBg,
+      fontSize: 12,
+      color: T.textSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "paperclip",
+    size: 11,
+    color: T.muted
+  }), d.name, /*#__PURE__*/React.createElement("button", {
+    onClick: () => removeDoc(d.id),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.muted,
+      padding: 2,
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 11
+  })))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Notes"), /*#__PURE__*/React.createElement("textarea", {
+    value: form.notes,
+    onChange: e => upd({
+      notes: e.target.value
+    }),
+    placeholder: "Enter some text\u2026",
+    style: {
+      width: '100%',
+      minHeight: 90,
+      padding: '9px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.text,
+      outline: 'none',
+      resize: 'vertical',
+      fontSize: 13,
+      fontFamily: 'inherit'
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 20
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: editing ? 'save' : 'plus',
+    onClick: submit
+  }, editing ? 'Save deal' : 'Create deal')));
+};
+
+// Right-side deal detail drawer — key facts + Change Status / Mark As / Delete /
+// Edit, a clickable stage strip, and Contact / Files / Notes / Activity tabs.
+const DealDrawer = ({
+  deal,
+  onClose,
+  onMoveStage,
+  onAddActivity,
+  onUpdateNotes,
+  onAddDoc,
+  onDelete,
+  onEdit,
+  onUpdateDeal,
+  onToggleChecklist,
+  onAddChecklist,
+  onRemoveChecklist,
+  onAddTask,
+  onToggleTask,
+  onRemoveTask,
+  onOpenCompany,
+  onOpenOwner,
+  onOpenProposal,
+  fireToast
+}) => {
+  const [tab, setTab] = useState('overview');
+  const [draftType, setDraftType] = useState('note');
+  const [draftBody, setDraftBody] = useState('');
+  const [draftDue, setDraftDue] = useState('');
+  const [notesDraft, setNotesDraft] = useState('');
+  const [clText, setClText] = useState('');
+  const [taskLabel, setTaskLabel] = useState('');
+  const [taskDue, setTaskDue] = useState('');
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  useEffect(() => {
+    setTab('overview');
+    setDraftType('note');
+    setDraftBody('');
+    setDraftDue('');
+    setNotesDraft(deal && deal.notes || '');
+    setClText('');
+    setTaskLabel('');
+    setTaskDue('');
+  }, [deal && deal.id]);
+  if (!deal) return null;
+  const owner = dealOwner(deal);
+  const org = dealOrg(deal);
+  const closed = !dealIsOpen(deal);
+  const lost = deal.stage === 'lost';
+  const won = deal.stage === 'won';
+  const curIdx = dealStageIndex(deal.stage);
+  const props = deal.proposals || [];
+  const docs = deal.docs || [];
+  const tasks = deal.tasks || [];
+  const checklist = deal.checklist || [];
+  const cl = checklistDone(deal);
+  const pct = dealLikelihood(deal);
+  const upd = patch => onUpdateDeal(deal.id, patch);
+  const workWindowOpts = Array.from(new Set([deal.workWindow, ...DEAL_WORK_WINDOWS].filter(Boolean)));
+  const submitActivity = () => {
+    if (!draftBody.trim() && !draftDue) return;
+    const label = draftBody.trim() || dealActivityLabel(draftType);
+    const act = {
+      id: 'a-' + deal.id + '-' + Date.now(),
+      type: draftType,
+      body: label,
+      who: 'You',
+      at: new Date().toISOString()
+    };
+    onAddActivity(act, draftDue ? {
+      type: draftType,
+      label,
+      due: draftDue
+    } : undefined);
+    setDraftBody('');
+    setDraftDue('');
+    setDraftType('note');
+  };
+  const TABS = [['overview', 'Overview'], ['contact', 'Contact'], ['files', 'Files'], ['tasks', 'Tasks'], ['notes', 'Notes'], ['activity', 'Activity']];
+  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,0.42)',
+      zIndex: 200,
+      animation: 'fadein 0.15s ease'
+    }
+  }), /*#__PURE__*/React.createElement("aside", {
+    style: {
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 'min(560px, 100vw)',
+      background: T.card,
+      zIndex: 201,
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: '-12px 0 32px rgba(15,17,23,0.12)',
+      animation: 'drawerin 0.22s cubic-bezier(0.32, 0.72, 0, 1)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px',
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement(EditableText, {
+    asTag: "div",
+    value: deal.title,
+    onChange: v => upd({
+      title: v
+    }),
+    placeholder: "Untitled deal",
+    style: {
+      fontSize: 16,
+      fontWeight: 600,
+      letterSpacing: -0.2
+    },
+    ariaLabel: "Edit deal name"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginTop: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(CompanyChip, {
+    client: dealOrgMark(deal),
+    onOpen: org ? onOpenCompany : undefined
+  }), /*#__PURE__*/React.createElement(OwnerChip, {
+    staff: owner,
+    onOpen: onOpenOwner
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, fmtMoney(deal.value)), /*#__PURE__*/React.createElement(LikelihoodBar, {
+    pct: pct,
+    width: 56
+  }))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: onClose,
+    title: "Close"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 3
+    }
+  }, DEAL_STAGES.map((s, i) => {
+    const done = i <= curIdx && !lost;
+    const isCur = i === curIdx;
+    const bar = stageBarColor(s.color);
+    return /*#__PURE__*/React.createElement("button", {
+      key: s.id,
+      title: `Move to ${s.label}`,
+      onClick: () => onMoveStage(s.id),
+      style: {
+        flex: 1,
+        height: 8,
+        border: 'none',
+        borderRadius: 4,
+        padding: 0,
+        cursor: 'pointer',
+        background: lost ? isCur ? T.red : T.fieldBg : done ? isCur ? bar : withAlpha(bar, 0.45) : T.fieldBg
+      }
+    });
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginTop: 10,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, "Status"), /*#__PURE__*/React.createElement(Pill, {
+    color: dealStageMeta(deal.stage).color
+  }, dealStageMeta(deal.stage).label)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, closed ? /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "undo",
+    onClick: () => onMoveStage('qualified')
+  }, "Reopen") : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "check",
+    style: {
+      background: T.green,
+      borderColor: T.green
+    },
+    onClick: () => onMoveStage('won')
+  }, "Won"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "dangerOutline",
+    size: "sm",
+    onClick: () => onMoveStage('lost')
+  }, "Lost")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "edit",
+    onClick: () => onEdit(deal),
+    title: "Edit in full form"
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: () => onDelete(deal),
+    title: "Delete deal",
+    style: {
+      color: T.red
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 14
+  })))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 2,
+      padding: '0 12px',
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0,
+      overflowX: 'auto'
+    }
+  }, TABS.map(([id, label]) => /*#__PURE__*/React.createElement("button", {
+    key: id,
+    onClick: () => setTab(id),
+    style: {
+      padding: '10px 11px',
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontSize: 13,
+      whiteSpace: 'nowrap',
+      borderBottom: `2px solid ${tab === id ? T.primary : 'transparent'}`,
+      color: tab === id ? T.text : T.muted,
+      fontWeight: tab === id ? 600 : 500
+    }
+  }, label))), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto',
+      paddingBottom: 16
+    }
+  }, tab === 'overview' && /*#__PURE__*/React.createElement("div", null, won && /*#__PURE__*/React.createElement("div", {
+    style: {
+      margin: '14px 20px 0',
+      padding: '12px 14px',
+      borderRadius: 10,
+      background: T.greenSoft,
+      border: '1px solid #A7F3D0'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 14,
+    color: T.greenDark
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.greenDark
+    }
+  }, "Deal won \u2014 convert to delivery")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.greenDark,
+      opacity: 0.92,
+      marginTop: 4
+    }
+  }, "Turn this into a proposal, then hand the client to onboarding & projects."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "fileText",
+    style: {
+      background: T.green,
+      borderColor: T.green
+    },
+    onClick: () => {
+      window.location.hash = '#/proposal';
+    }
+  }, "Create proposal"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "userPlus",
+    onClick: () => fireToast('Started onboarding (demo)')
+  }, "Start onboarding"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 20px 4px'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 4
+    }
+  }, "Properties"), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Owner"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: deal.ownerId,
+    onChange: e => upd({
+      ownerId: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  }, SPM_STAFF.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.name)))), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Priority"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6
+    }
+  }, DEAL_PRIORITIES.map(p => /*#__PURE__*/React.createElement(Chip, {
+    key: p.id,
+    size: "sm",
+    selected: deal.priority === p.id,
+    onClick: () => upd({
+      priority: p.id
+    })
+  }, p.label)))), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Likelihood"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "range",
+    min: "0",
+    max: "100",
+    value: pct,
+    onChange: e => upd({
+      likelihood: Number(e.target.value)
+    }),
+    className: "dl-range",
+    style: {
+      flex: 1,
+      background: `linear-gradient(to right, ${likelihoodColor(pct)} ${pct}%, ${T.border} ${pct}%)`
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: likelihoodColor(pct),
+      width: 38,
+      textAlign: 'right'
+    }
+  }, Math.round(pct), "%"))), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Value"
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    prefix: "$",
+    value: deal.value,
+    onChange: e => upd({
+      value: Number(e.target.value) || 0
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  })), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Est. hours"
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    suffix: "h",
+    value: deal.estHours,
+    onChange: e => upd({
+      estHours: Number(e.target.value) || 0
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  })), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Work window"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: deal.workWindow,
+    onChange: e => upd({
+      workWindow: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  }, workWindowOpts.map(w => /*#__PURE__*/React.createElement("option", {
+    key: w,
+    value: w
+  }, w)))), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Firm size"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: deal.firmSize,
+    onChange: e => upd({
+      firmSize: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  }, DEAL_FIRM_SIZES.map(f => /*#__PURE__*/React.createElement("option", {
+    key: f,
+    value: f
+  }, f)))), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Lead source"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: deal.source,
+    onChange: e => upd({
+      source: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  }, DEAL_SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s)))), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Service"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: deal.service,
+    onChange: e => upd({
+      service: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  }, SPM_SERVICES.filter(s => s !== 'All').map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s)))), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Projected close"
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: deal.expectedClose || '',
+    onChange: e => upd({
+      expectedClose: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Checklist"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: cl.done === cl.total && cl.total ? T.greenDark : T.muted
+    }
+  }, cl.done, "/", cl.total)), cl.total > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: cl.total ? cl.done / cl.total * 100 : 0,
+    color: T.green,
+    height: 6
+  })), checklist.map(item => /*#__PURE__*/React.createElement("div", {
+    key: item.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '6px 0'
+    }
+  }, /*#__PURE__*/React.createElement(CheckBox, {
+    checked: item.done,
+    onClick: () => onToggleChecklist(deal.id, item.id)
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 13,
+      color: item.done ? T.mutedSoft : T.text,
+      textDecoration: item.done ? 'line-through' : 'none'
+    }
+  }, item.text), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onRemoveChecklist(deal.id, item.id),
+    title: "Remove",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.mutedSoft,
+      padding: 2,
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 12
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: clText,
+    onChange: e => setClText(e.target.value),
+    placeholder: "Add a checklist item\u2026",
+    onKeyDown: e => {
+      if (e.key === 'Enter' && clText.trim()) {
+        onAddChecklist(deal.id, clText.trim());
+        setClText('');
+      }
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "plus",
+    onClick: () => {
+      if (clText.trim()) {
+        onAddChecklist(deal.id, clText.trim());
+        setClText('');
+      }
+    }
+  }, "Add")))), tab === 'contact' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(DealFact, {
+    label: "Contact name",
+    value: deal.contact ? deal.contact.name : '—'
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '8px 20px',
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted
+    }
+  }, "Company"), /*#__PURE__*/React.createElement(CompanyChip, {
+    client: dealOrgMark(deal),
+    onOpen: org ? onOpenCompany : undefined
+  })), deal.contact && deal.contact.role ? /*#__PURE__*/React.createElement(DealFact, {
+    label: "Role",
+    value: deal.contact.role
+  }) : null, /*#__PURE__*/React.createElement(ContactRow, {
+    label: "Email",
+    value: deal.contact && deal.contact.email,
+    href: deal.contact && deal.contact.email ? `mailto:${deal.contact.email}` : undefined,
+    fireToast: fireToast
+  }), /*#__PURE__*/React.createElement(ContactRow, {
+    label: "Phone",
+    value: deal.contact && deal.contact.phone,
+    href: deal.contact && deal.contact.phone ? `tel:${(deal.contact.phone || '').replace(/\s/g, '')}` : undefined,
+    mono: true,
+    fireToast: fireToast
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 20px'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "building",
+    onClick: () => org && onOpenCompany(org.id),
+    disabled: !org
+  }, "Open company"))), tab === 'files' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Attached proposals"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted
+    }
+  }, props.length)), props.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No proposals attached.") : props.map(p => /*#__PURE__*/React.createElement("button", {
+    key: p.id,
+    "data-hover": "row",
+    onClick: () => onOpenProposal(p),
+    style: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 0',
+      borderTop: `1px solid ${T.border}`,
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "fileText",
+    size: 15,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 13,
+      color: T.text
+    }
+  }, p.title), /*#__PURE__*/React.createElement(Pill, {
+    color: PROPOSAL_STATUS_COLOR[p.status] || 'neutral'
+  }, p.status), /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 13,
+    color: T.mutedSoft
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      margin: '18px 0 8px'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Other documents"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "upload",
+    onClick: () => onAddDoc(deal)
+  }, "Upload")), docs.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No documents attached.") : docs.map(d => /*#__PURE__*/React.createElement("div", {
+    key: d.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 0',
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "paperclip",
+    size: 15,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 13,
+      color: T.text
+    }
+  }, d.name)))), tab === 'tasks' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px'
+    }
+  }, tasks.length === 0 && /*#__PURE__*/React.createElement(Helper, null, "No follow-up tasks yet. Add one with a due date so it shows on the card."), tasks.map(t => {
+    const od = taskOverdue(t) && !t.done;
+    return /*#__PURE__*/React.createElement("div", {
+      key: t.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '9px 0',
+        borderTop: `1px solid ${T.border}`
+      }
+    }, /*#__PURE__*/React.createElement(CheckBox, {
+      checked: t.done,
+      onClick: () => onToggleTask(deal.id, t.id)
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        color: t.done ? T.mutedSoft : T.text,
+        textDecoration: t.done ? 'line-through' : 'none'
+      }
+    }, t.label), t.due && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: od ? T.red : T.muted,
+        marginTop: 2
+      }
+    }, od ? 'Overdue · ' : 'Due ', fmtDate(new Date(t.due)))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onRemoveTask(deal.id, t.id),
+      title: "Remove",
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: T.mutedSoft,
+        padding: 2,
+        display: 'inline-flex'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "close",
+      size: 13
+    })));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: taskLabel,
+    onChange: e => setTaskLabel(e.target.value),
+    placeholder: "Add a follow-up task\u2026"
+  }), /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: taskDue,
+    onChange: e => setTaskDue(e.target.value),
+    style: {
+      width: 150
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    onClick: () => {
+      if (taskLabel.trim()) {
+        onAddTask(deal.id, {
+          label: taskLabel.trim(),
+          due: taskDue
+        });
+        setTaskLabel('');
+        setTaskDue('');
+      }
+    }
+  }, "Add"))), tab === 'notes' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px'
+    }
+  }, /*#__PURE__*/React.createElement("textarea", {
+    value: notesDraft,
+    onChange: e => setNotesDraft(e.target.value),
+    placeholder: "Add a note about this deal\u2026",
+    style: {
+      width: '100%',
+      minHeight: 160,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.text,
+      outline: 'none',
+      resize: 'vertical',
+      fontSize: 13,
+      fontFamily: 'inherit'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "save",
+    onClick: () => onUpdateNotes(deal.id, notesDraft)
+  }, "Save notes"))), tab === 'activity' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px 8px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginBottom: 8,
+      flexWrap: 'wrap'
+    }
+  }, [['note', 'Note'], ['call', 'Call'], ['meeting', 'Meeting'], ['email', 'Email'], ['task', 'Task']].map(([t, l]) => /*#__PURE__*/React.createElement(Chip, {
+    key: t,
+    size: "sm",
+    selected: draftType === t,
+    onClick: () => setDraftType(t)
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: dealActivityIcon(t),
+    size: 11
+  }), l))), /*#__PURE__*/React.createElement(Input, {
+    value: draftBody,
+    onChange: e => setDraftBody(e.target.value),
+    placeholder: draftType === 'note' ? 'Write a note…' : `Log a ${draftType}…`,
+    style: {
+      background: T.card
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, "Due"), /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: draftDue,
+    onChange: e => setDraftDue(e.target.value),
+    style: {
+      background: T.card,
+      padding: '6px 10px',
+      width: 150
+    }
+  })), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    onClick: submitActivity
+  }, "Save")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '4px 20px 12px'
+    }
+  }, deal.activities.map((a, i) => /*#__PURE__*/React.createElement("div", {
+    key: a.id || i,
+    style: {
+      display: 'flex',
+      gap: 10,
+      padding: '8px 0',
+      borderTop: i === 0 ? 'none' : `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 26,
+      height: 26,
+      borderRadius: '50%',
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: dealActivityIcon(a.type),
+    size: 12,
+    color: T.muted
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.text
+    }
+  }, a.body), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft,
+      marginTop: 2
+    }
+  }, dealActivityLabel(a.type), " \xB7 ", a.who, " \xB7 ", fmtDate(new Date(a.at)))))))))));
+};
+
+// --- entity detail surfaces (stacked over the deal drawer) ---
+// Collapsible section used inside the Company / Staff drawers. Mirrors the
+// EmployeeDetailsDrawer pattern: header (chevron + icon + label + count), body.
+const DrawerSection = ({
+  icon,
+  label,
+  count,
+  defaultOpen,
+  children
+}) => {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `8px solid ${T.bg}`
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    "data-hover": "row",
+    onClick: () => setOpen(o => !o),
+    style: {
+      width: '100%',
+      padding: '12px 20px',
+      border: 'none',
+      background: 'transparent',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: open ? 'chevronDown' : 'chevronRight',
+    size: 13,
+    color: T.muted
+  }), icon && /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 14,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, label), count != null && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: count === 0 ? T.mutedSoft : T.muted,
+      background: count === 0 ? 'transparent' : T.fieldBg,
+      border: count === 0 ? 'none' : `1px solid ${T.border}`,
+      borderRadius: 999,
+      padding: count === 0 ? 0 : '1px 8px',
+      minWidth: 22,
+      textAlign: 'center'
+    }
+  }, count)), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingBottom: 6
+    }
+  }, children));
+};
+
+// Helper: render up to `cap` LinkRows then a muted "+N more" line.
+const cappedRows = (items, cap, render) => {
+  const head = items.slice(0, cap);
+  return /*#__PURE__*/React.createElement(Fragment, null, head.map((it, i) => /*#__PURE__*/React.createElement(Fragment, {
+    key: i
+  }, render(it, i))), items.length > cap && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '8px 20px',
+      borderTop: `1px solid ${T.border}`,
+      fontSize: 11.5,
+      color: T.mutedSoft
+    }
+  }, "+", items.length - cap, " more"), items.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '8px 20px 12px 44px',
+      fontSize: 11.5,
+      color: T.mutedSoft
+    }
+  }, "None yet."));
+};
+const EntityDrawerShell = ({
+  width = 460,
+  zIndex,
+  onClose,
+  children
+}) => /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+  onClick: onClose,
+  style: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15,17,23,0.42)',
+    zIndex,
+    animation: 'fadein 0.15s ease'
+  }
+}), /*#__PURE__*/React.createElement("aside", {
+  className: "scroll-area",
+  style: {
+    position: 'fixed',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: `min(${width}px, 100vw)`,
+    background: T.card,
+    zIndex: zIndex + 1,
+    display: 'flex',
+    flexDirection: 'column',
+    overflowY: 'auto',
+    boxShadow: '-12px 0 32px rgba(15,17,23,0.12)',
+    animation: 'drawerin 0.22s cubic-bezier(0.32, 0.72, 0, 1)'
+  }
+}, children));
+const CompanyDrawer = ({
+  client,
+  deals,
+  onClose,
+  onOpenDeal,
+  onOpenEmployee,
+  onOpenProposal,
+  fireToast,
+  zIndex = 240
+}) => {
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  if (!client) return null;
+  const ctx = buildCompanyContext(client, deals);
+  return /*#__PURE__*/React.createElement(EntityDrawerShell, {
+    width: 460,
+    zIndex: zIndex,
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 20px',
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(ClientMark, {
+    client: client,
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      letterSpacing: -0.2,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, client.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      marginTop: 2
+    }
+  }, client.industry, client.abn ? ` · ABN ${client.abn}` : '')), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: onClose,
+    title: "Close"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(MiniKpi, {
+    label: "Open pipeline",
+    value: fmtMoney(ctx.kpis.openVal)
+  }), /*#__PURE__*/React.createElement(MiniKpi, {
+    label: "Forecast",
+    value: fmtMoney(ctx.kpis.forecast)
+  }), /*#__PURE__*/React.createElement(MiniKpi, {
+    label: "Won",
+    value: fmtMoney(ctx.kpis.wonVal),
+    tone: "green"
+  }), /*#__PURE__*/React.createElement(MiniKpi, {
+    label: "Employees",
+    value: ctx.kpis.employees
+  }))), /*#__PURE__*/React.createElement(DrawerSection, {
+    icon: "dollar",
+    label: "Deals",
+    count: ctx.deals.length,
+    defaultOpen: true
+  }, cappedRows(ctx.deals, 6, d => /*#__PURE__*/React.createElement(LinkRow, {
+    onClick: () => onOpenDeal(d.id),
+    left: /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 8,
+        height: 8,
+        borderRadius: 2,
+        background: stageBarColor(dealStageMeta(d.stage).color),
+        flexShrink: 0
+      }
+    }),
+    primary: d.title,
+    sub: `${d.service} · ${fmtMoney(d.value)}`,
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: dealStageMeta(d.stage).color
+    }, dealStageMeta(d.stage).label)
+  }))), /*#__PURE__*/React.createElement(DrawerSection, {
+    icon: "users",
+    label: "Employees",
+    count: ctx.employees.length
+  }, cappedRows(ctx.employees, 6, e => /*#__PURE__*/React.createElement(LinkRow, {
+    onClick: () => onOpenEmployee(e),
+    left: /*#__PURE__*/React.createElement(Avatar, {
+      name: e.name,
+      size: 24
+    }),
+    primary: e.name,
+    sub: `@${e.handle}`,
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: "neutral"
+    }, e.empType)
+  }))), /*#__PURE__*/React.createElement(DrawerSection, {
+    icon: "docs",
+    label: "Proposals",
+    count: ctx.proposals.length
+  }, cappedRows(ctx.proposals, 6, p => /*#__PURE__*/React.createElement(LinkRow, {
+    onClick: () => onOpenProposal(p),
+    left: /*#__PURE__*/React.createElement(Icon, {
+      name: "fileText",
+      size: 16,
+      color: T.muted
+    }),
+    primary: p.title,
+    sub: p.amount ? fmtMoney(p.amount) : p.dealTitle || '',
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: PROPOSAL_STATUS_COLOR[p.status] || 'neutral'
+    }, p.status)
+  }))), /*#__PURE__*/React.createElement(DrawerSection, {
+    icon: "building",
+    label: "Projects",
+    count: ctx.projects.length
+  }, cappedRows(ctx.projects, 6, p => /*#__PURE__*/React.createElement(LinkRow, {
+    onClick: () => fireToast && fireToast(`Open project: ${p.name}`),
+    left: /*#__PURE__*/React.createElement(Icon, {
+      name: "layers",
+      size: 16,
+      color: T.muted
+    }),
+    primary: p.name,
+    sub: `${p.service} · ${p.partner}`,
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: "neutral"
+    }, p.billing)
+  }))), /*#__PURE__*/React.createElement(DrawerSection, {
+    icon: "wallet",
+    label: "Payruns",
+    count: ctx.payruns.length
+  }, cappedRows(ctx.payruns, 5, r => /*#__PURE__*/React.createElement(LinkRow, {
+    onClick: () => {
+      window.location.hash = `#/practice/payrun-detail/${r.id}`;
+    },
+    left: /*#__PURE__*/React.createElement(Icon, {
+      name: "wallet",
+      size: 16,
+      color: T.muted
+    }),
+    primary: typeof fmtRunIdShort !== 'undefined' ? fmtRunIdShort(r) : `Run ${r.runNumber}`,
+    sub: `${r.period}${r.paymentDate ? ' · ' + r.paymentDate : ''}`,
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: r.status === 'completed' ? 'green' : r.status === 'failed' ? 'red' : 'amber'
+    }, r.status)
+  }))));
+};
+const StaffDrawer = ({
+  staff,
+  deals,
+  onClose,
+  onOpenDeal,
+  fireToast,
+  zIndex = 240
+}) => {
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  if (!staff) return null;
+  const owned = staffDeals(staff.id, deals);
+  const projects = staffProjects(staff.id);
+  const openOwned = owned.filter(dealIsOpen);
+  const openVal = openOwned.reduce((a, d) => a + d.value, 0);
+  const forecast = openOwned.reduce((a, d) => a + d.value * dealLikelihood(d) / 100, 0);
+  const util = staff.std ? Math.round(staff.committed / staff.std * 100) : 0;
+  return /*#__PURE__*/React.createElement(EntityDrawerShell, {
+    width: 440,
+    zIndex: zIndex,
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 20px',
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: staff.name,
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      letterSpacing: -0.2
+    }
+  }, staff.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      marginTop: 2
+    }
+  }, staff.role, " \xB7 ", staff.line)), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: onClose,
+    title: "Close"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(MiniKpi, {
+    label: "Open (owned)",
+    value: fmtMoney(openVal)
+  }), /*#__PURE__*/React.createElement(MiniKpi, {
+    label: "Forecast",
+    value: fmtMoney(forecast)
+  }), /*#__PURE__*/React.createElement(MiniKpi, {
+    label: "Rate",
+    value: `$${staff.rate}/h`
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: 11.5,
+      color: T.muted,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Utilisation"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 600,
+      color: T.text
+    }
+  }, util, "% of ", staff.std, "h \xB7 target ", staff.target, "%")), /*#__PURE__*/React.createElement(HoverableProgressBar, {
+    pct: util,
+    color: util > staff.target ? T.amber : T.primary,
+    height: 8,
+    tooltip: `${staff.committed}h committed of ${staff.std}h`
+  }))), /*#__PURE__*/React.createElement(DrawerSection, {
+    icon: "dollar",
+    label: "Owned deals",
+    count: owned.length,
+    defaultOpen: true
+  }, cappedRows(owned, 8, d => /*#__PURE__*/React.createElement(LinkRow, {
+    onClick: () => onOpenDeal(d.id),
+    left: /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 8,
+        height: 8,
+        borderRadius: 2,
+        background: stageBarColor(dealStageMeta(d.stage).color),
+        flexShrink: 0
+      }
+    }),
+    primary: d.title,
+    sub: `${dealCompany(d)} · ${fmtMoney(d.value)}`,
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: dealStageMeta(d.stage).color
+    }, dealStageMeta(d.stage).label)
+  }))), /*#__PURE__*/React.createElement(DrawerSection, {
+    icon: "building",
+    label: "Projects",
+    count: projects.length
+  }, cappedRows(projects, 6, p => /*#__PURE__*/React.createElement(LinkRow, {
+    onClick: () => fireToast && fireToast(`Open project: ${p.name}`),
+    left: /*#__PURE__*/React.createElement(Icon, {
+      name: "layers",
+      size: 16,
+      color: T.muted
+    }),
+    primary: p.name,
+    sub: `${p.service} · ${p.client}`,
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: "neutral"
+    }, p.billing)
+  }))));
+};
+const ProposalPeek = ({
+  proposal,
+  onClose,
+  fireToast,
+  zIndex = 250
+}) => {
+  useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  if (!proposal) return null;
+  const raw = proposal.raw || {};
+  return /*#__PURE__*/React.createElement(EntityDrawerShell, {
+    width: 420,
+    zIndex: zIndex,
+    onClose: onClose
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 20px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4
+    }
+  }, "Proposal"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      letterSpacing: -0.2,
+      marginTop: 2
+    }
+  }, proposal.title)), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: onClose,
+    title: "Close"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement(DealFact, {
+    label: "Status",
+    value: /*#__PURE__*/React.createElement(Pill, {
+      color: PROPOSAL_STATUS_COLOR[proposal.status] || 'neutral'
+    }, proposal.status)
+  }), raw.client && /*#__PURE__*/React.createElement(DealFact, {
+    label: "Client",
+    value: raw.client
+  }), (proposal.amount || raw.amount) && /*#__PURE__*/React.createElement(DealFact, {
+    label: "Amount",
+    value: fmtMoney(proposal.amount || raw.amount)
+  }), raw.created && /*#__PURE__*/React.createElement(DealFact, {
+    label: "Created",
+    value: raw.created
+  }), raw.start && /*#__PURE__*/React.createElement(DealFact, {
+    label: "Start",
+    value: raw.start
+  }), proposal.dealTitle && /*#__PURE__*/React.createElement(DealFact, {
+    label: "Deal",
+    value: proposal.dealTitle
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 16,
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Close"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "arrow",
+    onClick: () => {
+      window.location.hash = '#/proposal';
+    }
+  }, "Open in editor")));
+};
+const DealsPage = ({
+  fireToast
+}) => {
+  const [deals, setDeals] = useState(PIPELINE_DEALS);
+  const [view, setView] = useState('board');
+  const [groupBy, setGroupBy] = useState('stage');
+  const [search, setSearch] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sort, setSort] = useState('recent');
+  const [dragId, setDragId] = useState(null);
+  const [dragOverKey, setDragOverKey] = useState(null);
+  const [openId, setOpenId] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [editDeal, setEditDeal] = useState(null);
+  // Linked-entity surfaces (stack over the deal drawer).
+  const [openCompanyId, setOpenCompanyId] = useState(null);
+  const [openStaffId, setOpenStaffId] = useState(null);
+  const [openEmployee, setOpenEmployee] = useState(null);
+  const [openProposal, setOpenProposal] = useState(null);
+  const moveStage = (dealId, stage) => {
+    const cur = deals.find(d => d.id === dealId);
+    if (!cur || cur.stage === stage) return;
+    const prevStage = cur.stage;
+    const toLabel = dealStageMeta(stage).label;
+    const body = stage === 'won' ? 'Deal marked won' : stage === 'lost' ? 'Deal marked lost' : `Moved from ${dealStageMeta(prevStage).label} to ${toLabel}`;
+    setDeals(prev => prev.map(d => d.id !== dealId ? d : {
+      ...d,
+      stage,
+      activities: [{
+        id: 'a-' + dealId + '-' + Date.now(),
+        type: 'stage',
+        body,
+        who: 'You',
+        at: new Date().toISOString()
+      }, ...d.activities]
+    }));
+    const msg = stage === 'won' ? 'Deal won 🎉' : stage === 'lost' ? 'Deal marked lost' : `Moved to ${toLabel}`;
+    fireToast({
+      message: msg,
+      action: {
+        label: 'Undo',
+        onClick: () => setDeals(prev => prev.map(d => d.id === dealId ? {
+          ...d,
+          stage: prevStage
+        } : d))
+      }
+    });
+  };
+
+  // Generic field patch — used by inline drawer edits and owner/priority drops.
+  const updateDeal = (id, patch) => setDeals(prev => prev.map(d => d.id === id ? {
+    ...d,
+    ...patch
+  } : d));
+  const addActivity = (dealId, act, na) => {
+    setDeals(prev => prev.map(d => d.id === dealId ? {
+      ...d,
+      activities: [act, ...d.activities],
+      ...(na !== undefined ? {
+        nextActivity: na,
+        tasks: na ? [...(d.tasks || []), {
+          id: `${dealId}-t${Date.now()}`,
+          label: na.label,
+          due: na.due,
+          type: na.type,
+          done: false
+        }] : d.tasks
+      } : {})
+    } : d));
+    fireToast(`${dealActivityLabel(act.type)} added`);
+  };
+  const updateNotes = (dealId, notes) => {
+    setDeals(prev => prev.map(d => d.id === dealId ? {
+      ...d,
+      notes
+    } : d));
+    fireToast('Notes saved');
+  };
+  const toggleChecklist = (id, itemId) => setDeals(prev => prev.map(d => d.id !== id ? d : {
+    ...d,
+    checklist: (d.checklist || []).map(c => c.id === itemId ? {
+      ...c,
+      done: !c.done
+    } : c)
+  }));
+  const addChecklist = (id, text) => setDeals(prev => prev.map(d => d.id !== id ? d : {
+    ...d,
+    checklist: [...(d.checklist || []), {
+      id: `${id}-c${Date.now()}`,
+      text,
+      done: false
+    }]
+  }));
+  const removeChecklist = (id, itemId) => setDeals(prev => prev.map(d => d.id !== id ? d : {
+    ...d,
+    checklist: (d.checklist || []).filter(c => c.id !== itemId)
+  }));
+  const addTask = (id, t) => {
+    setDeals(prev => prev.map(d => d.id !== id ? d : {
+      ...d,
+      tasks: [...(d.tasks || []), {
+        id: `${id}-t${Date.now()}`,
+        label: t.label,
+        due: t.due || '',
+        type: 'task',
+        done: false
+      }],
+      activities: [{
+        id: 'a-' + id + '-' + Date.now(),
+        type: 'task',
+        body: `Task added: ${t.label}`,
+        who: 'You',
+        at: new Date().toISOString()
+      }, ...d.activities]
+    }));
+    fireToast('Task added');
+  };
+  const toggleTask = (id, taskId) => setDeals(prev => prev.map(d => d.id !== id ? d : {
+    ...d,
+    tasks: (d.tasks || []).map(t => t.id === taskId ? {
+      ...t,
+      done: !t.done
+    } : t)
+  }));
+  const removeTask = (id, taskId) => setDeals(prev => prev.map(d => d.id !== id ? d : {
+    ...d,
+    tasks: (d.tasks || []).filter(t => t.id !== taskId)
+  }));
+  const addDoc = deal => {
+    setDeals(prev => prev.map(d => d.id !== deal.id ? d : {
+      ...d,
+      docs: [...(d.docs || []), {
+        id: 'doc-' + Date.now(),
+        name: `Document ${(d.docs || []).length + 1}.pdf`
+      }],
+      activities: [{
+        id: 'a-' + d.id + '-' + Date.now(),
+        type: 'file',
+        body: 'Uploaded a document',
+        who: 'You',
+        at: new Date().toISOString()
+      }, ...d.activities]
+    }));
+    fireToast('Document uploaded');
+  };
+  const deleteDeal = deal => {
+    setOpenId(null);
+    const idx = deals.findIndex(d => d.id === deal.id);
+    setDeals(prev => prev.filter(d => d.id !== deal.id));
+    fireToast({
+      message: `Deleted “${deal.title}”`,
+      action: {
+        label: 'Undo',
+        onClick: () => setDeals(prev => {
+          const c = [...prev];
+          c.splice(Math.max(0, idx), 0, deal);
+          return c;
+        })
+      }
+    });
+  };
+  const openEdit = deal => {
+    setEditDeal(deal);
+    setAddOpen(true);
+  };
+  const closeModal = () => {
+    setAddOpen(false);
+    setEditDeal(null);
+  };
+  const onQuick = (action, deal) => {
+    if (action === 'edit') {
+      setOpenId(null);
+      openEdit(deal);
+    } else if (action === 'won') moveStage(deal.id, 'won');else if (action === 'lost') moveStage(deal.id, 'lost');else if (action === 'reopen') moveStage(deal.id, 'qualified');else if (action === 'delete') deleteDeal(deal);
+  };
+  const saveDeal = form => {
+    if (!form.title.trim()) {
+      fireToast({
+        message: 'Add a deal name first',
+        tone: 'undo'
+      });
+      return;
+    }
+    if (editDeal) {
+      const id = editDeal.id;
+      setDeals(prev => prev.map(d => d.id !== id ? d : {
+        ...d,
+        ...form,
+        title: form.title.trim()
+      }));
+      closeModal();
+      fireToast('Deal updated');
+      setOpenId(id);
+    } else {
+      const maxN = deals.reduce((m, d) => Math.max(m, parseInt((d.id.match(/\d+/) || ['0'])[0], 10) || 0), 0);
+      const id = 'dl-' + String(maxN + 1).padStart(3, '0');
+      const nowIso = new Date().toISOString();
+      const deal = {
+        id,
+        ...form,
+        title: form.title.trim(),
+        createdAt: nowIso.slice(0, 10),
+        nextActivity: null,
+        tasks: form.tasks || [],
+        activities: [{
+          id: 'a-' + id + '-0',
+          type: 'created',
+          body: 'Deal created',
+          who: 'You',
+          at: nowIso
+        }]
+      };
+      setDeals(prev => [deal, ...prev]);
+      closeModal();
+      fireToast('Deal created');
+      setOpenId(id);
+    }
+  };
+  const sortDeals = arr => {
+    const a = [...arr];
+    if (sort === 'value') a.sort((x, y) => y.value - x.value);else if (sort === 'likelihood') a.sort((x, y) => dealLikelihood(y) - dealLikelihood(x));else if (sort === 'close') a.sort((x, y) => new Date(x.expectedClose || '2999-01-01') - new Date(y.expectedClose || '2999-01-01'));else if (sort === 'activity') a.sort((x, y) => {
+      const nx = dealNextTask(x);
+      const ny = dealNextTask(y);
+      return (nx ? new Date(nx.due || '2999-01-01').getTime() : Infinity) - (ny ? new Date(ny.due || '2999-01-01').getTime() : Infinity);
+    });else a.sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt));
+    return a;
+  };
+  const visibleDeals = deals.filter(d => {
+    if (ownerFilter !== 'all' && d.ownerId !== ownerFilter) return false;
+    if (priorityFilter !== 'all' && d.priority !== priorityFilter) return false;
+    if (statusFilter === 'open' && !dealIsOpen(d)) return false;
+    if (statusFilter === 'won' && d.stage !== 'won') return false;
+    if (statusFilter === 'lost' && d.stage !== 'lost') return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hay = [d.title, dealCompany(d), d.contact && d.contact.name, d.service].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const openDeal = deals.find(d => d.id === openId) || null;
+  // KPI strip — Open / Likely to win / At risk / Avg.
+  const openDeals = visibleDeals.filter(dealIsOpen);
+  const openValue = openDeals.reduce((a, d) => a + d.value, 0);
+  const likelyValue = openDeals.reduce((a, d) => a + d.value * dealLikelihood(d) / 100, 0);
+  const atRiskValue = openDeals.filter(d => {
+    const nt = dealNextTask(d);
+    return !nt || taskOverdue(nt);
+  }).reduce((a, d) => a + d.value, 0);
+  const avgValue = visibleDeals.length ? Math.round(visibleDeals.reduce((a, d) => a + d.value, 0) / visibleDeals.length) : 0;
+  const KPIS = [{
+    label: 'Open',
+    value: fmtMoney(openValue),
+    hint: `${openDeals.length} open`
+  }, {
+    label: 'Likely to win',
+    value: fmtMoney(likelyValue),
+    hint: 'Probability-weighted'
+  }, {
+    label: 'At risk',
+    value: fmtMoney(atRiskValue),
+    hint: 'Stalled or overdue',
+    tone: atRiskValue > 0 ? 'red' : null
+  }, {
+    label: 'Avg. deal value',
+    value: fmtMoney(avgValue),
+    hint: `${visibleDeals.length} deals`
+  }];
+  const pipeSegments = DEAL_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => {
+    const v = openDeals.filter(d => d.stage === s.id).reduce((a, d) => a + d.value, 0);
+    return {
+      label: s.label,
+      value: v,
+      color: stageBarColor(s.color),
+      tip: `${s.label}: ${fmtMoney(v)}`
+    };
+  }).filter(s => s.value > 0);
+  const onCardDragStart = (e, deal) => {
+    setDragId(deal.id);
+    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', deal.id);
+    } catch (_) {}
+  };
+  const onCardDragEnd = () => {
+    setDragId(null);
+    setDragOverKey(null);
+  };
+
+  // Board grouping — Stage (drag changes stage) · Owner · Priority.
+  const groups = groupBy === 'owner' ? SPM_STAFF.map(s => ({
+    key: s.id,
+    label: s.name,
+    color: 'neutral',
+    filter: d => d.ownerId === s.id,
+    drop: id => {
+      updateDeal(id, {
+        ownerId: s.id
+      });
+      fireToast(`Owner → ${s.name}`);
+    }
+  })) : groupBy === 'priority' ? DEAL_PRIORITIES.map(p => ({
+    key: p.id,
+    label: p.label,
+    color: p.color,
+    filter: d => d.priority === p.id,
+    drop: id => {
+      updateDeal(id, {
+        priority: p.id
+      });
+      fireToast(`Priority → ${p.label}`);
+    }
+  })) : DEAL_STAGES.map(s => ({
+    key: s.id,
+    label: s.label,
+    color: s.color,
+    filter: d => d.stage === s.id,
+    drop: id => moveStage(id, s.id)
+  }));
+  const kpiStrip = /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gap: 12
+    }
+  }, KPIS.map(k => /*#__PURE__*/React.createElement(Card, {
+    key: k.label,
+    style: {
+      padding: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      fontWeight: 500
+    }
+  }, k.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      fontWeight: 700,
+      letterSpacing: -0.4,
+      marginTop: 4,
+      color: k.tone === 'red' ? T.red : T.text
+    }
+  }, k.value), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft,
+      marginTop: 2
+    }
+  }, k.hint)))), pipeSegments.length > 0 && /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: 14,
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 500,
+      color: T.muted
+    }
+  }, "Open pipeline by stage"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, fmtMoney(openValue))), /*#__PURE__*/React.createElement(HoverStackedBar, {
+    segments: pipeSegments,
+    height: 14,
+    formatTip: s => `${s.label}: ${fmtMoney(s.value)}`
+  })));
+  const board = /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto',
+      paddingBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 12,
+      minWidth: 'min-content',
+      alignItems: 'flex-start'
+    }
+  }, groups.map(g => {
+    const colDeals = sortDeals(visibleDeals.filter(g.filter));
+    const forecast = colDeals.reduce((a, d) => a + d.value * dealLikelihood(d) / 100, 0);
+    const total = colDeals.reduce((a, d) => a + d.value, 0);
+    const isOver = dragOverKey === g.key;
+    return /*#__PURE__*/React.createElement("div", {
+      key: g.key,
+      style: {
+        flex: '0 0 248px',
+        width: 248,
+        display: 'flex',
+        flexDirection: 'column'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '8px 4px 10px',
+        borderTop: `2px solid ${stageBarColor(g.color)}`
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: T.text,
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, g.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        fontWeight: 600,
+        background: T.fieldBg,
+        border: `1px solid ${T.border}`,
+        borderRadius: 999,
+        padding: '0 7px',
+        minWidth: 20,
+        textAlign: 'center',
+        flexShrink: 0
+      }
+    }, colDeals.length)), /*#__PURE__*/React.createElement("div", {
+      title: `Pipeline value ${fmtMoney(total)}`,
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        marginTop: 3
+      }
+    }, "Forecast ", fmtMoney(forecast))), /*#__PURE__*/React.createElement("div", {
+      onDragOver: e => {
+        if (!dragId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (dragOverKey !== g.key) setDragOverKey(g.key);
+      },
+      onDrop: e => {
+        e.preventDefault();
+        if (dragId) g.drop(dragId);
+        setDragId(null);
+        setDragOverKey(null);
+      },
+      style: {
+        flex: 1,
+        minHeight: 160,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        padding: 8,
+        borderRadius: 10,
+        background: isOver ? T.primarySofter : T.fieldBg,
+        border: isOver ? `1px dashed ${T.primary}` : '1px solid transparent',
+        transition: 'background 0.12s'
+      }
+    }, colDeals.length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '18px 8px',
+        textAlign: 'center',
+        fontSize: 11.5,
+        color: T.mutedSoft
+      }
+    }, "No deals"), colDeals.map(d => /*#__PURE__*/React.createElement(DealCard, {
+      key: d.id,
+      deal: d,
+      onOpen: setOpenId,
+      dragging: dragId === d.id,
+      onDragStart: onCardDragStart,
+      onDragEnd: onCardDragEnd,
+      onOpenCompany: setOpenCompanyId,
+      onOpenOwner: setOpenStaffId,
+      onQuick: onQuick
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setEditDeal(null);
+        setAddOpen(true);
+      },
+      style: {
+        border: `1px dashed ${T.border}`,
+        background: 'transparent',
+        color: T.muted,
+        borderRadius: 8,
+        padding: '7px 10px',
+        fontSize: 12,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "plus",
+      size: 12
+    }), " Add")));
+  })));
+  const list = /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      minWidth: 980
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, ['Deal', 'Company', 'Stage', 'Priority', 'Owner', 'Likelihood', 'Value', 'Next'].map(h => /*#__PURE__*/React.createElement("th", {
+    key: h,
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+      padding: '10px 14px',
+      borderBottom: `1px solid ${T.border}`,
+      whiteSpace: 'nowrap',
+      textAlign: h === 'Value' ? 'right' : 'left'
+    }
+  }, h)))), /*#__PURE__*/React.createElement("tbody", null, sortDeals(visibleDeals).map((d, idx) => {
+    const owner = dealOwner(d);
+    const org = dealOrg(d);
+    const nt = dealNextTask(d);
+    const overdue = nt && taskOverdue(nt);
+    return /*#__PURE__*/React.createElement("tr", {
+      key: d.id,
+      onClick: () => setOpenId(d.id),
+      style: {
+        cursor: 'pointer',
+        background: idx % 2 ? T.fieldBg : T.card
+      },
+      onMouseEnter: e => e.currentTarget.style.background = T.primarySofter,
+      onMouseLeave: e => e.currentTarget.style.background = idx % 2 ? T.fieldBg : T.card
+    }, /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px',
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, d.title), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px'
+      }
+    }, /*#__PURE__*/React.createElement(CompanyChip, {
+      client: dealOrgMark(d),
+      onOpen: org ? setOpenCompanyId : undefined
+    })), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px'
+      }
+    }, /*#__PURE__*/React.createElement(Pill, {
+      color: dealStageMeta(d.stage).color
+    }, dealStageMeta(d.stage).label)), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px'
+      }
+    }, /*#__PURE__*/React.createElement(PriorityTag, {
+      priority: d.priority
+    })), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px'
+      }
+    }, /*#__PURE__*/React.createElement(OwnerChip, {
+      staff: owner,
+      onOpen: setOpenStaffId
+    })), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px'
+      }
+    }, /*#__PURE__*/React.createElement(LikelihoodBar, {
+      pct: dealLikelihood(d),
+      width: 56
+    })), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px',
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.textSoft,
+        textAlign: 'right',
+        whiteSpace: 'nowrap'
+      }
+    }, fmtMoney(d.value)), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px',
+        fontSize: 12,
+        color: overdue ? T.red : T.muted,
+        whiteSpace: 'nowrap'
+      }
+    }, nt ? `${overdue ? 'Overdue · ' : ''}${fmtDate(new Date(nt.due))}` : '—'));
+  }), visibleDeals.length === 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
+    colSpan: 8,
+    style: {
+      padding: 32,
+      textAlign: 'center',
+      color: T.mutedSoft,
+      fontSize: 13
+    }
+  }, "No deals match your filters."))))));
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '20px 28px 24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, "Deals"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Track, manage, and convert your proposals into active clients.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "download",
+    onClick: () => fireToast('Export started')
+  }, "Export"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "plus",
+    onClick: () => {
+      setEditDeal(null);
+      setAddOpen(true);
+    }
+  }, "New deal"))), kpiStrip, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    value: view,
+    onChange: setView,
+    options: [{
+      value: 'board',
+      label: 'Kanban board'
+    }, {
+      value: 'list',
+      label: 'Table list'
+    }]
+  }), view === 'board' && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted
+    }
+  }, "Group"), /*#__PURE__*/React.createElement(Select, {
+    value: groupBy,
+    onChange: e => setGroupBy(e.target.value),
+    style: {
+      width: 120
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "stage"
+  }, "Stage"), /*#__PURE__*/React.createElement("option", {
+    value: "owner"
+  }, "Owner"), /*#__PURE__*/React.createElement("option", {
+    value: "priority"
+  }, "Priority"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '7px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      minWidth: 180
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "search",
+    size: 14,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("input", {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search deals\u2026",
+    style: {
+      flex: 1,
+      minWidth: 0,
+      border: 'none',
+      background: 'transparent',
+      outline: 'none',
+      fontSize: 13,
+      color: T.text
+    }
+  })), /*#__PURE__*/React.createElement(Select, {
+    value: ownerFilter,
+    onChange: e => setOwnerFilter(e.target.value),
+    style: {
+      width: 140
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All owners"), SPM_STAFF.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.name))), /*#__PURE__*/React.createElement(Select, {
+    value: priorityFilter,
+    onChange: e => setPriorityFilter(e.target.value),
+    style: {
+      width: 130
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All priority"), DEAL_PRIORITIES.map(p => /*#__PURE__*/React.createElement("option", {
+    key: p.id,
+    value: p.id
+  }, p.label))), /*#__PURE__*/React.createElement(Select, {
+    value: statusFilter,
+    onChange: e => setStatusFilter(e.target.value),
+    style: {
+      width: 120
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All status"), /*#__PURE__*/React.createElement("option", {
+    value: "open"
+  }, "Open"), /*#__PURE__*/React.createElement("option", {
+    value: "won"
+  }, "Won"), /*#__PURE__*/React.createElement("option", {
+    value: "lost"
+  }, "Lost")), /*#__PURE__*/React.createElement(Select, {
+    value: sort,
+    onChange: e => setSort(e.target.value),
+    style: {
+      width: 150
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "recent"
+  }, "Recently added"), /*#__PURE__*/React.createElement("option", {
+    value: "value"
+  }, "Value (high\u2192low)"), /*#__PURE__*/React.createElement("option", {
+    value: "likelihood"
+  }, "Likelihood"), /*#__PURE__*/React.createElement("option", {
+    value: "close"
+  }, "Projected close"), /*#__PURE__*/React.createElement("option", {
+    value: "activity"
+  }, "Next task"))), view === 'board' ? board : list, /*#__PURE__*/React.createElement(NewDealModal, {
+    open: addOpen,
+    onClose: closeModal,
+    onSave: saveDeal,
+    deal: editDeal
+  }), openDeal && /*#__PURE__*/React.createElement(DealDrawer, {
+    deal: openDeal,
+    onClose: () => setOpenId(null),
+    onMoveStage: stage => moveStage(openDeal.id, stage),
+    onAddActivity: (act, na) => addActivity(openDeal.id, act, na),
+    onUpdateNotes: updateNotes,
+    onAddDoc: addDoc,
+    onDelete: deleteDeal,
+    onEdit: d => {
+      setOpenId(null);
+      openEdit(d);
+    },
+    onUpdateDeal: updateDeal,
+    onToggleChecklist: toggleChecklist,
+    onAddChecklist: addChecklist,
+    onRemoveChecklist: removeChecklist,
+    onAddTask: addTask,
+    onToggleTask: toggleTask,
+    onRemoveTask: removeTask,
+    onOpenCompany: setOpenCompanyId,
+    onOpenOwner: setOpenStaffId,
+    onOpenProposal: setOpenProposal,
+    fireToast: fireToast
+  }), openCompanyId && /*#__PURE__*/React.createElement(CompanyDrawer, {
+    client: clientById(openCompanyId),
+    deals: deals,
+    onClose: () => setOpenCompanyId(null),
+    onOpenDeal: id => {
+      setOpenCompanyId(null);
+      setOpenId(id);
+    },
+    onOpenEmployee: e => setOpenEmployee(e),
+    onOpenProposal: p => setOpenProposal(p),
+    fireToast: fireToast,
+    zIndex: 240
+  }), openStaffId && /*#__PURE__*/React.createElement(StaffDrawer, {
+    staff: spmStaffBy(openStaffId),
+    deals: deals,
+    onClose: () => setOpenStaffId(null),
+    onOpenDeal: id => {
+      setOpenStaffId(null);
+      setOpenId(id);
+    },
+    fireToast: fireToast,
+    zIndex: 240
+  }), openProposal && /*#__PURE__*/React.createElement(ProposalPeek, {
+    proposal: openProposal,
+    onClose: () => setOpenProposal(null),
+    fireToast: fireToast,
+    zIndex: 250
+  }), openEmployee && /*#__PURE__*/React.createElement(EmployeeDetailsDrawer, {
+    employee: openEmployee,
+    onClose: () => setOpenEmployee(null),
+    onEdit: () => fireToast('Manage employees from the Employees page'),
+    fireToast: fireToast,
+    zIndex: 260
+  }));
+};
+
 // --- spm margin by person (standalone) ---
 // Split out of SpmForecastPage at Johann's round-3 ask — margins are a
 // staffing concern, not a forecasting one. Surfaces revenue earned vs
@@ -72666,6 +77106,10 @@ const PracticeApp = () => {
         });
       case 'work-management':
         return /*#__PURE__*/React.createElement(WorkManagementPage, {
+          fireToast: fireToast
+        });
+      case 'deals':
+        return /*#__PURE__*/React.createElement(DealsPage, {
           fireToast: fireToast
         });
       case 'spm-forecast':
