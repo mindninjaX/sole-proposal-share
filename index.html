@@ -71745,34 +71745,42 @@ const DEALS_TODAY = new Date('2026-05-29');
 // Stage IS the status — the final two stages (Won / Lost) are terminal, which
 // mirrors the live deals module. `prob` drives the weighted "forecast" shown on
 // each column header and on the KPI strip.
+// Accounting-firm enquiry→onboarding workflow (F-05/F-08). `won`/`lost`/`new-lead`/
+// `proposal-sent` ids are STABLE — every won/lost check, dealIsOpen, and the KPI/
+// company-context logic keys off them; only the intermediate ids were renamed.
 const DEAL_STAGES = [{
   id: 'new-lead',
-  label: 'New Lead',
+  label: 'New Enquiry',
   color: 'neutral',
   prob: 10
 }, {
-  id: 'prospecting',
-  label: 'Prospecting',
+  id: 'discovery-booked',
+  label: 'Discovery Booked',
   color: 'blue',
   prob: 25
 }, {
-  id: 'qualified',
-  label: 'Qualified',
+  id: 'discovery-done',
+  label: 'Discovery Completed',
+  color: 'blue',
+  prob: 40
+}, {
+  id: 'proposal-required',
+  label: 'Proposal Required',
   color: 'accent',
-  prob: 45
+  prob: 55
 }, {
   id: 'proposal-sent',
   label: 'Proposal Sent',
   color: 'amber',
-  prob: 65
+  prob: 70
 }, {
-  id: 'negotiating',
-  label: 'Negotiating',
+  id: 'proposal-accepted',
+  label: 'Proposal Accepted',
   color: 'amber',
-  prob: 80
+  prob: 90
 }, {
   id: 'won',
-  label: 'Won',
+  label: 'Won (Onboarding)',
   color: 'green',
   prob: 100
 }, {
@@ -71781,8 +71789,16 @@ const DEAL_STAGES = [{
   color: 'red',
   prob: 0
 }];
-const dealStageMeta = id => DEAL_STAGES.find(s => s.id === id) || DEAL_STAGES[0];
-const dealStageIndex = id => Math.max(0, DEAL_STAGES.findIndex(s => s.id === id));
+// Pre-rename stage ids → new ids, so any lingering seed value / saved deal still
+// resolves to the right column. Seed deals are normalised once in the enrichment loop.
+const STAGE_MIGRATION = {
+  prospecting: 'discovery-booked',
+  qualified: 'proposal-required',
+  negotiating: 'proposal-accepted'
+};
+const migrateStage = id => STAGE_MIGRATION[id] || id;
+const dealStageMeta = id => DEAL_STAGES.find(s => s.id === migrateStage(id)) || DEAL_STAGES[0];
+const dealStageIndex = id => Math.max(0, DEAL_STAGES.findIndex(s => s.id === migrateStage(id)));
 const dealStageProb = id => dealStageMeta(id).prob;
 const dealIsOpen = d => d.stage !== 'won' && d.stage !== 'lost';
 const stageBarColor = color => ({
@@ -71810,6 +71826,31 @@ const DEAL_PRIORITIES = [{
   hint: 'Early-stage or low-value lead'
 }];
 const dealPriorityMeta = id => DEAL_PRIORITIES.find(p => p.id === id) || DEAL_PRIORITIES[2];
+
+// Lost-reason taxonomy (F-02) — captured in a required modal before a deal moves
+// to Lost, then surfaced in the Activity log and the Reports tab.
+const DEAL_LOST_REASONS = [{
+  code: 'price',
+  label: 'Price'
+}, {
+  code: 'competitor',
+  label: 'Chose competitor'
+}, {
+  code: 'no-budget',
+  label: 'No budget'
+}, {
+  code: 'not-ready',
+  label: 'Not ready'
+}, {
+  code: 'unresponsive',
+  label: 'Unresponsive'
+}, {
+  code: 'referred',
+  label: 'Referred elsewhere'
+}, {
+  code: 'other',
+  label: 'Other'
+}];
 const PROPOSAL_STATUS_COLOR = {
   Draft: 'neutral',
   Sent: 'blue',
@@ -71836,7 +71877,14 @@ const dealActivityIcon = type => ({
   created: 'sparkle',
   task: 'check',
   proposal: 'docs',
-  file: 'paperclip'
+  file: 'paperclip',
+  won: 'check',
+  lost: 'close',
+  'meeting-booked': 'calendar',
+  'meeting-status': 'calendar',
+  onboarding: 'userPlus',
+  contact: 'users',
+  'proposal-view': 'eye'
 })[type] || 'fileText';
 const dealActivityLabel = type => ({
   note: 'Note',
@@ -71847,7 +71895,14 @@ const dealActivityLabel = type => ({
   created: 'Deal created',
   task: 'Task',
   proposal: 'Proposal',
-  file: 'File'
+  file: 'File',
+  won: 'Won',
+  lost: 'Lost',
+  'meeting-booked': 'Meeting booked',
+  'meeting-status': 'Meeting update',
+  onboarding: 'Onboarding',
+  contact: 'Contact',
+  'proposal-view': 'Proposal viewed'
 })[type] || 'Activity';
 const dealSourceIcon = s => ({
   'Sole link': 'link',
@@ -72426,10 +72481,112 @@ const DEAL_SOURCES = ['Sole link', 'Cold email', 'Referral', 'Inbound', 'Other']
 const DEAL_FIRM_SIZES = ['1–5', '6–20', '21–50', '50+'];
 const DEAL_WORK_WINDOWS = ['Jul–Aug 2026', 'Aug–Sep 2026', 'Sep–Oct 2026', 'Oct–Nov 2026', 'Q3 2026', 'Q4 2026'];
 
+// Meeting / booking model (F-06) — a deal can carry booked meetings, auto-created
+// from Sole Link (F-01) and surfaced on the card + drawer + activity log (F-12).
+const MEETING_TYPES = [{
+  id: 'discovery',
+  label: 'Discovery call'
+}, {
+  id: 'follow-up',
+  label: 'Follow-up'
+}, {
+  id: 'proposal-review',
+  label: 'Proposal review'
+}];
+const MEETING_STATUSES = [{
+  id: 'scheduled',
+  label: 'Scheduled',
+  color: 'blue'
+}, {
+  id: 'completed',
+  label: 'Completed',
+  color: 'green'
+}, {
+  id: 'no-show',
+  label: 'No-show',
+  color: 'red'
+}, {
+  id: 'rescheduled',
+  label: 'Rescheduled',
+  color: 'amber'
+}];
+const meetingTypeLabel = id => (MEETING_TYPES.find(t => t.id === id) || MEETING_TYPES[0]).label;
+const meetingStatusMeta = id => MEETING_STATUSES.find(s => s.id === id) || MEETING_STATUSES[0];
+const fmtDateTime = d => d ? d.toLocaleString('en-AU', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit'
+}) : '';
+const dealNextMeeting = d => (d.meetings || []).filter(m => m.status === 'scheduled').slice().sort((a, b) => new Date(a.when) - new Date(b.when))[0] || null;
+
+// Task types (F-10) — a task carries a type, assignee, priority + due date.
+const TASK_TYPES = [{
+  id: 'call',
+  label: 'Call',
+  icon: 'phone'
+}, {
+  id: 'email',
+  label: 'Email',
+  icon: 'mail'
+}, {
+  id: 'meeting',
+  label: 'Meeting',
+  icon: 'calendar'
+}, {
+  id: 'review',
+  label: 'Review',
+  icon: 'eye'
+}, {
+  id: 'send-document',
+  label: 'Send document',
+  icon: 'docs'
+}];
+const taskTypeMeta = id => TASK_TYPES.find(t => t.id === id) || TASK_TYPES[0];
+const taskDueSoon = t => {
+  if (!t || !t.due || t.done) return false;
+  const diff = (new Date(t.due) - DEALS_TODAY) / 86400000;
+  return diff >= 0 && diff <= 3;
+};
+
+// Demo prospects for the "Simulate new booking" button — deterministic so the
+// demo is repeatable; cycled by a sequence counter in DealsPage.
+const SOLE_LINK_PROSPECTS = [{
+  name: 'Riya Kapoor',
+  company: 'Brightleaf Bookkeeping',
+  email: 'riya@brightleaf.au',
+  phone: '+61 421 555 901',
+  service: 'Bookkeeping',
+  value: 14000
+}, {
+  name: 'Tom Fielding',
+  company: 'Fielding Plumbing',
+  email: 'tom@fieldingplumb.au',
+  phone: '+61 433 220 145',
+  service: 'BAS/GST',
+  value: 8500
+}, {
+  name: 'Aisha Rahman',
+  company: 'Rahman Dental',
+  email: 'aisha@rahmandent.au',
+  phone: '+61 414 778 332',
+  service: 'Payroll',
+  value: 19500
+}, {
+  name: 'Leo Martins',
+  company: 'Martins Cafe Group',
+  email: 'leo@martinscafe.au',
+  phone: '+61 402 661 904',
+  service: 'Advisory',
+  value: 26000
+}];
+
 // Enrich the seed deals deterministically with funnel fields, a starter
 // checklist, and follow-up tasks — so the demo is stable across reloads. New
 // in-app deals pick these up from the modal / sensible defaults.
 PIPELINE_DEALS.forEach((d, i) => {
+  d.stage = migrateStage(d.stage); // normalise pre-rename ids (F-05)
   if (d.likelihood == null) d.likelihood = dealStageProb(d.stage);
   if (d.estHours == null) d.estHours = 40 + i * 17 % 9 * 10; // 40–120h
   if (!d.workWindow) d.workWindow = DEAL_WORK_WINDOWS[i % DEAL_WORK_WINDOWS.length];
@@ -72448,7 +72605,7 @@ PIPELINE_DEALS.forEach((d, i) => {
     }, {
       id: `${d.id}-c2`,
       text: 'Send proposal',
-      done: si >= 3
+      done: si >= 4
     }, {
       id: `${d.id}-c3`,
       text: 'Agree fee & terms',
@@ -72461,8 +72618,66 @@ PIPELINE_DEALS.forEach((d, i) => {
       label: d.nextActivity.label,
       due: d.nextActivity.due,
       type: d.nextActivity.type,
+      assigneeId: d.ownerId,
+      priority: 'medium',
       done: false
     }] : [];
+  }
+  if (!d.notesFeed) {
+    // F-11 — migrate the single `notes` string into an authored, timestamped feed.
+    d.notesFeed = d.notes ? [{
+      id: `n-${d.id}-0`,
+      author: (d.activities[d.activities.length - 1] || {}).who || 'You',
+      at: `${d.createdAt}T09:00:00`,
+      text: d.notes
+    }] : [];
+  }
+  if (!d.contacts) {
+    // F-15 — materialise contacts[] from the seed `contact` (inlined to avoid a
+    // forward ref to dealContacts, which is defined later); add a second
+    // stakeholder on linked-company deals so multi-contact is visible in the demo.
+    d.contacts = d.contact ? [{
+      id: `${d.id}-ct0`,
+      name: d.contact.name,
+      role: d.contact.role || '',
+      company: d.contact.company || '',
+      email: d.contact.email || '',
+      phone: d.contact.phone || '',
+      primary: true
+    }] : [];
+    if (d.orgId && d.contacts.length && i % 3 === 1) {
+      const second = ['Bookkeeper', 'Finance manager', 'Office manager'][i % 3];
+      d.contacts = [...d.contacts, {
+        id: `${d.id}-ct1`,
+        name: ['Jess Lin', 'Omar Said', 'Nina Brooks'][i % 3],
+        role: second,
+        company: d.contacts[0].company,
+        email: `${['jess', 'omar', 'nina'][i % 3]}@example.au`,
+        phone: '+61 4' + (10 + i) + ' 555 ' + (200 + i),
+        primary: false
+      }];
+    }
+  }
+  if (!d.meetings) {
+    // Sole-Link-sourced deals come with a discovery booking (F-01/F-06); the
+    // date is derived from createdAt so the demo is stable. Past meetings read
+    // "completed", future ones "scheduled".
+    if (d.source === 'Sole link') {
+      const w = new Date(d.createdAt);
+      w.setDate(w.getDate() + 3 + i % 3);
+      w.setHours(10 + i % 3 * 2, i % 2 * 30, 0, 0);
+      d.meetings = [{
+        id: `${d.id}-m0`,
+        type: 'discovery',
+        soleLinkUrl: `sole.link/${d.ownerId || 'team'}`,
+        when: w.toISOString(),
+        attendees: [d.contact && d.contact.name, (spmStaffBy(d.ownerId) || {}).name].filter(Boolean),
+        status: w < DEALS_TODAY ? 'completed' : 'scheduled',
+        createdBy: 'Sole Link'
+      }];
+    } else {
+      d.meetings = [];
+    }
   }
 });
 
@@ -72535,13 +72750,33 @@ const copyToClip = (text, fireToast) => {
   } catch (_) {}
   if (fireToast) fireToast(`Copied ${text}`);
 };
+
+// Multiple contacts per deal (F-15). `contacts[]` is the source of truth; the
+// legacy `contact` object is kept as a derived mirror of the primary for
+// back-compat (CompanyChip, search, CompanyDrawer). dealContacts() derives a list
+// even for un-migrated or freshly-created deals that only carry `contact`.
+const dealContacts = d => d.contacts && d.contacts.length ? d.contacts : d.contact ? [{
+  id: `${d.id}-ct0`,
+  name: d.contact.name,
+  role: d.contact.role || '',
+  company: d.contact.company || '',
+  email: d.contact.email || '',
+  phone: d.contact.phone || '',
+  primary: true
+}] : [];
+const dealPrimaryContact = d => {
+  const cs = dealContacts(d);
+  return cs.find(c => c.primary) || cs[0] || null;
+};
 const dealOrg = d => clientById(d.orgId);
 const dealOwner = d => spmStaffBy(d.ownerId);
-// Company name + a ClientMark-compatible object — falls back to the typed
-// company for "new client" deals that aren't linked to a PRACTICE_CLIENTS row.
+// Company name + a ClientMark-compatible object — falls back to the primary
+// contact's company for "new client" deals not linked to a PRACTICE_CLIENTS row.
 const dealCompany = d => {
   const o = dealOrg(d);
-  return o ? o.name : d.contact && d.contact.company || 'New client';
+  if (o) return o.name;
+  const pc = dealPrimaryContact(d);
+  return pc && pc.company || 'New client';
 };
 const dealOrgMark = d => dealOrg(d) || {
   name: dealCompany(d),
@@ -73051,6 +73286,7 @@ const DealCard = ({
   const cl = checklistDone(deal);
   const nextTask = dealNextTask(deal);
   const overdue = taskOverdue(nextTask);
+  const nextMeeting = dealNextMeeting(deal);
   const pct = dealLikelihood(deal);
   return /*#__PURE__*/React.createElement("div", {
     draggable: !menu,
@@ -73182,7 +73418,57 @@ const DealCard = ({
       lineHeight: 1.3,
       textDecoration: lost ? 'line-through' : 'none'
     }
-  }, deal.title), /*#__PURE__*/React.createElement("div", {
+  }, deal.title), won && (!deal.onboarding || deal.onboarding.status !== 'started') && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 10.5,
+      fontWeight: 600,
+      padding: '2px 7px',
+      borderRadius: 999,
+      background: T.amberSoft,
+      color: T.amber,
+      border: '1px solid #FCD34D',
+      width: 'fit-content'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "userPlus",
+    size: 10,
+    color: T.amber
+  }), "Pending onboarding"), lost && deal.lostReason && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 10.5,
+      fontWeight: 600,
+      padding: '2px 7px',
+      borderRadius: 999,
+      background: T.redSoft,
+      color: T.red,
+      border: '1px solid #FECACA',
+      width: 'fit-content'
+    }
+  }, "Lost \xB7 ", deal.lostReason.label), nextMeeting && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 10.5,
+      fontWeight: 500,
+      padding: '2px 7px',
+      borderRadius: 6,
+      background: T.primarySoft,
+      color: T.primary,
+      border: '1px solid #C7C9FB',
+      width: 'fit-content'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "calendar",
+    size: 10,
+    color: T.primary
+  }), meetingTypeLabel(nextMeeting.type), " \xB7 ", fmtDate(new Date(nextMeeting.when))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -73848,14 +74134,192 @@ const NewDealModal = ({
   }, editing ? 'Save deal' : 'Create deal')));
 };
 
+// Lost-reason capture (F-02). A reason is REQUIRED before the deal moves to Lost,
+// so loss patterns become reportable. Optional free-text note for context.
+const LostReasonModal = ({
+  open,
+  deal,
+  onCancel,
+  onConfirm
+}) => {
+  const [code, setCode] = useState('');
+  const [note, setNote] = useState('');
+  useEffect(() => {
+    if (open) {
+      setCode('');
+      setNote('');
+    }
+  }, [open, deal && deal.id]);
+  if (!deal) return null;
+  const reason = DEAL_LOST_REASONS.find(r => r.code === code);
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onCancel,
+    title: "Mark deal as lost",
+    subtitle: deal.title,
+    width: 460
+  }, /*#__PURE__*/React.createElement(Label, null, "Why was it lost?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 8,
+      marginBottom: 14
+    }
+  }, DEAL_LOST_REASONS.map(r => /*#__PURE__*/React.createElement("button", {
+    key: r.code,
+    onClick: () => setCode(r.code),
+    style: {
+      textAlign: 'left',
+      padding: '9px 12px',
+      borderRadius: 8,
+      cursor: 'pointer',
+      fontSize: 13,
+      border: `1px solid ${code === r.code ? T.red : T.border}`,
+      background: code === r.code ? T.redSoft : T.card,
+      color: code === r.code ? T.red : T.text,
+      fontWeight: code === r.code ? 600 : 500
+    }
+  }, r.label))), /*#__PURE__*/React.createElement(Label, null, "Notes (optional)"), /*#__PURE__*/React.createElement("textarea", {
+    value: note,
+    onChange: e => setNote(e.target.value),
+    placeholder: "Add context for the loss\u2026",
+    style: {
+      width: '100%',
+      minHeight: 72,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.text,
+      outline: 'none',
+      resize: 'vertical',
+      fontSize: 13,
+      fontFamily: 'inherit',
+      boxSizing: 'border-box'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onCancel
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "danger",
+    disabled: !code,
+    onClick: () => onConfirm({
+      code: reason.code,
+      label: reason.label,
+      note: note.trim()
+    })
+  }, "Confirm lost")));
+};
+
+// Won → onboarding handover (F-03). Pick a client manager + start date; on confirm
+// the deal moves to Won AND gets a high-priority onboarding task + "Pending
+// onboarding" sub-status, so a won deal never silently stalls.
+const WonHandoffModal = ({
+  open,
+  deal,
+  onCancel,
+  onConfirm
+}) => {
+  const [mgr, setMgr] = useState(SPM_STAFF[0].id);
+  const [start, setStart] = useState('');
+  useEffect(() => {
+    if (open && deal) {
+      setMgr(deal.ownerId || SPM_STAFF[0].id);
+      setStart(DEALS_TODAY.toISOString().slice(0, 10));
+    }
+  }, [open, deal && deal.id]);
+  if (!deal) return null;
+  const org = dealOrg(deal);
+  const company = org ? org.name : deal.contact && deal.contact.company || 'New client';
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onCancel,
+    title: "Mark deal as won \uD83C\uDF89",
+    subtitle: `Hand “${deal.title}” to onboarding`,
+    width: 460
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px',
+      borderRadius: 8,
+      background: T.greenSoft,
+      border: '1px solid #A7F3D0',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 14,
+    color: T.greenDark
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.greenDark,
+      fontWeight: 600
+    }
+  }, fmtMoney(deal.value), " \xB7 ", company)), /*#__PURE__*/React.createElement(Label, null, "Client manager"), /*#__PURE__*/React.createElement(Select, {
+    value: mgr,
+    onChange: e => setMgr(e.target.value),
+    style: {
+      marginBottom: 14
+    }
+  }, SPM_STAFF.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.name))), /*#__PURE__*/React.createElement(Label, null, "Onboarding start date"), /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: start,
+    onChange: e => setStart(e.target.value)
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 8
+    }
+  }, "Creates a high-priority onboarding task for the client manager and queues this deal under \u201CPending onboarding\u201D."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onCancel
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "check",
+    style: {
+      background: T.green,
+      borderColor: T.green
+    },
+    onClick: () => onConfirm({
+      clientManagerId: mgr,
+      startDate: start
+    })
+  }, "Mark won & queue onboarding")));
+};
+
 // Right-side deal detail drawer — key facts + Change Status / Mark As / Delete /
 // Edit, a clickable stage strip, and Contact / Files / Notes / Activity tabs.
 const DealDrawer = ({
   deal,
   onClose,
   onMoveStage,
+  onStartOnboarding,
   onAddActivity,
-  onUpdateNotes,
+  onAddNote,
+  onEditNote,
+  onDeleteNote,
+  onAddContact,
+  onRemoveContact,
+  onSetPrimaryContact,
   onAddDoc,
   onDelete,
   onEdit,
@@ -73866,6 +74330,9 @@ const DealDrawer = ({
   onAddTask,
   onToggleTask,
   onRemoveTask,
+  onAddMeeting,
+  onUpdateMeetingStatus,
+  onProposalAction,
   onOpenCompany,
   onOpenOwner,
   onOpenProposal,
@@ -73879,6 +74346,18 @@ const DealDrawer = ({
   const [clText, setClText] = useState('');
   const [taskLabel, setTaskLabel] = useState('');
   const [taskDue, setTaskDue] = useState('');
+  const [taskType, setTaskType] = useState('call');
+  const [taskAssignee, setTaskAssignee] = useState(SPM_STAFF[0].id);
+  const [taskPriority, setTaskPriority] = useState('medium');
+  const [editNoteId, setEditNoteId] = useState(null);
+  const [editNoteText, setEditNoteText] = useState('');
+  const [cFormOpen, setCFormOpen] = useState(false);
+  const [cForm, setCForm] = useState({
+    name: '',
+    role: '',
+    email: '',
+    phone: ''
+  });
   useEffect(() => {
     const onKey = e => {
       if (e.key === 'Escape') onClose();
@@ -73891,10 +74370,22 @@ const DealDrawer = ({
     setDraftType('note');
     setDraftBody('');
     setDraftDue('');
-    setNotesDraft(deal && deal.notes || '');
+    setNotesDraft('');
     setClText('');
     setTaskLabel('');
     setTaskDue('');
+    setTaskType('call');
+    setTaskAssignee(deal && deal.ownerId || SPM_STAFF[0].id);
+    setTaskPriority('medium');
+    setEditNoteId(null);
+    setEditNoteText('');
+    setCFormOpen(false);
+    setCForm({
+      name: '',
+      role: '',
+      email: '',
+      phone: ''
+    });
   }, [deal && deal.id]);
   if (!deal) return null;
   const owner = dealOwner(deal);
@@ -73906,6 +74397,7 @@ const DealDrawer = ({
   const props = deal.proposals || [];
   const docs = deal.docs || [];
   const tasks = deal.tasks || [];
+  const meetings = deal.meetings || [];
   const checklist = deal.checklist || [];
   const cl = checklistDone(deal);
   const pct = dealLikelihood(deal);
@@ -74056,7 +74548,8 @@ const DealDrawer = ({
     style: {
       display: 'inline-flex',
       alignItems: 'center',
-      gap: 8
+      gap: 8,
+      flexWrap: 'wrap'
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
@@ -74065,7 +74558,11 @@ const DealDrawer = ({
     }
   }, "Status"), /*#__PURE__*/React.createElement(Pill, {
     color: dealStageMeta(deal.stage).color
-  }, dealStageMeta(deal.stage).label)), /*#__PURE__*/React.createElement("div", {
+  }, dealStageMeta(deal.stage).label), won && (!deal.onboarding || deal.onboarding.status !== 'started') && /*#__PURE__*/React.createElement(Pill, {
+    color: "amber"
+  }, "Pending onboarding"), lost && deal.lostReason && /*#__PURE__*/React.createElement(Pill, {
+    color: "red"
+  }, "Lost: ", deal.lostReason.label)), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -74075,7 +74572,7 @@ const DealDrawer = ({
     variant: "ghost",
     size: "sm",
     icon: "undo",
-    onClick: () => onMoveStage('qualified')
+    onClick: () => onMoveStage('proposal-required')
   }, "Reopen") : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Btn, {
     variant: "primary",
     size: "sm",
@@ -74137,13 +74634,77 @@ const DealDrawer = ({
       overflowY: 'auto',
       paddingBottom: 16
     }
-  }, tab === 'overview' && /*#__PURE__*/React.createElement("div", null, won && /*#__PURE__*/React.createElement("div", {
+  }, tab === 'overview' && /*#__PURE__*/React.createElement("div", null, won && (() => {
+    const onb = deal.onboarding;
+    const started = onb && onb.status === 'started';
+    const mgr = onb && onb.clientManagerId ? spmStaffBy(onb.clientManagerId) : null;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        margin: '14px 20px 0',
+        padding: '12px 14px',
+        borderRadius: 10,
+        background: T.greenSoft,
+        border: '1px solid #A7F3D0'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: started ? 'check' : 'userPlus',
+      size: 14,
+      color: T.greenDark
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.greenDark
+      }
+    }, started ? 'Onboarding in progress' : 'Deal won — pending onboarding')), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.greenDark,
+        opacity: 0.92,
+        marginTop: 4
+      }
+    }, started ? `${mgr ? mgr.name + ' is onboarding this client' : 'Onboarding underway'}${onb && onb.startDate ? ' · started ' + fmtDate(new Date(onb.startDate)) : ''}.` : 'Assign a client manager and start onboarding, or turn this into a proposal.'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        marginTop: 10,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "fileText",
+      style: {
+        background: T.green,
+        borderColor: T.green
+      },
+      onClick: () => {
+        window.location.hash = '#/proposal';
+      }
+    }, "Create proposal"), !started && /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "userPlus",
+      onClick: () => onStartOnboarding(deal.id)
+    }, "Start onboarding"), org && /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "building",
+      onClick: () => onOpenCompany(org.id)
+    }, "Open client")));
+  })(), lost && deal.lostReason && /*#__PURE__*/React.createElement("div", {
     style: {
       margin: '14px 20px 0',
       padding: '12px 14px',
       borderRadius: 10,
-      background: T.greenSoft,
-      border: '1px solid #A7F3D0'
+      background: T.redSoft,
+      border: '1px solid #FECACA'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -74152,45 +74713,23 @@ const DealDrawer = ({
       gap: 8
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
+    name: "close",
     size: 14,
-    color: T.greenDark
+    color: T.red
   }), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12.5,
       fontWeight: 600,
-      color: T.greenDark
+      color: T.red
     }
-  }, "Deal won \u2014 convert to delivery")), /*#__PURE__*/React.createElement("div", {
+  }, "Lost \u2014 ", deal.lostReason.label)), deal.lostReason.note && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11.5,
-      color: T.greenDark,
+      color: T.red,
       opacity: 0.92,
       marginTop: 4
     }
-  }, "Turn this into a proposal, then hand the client to onboarding & projects."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 8,
-      marginTop: 10
-    }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    size: "sm",
-    icon: "fileText",
-    style: {
-      background: T.green,
-      borderColor: T.green
-    },
-    onClick: () => {
-      window.location.hash = '#/proposal';
-    }
-  }, "Create proposal"), /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    size: "sm",
-    icon: "userPlus",
-    onClick: () => fireToast('Started onboarding (demo)')
-  }, "Start onboarding"))), /*#__PURE__*/React.createElement("div", {
+  }, deal.lostReason.note)), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '12px 20px 4px'
     }
@@ -74424,17 +74963,146 @@ const DealDrawer = ({
         setClText('');
       }
     }
-  }, "Add")))), tab === 'contact' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(DealFact, {
-    label: "Contact name",
-    value: deal.contact ? deal.contact.name : '—'
-  }), /*#__PURE__*/React.createElement("div", {
+  }, "Add"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '0 20px 16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Meetings"), deal.source === 'Sole link' && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 10.5,
+      color: T.primary
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "link",
+    size: 10,
+    color: T.primary
+  }), "Sole Link")), meetings.length === 0 && /*#__PURE__*/React.createElement(Helper, null, "No meetings booked yet."), meetings.map(m => {
+    const sm = meetingStatusMeta(m.status);
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      style: {
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        padding: '10px 12px',
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "calendar",
+      size: 14,
+      color: T.muted
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, meetingTypeLabel(m.type)), /*#__PURE__*/React.createElement(Pill, {
+      color: sm.color
+    }, sm.label)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: T.muted,
+        marginTop: 5
+      }
+    }, fmtDateTime(new Date(m.when))), m.attendees && m.attendees.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0,
+        marginTop: 7
+      }
+    }, m.attendees.map((a, idx) => /*#__PURE__*/React.createElement(Avatar, {
+      key: idx,
+      name: a,
+      size: 20,
+      style: {
+        marginLeft: idx === 0 ? 0 : -5,
+        border: `2px solid ${T.card}`
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        marginLeft: 8
+      }
+    }, m.attendees.join(', '))), m.soleLinkUrl && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 7
+      }
+    }, /*#__PURE__*/React.createElement("a", {
+      href: `https://${m.soleLinkUrl}`,
+      target: "_blank",
+      rel: "noreferrer",
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 11.5,
+        color: T.primary,
+        textDecoration: 'none'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "link",
+      size: 10,
+      color: T.primary
+    }), m.soleLinkUrl)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6,
+        marginTop: 9,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.mutedSoft,
+        alignSelf: 'center'
+      }
+    }, "Mark"), MEETING_STATUSES.filter(s => s.id !== m.status).map(s => /*#__PURE__*/React.createElement(Chip, {
+      key: s.id,
+      size: "sm",
+      onClick: () => onUpdateMeetingStatus(deal.id, m.id, s.id)
+    }, s.label))));
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "plus",
+    onClick: () => {
+      const w = new Date(DEALS_TODAY);
+      w.setDate(w.getDate() + 7);
+      w.setHours(10, 0, 0, 0);
+      onAddMeeting(deal.id, {
+        type: 'follow-up',
+        when: w.toISOString()
+      });
+    }
+  }, "Add meeting"))), tab === 'contact' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 12,
-      padding: '8px 20px',
-      borderTop: `1px solid ${T.border}`
+      marginBottom: 10
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
@@ -74444,23 +75112,195 @@ const DealDrawer = ({
   }, "Company"), /*#__PURE__*/React.createElement(CompanyChip, {
     client: dealOrgMark(deal),
     onOpen: org ? onOpenCompany : undefined
-  })), deal.contact && deal.contact.role ? /*#__PURE__*/React.createElement(DealFact, {
-    label: "Role",
-    value: deal.contact.role
-  }) : null, /*#__PURE__*/React.createElement(ContactRow, {
-    label: "Email",
-    value: deal.contact && deal.contact.email,
-    href: deal.contact && deal.contact.email ? `mailto:${deal.contact.email}` : undefined,
-    fireToast: fireToast
-  }), /*#__PURE__*/React.createElement(ContactRow, {
-    label: "Phone",
-    value: deal.contact && deal.contact.phone,
-    href: deal.contact && deal.contact.phone ? `tel:${(deal.contact.phone || '').replace(/\s/g, '')}` : undefined,
-    mono: true,
-    fireToast: fireToast
+  })), dealContacts(deal).map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.id,
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: '10px 12px',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: c.name,
+    size: 26
   }), /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: '12px 20px'
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, c.name), c.primary && /*#__PURE__*/React.createElement(Pill, {
+    color: "accent"
+  }, "Primary")), c.role && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, c.role)), !c.primary && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => onSetPrimaryContact(deal.id, c.id)
+  }, "Make primary"), dealContacts(deal).length > 1 && /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    title: "Remove contact",
+    onClick: () => onRemoveContact(deal.id, c.id),
+    style: {
+      color: T.red
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 13
+  }))), c.email && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      marginTop: 6,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "mail",
+    size: 12,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement("a", {
+    href: `mailto:${c.email}`,
+    style: {
+      color: T.text,
+      textDecoration: 'none'
+    }
+  }, c.email)), c.phone && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      marginTop: 3,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "phone",
+    size: 12,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement("a", {
+    href: `tel:${(c.phone || '').replace(/\s/g, '')}`,
+    style: {
+      color: T.text,
+      textDecoration: 'none'
+    }
+  }, c.phone)))), cFormOpen ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: 10,
+      background: T.fieldBg,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: cForm.name,
+    onChange: e => setCForm({
+      ...cForm,
+      name: e.target.value
+    }),
+    placeholder: "Name",
+    style: {
+      background: T.card
+    }
+  }), /*#__PURE__*/React.createElement(Input, {
+    value: cForm.role,
+    onChange: e => setCForm({
+      ...cForm,
+      role: e.target.value
+    }),
+    placeholder: "Role (e.g. Bookkeeper)",
+    style: {
+      background: T.card
+    }
+  }), /*#__PURE__*/React.createElement(Input, {
+    value: cForm.email,
+    onChange: e => setCForm({
+      ...cForm,
+      email: e.target.value
+    }),
+    placeholder: "Email",
+    style: {
+      background: T.card
+    }
+  }), /*#__PURE__*/React.createElement(Input, {
+    value: cForm.phone,
+    onChange: e => setCForm({
+      ...cForm,
+      phone: e.target.value
+    }),
+    placeholder: "Phone",
+    style: {
+      background: T.card
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 6,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => {
+      setCFormOpen(false);
+      setCForm({
+        name: '',
+        role: '',
+        email: '',
+        phone: ''
+      });
+    }
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "plus",
+    onClick: () => {
+      if (cForm.name.trim()) {
+        onAddContact(deal.id, cForm);
+        setCForm({
+          name: '',
+          role: '',
+          email: '',
+          phone: ''
+        });
+        setCFormOpen(false);
+      }
+    }
+  }, "Add contact"))) : /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "plus",
+    onClick: () => setCFormOpen(true)
+  }, "Add contact"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
     }
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: "soft",
@@ -74484,38 +75324,46 @@ const DealDrawer = ({
       fontSize: 11,
       color: T.muted
     }
-  }, props.length)), props.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No proposals attached.") : props.map(p => /*#__PURE__*/React.createElement("button", {
+  }, props.length)), props.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No proposals attached.") : props.map(p => /*#__PURE__*/React.createElement("div", {
     key: p.id,
-    "data-hover": "row",
-    onClick: () => onOpenProposal(p),
     style: {
-      width: '100%',
       display: 'flex',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
       padding: '10px 0',
-      borderTop: `1px solid ${T.border}`,
-      border: 'none',
-      background: 'transparent',
-      cursor: 'pointer',
-      textAlign: 'left'
+      borderTop: `1px solid ${T.border}`
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "fileText",
     size: 15,
     color: T.muted
-  }), /*#__PURE__*/React.createElement("span", {
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onOpenProposal(p),
     style: {
       flex: 1,
+      minWidth: 0,
+      textAlign: 'left',
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
       fontSize: 13,
-      color: T.text
+      color: T.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
     }
   }, p.title), /*#__PURE__*/React.createElement(Pill, {
     color: PROPOSAL_STATUS_COLOR[p.status] || 'neutral'
-  }, p.status), /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 13,
-    color: T.mutedSoft
+  }, p.status), p.status === 'Draft' ? /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    onClick: () => onProposalAction(deal.id, p.id, 'sent')
+  }, "Mark sent") : /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "eye",
+    title: "Simulate client view",
+    onClick: () => onProposalAction(deal.id, p.id, 'view')
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -74551,15 +75399,19 @@ const DealDrawer = ({
     style: {
       padding: '14px 20px'
     }
-  }, tasks.length === 0 && /*#__PURE__*/React.createElement(Helper, null, "No follow-up tasks yet. Add one with a due date so it shows on the card."), tasks.map(t => {
+  }, tasks.length === 0 && /*#__PURE__*/React.createElement(Helper, null, "No tasks yet. Add one with a type, owner, and due date."), tasks.map(t => {
     const od = taskOverdue(t) && !t.done;
+    const soon = taskDueSoon(t);
+    const tm = taskTypeMeta(t.type);
+    const asg = spmStaffBy(t.assigneeId);
+    const pm = dealPriorityMeta(t.priority || 'medium');
     return /*#__PURE__*/React.createElement("div", {
       key: t.id,
       style: {
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: 10,
-        padding: '9px 0',
+        padding: '10px 0',
         borderTop: `1px solid ${T.border}`
       }
     }, /*#__PURE__*/React.createElement(CheckBox, {
@@ -74572,17 +75424,51 @@ const DealDrawer = ({
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: tm.icon,
+      size: 12,
+      color: T.muted
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
         fontSize: 13,
         color: t.done ? T.mutedSoft : T.text,
         textDecoration: t.done ? 'line-through' : 'none'
       }
-    }, t.label), t.due && /*#__PURE__*/React.createElement("div", {
+    }, t.label)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 5,
+        flexWrap: 'wrap'
+      }
+    }, asg && /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: asg.name,
+      size: 16
+    }), /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 11,
-        color: od ? T.red : T.muted,
-        marginTop: 2
+        color: T.muted
       }
-    }, od ? 'Overdue · ' : 'Due ', fmtDate(new Date(t.due)))), /*#__PURE__*/React.createElement("button", {
+    }, asg.name)), /*#__PURE__*/React.createElement(Pill, {
+      color: pm.color
+    }, pm.label), t.due && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        fontWeight: 500,
+        color: od ? T.red : soon ? T.amber : T.muted
+      }
+    }, od ? 'Overdue · ' : soon ? 'Due soon · ' : 'Due ', fmtDate(new Date(t.due))))), /*#__PURE__*/React.createElement("button", {
       onClick: () => onRemoveTask(deal.id, t.id),
       title: "Remove",
       style: {
@@ -74599,35 +75485,90 @@ const DealDrawer = ({
     })));
   }), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      gap: 8,
-      marginTop: 12
+      marginTop: 12,
+      padding: 10,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
     }
   }, /*#__PURE__*/React.createElement(Input, {
     value: taskLabel,
     onChange: e => setTaskLabel(e.target.value),
-    placeholder: "Add a follow-up task\u2026"
-  }), /*#__PURE__*/React.createElement(Input, {
+    placeholder: "Add a task\u2026",
+    style: {
+      background: T.card
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: taskType,
+    onChange: e => setTaskType(e.target.value),
+    style: {
+      flex: '1 1 110px'
+    }
+  }, TASK_TYPES.map(tt => /*#__PURE__*/React.createElement("option", {
+    key: tt.id,
+    value: tt.id
+  }, tt.label))), /*#__PURE__*/React.createElement(Select, {
+    value: taskAssignee,
+    onChange: e => setTaskAssignee(e.target.value),
+    style: {
+      flex: '1 1 120px'
+    }
+  }, SPM_STAFF.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.name))), /*#__PURE__*/React.createElement(Input, {
     type: "date",
     value: taskDue,
     onChange: e => setTaskDue(e.target.value),
     style: {
-      width: 150
+      flex: '1 1 130px'
     }
-  }), /*#__PURE__*/React.createElement(Btn, {
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginTop: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6
+    }
+  }, DEAL_PRIORITIES.map(p => /*#__PURE__*/React.createElement(Chip, {
+    key: p.id,
+    size: "sm",
+    selected: taskPriority === p.id,
+    onClick: () => setTaskPriority(p.id)
+  }, p.label))), /*#__PURE__*/React.createElement(Btn, {
     variant: "primary",
     size: "sm",
+    icon: "plus",
     onClick: () => {
       if (taskLabel.trim()) {
         onAddTask(deal.id, {
           label: taskLabel.trim(),
-          due: taskDue
+          due: taskDue,
+          type: taskType,
+          assigneeId: taskAssignee,
+          priority: taskPriority
         });
         setTaskLabel('');
         setTaskDue('');
+        setTaskType('call');
+        setTaskPriority('medium');
       }
     }
-  }, "Add"))), tab === 'notes' && /*#__PURE__*/React.createElement("div", {
+  }, "Add task")))), tab === 'notes' && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '14px 20px'
     }
@@ -74637,7 +75578,7 @@ const DealDrawer = ({
     placeholder: "Add a note about this deal\u2026",
     style: {
       width: '100%',
-      minHeight: 160,
+      minHeight: 80,
       padding: '10px 12px',
       border: `1px solid ${T.border}`,
       borderRadius: 8,
@@ -74646,20 +75587,150 @@ const DealDrawer = ({
       outline: 'none',
       resize: 'vertical',
       fontSize: 13,
-      fontFamily: 'inherit'
+      fontFamily: 'inherit',
+      boxSizing: 'border-box'
     }
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'flex-end',
-      marginTop: 10
+      marginTop: 8
     }
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: "primary",
     size: "sm",
-    icon: "save",
-    onClick: () => onUpdateNotes(deal.id, notesDraft)
-  }, "Save notes"))), tab === 'activity' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    icon: "plus",
+    onClick: () => {
+      if (notesDraft.trim()) {
+        onAddNote(deal.id, notesDraft.trim());
+        setNotesDraft('');
+      }
+    }
+  }, "Add note")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, (deal.notesFeed || []).length === 0 && /*#__PURE__*/React.createElement(Helper, null, "No notes yet \u2014 add the first one above."), (deal.notesFeed || []).map(n => /*#__PURE__*/React.createElement("div", {
+    key: n.id,
+    style: {
+      display: 'flex',
+      gap: 10,
+      padding: '10px 0',
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: n.author,
+    size: 26
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, n.author), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, daysAgo(n.at), n.editedAt ? ' · edited' : ''), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), editNoteId !== n.id && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setEditNoteId(n.id);
+      setEditNoteText(n.text);
+    },
+    title: "Edit",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.mutedSoft,
+      padding: 2,
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "edit",
+    size: 12
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onDeleteNote(deal.id, n.id),
+    title: "Delete",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.mutedSoft,
+      padding: 2,
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 12
+  })))), editNoteId === n.id ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement("textarea", {
+    value: editNoteText,
+    onChange: e => setEditNoteText(e.target.value),
+    style: {
+      width: '100%',
+      minHeight: 60,
+      padding: '8px 10px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.text,
+      outline: 'none',
+      resize: 'vertical',
+      fontSize: 13,
+      fontFamily: 'inherit',
+      boxSizing: 'border-box'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 6,
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => {
+      setEditNoteId(null);
+      setEditNoteText('');
+    }
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    onClick: () => {
+      if (editNoteText.trim()) {
+        onEditNote(deal.id, n.id, editNoteText.trim());
+        setEditNoteId(null);
+        setEditNoteText('');
+      }
+    }
+  }, "Save"))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: T.textSoft,
+      marginTop: 3,
+      whiteSpace: 'pre-wrap'
+    }
+  }, n.text)))))), tab === 'activity' && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '14px 20px 8px'
     }
@@ -75309,6 +76380,7 @@ const DealsPage = ({
   const [ownerFilter, setOwnerFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all'); // F-09 lead-source filter
   const [sort, setSort] = useState('recent');
   const [dragId, setDragId] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
@@ -75320,34 +76392,316 @@ const DealsPage = ({
   const [openStaffId, setOpenStaffId] = useState(null);
   const [openEmployee, setOpenEmployee] = useState(null);
   const [openProposal, setOpenProposal] = useState(null);
-  const moveStage = (dealId, stage) => {
-    const cur = deals.find(d => d.id === dealId);
-    if (!cur || cur.stage === stage) return;
-    const prevStage = cur.stage;
-    const toLabel = dealStageMeta(stage).label;
-    const body = stage === 'won' ? 'Deal marked won' : stage === 'lost' ? 'Deal marked lost' : `Moved from ${dealStageMeta(prevStage).label} to ${toLabel}`;
-    setDeals(prev => prev.map(d => d.id !== dealId ? d : {
-      ...d,
-      stage,
-      activities: [{
-        id: 'a-' + dealId + '-' + Date.now(),
-        type: 'stage',
-        body,
-        who: 'You',
-        at: new Date().toISOString()
-      }, ...d.activities]
-    }));
-    const msg = stage === 'won' ? 'Deal won 🎉' : stage === 'lost' ? 'Deal marked lost' : `Moved to ${toLabel}`;
+  const [lostModalDeal, setLostModalDeal] = useState(null); // F-02 reason capture
+  const [wonModalDeal, setWonModalDeal] = useState(null); // F-03 onboarding handover
+  const [soleLinkSeq, setSoleLinkSeq] = useState(0); // F-01 demo booking cursor
+  const [dupModal, setDupModal] = useState(null); // F-07 duplicate-deal warning
+
+  // Snapshot-based undo (F-04): capture the WHOLE prior deal so Undo reverts stage
+  // + the appended activity + any tasks/onboarding/lostReason — not just one field.
+  // (The old undo restored only `stage`, leaving the stage-change activity behind.)
+  const withUndo = (msg, dealId, mutate) => {
+    const snap = deals.find(d => d.id === dealId);
+    if (!snap) return;
+    setDeals(prev => prev.map(d => d.id === dealId ? mutate(d) : d));
     fireToast({
       message: msg,
       action: {
         label: 'Undo',
-        onClick: () => setDeals(prev => prev.map(d => d.id === dealId ? {
-          ...d,
-          stage: prevStage
-        } : d))
+        onClick: () => setDeals(prev => prev.map(d => d.id === dealId ? snap : d))
       }
     });
+  };
+  const moveStage = (dealId, stage, extra) => {
+    const cur = deals.find(d => d.id === dealId);
+    if (!cur || cur.stage === stage) return;
+    const toLabel = dealStageMeta(stage).label;
+    const actType = stage === 'won' ? 'won' : stage === 'lost' ? 'lost' : 'stage';
+    const body = stage === 'won' ? 'Deal marked won' : stage === 'lost' ? `Deal marked lost${extra && extra.lostReason ? ' — ' + extra.lostReason.label : ''}` : `Moved from ${dealStageMeta(cur.stage).label} to ${toLabel}`;
+    const act = {
+      id: 'a-' + dealId + '-' + Date.now(),
+      type: actType,
+      body,
+      who: 'You',
+      at: new Date().toISOString()
+    };
+    const msg = stage === 'won' ? 'Deal won 🎉' : stage === 'lost' ? 'Deal marked lost' : `Moved to ${toLabel}`;
+    withUndo(msg, dealId, d => ({
+      ...d,
+      stage,
+      ...(extra || {}),
+      activities: [act, ...d.activities]
+    }));
+  };
+
+  // Won/Lost open a confirmation modal first (F-02/F-03); other moves apply
+  // immediately. Drag-drop, the quick-menu, and the drawer all funnel through here.
+  const requestStage = (dealId, stage) => {
+    if (stage === 'lost') {
+      setLostModalDeal(deals.find(d => d.id === dealId) || null);
+      return;
+    }
+    if (stage === 'won') {
+      setWonModalDeal(deals.find(d => d.id === dealId) || null);
+      return;
+    }
+    moveStage(dealId, stage);
+  };
+  const confirmLost = reason => {
+    const d = lostModalDeal;
+    if (!d) return;
+    setLostModalDeal(null);
+    moveStage(d.id, 'lost', {
+      lostReason: {
+        ...reason,
+        at: new Date().toISOString(),
+        who: 'You'
+      }
+    });
+  };
+  const confirmWon = payload => {
+    const d = wonModalDeal;
+    if (!d) return;
+    setWonModalDeal(null);
+    const now = new Date().toISOString();
+    const mgr = spmStaffBy(payload.clientManagerId);
+    const taskId = `${d.id}-onb-${Date.now()}`;
+    const onbTask = {
+      id: taskId,
+      label: 'Client onboarding & engagement setup',
+      type: 'review',
+      assigneeId: payload.clientManagerId,
+      priority: 'high',
+      due: payload.startDate || '',
+      done: false
+    };
+    const onbAct = {
+      id: 'a-' + d.id + '-onb-' + Date.now(),
+      type: 'onboarding',
+      body: `Onboarding queued${mgr ? ' for ' + mgr.name : ''}${payload.startDate ? ' · starts ' + fmtDate(new Date(payload.startDate)) : ''}`,
+      who: 'You',
+      at: now
+    };
+    const wonAct = {
+      id: 'a-' + d.id + '-won-' + Date.now(),
+      type: 'won',
+      body: 'Deal marked won',
+      who: 'You',
+      at: now
+    };
+    withUndo('Deal won 🎉 — onboarding queued', d.id, x => ({
+      ...x,
+      stage: 'won',
+      onboarding: {
+        status: 'pending',
+        clientManagerId: payload.clientManagerId,
+        startDate: payload.startDate || '',
+        taskId,
+        at: now
+      },
+      tasks: [...(x.tasks || []), onbTask],
+      activities: [onbAct, wonAct, ...x.activities]
+    }));
+  };
+  const startOnboarding = dealId => {
+    const now = new Date().toISOString();
+    withUndo('Onboarding started', dealId, d => ({
+      ...d,
+      onboarding: {
+        ...(d.onboarding || {
+          clientManagerId: d.ownerId,
+          startDate: '',
+          taskId: ''
+        }),
+        status: 'started',
+        startedAt: now
+      },
+      activities: [{
+        id: 'a-' + dealId + '-onbs-' + Date.now(),
+        type: 'onboarding',
+        body: 'Onboarding started',
+        who: 'You',
+        at: now
+      }, ...d.activities]
+    }));
+  };
+
+  // F-01 — Sole Link booking → auto-created, fully-traceable lead: source, contact,
+  // a discovery meeting with date/time, owner, a post-meeting follow-up task, and
+  // activity entries showing the booking. Opens the new deal so the path is visible.
+  const simulateSoleLinkBooking = () => {
+    const p = SOLE_LINK_PROSPECTS[soleLinkSeq % SOLE_LINK_PROSPECTS.length];
+    const owner = SPM_STAFF[soleLinkSeq % SPM_STAFF.length];
+    setSoleLinkSeq(soleLinkSeq + 1);
+    const maxN = deals.reduce((m, d) => Math.max(m, parseInt((d.id.match(/\d+/) || ['0'])[0], 10) || 0), 0);
+    const id = 'dl-' + String(maxN + 1).padStart(3, '0');
+    const nowIso = new Date().toISOString();
+    const when = new Date(DEALS_TODAY);
+    when.setDate(when.getDate() + 2 + soleLinkSeq % 3);
+    when.setHours(11, 0, 0, 0);
+    const followDue = new Date(when);
+    followDue.setDate(followDue.getDate() + 1);
+    const meeting = {
+      id: `${id}-m0`,
+      type: 'discovery',
+      soleLinkUrl: `sole.link/${owner.id}`,
+      when: when.toISOString(),
+      attendees: [p.name, owner.name],
+      status: 'scheduled',
+      createdBy: 'Sole Link'
+    };
+    const followTask = {
+      id: `${id}-t0`,
+      label: `Follow up after discovery call with ${p.name}`,
+      type: 'call',
+      assigneeId: owner.id,
+      priority: 'high',
+      due: followDue.toISOString().slice(0, 10),
+      done: false
+    };
+    const deal = {
+      id,
+      title: `${p.company} — discovery`,
+      orgId: null,
+      contact: {
+        name: p.name,
+        role: '',
+        company: p.company,
+        email: p.email,
+        phone: p.phone
+      },
+      ownerId: owner.id,
+      service: p.service,
+      value: p.value,
+      stage: 'new-lead',
+      priority: 'medium',
+      expectedClose: '',
+      createdAt: nowIso.slice(0, 10),
+      source: 'Sole link',
+      likelihood: dealStageProb('new-lead'),
+      estHours: 40,
+      workWindow: DEAL_WORK_WINDOWS[1],
+      firmSize: DEAL_FIRM_SIZES[0],
+      proposals: [],
+      docs: [],
+      notes: '',
+      checklist: [{
+        id: `${id}-c0`,
+        text: 'Initial discovery call',
+        done: false
+      }, {
+        id: `${id}-c1`,
+        text: 'Confirm scope & timing',
+        done: false
+      }],
+      meetings: [meeting],
+      tasks: [followTask],
+      nextActivity: {
+        type: 'call',
+        label: followTask.label,
+        due: followTask.due
+      },
+      activities: [{
+        id: 'a-' + id + '-m',
+        type: 'meeting-booked',
+        body: `Discovery call booked via Sole Link for ${fmtDateTime(when)}`,
+        who: 'Sole Link',
+        at: nowIso
+      }, {
+        id: 'a-' + id + '-0',
+        type: 'created',
+        body: 'Lead auto-created from Sole Link booking',
+        who: 'Sole Link',
+        at: nowIso
+      }]
+    };
+    setDeals(prev => [deal, ...prev]);
+    setOpenId(id);
+    fireToast({
+      message: `New lead from Sole Link — ${p.name}`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setOpenId(null);
+          setDeals(prev => prev.filter(x => x.id !== id));
+        }
+      }
+    });
+  };
+
+  // F-06 — meetings on the deal; status changes (F-12) auto-log.
+  const addMeeting = (dealId, m) => {
+    setDeals(prev => prev.map(d => d.id !== dealId ? d : {
+      ...d,
+      meetings: [...(d.meetings || []), {
+        id: `${dealId}-m${Date.now()}`,
+        type: m.type || 'discovery',
+        soleLinkUrl: m.soleLinkUrl || '',
+        when: m.when,
+        attendees: m.attendees || [d.contact && d.contact.name, (spmStaffBy(d.ownerId) || {}).name].filter(Boolean),
+        status: 'scheduled',
+        createdBy: 'You'
+      }],
+      activities: [{
+        id: 'a-' + dealId + '-' + Date.now(),
+        type: 'meeting-booked',
+        body: `Meeting booked for ${fmtDateTime(new Date(m.when))}`,
+        who: 'You',
+        at: new Date().toISOString()
+      }, ...d.activities]
+    }));
+    fireToast('Meeting added');
+  };
+  const updateMeetingStatus = (dealId, meetingId, status) => {
+    setDeals(prev => prev.map(d => d.id !== dealId ? d : {
+      ...d,
+      meetings: (d.meetings || []).map(mm => mm.id === meetingId ? {
+        ...mm,
+        status
+      } : mm),
+      activities: [{
+        id: 'a-' + dealId + '-' + Date.now(),
+        type: 'meeting-status',
+        body: `Meeting marked ${meetingStatusMeta(status).label.toLowerCase()}`,
+        who: 'You',
+        at: new Date().toISOString()
+      }, ...d.activities]
+    }));
+  };
+
+  // F-12 — proposal send / view auto-log (from the Files tab).
+  const proposalAction = (dealId, propId, action) => {
+    setDeals(prev => prev.map(d => {
+      if (d.id !== dealId) return d;
+      const prop = (d.proposals || []).find(p => p.id === propId);
+      if (!prop) return d;
+      const at = new Date().toISOString();
+      if (action === 'sent') return {
+        ...d,
+        proposals: d.proposals.map(p => p.id === propId ? {
+          ...p,
+          status: 'Sent'
+        } : p),
+        activities: [{
+          id: 'a-' + dealId + '-' + Date.now(),
+          type: 'proposal',
+          body: `Sent proposal: ${prop.title}`,
+          who: 'You',
+          at
+        }, ...d.activities]
+      };
+      return {
+        ...d,
+        activities: [{
+          id: 'a-' + dealId + '-' + Date.now(),
+          type: 'proposal-view',
+          body: `${prop.title} viewed by client`,
+          who: 'Client',
+          at
+        }, ...d.activities]
+      };
+    }));
+    fireToast(action === 'sent' ? 'Proposal marked sent' : 'Logged a proposal view');
   };
 
   // Generic field patch — used by inline drawer edits and owner/priority drops.
@@ -75372,13 +76726,73 @@ const DealsPage = ({
     } : d));
     fireToast(`${dealActivityLabel(act.type)} added`);
   };
-  const updateNotes = (dealId, notes) => {
-    setDeals(prev => prev.map(d => d.id === dealId ? {
+
+  // F-11 — authored, timestamped notes feed (replaces the single overwriting textarea).
+  // `notes` is kept as a mirror of the latest note for back-compat readers.
+  const addNote = (dealId, text) => {
+    const at = new Date().toISOString();
+    setDeals(prev => prev.map(d => d.id !== dealId ? d : {
       ...d,
-      notes
-    } : d));
-    fireToast('Notes saved');
+      notes: text,
+      notesFeed: [{
+        id: `n-${dealId}-${Date.now()}`,
+        author: 'You',
+        at,
+        text
+      }, ...(d.notesFeed || [])]
+    }));
+    fireToast('Note added');
   };
+  const editNote = (dealId, noteId, text) => setDeals(prev => prev.map(d => d.id !== dealId ? d : {
+    ...d,
+    notesFeed: (d.notesFeed || []).map(n => n.id === noteId ? {
+      ...n,
+      text,
+      editedAt: new Date().toISOString()
+    } : n)
+  }));
+  const deleteNote = (dealId, noteId) => setDeals(prev => prev.map(d => d.id !== dealId ? d : {
+    ...d,
+    notesFeed: (d.notesFeed || []).filter(n => n.id !== noteId)
+  }));
+
+  // F-15 — multiple contacts per deal. Handlers always operate on a materialised
+  // list and keep the legacy `contact` mirror pointed at the primary.
+  const syncPrimary = (d, contacts) => ({
+    ...d,
+    contacts,
+    contact: contacts.find(c => c.primary) || contacts[0] || null
+  });
+  const addContact = (dealId, c) => {
+    setDeals(prev => prev.map(d => {
+      if (d.id !== dealId) return d;
+      const list = dealContacts(d);
+      const nc = {
+        id: `${dealId}-ct${Date.now()}`,
+        name: c.name,
+        role: c.role || '',
+        company: c.company || list[0] && list[0].company || '',
+        email: c.email || '',
+        phone: c.phone || '',
+        primary: list.length === 0
+      };
+      return syncPrimary(d, [...list, nc]);
+    }));
+    fireToast('Contact added');
+  };
+  const removeContact = (dealId, contactId) => setDeals(prev => prev.map(d => {
+    if (d.id !== dealId) return d;
+    let list = dealContacts(d).filter(c => c.id !== contactId);
+    if (list.length && !list.some(c => c.primary)) list = list.map((c, i) => i === 0 ? {
+      ...c,
+      primary: true
+    } : c);
+    return syncPrimary(d, list);
+  }));
+  const setPrimaryContact = (dealId, contactId) => setDeals(prev => prev.map(d => d.id !== dealId ? d : syncPrimary(d, dealContacts(d).map(c => ({
+    ...c,
+    primary: c.id === contactId
+  })))));
   const toggleChecklist = (id, itemId) => setDeals(prev => prev.map(d => d.id !== id ? d : {
     ...d,
     checklist: (d.checklist || []).map(c => c.id === itemId ? {
@@ -75405,7 +76819,9 @@ const DealsPage = ({
         id: `${id}-t${Date.now()}`,
         label: t.label,
         due: t.due || '',
-        type: 'task',
+        type: t.type || 'call',
+        assigneeId: t.assigneeId || d.ownerId,
+        priority: t.priority || 'medium',
         done: false
       }],
       activities: [{
@@ -75418,12 +76834,25 @@ const DealsPage = ({
     }));
     fireToast('Task added');
   };
-  const toggleTask = (id, taskId) => setDeals(prev => prev.map(d => d.id !== id ? d : {
-    ...d,
-    tasks: (d.tasks || []).map(t => t.id === taskId ? {
-      ...t,
-      done: !t.done
-    } : t)
+  const toggleTask = (id, taskId) => setDeals(prev => prev.map(d => {
+    if (d.id !== id) return d;
+    const t = (d.tasks || []).find(x => x.id === taskId);
+    const completing = t && !t.done;
+    return {
+      ...d,
+      tasks: (d.tasks || []).map(x => x.id === taskId ? {
+        ...x,
+        done: !x.done,
+        completedAt: !x.done ? new Date().toISOString() : null
+      } : x),
+      activities: completing ? [{
+        id: 'a-' + id + '-' + Date.now(),
+        type: 'task',
+        body: `Completed: ${t.label}`,
+        who: 'You',
+        at: new Date().toISOString()
+      }, ...d.activities] : d.activities
+    };
   }));
   const removeTask = (id, taskId) => setDeals(prev => prev.map(d => d.id !== id ? d : {
     ...d,
@@ -75474,7 +76903,7 @@ const DealsPage = ({
     if (action === 'edit') {
       setOpenId(null);
       openEdit(deal);
-    } else if (action === 'won') moveStage(deal.id, 'won');else if (action === 'lost') moveStage(deal.id, 'lost');else if (action === 'reopen') moveStage(deal.id, 'qualified');else if (action === 'delete') deleteDeal(deal);
+    } else if (action === 'won') requestStage(deal.id, 'won');else if (action === 'lost') requestStage(deal.id, 'lost');else if (action === 'reopen') moveStage(deal.id, 'proposal-required');else if (action === 'delete') deleteDeal(deal);
   };
   const saveDeal = form => {
     if (!form.title.trim()) {
@@ -75486,38 +76915,90 @@ const DealsPage = ({
     }
     if (editDeal) {
       const id = editDeal.id;
-      setDeals(prev => prev.map(d => d.id !== id ? d : {
-        ...d,
-        ...form,
-        title: form.title.trim()
+      setDeals(prev => prev.map(d => {
+        if (d.id !== id) return d;
+        const merged = {
+          ...d,
+          ...form,
+          title: form.title.trim()
+        };
+        // Keep multi-contacts: sync the primary from the modal's single contact, preserve the rest.
+        const list = dealContacts(d);
+        const pIdx = Math.max(0, list.findIndex(c => c.primary));
+        const nextList = list.length ? list.map((c, i) => i === pIdx ? {
+          ...c,
+          ...form.contact,
+          role: form.contact.role || c.role,
+          primary: true
+        } : c) : [{
+          id: `${id}-ct0`,
+          ...form.contact,
+          primary: true
+        }];
+        return syncPrimary(merged, nextList);
       }));
       closeModal();
       fireToast('Deal updated');
       setOpenId(id);
     } else {
-      const maxN = deals.reduce((m, d) => Math.max(m, parseInt((d.id.match(/\d+/) || ['0'])[0], 10) || 0), 0);
-      const id = 'dl-' + String(maxN + 1).padStart(3, '0');
-      const nowIso = new Date().toISOString();
-      const deal = {
-        id,
-        ...form,
-        title: form.title.trim(),
-        createdAt: nowIso.slice(0, 10),
-        nextActivity: null,
-        tasks: form.tasks || [],
-        activities: [{
-          id: 'a-' + id + '-0',
-          type: 'created',
-          body: 'Deal created',
-          who: 'You',
-          at: nowIso
-        }]
-      };
-      setDeals(prev => [deal, ...prev]);
+      const dup = findDuplicate(form);
       closeModal();
-      fireToast('Deal created');
-      setOpenId(id);
+      if (dup) {
+        setDupModal({
+          form,
+          existing: dup
+        });
+        return;
+      } // F-07 — warn before creating
+      createDeal(form);
     }
+  };
+
+  // F-07 — an OPEN deal for the same company / contact already exists.
+  const findDuplicate = form => {
+    const email = (form.contact && form.contact.email || '').trim().toLowerCase();
+    const company = (form.contact && form.contact.company || '').trim().toLowerCase();
+    const orgId = form.orgId;
+    return deals.find(d => dealIsOpen(d) && (orgId && d.orgId === orgId || email && dealContacts(d).some(c => (c.email || '').toLowerCase() === email) || company && dealCompany(d).toLowerCase() === company)) || null;
+  };
+  const createDeal = form => {
+    const maxN = deals.reduce((m, d) => Math.max(m, parseInt((d.id.match(/\d+/) || ['0'])[0], 10) || 0), 0);
+    const id = 'dl-' + String(maxN + 1).padStart(3, '0');
+    const nowIso = new Date().toISOString();
+    const contacts = form.contact ? [{
+      id: `${id}-ct0`,
+      name: form.contact.name,
+      role: form.contact.role || '',
+      company: form.contact.company || '',
+      email: form.contact.email || '',
+      phone: form.contact.phone || '',
+      primary: true
+    }] : [];
+    const deal = {
+      id,
+      ...form,
+      contacts,
+      title: form.title.trim(),
+      createdAt: nowIso.slice(0, 10),
+      nextActivity: null,
+      tasks: form.tasks || [],
+      notesFeed: form.notes ? [{
+        id: `n-${id}-0`,
+        author: 'You',
+        at: nowIso,
+        text: form.notes
+      }] : [],
+      activities: [{
+        id: 'a-' + id + '-0',
+        type: 'created',
+        body: 'Deal created',
+        who: 'You',
+        at: nowIso
+      }]
+    };
+    setDeals(prev => [deal, ...prev]);
+    fireToast('Deal created');
+    setOpenId(id);
   };
   const sortDeals = arr => {
     const a = [...arr];
@@ -75531,12 +77012,13 @@ const DealsPage = ({
   const visibleDeals = deals.filter(d => {
     if (ownerFilter !== 'all' && d.ownerId !== ownerFilter) return false;
     if (priorityFilter !== 'all' && d.priority !== priorityFilter) return false;
+    if (sourceFilter !== 'all' && d.source !== sourceFilter) return false;
     if (statusFilter === 'open' && !dealIsOpen(d)) return false;
     if (statusFilter === 'won' && d.stage !== 'won') return false;
     if (statusFilter === 'lost' && d.stage !== 'lost') return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      const hay = [d.title, dealCompany(d), d.contact && d.contact.name, d.service].filter(Boolean).join(' ').toLowerCase();
+      const hay = [d.title, dealCompany(d), ...dealContacts(d).map(c => c.name), d.service].filter(Boolean).join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -75618,7 +77100,7 @@ const DealsPage = ({
     label: s.label,
     color: s.color,
     filter: d => d.stage === s.id,
-    drop: id => moveStage(id, s.id)
+    drop: id => requestStage(id, s.id)
   }));
   const kpiStrip = /*#__PURE__*/React.createElement("div", {
     style: {
@@ -75829,8 +77311,28 @@ const DealsPage = ({
       borderCollapse: 'collapse',
       minWidth: 980
     }
-  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, ['Deal', 'Company', 'Stage', 'Priority', 'Owner', 'Likelihood', 'Value', 'Next'].map(h => /*#__PURE__*/React.createElement("th", {
-    key: h,
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, [{
+    label: 'Deal'
+  }, {
+    label: 'Company'
+  }, {
+    label: 'Source'
+  }, {
+    label: 'Stage'
+  }, {
+    label: 'Priority'
+  }, {
+    label: 'Owner'
+  }, {
+    label: 'Likelihood'
+  }, {
+    label: 'Value'
+  }, {
+    label: 'Next action due',
+    tip: 'When the next open task/follow-up is due. Red = overdue, amber = due within 3 days.'
+  }].map(h => /*#__PURE__*/React.createElement("th", {
+    key: h.label,
+    title: h.tip || undefined,
     style: {
       fontSize: 11,
       fontWeight: 600,
@@ -75840,13 +77342,15 @@ const DealsPage = ({
       padding: '10px 14px',
       borderBottom: `1px solid ${T.border}`,
       whiteSpace: 'nowrap',
-      textAlign: h === 'Value' ? 'right' : 'left'
+      textAlign: h.label === 'Value' ? 'right' : 'left',
+      cursor: h.tip ? 'help' : 'default'
     }
-  }, h)))), /*#__PURE__*/React.createElement("tbody", null, sortDeals(visibleDeals).map((d, idx) => {
+  }, h.label)))), /*#__PURE__*/React.createElement("tbody", null, sortDeals(visibleDeals).map((d, idx) => {
     const owner = dealOwner(d);
     const org = dealOrg(d);
     const nt = dealNextTask(d);
     const overdue = nt && taskOverdue(nt);
+    const soon = nt && taskDueSoon(nt);
     return /*#__PURE__*/React.createElement("tr", {
       key: d.id,
       onClick: () => setOpenId(d.id),
@@ -75871,6 +77375,23 @@ const DealsPage = ({
       client: dealOrgMark(d),
       onOpen: org ? setOpenCompanyId : undefined
     })), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '10px 14px'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: 12,
+        color: T.muted,
+        whiteSpace: 'nowrap'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: dealSourceIcon(d.source),
+      size: 12,
+      color: T.mutedSoft
+    }), d.source)), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: '10px 14px'
       }
@@ -75909,12 +77430,22 @@ const DealsPage = ({
       style: {
         padding: '10px 14px',
         fontSize: 12,
-        color: overdue ? T.red : T.muted,
+        color: overdue ? T.red : soon ? T.amber : T.muted,
         whiteSpace: 'nowrap'
       }
-    }, nt ? `${overdue ? 'Overdue · ' : ''}${fmtDate(new Date(nt.due))}` : '—'));
+    }, nt ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: dealActivityIcon(nt.type || 'task'),
+      size: 11,
+      color: overdue ? T.red : soon ? T.amber : T.mutedSoft
+    }), overdue ? 'Overdue · ' : soon ? 'Due soon · ' : '', fmtDate(new Date(nt.due))) : '—'));
   }), visibleDeals.length === 0 && /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("td", {
-    colSpan: 8,
+    colSpan: 9,
     style: {
       padding: 32,
       textAlign: 'center',
@@ -75922,6 +77453,398 @@ const DealsPage = ({
       fontSize: 13
     }
   }, "No deals match your filters."))))));
+
+  // Reporting / conversion analytics (F-13) — all computed live from `deals`.
+  const reports = (() => {
+    const funnelStages = DEAL_STAGES.filter(s => s.id !== 'lost');
+    const nonLost = deals.filter(d => d.stage !== 'lost');
+    const reached = funnelStages.map(s => nonLost.filter(d => dealStageIndex(d.stage) >= dealStageIndex(s.id)).length);
+    const maxReached = Math.max(1, reached[0] || 1);
+    const stageAges = funnelStages.map(s => {
+      const inStage = deals.filter(d => d.stage === s.id);
+      if (!inStage.length) return {
+        label: s.label,
+        avg: 0,
+        n: 0
+      };
+      const total = inStage.reduce((a, d) => {
+        const act = (d.activities || []).find(x => x.type === 'stage' || x.type === 'won' || x.type === 'created');
+        const at = act ? new Date(act.at) : new Date(d.createdAt);
+        return a + Math.max(0, (DEALS_TODAY - at) / 86400000);
+      }, 0);
+      return {
+        label: s.label,
+        avg: Math.round(total / inStage.length),
+        n: inStage.length
+      };
+    });
+    const maxAge = Math.max(1, ...stageAges.map(s => s.avg));
+    const bySource = DEAL_SOURCES.map(src => {
+      const ds = deals.filter(d => d.source === src);
+      const won = ds.filter(d => d.stage === 'won').length;
+      const lost = ds.filter(d => d.stage === 'lost').length;
+      return {
+        src,
+        count: ds.length,
+        value: ds.reduce((a, d) => a + d.value, 0),
+        winRate: won + lost ? Math.round(won / (won + lost) * 100) : null
+      };
+    }).filter(x => x.count > 0).sort((a, b) => b.value - a.value);
+    const maxSourceVal = Math.max(1, ...bySource.map(s => s.value));
+    const byOwner = SPM_STAFF.map(s => {
+      const ds = deals.filter(d => d.ownerId === s.id);
+      const won = ds.filter(d => d.stage === 'won');
+      const lost = ds.filter(d => d.stage === 'lost').length;
+      return {
+        staff: s,
+        count: ds.length,
+        open: ds.filter(dealIsOpen).length,
+        wonValue: won.reduce((a, d) => a + d.value, 0),
+        winRate: won.length + lost ? Math.round(won.length / (won.length + lost) * 100) : null
+      };
+    }).filter(x => x.count > 0).sort((a, b) => b.wonValue - a.wonValue);
+    const stale = deals.filter(d => {
+      if (!dealIsOpen(d)) return false;
+      const nt = dealNextTask(d);
+      if (nt && taskOverdue(nt)) return true;
+      const last = (d.activities || [])[0];
+      const at = last ? new Date(last.at) : new Date(d.createdAt);
+      return (DEALS_TODAY - at) / 86400000 > 21;
+    });
+    const lostDeals = deals.filter(d => d.stage === 'lost');
+    const lostByReason = {};
+    lostDeals.forEach(d => {
+      const k = d.lostReason ? d.lostReason.label : 'Unspecified';
+      lostByReason[k] = (lostByReason[k] || 0) + 1;
+    });
+    const lostRows = Object.entries(lostByReason).sort((a, b) => b[1] - a[1]);
+    const cardStyle = {
+      padding: 16
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gap: 14
+      }
+    }, /*#__PURE__*/React.createElement(Card, {
+      style: {
+        ...cardStyle,
+        gridColumn: '1 / -1'
+      }
+    }, /*#__PURE__*/React.createElement(SectionTitle, {
+      style: {
+        marginBottom: 10
+      }
+    }, "Conversion funnel"), funnelStages.map((s, i) => {
+      const conv = i === 0 ? null : reached[i - 1] ? Math.round(reached[i] / reached[i - 1] * 100) : 0;
+      return /*#__PURE__*/React.createElement("div", {
+        key: s.id,
+        style: {
+          marginBottom: 9
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: 12,
+          marginBottom: 3
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: T.text
+        }
+      }, s.label), /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: T.muted,
+          fontWeight: 600
+        }
+      }, reached[i], " deal", reached[i] === 1 ? '' : 's', conv != null && /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: T.mutedSoft,
+          fontWeight: 500
+        }
+      }, " \xB7 ", conv, "% from prev"))), /*#__PURE__*/React.createElement("div", {
+        style: {
+          height: 12,
+          borderRadius: 6,
+          background: T.fieldBg,
+          overflow: 'hidden'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          height: '100%',
+          width: `${Math.round(reached[i] / maxReached * 100)}%`,
+          background: stageBarColor(s.color),
+          borderRadius: 6,
+          transition: 'width .2s'
+        }
+      })));
+    }), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginTop: 4
+      }
+    }, "Open + won deals that have reached each stage (lost excluded). Conversion = stage \xF7 previous stage.")), /*#__PURE__*/React.createElement(Card, {
+      style: cardStyle
+    }, /*#__PURE__*/React.createElement(SectionTitle, {
+      style: {
+        marginBottom: 10
+      }
+    }, "Avg. days in current stage"), stageAges.filter(s => s.n > 0).length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No open deals.") : stageAges.filter(s => s.n > 0).map(s => /*#__PURE__*/React.createElement("div", {
+      key: s.label,
+      style: {
+        marginBottom: 9
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        fontSize: 12,
+        marginBottom: 3
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.text
+      }
+    }, s.label, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.mutedSoft
+      }
+    }, "(", s.n, ")")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: s.avg > 21 ? T.amber : T.muted,
+        fontWeight: 600
+      }
+    }, s.avg, "d")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 10,
+        borderRadius: 6,
+        background: T.fieldBg,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${Math.round(s.avg / maxAge * 100)}%`,
+        background: s.avg > 21 ? T.amber : T.primary,
+        borderRadius: 6
+      }
+    }))))), /*#__PURE__*/React.createElement(Card, {
+      style: cardStyle
+    }, /*#__PURE__*/React.createElement(SectionTitle, {
+      style: {
+        marginBottom: 10
+      }
+    }, "Open pipeline value by stage"), pipeSegments.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No open pipeline.") : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(HoverStackedBar, {
+      segments: pipeSegments,
+      height: 14,
+      formatTip: s => `${s.label}: ${fmtMoney(s.value)}`
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 12
+      }
+    }, pipeSegments.map(s => /*#__PURE__*/React.createElement("div", {
+      key: s.label,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 12,
+        padding: '3px 0'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 9,
+        height: 9,
+        borderRadius: 3,
+        background: s.color,
+        flexShrink: 0
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        color: T.text
+      }
+    }, s.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted,
+        fontWeight: 600
+      }
+    }, fmtMoney(s.value))))))), /*#__PURE__*/React.createElement(Card, {
+      style: cardStyle
+    }, /*#__PURE__*/React.createElement(SectionTitle, {
+      style: {
+        marginBottom: 10
+      }
+    }, "Source performance"), bySource.map(s => /*#__PURE__*/React.createElement("div", {
+      key: s.src,
+      style: {
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: 12,
+        marginBottom: 3
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        color: T.text
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: dealSourceIcon(s.src),
+      size: 12,
+      color: T.mutedSoft
+    }), s.src, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.mutedSoft
+      }
+    }, "(", s.count, ")")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted,
+        fontWeight: 600
+      }
+    }, fmtMoney(s.value), s.winRate != null && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: s.winRate >= 50 ? T.greenDark : T.mutedSoft,
+        fontWeight: 500
+      }
+    }, " \xB7 ", s.winRate, "% win"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 8,
+        borderRadius: 5,
+        background: T.fieldBg,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${Math.round(s.value / maxSourceVal * 100)}%`,
+        background: T.primary,
+        borderRadius: 5
+      }
+    }))))), /*#__PURE__*/React.createElement(Card, {
+      style: cardStyle
+    }, /*#__PURE__*/React.createElement(SectionTitle, {
+      style: {
+        marginBottom: 10
+      }
+    }, "Owner performance"), byOwner.map(o => /*#__PURE__*/React.createElement("div", {
+      key: o.staff.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '7px 0',
+        borderTop: `1px solid ${T.border}`
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: o.staff.name,
+      size: 26
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, o.staff.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.muted
+      }
+    }, o.open, " open \xB7 ", o.count, " total")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, fmtMoney(o.wonValue)), o.winRate != null && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: o.winRate >= 50 ? T.greenDark : T.mutedSoft
+      }
+    }, o.winRate, "% win"))))), /*#__PURE__*/React.createElement(Card, {
+      style: cardStyle
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement(SectionTitle, null, "Stale deals"), /*#__PURE__*/React.createElement(Pill, {
+      color: stale.length ? 'amber' : 'green'
+    }, stale.length)), stale.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No stale deals \u2014 everything has recent activity.") : stale.slice(0, 6).map(d => /*#__PURE__*/React.createElement("button", {
+      key: d.id,
+      onClick: () => setOpenId(d.id),
+      style: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '7px 0',
+        borderTop: `1px solid ${T.border}`,
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        textAlign: 'left'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        fontSize: 12.5,
+        color: T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, d.title), /*#__PURE__*/React.createElement(Pill, {
+      color: dealStageMeta(d.stage).color
+    }, dealStageMeta(d.stage).label))), stale.length > 6 && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginTop: 6
+      }
+    }, "+", stale.length - 6, " more")), /*#__PURE__*/React.createElement(Card, {
+      style: cardStyle
+    }, /*#__PURE__*/React.createElement(SectionTitle, {
+      style: {
+        marginBottom: 10
+      }
+    }, "Lost reasons"), lostRows.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No lost deals yet.") : lostRows.map(([label, n]) => /*#__PURE__*/React.createElement("div", {
+      key: label,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 0',
+        borderTop: `1px solid ${T.border}`,
+        fontSize: 12.5
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: label === 'Unspecified' ? T.mutedSoft : T.text
+      }
+    }, label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted,
+        fontWeight: 600
+      }
+    }, n)))));
+  })();
   return /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -75964,7 +77887,98 @@ const DealsPage = ({
       setEditDeal(null);
       setAddOpen(true);
     }
-  }, "New deal"))), kpiStrip, /*#__PURE__*/React.createElement("div", {
+  }, "New deal"))), (() => {
+    const slDeals = deals.filter(d => d.source === 'Sole link');
+    const thisMonth = slDeals.filter(d => {
+      const diff = (DEALS_TODAY - new Date(d.createdAt)) / 86400000;
+      return diff >= -1 && diff <= 31;
+    }).length;
+    const last = slDeals.map(d => d.createdAt).sort().slice(-1)[0];
+    return /*#__PURE__*/React.createElement(Card, {
+      style: {
+        padding: '10px 14px',
+        marginBottom: 14,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "link",
+      size: 15,
+      color: T.primary
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, "Sole Link"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: 11.5,
+        color: T.greenDark,
+        background: T.greenSoft,
+        border: '1px solid #A7F3D0',
+        borderRadius: 999,
+        padding: '2px 8px'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: T.green
+      }
+    }), "Connected")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: T.muted
+      }
+    }, "Booking page ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.primary,
+        fontWeight: 500
+      }
+    }, "sole.link/your-practice")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 1,
+        height: 18,
+        background: T.border
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: T.muted
+      }
+    }, /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: T.text
+      }
+    }, thisMonth), " lead", thisMonth === 1 ? '' : 's', " auto-created this month"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: T.muted
+      }
+    }, "Last booking ", last ? daysAgo(last) : '—'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "sm",
+      icon: "calendar",
+      onClick: simulateSoleLinkBooking
+    }, "Simulate new booking"));
+  })(), kpiStrip, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -75981,8 +77995,11 @@ const DealsPage = ({
     }, {
       value: 'list',
       label: 'Table list'
+    }, {
+      value: 'reports',
+      label: 'Reports'
     }]
-  }), view === 'board' && /*#__PURE__*/React.createElement("span", {
+  }), view !== 'reports' && /*#__PURE__*/React.createElement(Fragment, null, view === 'board' && /*#__PURE__*/React.createElement("span", {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -76060,6 +78077,17 @@ const DealsPage = ({
     key: p.id,
     value: p.id
   }, p.label))), /*#__PURE__*/React.createElement(Select, {
+    value: sourceFilter,
+    onChange: e => setSourceFilter(e.target.value),
+    style: {
+      width: 130
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All sources"), DEAL_SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s))), /*#__PURE__*/React.createElement(Select, {
     value: statusFilter,
     onChange: e => setStatusFilter(e.target.value),
     style: {
@@ -76089,17 +78117,74 @@ const DealsPage = ({
     value: "close"
   }, "Projected close"), /*#__PURE__*/React.createElement("option", {
     value: "activity"
-  }, "Next task"))), view === 'board' ? board : list, /*#__PURE__*/React.createElement(NewDealModal, {
+  }, "Next task")))), view === 'board' ? board : view === 'list' ? list : reports, /*#__PURE__*/React.createElement(NewDealModal, {
     open: addOpen,
     onClose: closeModal,
     onSave: saveDeal,
     deal: editDeal
-  }), openDeal && /*#__PURE__*/React.createElement(DealDrawer, {
+  }), /*#__PURE__*/React.createElement(LostReasonModal, {
+    open: !!lostModalDeal,
+    deal: lostModalDeal,
+    onCancel: () => setLostModalDeal(null),
+    onConfirm: confirmLost
+  }), /*#__PURE__*/React.createElement(WonHandoffModal, {
+    open: !!wonModalDeal,
+    deal: wonModalDeal,
+    onCancel: () => setWonModalDeal(null),
+    onConfirm: confirmWon
+  }), dupModal && /*#__PURE__*/React.createElement(Modal, {
+    open: true,
+    onClose: () => setDupModal(null),
+    title: "Possible duplicate deal",
+    width: 460
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 14
+    }
+  }, "A deal for ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: T.text
+    }
+  }, dealCompany(dupModal.existing)), " already exists in ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: T.text
+    }
+  }, dealStageMeta(dupModal.existing.stage).label), " \u2014 \u201C", dupModal.existing.title, "\u201D (", fmtMoney(dupModal.existing.value), "). Create another anyway?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setDupModal(null)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    icon: "eye",
+    onClick: () => {
+      const ex = dupModal.existing;
+      setDupModal(null);
+      setOpenId(ex.id);
+    }
+  }, "View existing"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    onClick: () => {
+      const f = dupModal.form;
+      setDupModal(null);
+      createDeal(f);
+    }
+  }, "Create anyway"))), openDeal && /*#__PURE__*/React.createElement(DealDrawer, {
     deal: openDeal,
     onClose: () => setOpenId(null),
-    onMoveStage: stage => moveStage(openDeal.id, stage),
+    onMoveStage: stage => requestStage(openDeal.id, stage),
+    onStartOnboarding: startOnboarding,
     onAddActivity: (act, na) => addActivity(openDeal.id, act, na),
-    onUpdateNotes: updateNotes,
+    onAddNote: addNote,
+    onEditNote: editNote,
+    onDeleteNote: deleteNote,
+    onAddContact: addContact,
+    onRemoveContact: removeContact,
+    onSetPrimaryContact: setPrimaryContact,
     onAddDoc: addDoc,
     onDelete: deleteDeal,
     onEdit: d => {
@@ -76113,6 +78198,9 @@ const DealsPage = ({
     onAddTask: addTask,
     onToggleTask: toggleTask,
     onRemoveTask: removeTask,
+    onAddMeeting: addMeeting,
+    onUpdateMeetingStatus: updateMeetingStatus,
+    onProposalAction: proposalAction,
     onOpenCompany: setOpenCompanyId,
     onOpenOwner: setOpenStaffId,
     onOpenProposal: setOpenProposal,
