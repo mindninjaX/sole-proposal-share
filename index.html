@@ -2714,11 +2714,17 @@ const avatarColorOf = str => {
 const Avatar = ({
   name,
   size = 32,
+  src,
   style
 }) => {
   const initial = (name || '?').trim().charAt(0).toUpperCase() || '?';
+  // Real photo when `src` is given; the initials sit underneath and show through if the
+  // image fails to load (offline / 404) — onError hides the <img> so a blocked request never
+  // leaves a broken-image icon. `overflow:hidden` clips the photo to the avatar's shape.
   return /*#__PURE__*/React.createElement("div", {
     style: {
+      position: 'relative',
+      overflow: 'hidden',
       width: size,
       height: size,
       borderRadius: '50%',
@@ -2732,7 +2738,21 @@ const Avatar = ({
       flexShrink: 0,
       ...style
     }
-  }, initial);
+  }, initial, src && /*#__PURE__*/React.createElement("img", {
+    src: src,
+    alt: "",
+    loading: "lazy",
+    onError: e => {
+      e.currentTarget.style.display = 'none';
+    },
+    style: {
+      position: 'absolute',
+      inset: 0,
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover'
+    }
+  }));
 };
 
 // --- proposal status pill colors (single source of truth) ---
@@ -32531,42 +32551,50 @@ const PAYRUN_STATUS = {
 // payrun rolls up several clients. Pay slips link back to a client
 // (the legal employer) plus an employee (the worker).
 // =================================================================
+// `domain`: used to fetch a real logo via Clearbit (ClientMark falls back to the coloured monogram
+// when the domain has no logo / is offline). Fictional orgs mostly show the monogram — that's expected.
 const PRACTICE_CLIENTS = [{
   id: 'c-solepay',
   name: 'Solepay Pty Ltd',
   abn: '12 345 678 901',
   industry: 'SaaS',
-  color: 'accent'
+  color: 'accent',
+  domain: 'solepay.com'
 }, {
   id: 'c-northcoast',
   name: 'North Coast Partners',
   abn: '88 192 045 332',
   industry: 'Advisory',
-  color: 'blue'
+  color: 'blue',
+  domain: 'northcoastpartners.com.au'
 }, {
   id: 'c-bondi',
   name: 'Bondi Mowing Co',
   abn: '54 218 902 117',
   industry: 'Trades',
-  color: 'green'
+  color: 'green',
+  domain: 'bondimowing.com.au'
 }, {
   id: 'c-greenleaf',
   name: 'Greenleaf Holdings Trust',
   abn: '21 003 882 715',
   industry: 'Trust',
-  color: 'amber'
+  color: 'amber',
+  domain: 'greenleafholdings.com.au'
 }, {
   id: 'c-marlow',
   name: 'Marlow & Sons',
   abn: '17 802 651 904',
   industry: 'Construction',
-  color: 'red'
+  color: 'red',
+  domain: 'marlowandsons.com.au'
 }, {
   id: 'c-acme',
   name: 'Acme Super Fund',
   abn: '92 511 408 226',
   industry: 'SMSF',
-  color: 'neutral'
+  color: 'neutral',
+  domain: 'acmesuper.com.au'
 }, {
   id: 'c-kim',
   name: 'Kim Tran (Sole Trader)',
@@ -40723,8 +40751,14 @@ const ClientMark = ({
     bg: T.fieldBg,
     fg: T.muted
   };
+  // Real logo via Clearbit when the client has a `domain`; the coloured monogram shows underneath
+  // and remains if the logo 404s / is offline (onError hides the <img>). White bg behind the logo
+  // so transparent marks read cleanly on the tinted square.
+  const logo = client.domain ? `https://logo.clearbit.com/${client.domain}` : null;
   return /*#__PURE__*/React.createElement("div", {
     style: {
+      position: 'relative',
+      overflow: 'hidden',
       width: size,
       height: size,
       borderRadius: 6,
@@ -40738,7 +40772,22 @@ const ClientMark = ({
       letterSpacing: -0.5,
       flexShrink: 0
     }
-  }, (client.name || '?').trim().charAt(0).toUpperCase());
+  }, (client.name || '?').trim().charAt(0).toUpperCase(), logo && /*#__PURE__*/React.createElement("img", {
+    src: logo,
+    alt: "",
+    loading: "lazy",
+    onError: e => {
+      e.currentTarget.style.display = 'none';
+    },
+    style: {
+      position: 'absolute',
+      inset: 0,
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      background: '#fff'
+    }
+  }));
 };
 
 // One row in the Clients rail. Subtle hover, soft selected state, single
@@ -68888,6 +68937,9 @@ const SPM_STAGE_PROB = {
   'Signed': 100
 };
 const SPM_SERVICES = ['All', 'Tax compliance', 'Bookkeeping', 'Advisory', 'Payroll', 'BAS/GST', 'Client onboarding'];
+
+// `photo`: deterministic real headshot from pravatar (demo only). Avatar falls back to the
+// `initials` monogram if the image is blocked/offline. Swap for real uploads when wiring the backend.
 const SPM_STAFF = [{
   id: 's1',
   name: 'Sarah Mitchell',
@@ -68899,7 +68951,8 @@ const SPM_STAFF = [{
   committed: 31,
   nonbill: 7,
   cost: 150,
-  rate: 245
+  rate: 245,
+  photo: 'https://i.pravatar.cc/120?img=47'
 }, {
   id: 's2',
   name: 'Alex Chen',
@@ -68911,7 +68964,8 @@ const SPM_STAFF = [{
   committed: 25,
   nonbill: 8,
   cost: 95,
-  rate: 165
+  rate: 165,
+  photo: 'https://i.pravatar.cc/120?img=12'
 }, {
   id: 's3',
   name: 'Jordan Lee',
@@ -68923,7 +68977,8 @@ const SPM_STAFF = [{
   committed: 36,
   nonbill: 5,
   cost: 145,
-  rate: 235
+  rate: 235,
+  photo: 'https://i.pravatar.cc/120?img=33'
 }, {
   id: 's4',
   name: 'Taylor Brown',
@@ -68935,7 +68990,8 @@ const SPM_STAFF = [{
   committed: 24,
   nonbill: 6,
   cost: 110,
-  rate: 185
+  rate: 185,
+  photo: 'https://i.pravatar.cc/120?img=15'
 }, {
   id: 's5',
   name: 'Morgan Davis',
@@ -68947,7 +69003,8 @@ const SPM_STAFF = [{
   committed: 28,
   nonbill: 9,
   cost: 180,
-  rate: 310
+  rate: 310,
+  photo: 'https://i.pravatar.cc/120?img=68'
 }, {
   id: 's6',
   name: 'Priya Nair',
@@ -68959,9 +69016,20 @@ const SPM_STAFF = [{
   committed: 19,
   nonbill: 7,
   cost: 125,
-  rate: 205
+  rate: 205,
+  photo: 'https://i.pravatar.cc/120?img=44'
 }];
 const spmStaffBy = id => SPM_STAFF.find(s => s.id === id);
+
+// Sole Link booking handles. In production the Sole Link is a calendar booking link placed on the
+// practice's website; a booking auto-creates an inquiry in the pipeline. There are two kinds of link:
+// a practice-wide sales calendar (sales@accountantsdirect.com → sole.link/your-practice) and a
+// per-staff calendar each staff member gets when onboarded. SPM_STAFF has no `handle`, so derive a
+// deterministic one from the name (e.g. sole.link/sarah-mitchell). A null staff → the shared team link.
+const SOLE_LINK_BASE = 'sole.link';
+const staffHandle = s => s && s.name ? s.name.toLowerCase().replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '') : 'team';
+const practiceBookingUrl = `${SOLE_LINK_BASE}/your-practice`;
+const staffBookingUrl = s => `${SOLE_LINK_BASE}/${staffHandle(s)}`;
 
 // Deals — open opportunities in the pipeline. `prob` is derived from the
 // stage; `override` lets a partner manually pin a different likelihood.
@@ -71799,8 +71867,28 @@ const STAGE_MIGRATION = {
 const migrateStage = id => STAGE_MIGRATION[id] || id;
 const dealStageMeta = id => DEAL_STAGES.find(s => s.id === migrateStage(id)) || DEAL_STAGES[0];
 const dealStageIndex = id => Math.max(0, DEAL_STAGES.findIndex(s => s.id === migrateStage(id)));
-const dealStageProb = id => dealStageMeta(id).prob;
+// Mutable per-stage standard win % — the default likelihood a deal inherits at each stage. Seeded from
+// DEAL_STAGES[].prob, editable in the deal Settings modal. The live forecast and every "inherited" card
+// (deal.likelihood == null) read through this, so editing a standard updates them in place. A deal with
+// its own numeric `likelihood` overrides the standard; setting it back to null re-inherits.
+const STAGE_STANDARDS = {};
+DEAL_STAGES.forEach(s => {
+  STAGE_STANDARDS[s.id] = s.prob;
+});
+const dealStageProb = id => {
+  const s = dealStageMeta(id);
+  return STAGE_STANDARDS[s.id] != null ? STAGE_STANDARDS[s.id] : s.prob;
+};
 const dealIsOpen = d => d.stage !== 'won' && d.stage !== 'lost';
+// Next pipeline stage for the "Move to next stage" ⋯ action (F): advances one step, lands on Won after
+// Proposal Accepted, and returns null on terminal stages (so the action hides). Lost is never "next".
+const nextStageOf = id => {
+  const i = dealStageIndex(id);
+  const cur = DEAL_STAGES[i];
+  if (!cur || cur.id === 'won' || cur.id === 'lost') return null;
+  const nx = DEAL_STAGES[i + 1];
+  return nx && nx.id !== 'lost' ? nx.id : null;
+};
 const stageBarColor = color => ({
   neutral: T.mutedSoft,
   blue: T.blue,
@@ -71809,6 +71897,13 @@ const stageBarColor = color => ({
   green: T.green,
   red: T.red
 })[color] || T.mutedSoft;
+
+// Per-stage forecast TARGET override (pending Joe's confirmation, 2026-06). When a practice pins a
+// manual $ target on a Kanban stage column it overrides the computed probability-weighted roll-up in
+// that column header only (shown as "Target" in amber, with the computed value kept visible beneath).
+// The computed value remains the default when no target is set. Flip this flag to false to fully hide
+// the feature until the stored-vs-computed question is settled with Joe.
+const FORECAST_TARGETS_ENABLED = true;
 const DEAL_PRIORITIES = [{
   id: 'high',
   label: 'High',
@@ -72587,7 +72682,17 @@ const SOLE_LINK_PROSPECTS = [{
 // in-app deals pick these up from the modal / sensible defaults.
 PIPELINE_DEALS.forEach((d, i) => {
   d.stage = migrateStage(d.stage); // normalise pre-rename ids (F-05)
-  if (d.likelihood == null) d.likelihood = dealStageProb(d.stage);
+  // Likelihood: leave null = "inherit the stage standard" (auto-follows the stage when the card moves).
+  // A handful of seed deals get an explicit override that differs from their stage standard, so the
+  // "custom" badge demos out of the box; everything else inherits.
+  if (d.likelihood == null) {
+    const ov = {
+      2: 35,
+      5: 80,
+      8: 60
+    }[i];
+    if (ov != null) d.likelihood = ov;
+  }
   if (d.estHours == null) d.estHours = 40 + i * 17 % 9 * 10; // 40–120h
   if (!d.workWindow) d.workWindow = DEAL_WORK_WINDOWS[i % DEAL_WORK_WINDOWS.length];
   if (!d.firmSize) d.firmSize = DEAL_FIRM_SIZES[i * 3 % DEAL_FIRM_SIZES.length];
@@ -72669,7 +72774,7 @@ PIPELINE_DEALS.forEach((d, i) => {
       d.meetings = [{
         id: `${d.id}-m0`,
         type: 'discovery',
-        soleLinkUrl: `sole.link/${d.ownerId || 'team'}`,
+        soleLinkUrl: staffBookingUrl(spmStaffBy(d.ownerId)),
         when: w.toISOString(),
         attendees: [d.contact && d.contact.name, (spmStaffBy(d.ownerId) || {}).name].filter(Boolean),
         status: w < DEALS_TODAY ? 'completed' : 'scheduled',
@@ -72693,6 +72798,27 @@ const checklistDone = d => {
 const dealOpenTasks = d => (d.tasks || []).filter(t => !t.done);
 const dealNextTask = d => dealOpenTasks(d).slice().sort((a, b) => new Date(a.due || '2999-01-01') - new Date(b.due || '2999-01-01'))[0] || null;
 const taskOverdue = t => t && t.due && new Date(t.due) < DEALS_TODAY;
+// Next-action urgency drives the card's left border (mirrors the Table "Next action due" column):
+// overdue = due before today, soon = within 3 days, ontrack = later, none = no open task/meeting.
+const dealUrgency = d => {
+  const t = dealNextTask(d);
+  if (!t || !t.due) return 'none';
+  if (taskOverdue(t)) return 'overdue';
+  if (taskDueSoon(t)) return 'soon';
+  return 'ontrack';
+};
+const dealUrgencyColor = u => ({
+  overdue: T.red,
+  soon: T.amber,
+  ontrack: T.green,
+  none: T.border
+})[u] || T.border;
+const dealUrgencyLabel = u => ({
+  overdue: 'Next action overdue',
+  soon: 'Next action due soon',
+  ontrack: 'Next action on track',
+  none: 'No next action set'
+})[u] || '';
 
 // Cross-module links for the Staff drawer.
 const staffDeals = (staffId, deals) => deals.filter(d => d.ownerId === staffId);
@@ -72895,7 +73021,8 @@ const OwnerChip = ({
     }
   }, /*#__PURE__*/React.createElement(Avatar, {
     name: staff.name,
-    size: size
+    size: size,
+    src: staff.photo
   }), showName && /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12,
@@ -73273,10 +73400,13 @@ const DealCard = ({
   dragging,
   onOpenCompany,
   onOpenOwner,
-  onQuick
+  onQuick,
+  onUpdateDeal
 }) => {
   const [hover, setHover] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [likeEdit, setLikeEdit] = useState(false); // inline win-likelihood override popover
+  const [likeDraft, setLikeDraft] = useState('');
   const owner = dealOwner(deal);
   const org = dealOrg(deal);
   const mark = dealOrgMark(deal);
@@ -73288,13 +73418,23 @@ const DealCard = ({
   const overdue = taskOverdue(nextTask);
   const nextMeeting = dealNextMeeting(deal);
   const pct = dealLikelihood(deal);
+  const isCustom = deal.likelihood != null; // overridden vs inheriting the stage standard
+  const urgency = won || lost ? null : dealUrgency(deal); // drives the left border
+  const borderColor = won ? T.green : lost ? T.mutedSoft : dealUrgencyColor(urgency);
+  const commitLike = val => {
+    if (onUpdateDeal) onUpdateDeal(deal.id, {
+      likelihood: val === '' || val == null || isNaN(+val) ? null : Math.max(0, Math.min(100, Math.round(+val)))
+    });
+    setLikeEdit(false);
+  };
   return /*#__PURE__*/React.createElement("div", {
-    draggable: !menu,
+    draggable: !menu && !likeEdit,
     onDragStart: e => onDragStart(e, deal),
     onDragEnd: onDragEnd,
     onClick: () => onOpen(deal.id),
     onMouseEnter: () => setHover(true),
     onMouseLeave: () => setHover(false),
+    title: urgency ? dealUrgencyLabel(urgency) : undefined,
     style: {
       position: 'relative',
       background: T.card,
@@ -73307,7 +73447,7 @@ const DealCard = ({
       transition: 'box-shadow .12s',
       boxShadow: hover && !dragging ? '0 4px 12px rgba(15,17,23,0.10)' : '0 1px 2px rgba(15,17,23,0.04)',
       opacity: dragging ? 0.4 : lost ? 0.72 : 1,
-      borderLeft: `3px solid ${won ? T.green : lost ? T.mutedSoft : stageBarColor(dealPriorityMeta(deal.priority).color)}`
+      borderLeft: `3px solid ${borderColor}`
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -73379,7 +73519,13 @@ const DealCard = ({
       setMenu(false);
       onQuick('edit', deal);
     }
-  }, "Edit"), dealIsOpen(deal) ? /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(MenuItem, {
+  }, "Edit"), dealIsOpen(deal) && nextStageOf(deal.stage) && /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "chevronRight",
+    onClick: () => {
+      setMenu(false);
+      onQuick('next', deal);
+    }
+  }, "Move to next stage"), dealIsOpen(deal) ? /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(MenuItem, {
     icon: "check",
     onClick: () => {
       setMenu(false);
@@ -73471,26 +73617,133 @@ const DealCard = ({
   }), meetingTypeLabel(nextMeeting.type), " \xB7 ", fmtDate(new Date(nextMeeting.when))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      flexWrap: 'wrap'
+      alignItems: 'baseline',
+      gap: 8
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: 700,
-      color: T.textSoft
+      color: T.text
     }
-  }, fmtMoney(deal.value)), /*#__PURE__*/React.createElement(LikelihoodBar, {
-    pct: pct,
-    width: 46
-  }), /*#__PURE__*/React.createElement("span", {
+  }, fmtMoney(deal.value)), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
       color: T.mutedSoft,
       marginLeft: 'auto'
     }
-  }, daysAgo(deal.createdAt))), /*#__PURE__*/React.createElement("div", {
+  }, daysAgo(deal.createdAt))), !lost && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: e => {
+      e.stopPropagation();
+      setLikeDraft(isCustom ? String(Math.round(pct)) : '');
+      setLikeEdit(o => !o);
+    },
+    title: "Set win likelihood",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '5px 8px',
+      borderRadius: 7,
+      background: T.fieldBg,
+      border: `1px solid ${likeEdit ? T.primary : T.border}`,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3
+    }
+  }, "Win"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement(HoverableProgressBar, {
+    pct: Math.round(pct),
+    color: likelihoodColor(pct),
+    height: 6,
+    tooltip: `${Math.round(pct)}% likely to win`
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: likelihoodColor(pct)
+    }
+  }, Math.round(pct), "%"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9.5,
+      fontWeight: 600,
+      padding: '1px 6px',
+      borderRadius: 999,
+      whiteSpace: 'nowrap',
+      ...(isCustom ? {
+        background: T.amberSoft,
+        color: T.amber,
+        border: '1px solid #FCD34D'
+      } : {
+        background: T.card,
+        color: T.mutedSoft,
+        border: `1px solid ${T.border}`
+      })
+    }
+  }, isCustom ? 'custom' : 'standard')), /*#__PURE__*/React.createElement(Popover, {
+    open: likeEdit,
+    onClose: () => setLikeEdit(false),
+    width: 208,
+    anchorAlign: "left"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 12
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement(Label, null, "Win likelihood"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "0",
+    max: "100",
+    autoFocus: true,
+    value: likeDraft,
+    onChange: e => setLikeDraft(e.target.value),
+    onKeyDown: e => {
+      if (e.key === 'Enter') commitLike(likeDraft);
+      if (e.key === 'Escape') setLikeEdit(false);
+    },
+    placeholder: `Standard ${Math.round(dealStageProb(deal.stage))}%`,
+    style: {
+      width: '100%',
+      padding: '7px 10px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      fontSize: 13,
+      marginTop: 6,
+      boxSizing: 'border-box'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    size: "sm",
+    variant: "primary",
+    icon: "check",
+    onClick: () => commitLike(likeDraft)
+  }, "Save"), isCustom && /*#__PURE__*/React.createElement(Btn, {
+    size: "sm",
+    variant: "ghost",
+    onClick: () => commitLike('')
+  }, "Use standard")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 8
+    }
+  }, "Blank or \u201CUse standard\u201D follows the stage standard (", Math.round(dealStageProb(deal.stage)), "%).")))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -73501,13 +73754,36 @@ const DealCard = ({
     client: mark,
     onOpen: org ? onOpenCompany : undefined,
     style: {
-      flex: 1
+      flex: 1,
+      minWidth: 0
     }
-  }), /*#__PURE__*/React.createElement(OwnerChip, {
-    staff: owner,
-    onOpen: onOpenOwner,
-    showName: false
-  })), /*#__PURE__*/React.createElement("div", {
+  }), owner && /*#__PURE__*/React.createElement("span", {
+    onClick: e => {
+      e.stopPropagation();
+      onOpenOwner && onOpenOwner(owner.id);
+    },
+    title: `Open ${owner.name}`,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      flexShrink: 0,
+      maxWidth: 120,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: owner.name,
+    size: 20,
+    src: owner.photo
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.textSoft,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, owner.name))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -73520,9 +73796,6 @@ const DealCard = ({
   }), /*#__PURE__*/React.createElement(CardMeta, {
     icon: "calendar",
     text: deal.workWindow
-  }), /*#__PURE__*/React.createElement(CardMeta, {
-    icon: "users",
-    text: deal.firmSize
   })), (cl.total > 0 || nextTask || props.length > 0) && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -73601,9 +73874,10 @@ const NewDealModal = ({
     email: '',
     phone: '',
     title: '',
-    stage: 'new-lead',
+    stage: 'discovery-done',
     ownerId: SPM_STAFF[0].id,
     service: SPM_SERVICES[1],
+    // manual deals: the accountant already has the data (Jun-2). Sole-Link bookings stay New Enquiry.
     value: '',
     expectedClose: '',
     priority: 'medium',
@@ -73894,7 +74168,7 @@ const NewDealModal = ({
   }, DEAL_WORK_WINDOWS.map(w => /*#__PURE__*/React.createElement("option", {
     key: w,
     value: w
-  }, w)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Firm size"), /*#__PURE__*/React.createElement(Select, {
+  }, w)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Company size"), /*#__PURE__*/React.createElement(Select, {
     value: form.firmSize,
     onChange: e => upd({
       firmSize: e.target.value
@@ -74737,7 +75011,17 @@ const DealDrawer = ({
     style: {
       marginBottom: 4
     }
-  }, "Properties"), /*#__PURE__*/React.createElement(PropRow, {
+  }, "Properties"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 8,
+      marginBottom: 2
+    }
+  }, "Ownership & priority"), /*#__PURE__*/React.createElement(PropRow, {
     label: "Owner"
   }, /*#__PURE__*/React.createElement(Select, {
     value: deal.ownerId,
@@ -74793,7 +75077,39 @@ const DealDrawer = ({
       width: 38,
       textAlign: 'right'
     }
-  }, Math.round(pct), "%"))), /*#__PURE__*/React.createElement(PropRow, {
+  }, Math.round(pct), "%"), deal.likelihood != null ? /*#__PURE__*/React.createElement("button", {
+    onClick: () => upd({
+      likelihood: null
+    }),
+    title: `Use the stage standard (${Math.round(dealStageProb(deal.stage))}%)`,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.primary,
+      fontSize: 11,
+      fontWeight: 600,
+      cursor: 'pointer',
+      whiteSpace: 'nowrap',
+      padding: 0
+    }
+  }, "Use standard") : /*#__PURE__*/React.createElement("span", {
+    title: "Following the stage standard",
+    style: {
+      fontSize: 10.5,
+      color: T.mutedSoft,
+      whiteSpace: 'nowrap'
+    }
+  }, "standard"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 14,
+      marginBottom: 2
+    }
+  }, "Commercials"), /*#__PURE__*/React.createElement(PropRow, {
     label: "Value"
   }, /*#__PURE__*/React.createElement(Input, {
     type: "number",
@@ -74830,8 +75146,18 @@ const DealDrawer = ({
   }, workWindowOpts.map(w => /*#__PURE__*/React.createElement("option", {
     key: w,
     value: w
-  }, w)))), /*#__PURE__*/React.createElement(PropRow, {
-    label: "Firm size"
+  }, w)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 14,
+      marginBottom: 2
+    }
+  }, "Classification"), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Company size"
   }, /*#__PURE__*/React.createElement(Select, {
     value: deal.firmSize,
     onChange: e => upd({
@@ -74869,7 +75195,17 @@ const DealDrawer = ({
   }, SPM_SERVICES.filter(s => s !== 'All').map(s => /*#__PURE__*/React.createElement("option", {
     key: s,
     value: s
-  }, s)))), /*#__PURE__*/React.createElement(PropRow, {
+  }, s)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 14,
+      marginBottom: 2
+    }
+  }, "Timeline"), /*#__PURE__*/React.createElement(PropRow, {
     label: "Projected close"
   }, /*#__PURE__*/React.createElement(Input, {
     type: "date",
@@ -76381,6 +76717,7 @@ const DealsPage = ({
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all'); // F-09 lead-source filter
+  const [filtersOpen, setFiltersOpen] = useState(false); // D — collapse the filter cluster into one popover
   const [sort, setSort] = useState('recent');
   const [dragId, setDragId] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
@@ -76396,6 +76733,34 @@ const DealsPage = ({
   const [wonModalDeal, setWonModalDeal] = useState(null); // F-03 onboarding handover
   const [soleLinkSeq, setSoleLinkSeq] = useState(0); // F-01 demo booking cursor
   const [dupModal, setDupModal] = useState(null); // F-07 duplicate-deal warning
+  // Per-stage forecast TARGET override (B) — manual $ target per stage; computed roll-up stays default.
+  const [stageTargets, setStageTargets] = useState({}); // { [stageId]: number }
+  const [targetEditKey, setTargetEditKey] = useState(null); // stageId whose target popover is open
+  const [targetDraft, setTargetDraft] = useState(''); // controlled value of the open target editor
+  // Sole Link card UI state (A).
+  const [soleLinkOpen, setSoleLinkOpen] = useState(false); // expand the per-staff booking-link list
+  // Deal Settings modal (H) — manages the configurable bits the client wanted out of the board:
+  // per-stage standard likelihoods (drive the forecast), the default next-action window, and the
+  // editable Sole Link sales-calendar booking info. `settingsVersion` bumps on save so every
+  // dealLikelihood() read (cards, column forecast, KPIs) recomputes against the new STAGE_STANDARDS.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsVersion, setSettingsVersion] = useState(0);
+  const [stageStdDraft, setStageStdDraft] = useState(() => ({
+    ...STAGE_STANDARDS
+  }));
+  const [defaultNextActionDays, setDefaultNextActionDays] = useState(5);
+  const [bookingInfo, setBookingInfo] = useState({
+    url: practiceBookingUrl,
+    email: 'sales@accountantsdirect.com'
+  });
+  // Commit edited standards into the module-scope map + force dependents to recompute.
+  const commitStageStandards = () => {
+    DEAL_STAGES.forEach(s => {
+      const v = stageStdDraft[s.id];
+      if (v !== '' && v != null && !isNaN(+v)) STAGE_STANDARDS[s.id] = Math.max(0, Math.min(100, Math.round(+v)));
+    });
+    setSettingsVersion(v => v + 1);
+  };
 
   // Snapshot-based undo (F-04): capture the WHOLE prior deal so Undo reverts stage
   // + the appended activity + any tasks/onboarding/lostReason — not just one field.
@@ -76531,6 +76896,8 @@ const DealsPage = ({
   // activity entries showing the booking. Opens the new deal so the path is visible.
   const simulateSoleLinkBooking = () => {
     const p = SOLE_LINK_PROSPECTS[soleLinkSeq % SOLE_LINK_PROSPECTS.length];
+    // Only the practice SALES calendar creates pipeline inquiries — per-staff calendars are for client/
+    // project calls in the customer portal, not deal capture (Jun-2). Round-robin a staff owner for the demo.
     const owner = SPM_STAFF[soleLinkSeq % SPM_STAFF.length];
     setSoleLinkSeq(soleLinkSeq + 1);
     const maxN = deals.reduce((m, d) => Math.max(m, parseInt((d.id.match(/\d+/) || ['0'])[0], 10) || 0), 0);
@@ -76544,7 +76911,7 @@ const DealsPage = ({
     const meeting = {
       id: `${id}-m0`,
       type: 'discovery',
-      soleLinkUrl: `sole.link/${owner.id}`,
+      soleLinkUrl: bookingInfo.url,
       when: when.toISOString(),
       attendees: [p.name, owner.name],
       status: 'scheduled',
@@ -76572,13 +76939,13 @@ const DealsPage = ({
       },
       ownerId: owner.id,
       service: p.service,
-      value: p.value,
+      value: 0,
       stage: 'new-lead',
       priority: 'medium',
       expectedClose: '',
       createdAt: nowIso.slice(0, 10),
       source: 'Sole link',
-      likelihood: dealStageProb('new-lead'),
+      likelihood: null,
       estHours: 40,
       workWindow: DEAL_WORK_WINDOWS[1],
       firmSize: DEAL_FIRM_SIZES[0],
@@ -76618,7 +76985,7 @@ const DealsPage = ({
     setDeals(prev => [deal, ...prev]);
     setOpenId(id);
     fireToast({
-      message: `New lead from Sole Link — ${p.name}`,
+      message: `New inquiry from Sole Link — ${p.name} · sales calendar`,
       action: {
         label: 'Undo',
         onClick: () => {
@@ -76709,6 +77076,15 @@ const DealsPage = ({
     ...d,
     ...patch
   } : d));
+
+  // Per-stage forecast target override (B). Clearing (empty / NaN) deletes the key → reverts to computed.
+  const setStageTarget = (stageId, val) => setStageTargets(prev => {
+    const next = {
+      ...prev
+    };
+    if (val == null || val === '' || isNaN(+val)) delete next[stageId];else next[stageId] = Math.max(0, Math.round(+val));
+    return next;
+  });
   const addActivity = (dealId, act, na) => {
     setDeals(prev => prev.map(d => d.id === dealId ? {
       ...d,
@@ -76903,7 +77279,11 @@ const DealsPage = ({
     if (action === 'edit') {
       setOpenId(null);
       openEdit(deal);
-    } else if (action === 'won') requestStage(deal.id, 'won');else if (action === 'lost') requestStage(deal.id, 'lost');else if (action === 'reopen') moveStage(deal.id, 'proposal-required');else if (action === 'delete') deleteDeal(deal);
+    } else if (action === 'next') {
+      const nx = nextStageOf(deal.stage);
+      if (nx) requestStage(deal.id, nx);
+    } // routes won/lost through their modals
+    else if (action === 'won') requestStage(deal.id, 'won');else if (action === 'lost') requestStage(deal.id, 'lost');else if (action === 'reopen') moveStage(deal.id, 'proposal-required');else if (action === 'delete') deleteDeal(deal);
   };
   const saveDeal = form => {
     if (!form.title.trim()) {
@@ -76974,14 +77354,37 @@ const DealsPage = ({
       phone: form.contact.phone || '',
       primary: true
     }] : [];
+    // Default next action (F): a deal created without a task gets a follow-up `defaultNextActionDays`
+    // out, so it never lands on the board with an empty "Next action due".
+    let tasks = form.tasks || [];
+    let nextActivity = null;
+    if (!tasks.length) {
+      const due = new Date(DEALS_TODAY);
+      due.setDate(due.getDate() + (defaultNextActionDays || 0));
+      const dueStr = due.toISOString().slice(0, 10);
+      tasks = [{
+        id: `${id}-t0`,
+        label: 'Follow up',
+        type: 'task',
+        assigneeId: form.ownerId,
+        priority: 'medium',
+        due: dueStr,
+        done: false
+      }];
+      nextActivity = {
+        type: 'task',
+        label: 'Follow up',
+        due: dueStr
+      };
+    }
     const deal = {
       id,
       ...form,
       contacts,
       title: form.title.trim(),
       createdAt: nowIso.slice(0, 10),
-      nextActivity: null,
-      tasks: form.tasks || [],
+      nextActivity,
+      tasks,
       notesFeed: form.notes ? [{
         id: `n-${id}-0`,
         author: 'You',
@@ -77165,7 +77568,36 @@ const DealsPage = ({
     segments: pipeSegments,
     height: 14,
     formatTip: s => `${s.label}: ${fmtMoney(s.value)}`
-  })));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '5px 16px',
+      marginTop: 10
+    }
+  }, pipeSegments.map(s => /*#__PURE__*/React.createElement("span", {
+    key: s.label,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 9,
+      height: 9,
+      borderRadius: 3,
+      background: s.color,
+      flexShrink: 0
+    }
+  }), s.label, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.text,
+      fontWeight: 600
+    }
+  }, fmtMoney(s.value)))))));
   const board = /*#__PURE__*/React.createElement("div", {
     style: {
       overflowX: 'auto',
@@ -77193,8 +77625,7 @@ const DealsPage = ({
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
-        padding: '8px 4px 10px',
-        borderTop: `2px solid ${stageBarColor(g.color)}`
+        padding: '8px 4px 10px'
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -77227,14 +77658,135 @@ const DealsPage = ({
         textAlign: 'center',
         flexShrink: 0
       }
-    }, colDeals.length)), /*#__PURE__*/React.createElement("div", {
-      title: `Pipeline value ${fmtMoney(total)}`,
-      style: {
-        fontSize: 11.5,
-        color: T.muted,
-        marginTop: 3
-      }
-    }, "Forecast ", fmtMoney(forecast))), /*#__PURE__*/React.createElement("div", {
+    }, colDeals.length)), (() => {
+      // Forecast roll-up (computed) with an optional manual TARGET override (B). Targets only
+      // apply when grouping by stage (g.key is then a stage id); owner/priority cols never show one.
+      const canTarget = FORECAST_TARGETS_ENABLED && groupBy === 'stage';
+      const tgt = canTarget ? stageTargets[g.key] : undefined;
+      const hasTgt = tgt != null;
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 3,
+          position: 'relative'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }
+      }, hasTgt ? /*#__PURE__*/React.createElement("span", {
+        title: `Manual target · computed roll-up ${fmtMoney(forecast)}`,
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: T.amber
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "target",
+        size: 12,
+        color: T.amber
+      }), " Target ", fmtMoney(tgt)) : /*#__PURE__*/React.createElement("span", {
+        title: `Pipeline value ${fmtMoney(total)}`,
+        style: {
+          fontSize: 11.5,
+          color: T.muted
+        }
+      }, "Forecast ", fmtMoney(forecast)), canTarget && /*#__PURE__*/React.createElement("button", {
+        onClick: () => {
+          const open = targetEditKey === g.key;
+          setTargetEditKey(open ? null : g.key);
+          if (!open) setTargetDraft(hasTgt ? String(tgt) : '');
+        },
+        title: hasTgt ? 'Edit forecast target' : 'Set a manual forecast target',
+        style: {
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          padding: 2,
+          lineHeight: 0,
+          color: T.mutedSoft,
+          display: 'inline-flex'
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: hasTgt ? 'edit' : 'plus',
+        size: 11,
+        color: T.mutedSoft
+      }))), hasTgt ? /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10.5,
+          color: T.mutedSoft,
+          marginTop: 1
+        }
+      }, "computed ", fmtMoney(forecast)) : /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          color: T.mutedSoft,
+          marginTop: 1
+        }
+      }, "at standard likelihood"), canTarget && targetEditKey === g.key && /*#__PURE__*/React.createElement(Popover, {
+        open: true,
+        onClose: () => setTargetEditKey(null),
+        anchorAlign: "left",
+        width: 208
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: 12
+        }
+      }, /*#__PURE__*/React.createElement(Label, null, "Forecast target \u2014 ", g.label), /*#__PURE__*/React.createElement("input", {
+        type: "number",
+        min: "0",
+        value: targetDraft,
+        autoFocus: true,
+        onChange: e => setTargetDraft(e.target.value),
+        onKeyDown: e => {
+          if (e.key === 'Enter') {
+            setStageTarget(g.key, targetDraft);
+            setTargetEditKey(null);
+          }
+          if (e.key === 'Escape') setTargetEditKey(null);
+        },
+        placeholder: `Computed ${fmtMoney(forecast)}`,
+        style: {
+          width: '100%',
+          padding: '7px 10px',
+          border: `1px solid ${T.border}`,
+          borderRadius: 8,
+          fontSize: 13,
+          marginTop: 6,
+          boxSizing: 'border-box'
+        }
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 6,
+          marginTop: 10
+        }
+      }, /*#__PURE__*/React.createElement(Btn, {
+        size: "sm",
+        variant: "primary",
+        icon: "check",
+        onClick: () => {
+          setStageTarget(g.key, targetDraft);
+          setTargetEditKey(null);
+        }
+      }, "Save"), hasTgt && /*#__PURE__*/React.createElement(Btn, {
+        size: "sm",
+        variant: "ghost",
+        icon: "close",
+        onClick: () => {
+          setStageTarget(g.key, '');
+          setTargetEditKey(null);
+        }
+      }, "Clear")), /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          marginTop: 8
+        }
+      }, "Overrides the computed roll-up in this column header only."))));
+    })()), /*#__PURE__*/React.createElement("div", {
       onDragOver: e => {
         if (!dragId) return;
         e.preventDefault();
@@ -77275,7 +77827,8 @@ const DealsPage = ({
       onDragEnd: onCardDragEnd,
       onOpenCompany: setOpenCompanyId,
       onOpenOwner: setOpenStaffId,
-      onQuick: onQuick
+      onQuick: onQuick,
+      onUpdateDeal: updateDeal
     })), /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         setEditDeal(null);
@@ -77329,7 +77882,7 @@ const DealsPage = ({
     label: 'Value'
   }, {
     label: 'Next action due',
-    tip: 'When the next open task/follow-up is due. Red = overdue, amber = due within 3 days.'
+    tip: 'The deal’s nearest open task or follow-up. Red = overdue, amber = due within 3 days. New inquiries with no task default to created + 5 days (set in Settings).'
   }].map(h => /*#__PURE__*/React.createElement("th", {
     key: h.label,
     title: h.tip || undefined,
@@ -77345,7 +77898,17 @@ const DealsPage = ({
       textAlign: h.label === 'Value' ? 'right' : 'left',
       cursor: h.tip ? 'help' : 'default'
     }
-  }, h.label)))), /*#__PURE__*/React.createElement("tbody", null, sortDeals(visibleDeals).map((d, idx) => {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, h.label, h.tip && /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 11,
+    color: T.mutedSoft
+  })))))), /*#__PURE__*/React.createElement("tbody", null, sortDeals(visibleDeals).map((d, idx) => {
     const owner = dealOwner(d);
     const org = dealOrg(d);
     const nt = dealNextTask(d);
@@ -77532,59 +78095,72 @@ const DealsPage = ({
         ...cardStyle,
         gridColumn: '1 / -1'
       }
-    }, /*#__PURE__*/React.createElement(SectionTitle, {
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'baseline',
+        justifyContent: 'space-between',
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement(SectionTitle, null, "Conversion funnel"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: T.muted
+      }
+    }, reached[0], " active deal", reached[0] === 1 ? '' : 's')), funnelStages.map((s, i) => /*#__PURE__*/React.createElement("div", {
+      key: s.id,
       style: {
         marginBottom: 10
       }
-    }, "Conversion funnel"), funnelStages.map((s, i) => {
-      const conv = i === 0 ? null : reached[i - 1] ? Math.round(reached[i] / reached[i - 1] * 100) : 0;
-      return /*#__PURE__*/React.createElement("div", {
-        key: s.id,
-        style: {
-          marginBottom: 9
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 12,
-          marginBottom: 3
-        }
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          color: T.text
-        }
-      }, s.label), /*#__PURE__*/React.createElement("span", {
-        style: {
-          color: T.muted,
-          fontWeight: 600
-        }
-      }, reached[i], " deal", reached[i] === 1 ? '' : 's', conv != null && /*#__PURE__*/React.createElement("span", {
-        style: {
-          color: T.mutedSoft,
-          fontWeight: 500
-        }
-      }, " \xB7 ", conv, "% from prev"))), /*#__PURE__*/React.createElement("div", {
-        style: {
-          height: 12,
-          borderRadius: 6,
-          background: T.fieldBg,
-          overflow: 'hidden'
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          height: '100%',
-          width: `${Math.round(reached[i] / maxReached * 100)}%`,
-          background: stageBarColor(s.color),
-          borderRadius: 6,
-          transition: 'width .2s'
-        }
-      })));
-    }), /*#__PURE__*/React.createElement(Helper, {
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
-        marginTop: 4
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        fontSize: 12,
+        marginBottom: 4
       }
-    }, "Open + won deals that have reached each stage (lost excluded). Conversion = stage \xF7 previous stage.")), /*#__PURE__*/React.createElement(Card, {
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        color: T.text
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 8,
+        height: 8,
+        borderRadius: 2,
+        background: stageBarColor(s.color),
+        flexShrink: 0
+      }
+    }), s.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.text,
+        fontWeight: 700,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, reached[i])), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 10,
+        borderRadius: 5,
+        background: T.fieldBg,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${Math.round(reached[i] / maxReached * 100)}%`,
+        background: stageBarColor(s.color),
+        borderRadius: 5,
+        transition: 'width .2s'
+      }
+    })))), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginTop: 6
+      }
+    }, "Open + won deals that have reached each stage (lost excluded).")), /*#__PURE__*/React.createElement(Card, {
       style: cardStyle
     }, /*#__PURE__*/React.createElement(SectionTitle, {
       style: {
@@ -77716,7 +78292,7 @@ const DealsPage = ({
       }
     }, " \xB7 ", s.winRate, "% win"))), /*#__PURE__*/React.createElement("div", {
       style: {
-        height: 8,
+        height: 10,
         borderRadius: 5,
         background: T.fieldBg,
         overflow: 'hidden'
@@ -77730,11 +78306,31 @@ const DealsPage = ({
       }
     }))))), /*#__PURE__*/React.createElement(Card, {
       style: cardStyle
-    }, /*#__PURE__*/React.createElement(SectionTitle, {
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
         marginBottom: 10
       }
-    }, "Owner performance"), byOwner.map(o => /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement(SectionTitle, null, "Owner performance"), /*#__PURE__*/React.createElement("span", {
+      title: "Owner performance is visible to the practice owner only",
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 10.5,
+        color: T.muted,
+        background: T.fieldBg,
+        border: `1px solid ${T.border}`,
+        borderRadius: 999,
+        padding: '1px 8px'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "lock",
+      size: 10,
+      color: T.mutedSoft
+    }), "Practice owner only")), byOwner.map(o => /*#__PURE__*/React.createElement("div", {
       key: o.staff.id,
       style: {
         display: 'flex',
@@ -77745,7 +78341,8 @@ const DealsPage = ({
       }
     }, /*#__PURE__*/React.createElement(Avatar, {
       name: o.staff.name,
-      size: 26
+      size: 26,
+      src: o.staff.photo
     }), /*#__PURE__*/React.createElement("div", {
       style: {
         flex: 1,
@@ -77878,6 +78475,15 @@ const DealsPage = ({
     }
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
+    icon: "sliders",
+    onClick: () => {
+      setStageStdDraft({
+        ...STAGE_STANDARDS
+      });
+      setSettingsOpen(true);
+    }
+  }, "Settings"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
     icon: "download",
     onClick: () => fireToast('Export started')
   }, "Export"), /*#__PURE__*/React.createElement(Btn, {
@@ -77894,10 +78500,14 @@ const DealsPage = ({
       return diff >= -1 && diff <= 31;
     }).length;
     const last = slDeals.map(d => d.createdAt).sort().slice(-1)[0];
+    const captureFields = ['Contact name', 'Company', 'Email', 'Phone', 'Service'];
     return /*#__PURE__*/React.createElement(Card, {
       style: {
-        padding: '10px 14px',
-        marginBottom: 14,
+        padding: 14,
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
         display: 'flex',
         alignItems: 'center',
         gap: 14,
@@ -77919,7 +78529,7 @@ const DealsPage = ({
         fontWeight: 600,
         color: T.text
       }
-    }, "Sole Link"), /*#__PURE__*/React.createElement("span", {
+    }, "Sole Link booking"), /*#__PURE__*/React.createElement("span", {
       style: {
         display: 'inline-flex',
         alignItems: 'center',
@@ -77943,27 +78553,11 @@ const DealsPage = ({
         fontSize: 12,
         color: T.muted
       }
-    }, "Booking page ", /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: T.primary,
-        fontWeight: 500
-      }
-    }, "sole.link/your-practice")), /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 1,
-        height: 18,
-        background: T.border
-      }
-    }), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 12,
-        color: T.muted
-      }
     }, /*#__PURE__*/React.createElement("strong", {
       style: {
         color: T.text
       }
-    }, thisMonth), " lead", thisMonth === 1 ? '' : 's', " auto-created this month"), /*#__PURE__*/React.createElement("span", {
+    }, thisMonth), " inquir", thisMonth === 1 ? 'y' : 'ies', " auto-created this month"), /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 12,
         color: T.muted
@@ -77972,12 +78566,245 @@ const DealsPage = ({
       style: {
         flex: 1
       }
-    }), /*#__PURE__*/React.createElement(Btn, {
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      title: "Demo affordance \u2014 in production this lives on a landing-page embed (Calendly-style), not in the app",
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.3,
+        color: T.amber,
+        background: T.amberSoft,
+        border: '1px solid #FCD34D',
+        borderRadius: 999,
+        padding: '2px 7px'
+      }
+    }, "DEMO"), /*#__PURE__*/React.createElement(Btn, {
       variant: "primaryOutline",
       size: "sm",
       icon: "calendar",
-      onClick: simulateSoleLinkBooking
-    }, "Simulate new booking"));
+      onClick: () => simulateSoleLinkBooking()
+    }, "Simulate sales booking"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        marginTop: 12,
+        paddingTop: 12,
+        borderTop: `1px solid ${T.border}`,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        color: T.text,
+        fontWeight: 600
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "building",
+      size: 13,
+      color: T.mutedSoft
+    }), "Practice sales calendar"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10.5,
+        color: T.greenDark,
+        background: T.greenSoft,
+        border: '1px solid #A7F3D0',
+        borderRadius: 999,
+        padding: '1px 8px'
+      }
+    }, "auto-creates a pipeline inquiry"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: T.primary,
+        fontWeight: 500
+      }
+    }, bookingInfo.url), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.mutedSoft
+      }
+    }, bookingInfo.email), /*#__PURE__*/React.createElement("button", {
+      title: "Copy booking link",
+      onClick: () => copyToClip(bookingInfo.url, fireToast),
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        padding: 4,
+        lineHeight: 0,
+        color: T.muted,
+        display: 'inline-flex'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "copy",
+      size: 13,
+      color: T.muted
+    })), /*#__PURE__*/React.createElement("button", {
+      title: "Edit booking details (Settings)",
+      onClick: () => {
+        setStageStdDraft({
+          ...STAGE_STANDARDS
+        });
+        setSettingsOpen(true);
+      },
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        padding: 4,
+        lineHeight: 0,
+        color: T.muted,
+        display: 'inline-flex'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "edit",
+      size: 13,
+      color: T.muted
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setSoleLinkOpen(o => !o),
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: 12,
+        color: T.muted
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "users",
+      size: 13,
+      color: T.mutedSoft
+    }), SPM_STAFF.length, " staff booking links", /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        transform: soleLinkOpen ? 'rotate(180deg)' : 'none',
+        transition: 'transform 0.12s'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronDown",
+      size: 12,
+      color: T.mutedSoft
+    })))), soleLinkOpen && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.mutedSoft,
+        marginBottom: 6
+      }
+    }, "For client & project calls (customer portal) \u2014 ", /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: T.muted
+      }
+    }, "not"), " deal capture. Surfaced in each client's contact card."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gap: 6
+      }
+    }, SPM_STAFF.map(s => {
+      const url = staffBookingUrl(s);
+      return /*#__PURE__*/React.createElement("div", {
+        key: s.id,
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 10px',
+          background: T.fieldBg,
+          border: `1px solid ${T.border}`,
+          borderRadius: 8
+        }
+      }, /*#__PURE__*/React.createElement(Avatar, {
+        name: s.name,
+        size: 24,
+        src: s.photo
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          minWidth: 0,
+          flex: 1
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 12,
+          fontWeight: 600,
+          color: T.text,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, s.name), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: T.primary,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, url)), /*#__PURE__*/React.createElement("button", {
+        title: "Copy booking link",
+        onClick: () => copyToClip(url, fireToast),
+        style: {
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          padding: 4,
+          lineHeight: 0,
+          color: T.muted,
+          display: 'inline-flex',
+          flexShrink: 0
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "copy",
+        size: 13,
+        color: T.muted
+      })));
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 10,
+        fontSize: 11,
+        color: T.mutedSoft,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "info",
+      size: 12,
+      color: T.mutedSoft
+    }), /*#__PURE__*/React.createElement("span", null, "A booking auto-creates an inquiry in ", /*#__PURE__*/React.createElement("strong", {
+      style: {
+        color: T.muted
+      }
+    }, "New Enquiry"), " (10%, no value yet). The form captures:"), captureFields.map(f => /*#__PURE__*/React.createElement("span", {
+      key: f,
+      style: {
+        fontSize: 10.5,
+        color: T.muted,
+        background: T.fieldBg,
+        border: `1px solid ${T.border}`,
+        borderRadius: 999,
+        padding: '1px 7px'
+      }
+    }, f))));
   })(), kpiStrip, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -78054,54 +78881,104 @@ const DealsPage = ({
       fontSize: 13,
       color: T.text
     }
-  })), /*#__PURE__*/React.createElement(Select, {
-    value: ownerFilter,
-    onChange: e => setOwnerFilter(e.target.value),
-    style: {
-      width: 140
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "all"
-  }, "All owners"), SPM_STAFF.map(s => /*#__PURE__*/React.createElement("option", {
-    key: s.id,
-    value: s.id
-  }, s.name))), /*#__PURE__*/React.createElement(Select, {
-    value: priorityFilter,
-    onChange: e => setPriorityFilter(e.target.value),
-    style: {
-      width: 130
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "all"
-  }, "All priority"), DEAL_PRIORITIES.map(p => /*#__PURE__*/React.createElement("option", {
-    key: p.id,
-    value: p.id
-  }, p.label))), /*#__PURE__*/React.createElement(Select, {
-    value: sourceFilter,
-    onChange: e => setSourceFilter(e.target.value),
-    style: {
-      width: 130
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "all"
-  }, "All sources"), DEAL_SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
-    key: s,
-    value: s
-  }, s))), /*#__PURE__*/React.createElement(Select, {
-    value: statusFilter,
-    onChange: e => setStatusFilter(e.target.value),
-    style: {
-      width: 120
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "all"
-  }, "All status"), /*#__PURE__*/React.createElement("option", {
-    value: "open"
-  }, "Open"), /*#__PURE__*/React.createElement("option", {
-    value: "won"
-  }, "Won"), /*#__PURE__*/React.createElement("option", {
-    value: "lost"
-  }, "Lost")), /*#__PURE__*/React.createElement(Select, {
+  })), (() => {
+    const activeFilters = [ownerFilter, priorityFilter, sourceFilter, statusFilter].filter(v => v !== 'all').length;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'relative'
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: activeFilters ? 'soft' : 'ghost',
+      icon: "filter",
+      onClick: () => setFiltersOpen(o => !o)
+    }, "Filters", activeFilters ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        marginLeft: 6,
+        fontSize: 11,
+        fontWeight: 700,
+        color: T.primary,
+        background: T.primarySofter,
+        borderRadius: 999,
+        padding: '0 6px'
+      }
+    }, activeFilters) : null), /*#__PURE__*/React.createElement(Popover, {
+      open: filtersOpen,
+      onClose: () => setFiltersOpen(false),
+      width: 236,
+      anchorAlign: "right"
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 12,
+        display: 'grid',
+        gap: 10
+      },
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Owner"), /*#__PURE__*/React.createElement(Select, {
+      value: ownerFilter,
+      onChange: e => setOwnerFilter(e.target.value),
+      style: {
+        marginTop: 4
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "all"
+    }, "All owners"), SPM_STAFF.map(s => /*#__PURE__*/React.createElement("option", {
+      key: s.id,
+      value: s.id
+    }, s.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Priority"), /*#__PURE__*/React.createElement(Select, {
+      value: priorityFilter,
+      onChange: e => setPriorityFilter(e.target.value),
+      style: {
+        marginTop: 4
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "all"
+    }, "All priority"), DEAL_PRIORITIES.map(p => /*#__PURE__*/React.createElement("option", {
+      key: p.id,
+      value: p.id
+    }, p.label)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Source"), /*#__PURE__*/React.createElement(Select, {
+      value: sourceFilter,
+      onChange: e => setSourceFilter(e.target.value),
+      style: {
+        marginTop: 4
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "all"
+    }, "All sources"), DEAL_SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
+      key: s,
+      value: s
+    }, s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Status"), /*#__PURE__*/React.createElement(Select, {
+      value: statusFilter,
+      onChange: e => setStatusFilter(e.target.value),
+      style: {
+        marginTop: 4
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "all"
+    }, "All status"), /*#__PURE__*/React.createElement("option", {
+      value: "open"
+    }, "Open"), /*#__PURE__*/React.createElement("option", {
+      value: "won"
+    }, "Won"), /*#__PURE__*/React.createElement("option", {
+      value: "lost"
+    }, "Lost"))), activeFilters > 0 && /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setOwnerFilter('all');
+        setPriorityFilter('all');
+        setSourceFilter('all');
+        setStatusFilter('all');
+      },
+      style: {
+        border: 'none',
+        background: 'transparent',
+        color: T.primary,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: 'pointer',
+        textAlign: 'left',
+        padding: 0
+      }
+    }, "Clear all filters"))));
+  })(), /*#__PURE__*/React.createElement(Select, {
     value: sort,
     onChange: e => setSort(e.target.value),
     style: {
@@ -78132,7 +79009,182 @@ const DealsPage = ({
     deal: wonModalDeal,
     onCancel: () => setWonModalDeal(null),
     onConfirm: confirmWon
-  }), dupModal && /*#__PURE__*/React.createElement(Modal, {
+  }), /*#__PURE__*/React.createElement(Modal, {
+    open: settingsOpen,
+    onClose: () => setSettingsOpen(false),
+    title: "Deal settings",
+    subtitle: "Pipeline defaults for this practice. In production these live in the practice settings area.",
+    width: 600
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 22
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Standard win likelihood by stage"), /*#__PURE__*/React.createElement(Helper, null, "Default % a deal inherits at each stage")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 92px',
+      gap: '8px 14px',
+      marginTop: 10,
+      alignItems: 'center'
+    }
+  }, DEAL_STAGES.map(s => /*#__PURE__*/React.createElement(Fragment, {
+    key: s.id
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      fontSize: 13,
+      color: T.text
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 9,
+      height: 9,
+      borderRadius: 3,
+      background: stageBarColor(s.color),
+      flexShrink: 0
+    }
+  }), s.label), /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    suffix: "%",
+    value: stageStdDraft[s.id] == null ? '' : stageStdDraft[s.id],
+    onChange: e => setStageStdDraft(p => ({
+      ...p,
+      [s.id]: e.target.value
+    }))
+  })))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 8
+    }
+  }, "A deal can override its own likelihood; cards on the standard update live when you change it here.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `1px solid ${T.border}`,
+      paddingTop: 18
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "New-inquiry defaults"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.text,
+      flex: 1
+    }
+  }, "Next action due"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    value: defaultNextActionDays,
+    onChange: e => setDefaultNextActionDays(Math.max(0, Math.round(+e.target.value) || 0)),
+    style: {
+      width: 84
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.muted
+    }
+  }, "days after creation"))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 8
+    }
+  }, "Next action due = the deal's nearest incomplete task or meeting. New inquiries with no task default to created + this many days. Overdue shows red; due within 3 days shows amber.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `1px solid ${T.border}`,
+      paddingTop: 18
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Sole Link \u2014 sales calendar"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 10,
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.muted,
+      width: 92,
+      flexShrink: 0
+    }
+  }, "Booking page"), /*#__PURE__*/React.createElement(Input, {
+    value: bookingInfo.url,
+    onChange: e => setBookingInfo(b => ({
+      ...b,
+      url: e.target.value
+    })),
+    style: {
+      flex: 1
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.muted,
+      width: 92,
+      flexShrink: 0
+    }
+  }, "Sales email"), /*#__PURE__*/React.createElement(Input, {
+    value: bookingInfo.email,
+    onChange: e => setBookingInfo(b => ({
+      ...b,
+      email: e.target.value
+    })),
+    style: {
+      flex: 1
+    }
+  }))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 8
+    }
+  }, "A booking on this calendar auto-creates a New Enquiry. The form captures: Contact name \xB7 Company \xB7 Email \xB7 Phone \xB7 Service. Per-staff calendars are for client & project calls (customer portal), not deal capture."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 22,
+      borderTop: `1px solid ${T.border}`,
+      paddingTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setSettingsOpen(false)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "check",
+    onClick: () => {
+      commitStageStandards();
+      setSettingsOpen(false);
+      fireToast('Deal settings saved');
+    }
+  }, "Save settings"))), dupModal && /*#__PURE__*/React.createElement(Modal, {
     open: true,
     onClose: () => setDupModal(null),
     title: "Possible duplicate deal",
