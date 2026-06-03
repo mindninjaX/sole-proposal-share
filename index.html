@@ -71897,6 +71897,11 @@ const stageBarColor = color => ({
   green: T.green,
   red: T.red
 })[color] || T.mutedSoft;
+// Deals money format — cents dropped module-wide (Jun-3): big $ figures overflowed the
+// drawer KPI boxes and read heavy on cards. Rounds first so probability-weighted forecasts
+// don't reintroduce cents. Use this for every $ inside the Deals module (not the global
+// fmtMoney, which stays 2-dp for invoices/payroll).
+const fmtDealMoney = n => fmtMoneyCompact(Math.round(n || 0));
 
 // Per-stage forecast TARGET override (pending Joe's confirmation, 2026-06). When a practice pins a
 // manual $ target on a Kanban stage column it overrides the computed probability-weighted roll-up in
@@ -73419,8 +73424,7 @@ const DealCard = ({
   const nextMeeting = dealNextMeeting(deal);
   const pct = dealLikelihood(deal);
   const isCustom = deal.likelihood != null; // overridden vs inheriting the stage standard
-  const urgency = won || lost ? null : dealUrgency(deal); // drives the left border
-  const borderColor = won ? T.green : lost ? T.mutedSoft : dealUrgencyColor(urgency);
+  const urgency = won || lost ? null : dealUrgency(deal); // next-action urgency → hover tooltip (left accent border removed Jun-3)
   const commitLike = val => {
     if (onUpdateDeal) onUpdateDeal(deal.id, {
       likelihood: val === '' || val == null || isNaN(+val) ? null : Math.max(0, Math.min(100, Math.round(+val)))
@@ -73440,14 +73444,13 @@ const DealCard = ({
       background: T.card,
       border: `1px solid ${T.border}`,
       borderRadius: 10,
-      padding: '10px 12px',
+      padding: '12px 14px',
       cursor: 'grab',
       display: 'grid',
-      gap: 7,
+      gap: 9,
       transition: 'box-shadow .12s',
       boxShadow: hover && !dragging ? '0 4px 12px rgba(15,17,23,0.10)' : '0 1px 2px rgba(15,17,23,0.04)',
-      opacity: dragging ? 0.4 : lost ? 0.72 : 1,
-      borderLeft: `3px solid ${borderColor}`
+      opacity: dragging ? 0.4 : lost ? 0.72 : 1
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -73626,7 +73629,7 @@ const DealCard = ({
       fontWeight: 700,
       color: T.text
     }
-  }, fmtMoney(deal.value)), /*#__PURE__*/React.createElement("span", {
+  }, fmtDealMoney(deal.value)), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
       color: T.mutedSoft,
@@ -73661,16 +73664,11 @@ const DealCard = ({
       textTransform: 'uppercase',
       letterSpacing: 0.3
     }
-  }, "Win"), /*#__PURE__*/React.createElement("span", {
+  }, "Win"), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
-  }, /*#__PURE__*/React.createElement(HoverableProgressBar, {
-    pct: Math.round(pct),
-    color: likelihoodColor(pct),
-    height: 6,
-    tooltip: `${Math.round(pct)}% likely to win`
-  })), /*#__PURE__*/React.createElement("span", {
+  }), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12,
       fontWeight: 700,
@@ -73746,44 +73744,21 @@ const DealCard = ({
   }, "Blank or \u201CUse standard\u201D follows the stage standard (", Math.round(dealStageProb(deal.stage)), "%).")))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      alignItems: 'center',
-      gap: 8,
+      flexDirection: 'column',
+      gap: 6,
       minWidth: 0
     }
   }, /*#__PURE__*/React.createElement(CompanyChip, {
     client: mark,
     onOpen: org ? onOpenCompany : undefined,
     style: {
-      flex: 1,
       minWidth: 0
     }
-  }), owner && /*#__PURE__*/React.createElement("span", {
-    onClick: e => {
-      e.stopPropagation();
-      onOpenOwner && onOpenOwner(owner.id);
-    },
-    title: `Open ${owner.name}`,
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      flexShrink: 0,
-      maxWidth: 120,
-      cursor: 'pointer'
-    }
-  }, /*#__PURE__*/React.createElement(Avatar, {
-    name: owner.name,
-    size: 20,
-    src: owner.photo
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11.5,
-      color: T.textSoft,
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis'
-    }
-  }, owner.name))), /*#__PURE__*/React.createElement("div", {
+  }), owner && /*#__PURE__*/React.createElement(OwnerChip, {
+    staff: owner,
+    onOpen: onOpenOwner,
+    size: 20
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -74119,11 +74094,10 @@ const NewDealModal = ({
     key: s,
     value: s
   }, s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Deal value"), /*#__PURE__*/React.createElement(Input, {
-    type: "number",
     prefix: "$",
-    value: form.value,
+    value: form.value ? Number(form.value).toLocaleString('en-AU') : '',
     onChange: e => upd({
-      value: e.target.value
+      value: e.target.value.replace(/[^0-9]/g, '')
     }),
     placeholder: "0"
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Projected close date"), /*#__PURE__*/React.createElement(Input, {
@@ -74539,7 +74513,7 @@ const WonHandoffModal = ({
       color: T.greenDark,
       fontWeight: 600
     }
-  }, fmtMoney(deal.value), " \xB7 ", company)), /*#__PURE__*/React.createElement(Label, null, "Client manager"), /*#__PURE__*/React.createElement(Select, {
+  }, fmtDealMoney(deal.value), " \xB7 ", company)), /*#__PURE__*/React.createElement(Label, null, "Client manager"), /*#__PURE__*/React.createElement(Select, {
     value: mgr,
     onChange: e => setMgr(e.target.value),
     style: {
@@ -74582,6 +74556,9 @@ const WonHandoffModal = ({
 
 // Right-side deal detail drawer — key facts + Change Status / Mark As / Delete /
 // Edit, a clickable stage strip, and Contact / Files / Notes / Activity tabs.
+// Deal drawer is the rightmost panel; a Company/Staff drawer opened from inside it sits to its
+// LEFT (offsetRight = this width) rather than overlaying it (Jun-3 feedback).
+const DEAL_DRAWER_W = 560;
 const DealDrawer = ({
   deal,
   onClose,
@@ -74610,7 +74587,8 @@ const DealDrawer = ({
   onOpenCompany,
   onOpenOwner,
   onOpenProposal,
-  fireToast
+  fireToast,
+  blockEsc
 }) => {
   const [tab, setTab] = useState('overview');
   const [draftType, setDraftType] = useState('note');
@@ -74634,11 +74612,11 @@ const DealDrawer = ({
   });
   useEffect(() => {
     const onKey = e => {
-      if (e.key === 'Escape') onClose();
-    };
+      if (e.key === 'Escape' && !blockEsc) onClose();
+    }; // don't steal Esc from a stacked company/staff drawer
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, blockEsc]);
   useEffect(() => {
     setTab('overview');
     setDraftType('note');
@@ -74712,7 +74690,7 @@ const DealDrawer = ({
       top: 0,
       right: 0,
       bottom: 0,
-      width: 'min(560px, 100vw)',
+      width: `min(${DEAL_DRAWER_W}px, 100vw)`,
       background: T.card,
       zIndex: 201,
       display: 'flex',
@@ -74771,7 +74749,7 @@ const DealDrawer = ({
       fontWeight: 700,
       color: T.text
     }
-  }, fmtMoney(deal.value)), /*#__PURE__*/React.createElement(LikelihoodBar, {
+  }, fmtDealMoney(deal.value)), /*#__PURE__*/React.createElement(LikelihoodBar, {
     pct: pct,
     width: 56
   }))), /*#__PURE__*/React.createElement(Btn, {
@@ -75112,11 +75090,10 @@ const DealDrawer = ({
   }, "Commercials"), /*#__PURE__*/React.createElement(PropRow, {
     label: "Value"
   }, /*#__PURE__*/React.createElement(Input, {
-    type: "number",
     prefix: "$",
-    value: deal.value,
+    value: deal.value ? deal.value.toLocaleString('en-AU') : '',
     onChange: e => upd({
-      value: Number(e.target.value) || 0
+      value: Number(e.target.value.replace(/[^0-9]/g, '')) || 0
     }),
     style: {
       padding: '6px 10px'
@@ -75570,7 +75547,7 @@ const DealDrawer = ({
       ...cForm,
       role: e.target.value
     }),
-    placeholder: "Role (e.g. Bookkeeper)",
+    placeholder: "Role (e.g. CFO)",
     style: {
       background: T.card
     }
@@ -76261,16 +76238,24 @@ const cappedRows = (items, cap, render) => {
     }
   }, "None yet."));
 };
+
+// offsetRight (px) shifts the panel left of a drawer already pinned to the right edge — so a
+// Company/Staff drawer opened from inside the deal drawer sits BESIDE it, not over it (Jun-3). When
+// offset, the backdrop stops short of that right-hand column so the deal drawer stays visible + clickable.
 const EntityDrawerShell = ({
   width = 460,
   zIndex,
   onClose,
-  children
+  children,
+  offsetRight = 0
 }) => /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
   onClick: onClose,
   style: {
     position: 'fixed',
-    inset: 0,
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: offsetRight,
     background: 'rgba(15,17,23,0.42)',
     zIndex,
     animation: 'fadein 0.15s ease'
@@ -76280,9 +76265,9 @@ const EntityDrawerShell = ({
   style: {
     position: 'fixed',
     top: 0,
-    right: 0,
+    right: offsetRight,
     bottom: 0,
-    width: `min(${width}px, 100vw)`,
+    width: `min(${width}px, calc(100vw - ${offsetRight}px))`,
     background: T.card,
     zIndex: zIndex + 1,
     display: 'flex',
@@ -76300,7 +76285,8 @@ const CompanyDrawer = ({
   onOpenEmployee,
   onOpenProposal,
   fireToast,
-  zIndex = 240
+  zIndex = 240,
+  offsetRight = 0
 }) => {
   useEffect(() => {
     const onKey = e => {
@@ -76314,7 +76300,8 @@ const CompanyDrawer = ({
   return /*#__PURE__*/React.createElement(EntityDrawerShell, {
     width: 460,
     zIndex: zIndex,
-    onClose: onClose
+    onClose: onClose,
+    offsetRight: offsetRight
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '16px 20px',
@@ -76366,13 +76353,13 @@ const CompanyDrawer = ({
     }
   }, /*#__PURE__*/React.createElement(MiniKpi, {
     label: "Open pipeline",
-    value: fmtMoney(ctx.kpis.openVal)
+    value: fmtDealMoney(ctx.kpis.openVal)
   }), /*#__PURE__*/React.createElement(MiniKpi, {
     label: "Forecast",
-    value: fmtMoney(ctx.kpis.forecast)
+    value: fmtDealMoney(ctx.kpis.forecast)
   }), /*#__PURE__*/React.createElement(MiniKpi, {
     label: "Won",
-    value: fmtMoney(ctx.kpis.wonVal),
+    value: fmtDealMoney(ctx.kpis.wonVal),
     tone: "green"
   }), /*#__PURE__*/React.createElement(MiniKpi, {
     label: "Employees",
@@ -76394,7 +76381,7 @@ const CompanyDrawer = ({
       }
     }),
     primary: d.title,
-    sub: `${d.service} · ${fmtMoney(d.value)}`,
+    sub: `${d.service} · ${fmtDealMoney(d.value)}`,
     right: /*#__PURE__*/React.createElement(Pill, {
       color: dealStageMeta(d.stage).color
     }, dealStageMeta(d.stage).label)
@@ -76425,7 +76412,7 @@ const CompanyDrawer = ({
       color: T.muted
     }),
     primary: p.title,
-    sub: p.amount ? fmtMoney(p.amount) : p.dealTitle || '',
+    sub: p.amount ? fmtDealMoney(p.amount) : p.dealTitle || '',
     right: /*#__PURE__*/React.createElement(Pill, {
       color: PROPOSAL_STATUS_COLOR[p.status] || 'neutral'
     }, p.status)
@@ -76471,7 +76458,8 @@ const StaffDrawer = ({
   onClose,
   onOpenDeal,
   fireToast,
-  zIndex = 240
+  zIndex = 240,
+  offsetRight = 0
 }) => {
   useEffect(() => {
     const onKey = e => {
@@ -76490,7 +76478,8 @@ const StaffDrawer = ({
   return /*#__PURE__*/React.createElement(EntityDrawerShell, {
     width: 440,
     zIndex: zIndex,
-    onClose: onClose
+    onClose: onClose,
+    offsetRight: offsetRight
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '16px 20px',
@@ -76539,10 +76528,10 @@ const StaffDrawer = ({
     }
   }, /*#__PURE__*/React.createElement(MiniKpi, {
     label: "Open (owned)",
-    value: fmtMoney(openVal)
+    value: fmtDealMoney(openVal)
   }), /*#__PURE__*/React.createElement(MiniKpi, {
     label: "Forecast",
-    value: fmtMoney(forecast)
+    value: fmtDealMoney(forecast)
   }), /*#__PURE__*/React.createElement(MiniKpi, {
     label: "Rate",
     value: `$${staff.rate}/h`
@@ -76585,7 +76574,7 @@ const StaffDrawer = ({
       }
     }),
     primary: d.title,
-    sub: `${dealCompany(d)} · ${fmtMoney(d.value)}`,
+    sub: `${dealCompany(d)} · ${fmtDealMoney(d.value)}`,
     right: /*#__PURE__*/React.createElement(Pill, {
       color: dealStageMeta(d.stage).color
     }, dealStageMeta(d.stage).label)
@@ -76677,7 +76666,7 @@ const ProposalPeek = ({
     value: raw.client
   }), (proposal.amount || raw.amount) && /*#__PURE__*/React.createElement(DealFact, {
     label: "Amount",
-    value: fmtMoney(proposal.amount || raw.amount)
+    value: fmtDealMoney(proposal.amount || raw.amount)
   }), raw.created && /*#__PURE__*/React.createElement(DealFact, {
     label: "Created",
     value: raw.created
@@ -76717,6 +76706,7 @@ const DealsPage = ({
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all'); // F-09 lead-source filter
+  const [stageFilter, setStageFilter] = useState(null); // set by clicking a segment in the pipeline-by-stage bar; filters all views
   const [filtersOpen, setFiltersOpen] = useState(false); // D — collapse the filter cluster into one popover
   const [sort, setSort] = useState('recent');
   const [dragId, setDragId] = useState(null);
@@ -77412,7 +77402,11 @@ const DealsPage = ({
     });else a.sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt));
     return a;
   };
-  const visibleDeals = deals.filter(d => {
+
+  // baseVisibleDeals = owner/priority/source/status/search filters — everything EXCEPT the
+  // pipeline-bar stage filter. The bar reads from this so it always shows the full open
+  // breakdown; the views below (board/list/reports + KPIs) narrow further when a segment is clicked.
+  const baseVisibleDeals = deals.filter(d => {
     if (ownerFilter !== 'all' && d.ownerId !== ownerFilter) return false;
     if (priorityFilter !== 'all' && d.priority !== priorityFilter) return false;
     if (sourceFilter !== 'all' && d.source !== sourceFilter) return false;
@@ -77426,9 +77420,11 @@ const DealsPage = ({
     }
     return true;
   });
+  const visibleDeals = stageFilter ? baseVisibleDeals.filter(d => d.stage === stageFilter) : baseVisibleDeals;
   const openDeal = deals.find(d => d.id === openId) || null;
   // KPI strip — Open / Likely to win / At risk / Avg.
   const openDeals = visibleDeals.filter(dealIsOpen);
+  const baseOpenDeals = baseVisibleDeals.filter(dealIsOpen); // feeds the pipeline bar (ignores stageFilter)
   const openValue = openDeals.reduce((a, d) => a + d.value, 0);
   const likelyValue = openDeals.reduce((a, d) => a + d.value * dealLikelihood(d) / 100, 0);
   const atRiskValue = openDeals.filter(d => {
@@ -77438,29 +77434,35 @@ const DealsPage = ({
   const avgValue = visibleDeals.length ? Math.round(visibleDeals.reduce((a, d) => a + d.value, 0) / visibleDeals.length) : 0;
   const KPIS = [{
     label: 'Open',
-    value: fmtMoney(openValue),
+    value: fmtDealMoney(openValue),
     hint: `${openDeals.length} open`
   }, {
     label: 'Likely to win',
-    value: fmtMoney(likelyValue),
+    value: fmtDealMoney(likelyValue),
     hint: 'Probability-weighted'
   }, {
     label: 'At risk',
-    value: fmtMoney(atRiskValue),
+    value: fmtDealMoney(atRiskValue),
     hint: 'Stalled or overdue',
     tone: atRiskValue > 0 ? 'red' : null
   }, {
     label: 'Avg. deal value',
-    value: fmtMoney(avgValue),
+    value: fmtDealMoney(avgValue),
     hint: `${visibleDeals.length} deals`
   }];
+  // Clicking a segment toggles stageFilter (filters every view). Non-active segments dim to
+  // borderStrong so the selected stage pops; `dotColor` keeps legends true-coloured regardless.
   const pipeSegments = DEAL_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => {
-    const v = openDeals.filter(d => d.stage === s.id).reduce((a, d) => a + d.value, 0);
+    const v = baseOpenDeals.filter(d => d.stage === s.id).reduce((a, d) => a + d.value, 0);
+    const active = !stageFilter || stageFilter === s.id;
     return {
+      id: s.id,
       label: s.label,
       value: v,
-      color: stageBarColor(s.color),
-      tip: `${s.label}: ${fmtMoney(v)}`
+      color: active ? stageBarColor(s.color) : T.borderStrong,
+      dotColor: stageBarColor(s.color),
+      tip: `${s.label}: ${fmtDealMoney(v)}`,
+      onClick: () => setStageFilter(prev => prev === s.id ? null : s.id)
     };
   }).filter(s => s.value > 0);
   const onCardDragStart = (e, deal) => {
@@ -77564,10 +77566,10 @@ const DealsPage = ({
       fontWeight: 700,
       color: T.text
     }
-  }, fmtMoney(openValue))), /*#__PURE__*/React.createElement(HoverStackedBar, {
+  }, fmtDealMoney(openValue))), /*#__PURE__*/React.createElement(HoverStackedBar, {
     segments: pipeSegments,
     height: 14,
-    formatTip: s => `${s.label}: ${fmtMoney(s.value)}`
+    formatTip: s => `${s.label}: ${fmtDealMoney(s.value)}`
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -77575,29 +77577,39 @@ const DealsPage = ({
       gap: '5px 16px',
       marginTop: 10
     }
-  }, pipeSegments.map(s => /*#__PURE__*/React.createElement("span", {
-    key: s.label,
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      fontSize: 11.5,
-      color: T.muted
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 9,
-      height: 9,
-      borderRadius: 3,
-      background: s.color,
-      flexShrink: 0
-    }
-  }), s.label, /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: T.text,
-      fontWeight: 600
-    }
-  }, fmtMoney(s.value)))))));
+  }, pipeSegments.map(s => {
+    const sel = stageFilter === s.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: s.label,
+      onClick: s.onClick,
+      title: sel ? 'Clear stage filter' : `Filter to ${s.label}`,
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 11.5,
+        color: T.muted,
+        cursor: 'pointer',
+        border: `1px solid ${sel ? T.primary : 'transparent'}`,
+        background: sel ? T.primarySofter : 'transparent',
+        borderRadius: 999,
+        padding: '2px 8px'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 9,
+        height: 9,
+        borderRadius: 3,
+        background: s.dotColor,
+        flexShrink: 0
+      }
+    }), s.label, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.text,
+        fontWeight: 600
+      }
+    }, fmtDealMoney(s.value)));
+  }))));
   const board = /*#__PURE__*/React.createElement("div", {
     style: {
       overflowX: 'auto',
@@ -77618,14 +77630,19 @@ const DealsPage = ({
     return /*#__PURE__*/React.createElement("div", {
       key: g.key,
       style: {
-        flex: '0 0 248px',
-        width: 248,
+        flex: '0 0 264px',
+        width: 264,
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        background: T.fieldBg,
+        border: `1px solid ${T.border}`,
+        borderRadius: 12,
+        padding: 6,
+        boxSizing: 'border-box'
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
-        padding: '8px 4px 10px'
+        padding: '6px 6px 8px'
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -77676,7 +77693,7 @@ const DealsPage = ({
           gap: 6
         }
       }, hasTgt ? /*#__PURE__*/React.createElement("span", {
-        title: `Manual target · computed roll-up ${fmtMoney(forecast)}`,
+        title: `Manual target · computed roll-up ${fmtDealMoney(forecast)}`,
         style: {
           display: 'inline-flex',
           alignItems: 'center',
@@ -77689,13 +77706,13 @@ const DealsPage = ({
         name: "target",
         size: 12,
         color: T.amber
-      }), " Target ", fmtMoney(tgt)) : /*#__PURE__*/React.createElement("span", {
-        title: `Pipeline value ${fmtMoney(total)}`,
+      }), " Target ", fmtDealMoney(tgt)) : /*#__PURE__*/React.createElement("span", {
+        title: `Pipeline value ${fmtDealMoney(total)}`,
         style: {
           fontSize: 11.5,
           color: T.muted
         }
-      }, "Forecast ", fmtMoney(forecast)), canTarget && /*#__PURE__*/React.createElement("button", {
+      }, "Forecast ", fmtDealMoney(forecast)), canTarget && /*#__PURE__*/React.createElement("button", {
         onClick: () => {
           const open = targetEditKey === g.key;
           setTargetEditKey(open ? null : g.key);
@@ -77721,7 +77738,7 @@ const DealsPage = ({
           color: T.mutedSoft,
           marginTop: 1
         }
-      }, "computed ", fmtMoney(forecast)) : /*#__PURE__*/React.createElement("div", {
+      }, "computed ", fmtDealMoney(forecast)) : /*#__PURE__*/React.createElement("div", {
         style: {
           fontSize: 10,
           color: T.mutedSoft,
@@ -77749,7 +77766,7 @@ const DealsPage = ({
           }
           if (e.key === 'Escape') setTargetEditKey(null);
         },
-        placeholder: `Computed ${fmtMoney(forecast)}`,
+        placeholder: `Computed ${fmtDealMoney(forecast)}`,
         style: {
           width: '100%',
           padding: '7px 10px',
@@ -77805,9 +77822,9 @@ const DealsPage = ({
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        padding: 8,
-        borderRadius: 10,
-        background: isOver ? T.primarySofter : T.fieldBg,
+        padding: 6,
+        borderRadius: 9,
+        background: isOver ? T.primarySofter : 'transparent',
         border: isOver ? `1px dashed ${T.primary}` : '1px solid transparent',
         transition: 'background 0.12s'
       }
@@ -77989,7 +78006,7 @@ const DealsPage = ({
         textAlign: 'right',
         whiteSpace: 'nowrap'
       }
-    }, fmtMoney(d.value)), /*#__PURE__*/React.createElement("td", {
+    }, fmtDealMoney(d.value)), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: '10px 14px',
         fontSize: 12,
@@ -78075,12 +78092,6 @@ const DealsPage = ({
       return (DEALS_TODAY - at) / 86400000 > 21;
     });
     const lostDeals = deals.filter(d => d.stage === 'lost');
-    const lostByReason = {};
-    lostDeals.forEach(d => {
-      const k = d.lostReason ? d.lostReason.label : 'Unspecified';
-      lostByReason[k] = (lostByReason[k] || 0) + 1;
-    });
-    const lostRows = Object.entries(lostByReason).sort((a, b) => b[1] - a[1]);
     const cardStyle = {
       padding: 16
     };
@@ -78214,39 +78225,50 @@ const DealsPage = ({
     }, "Open pipeline value by stage"), pipeSegments.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No open pipeline.") : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(HoverStackedBar, {
       segments: pipeSegments,
       height: 14,
-      formatTip: s => `${s.label}: ${fmtMoney(s.value)}`
+      formatTip: s => `${s.label}: ${fmtDealMoney(s.value)}`
     }), /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 12
       }
-    }, pipeSegments.map(s => /*#__PURE__*/React.createElement("div", {
-      key: s.label,
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 12,
-        padding: '3px 0'
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 9,
-        height: 9,
-        borderRadius: 3,
-        background: s.color,
-        flexShrink: 0
-      }
-    }), /*#__PURE__*/React.createElement("span", {
-      style: {
-        flex: 1,
-        color: T.text
-      }
-    }, s.label), /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: T.muted,
-        fontWeight: 600
-      }
-    }, fmtMoney(s.value))))))), /*#__PURE__*/React.createElement(Card, {
+    }, pipeSegments.map(s => {
+      const sel = stageFilter === s.id;
+      return /*#__PURE__*/React.createElement("button", {
+        key: s.label,
+        onClick: s.onClick,
+        title: sel ? 'Clear stage filter' : `Filter to ${s.label}`,
+        style: {
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 12,
+          padding: '4px 6px',
+          border: `1px solid ${sel ? T.primary : 'transparent'}`,
+          background: sel ? T.primarySofter : 'transparent',
+          borderRadius: 8,
+          cursor: 'pointer',
+          textAlign: 'left'
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 9,
+          height: 9,
+          borderRadius: 3,
+          background: s.dotColor,
+          flexShrink: 0
+        }
+      }), /*#__PURE__*/React.createElement("span", {
+        style: {
+          flex: 1,
+          color: T.text
+        }
+      }, s.label), /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: T.muted,
+          fontWeight: 600
+        }
+      }, fmtDealMoney(s.value)));
+    })))), /*#__PURE__*/React.createElement(Card, {
       style: cardStyle
     }, /*#__PURE__*/React.createElement(SectionTitle, {
       style: {
@@ -78285,7 +78307,7 @@ const DealsPage = ({
         color: T.muted,
         fontWeight: 600
       }
-    }, fmtMoney(s.value), s.winRate != null && /*#__PURE__*/React.createElement("span", {
+    }, fmtDealMoney(s.value), s.winRate != null && /*#__PURE__*/React.createElement("span", {
       style: {
         color: s.winRate >= 50 ? T.greenDark : T.mutedSoft,
         fontWeight: 500
@@ -78369,7 +78391,7 @@ const DealsPage = ({
         fontWeight: 700,
         color: T.text
       }
-    }, fmtMoney(o.wonValue)), o.winRate != null && /*#__PURE__*/React.createElement("div", {
+    }, fmtDealMoney(o.wonValue)), o.winRate != null && /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 11,
         color: o.winRate >= 50 ? T.greenDark : T.mutedSoft
@@ -78417,30 +78439,91 @@ const DealsPage = ({
       }
     }, "+", stale.length - 6, " more")), /*#__PURE__*/React.createElement(Card, {
       style: cardStyle
-    }, /*#__PURE__*/React.createElement(SectionTitle, {
-      style: {
-        marginBottom: 10
-      }
-    }, "Lost reasons"), lostRows.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No lost deals yet.") : lostRows.map(([label, n]) => /*#__PURE__*/React.createElement("div", {
-      key: label,
+    }, /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '6px 0',
-        borderTop: `1px solid ${T.border}`,
-        fontSize: 12.5
+        marginBottom: 8
       }
-    }, /*#__PURE__*/React.createElement("span", {
+    }, /*#__PURE__*/React.createElement(SectionTitle, null, "Lost deals"), /*#__PURE__*/React.createElement(Pill, {
+      color: lostDeals.length ? 'red' : 'green'
+    }, lostDeals.length)), lostDeals.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No lost deals yet.") : lostDeals.slice(0, 8).map(d => {
+      const o = spmStaffBy(d.ownerId);
+      const reason = d.lostReason ? d.lostReason.label : 'Unspecified';
+      const unspec = reason === 'Unspecified';
+      return /*#__PURE__*/React.createElement("button", {
+        key: d.id,
+        onClick: () => setOpenId(d.id),
+        style: {
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '8px 0',
+          borderTop: `1px solid ${T.border}`,
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          textAlign: 'left'
+        }
+      }, /*#__PURE__*/React.createElement(Avatar, {
+        name: o ? o.name : '—',
+        size: 26,
+        src: o ? o.photo : undefined
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: T.text,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, d.title), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: T.muted,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, o ? o.name : 'Unassigned')), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: 3,
+          flexShrink: 0
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 12.5,
+          fontWeight: 700,
+          color: T.text
+        }
+      }, fmtDealMoney(d.value)), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 10,
+          fontWeight: 600,
+          padding: '1px 7px',
+          borderRadius: 999,
+          whiteSpace: 'nowrap',
+          background: unspec ? T.fieldBg : T.redSoft,
+          color: unspec ? T.mutedSoft : T.red,
+          border: `1px solid ${unspec ? T.border : '#FECACA'}`
+        }
+      }, reason)));
+    }), lostDeals.length > 8 && /*#__PURE__*/React.createElement(Helper, {
       style: {
-        color: label === 'Unspecified' ? T.mutedSoft : T.text
+        marginTop: 6
       }
-    }, label), /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: T.muted,
-        fontWeight: 600
-      }
-    }, n)))));
+    }, "+", lostDeals.length - 8, " more")));
   })();
   return /*#__PURE__*/React.createElement("main", {
     style: {
@@ -78826,7 +78909,34 @@ const DealsPage = ({
       value: 'reports',
       label: 'Reports'
     }]
-  }), view !== 'reports' && /*#__PURE__*/React.createElement(Fragment, null, view === 'board' && /*#__PURE__*/React.createElement("span", {
+  }), stageFilter && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setStageFilter(null),
+    title: "Clear stage filter",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.primary,
+      background: T.primarySofter,
+      border: `1px solid ${T.primary}`,
+      borderRadius: 999,
+      padding: '5px 10px',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: 2,
+      background: stageBarColor(dealStageMeta(stageFilter).color)
+    }
+  }), dealStageMeta(stageFilter).label, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 12,
+    color: T.primary
+  })), view !== 'reports' && /*#__PURE__*/React.createElement(Fragment, null, view === 'board' && /*#__PURE__*/React.createElement("span", {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -79201,7 +79311,7 @@ const DealsPage = ({
     style: {
       color: T.text
     }
-  }, dealStageMeta(dupModal.existing.stage).label), " \u2014 \u201C", dupModal.existing.title, "\u201D (", fmtMoney(dupModal.existing.value), "). Create another anyway?"), /*#__PURE__*/React.createElement("div", {
+  }, dealStageMeta(dupModal.existing.stage).label), " \u2014 \u201C", dupModal.existing.title, "\u201D (", fmtDealMoney(dupModal.existing.value), "). Create another anyway?"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'flex-end',
@@ -79256,7 +79366,8 @@ const DealsPage = ({
     onOpenCompany: setOpenCompanyId,
     onOpenOwner: setOpenStaffId,
     onOpenProposal: setOpenProposal,
-    fireToast: fireToast
+    fireToast: fireToast,
+    blockEsc: !!(openCompanyId || openStaffId)
   }), openCompanyId && /*#__PURE__*/React.createElement(CompanyDrawer, {
     client: clientById(openCompanyId),
     deals: deals,
@@ -79268,7 +79379,8 @@ const DealsPage = ({
     onOpenEmployee: e => setOpenEmployee(e),
     onOpenProposal: p => setOpenProposal(p),
     fireToast: fireToast,
-    zIndex: 240
+    zIndex: 240,
+    offsetRight: openId ? DEAL_DRAWER_W : 0
   }), openStaffId && /*#__PURE__*/React.createElement(StaffDrawer, {
     staff: spmStaffBy(openStaffId),
     deals: deals,
@@ -79278,7 +79390,8 @@ const DealsPage = ({
       setOpenId(id);
     },
     fireToast: fireToast,
-    zIndex: 240
+    zIndex: 240,
+    offsetRight: openId ? DEAL_DRAWER_W : 0
   }), openProposal && /*#__PURE__*/React.createElement(ProposalPeek, {
     proposal: openProposal,
     onClose: () => setOpenProposal(null),
@@ -80348,7 +80461,7 @@ const PracticeApp = () => {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       width: '100%',
-      maxWidth: 1480,
+      maxWidth: 1920,
       minWidth: 0
     }
   }, renderContent())), /*#__PURE__*/React.createElement(Toast, {
