@@ -1354,8 +1354,10 @@ const Sheet = ({ open, onClose, title, subtitle, children, width = 480 }) => {
   if (!open) return null;
   return (
     <Fragment>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.35)', zIndex: 260, animation: 'fadein 0.15s ease' }} />
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: width, background: T.card, zIndex: 261, boxShadow: '-12px 0 40px rgba(0,0,0,0.16)', display: 'flex', flexDirection: 'column', animation: 'drawerin 0.2s ease' }}>
+      {/* zIndex 1200/1201 sits above Leaflet's panes/controls/popups (z 400–1000)
+          so the drill-down drawer is never overlapped by the map. */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.35)', zIndex: 1200, animation: 'fadein 0.15s ease' }} />
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: width, background: T.card, zIndex: 1201, boxShadow: '-12px 0 40px rgba(0,0,0,0.16)', display: 'flex', flexDirection: 'column', animation: 'drawerin 0.2s ease' }}>
         <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700 }}>{title}</div>
@@ -1392,10 +1394,12 @@ const LeafletMap = ({ records, metric, cluster, onDrill }) => {
     const map = mapRef.current; if (!map || typeof L === 'undefined') return;
     if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null; }
     const max = Math.max(1, ...records.map(r => geoValue(r, metric)));
+    // Click opens the richer drill-down drawer; no Leaflet popup (it duplicated
+    // the drawer's data and floated over it). Hover keeps a lightweight tooltip.
     const mk = r => L.circleMarker([r.lat, r.lng], {
       radius: geoRadius(geoValue(r, metric), max), fillColor: geoColour(geoValue(r, metric), max),
       color: '#fff', weight: 2, fillOpacity: 0.82, opacity: 1
-    }).bindPopup(geoPopup(r)).on('click', () => onDrill('record', [r]));
+    }).bindTooltip(r.customer, { direction: 'top' }).on('click', function () { this.closeTooltip(); onDrill('record', [r]); });
     let layer;
     if (cluster && typeof L.markerClusterGroup === 'function') {
       layer = L.markerClusterGroup({ maxClusterRadius: 58, spiderfyOnMaxZoom: true, showCoverageOnHover: false });
