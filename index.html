@@ -350,8 +350,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   /* Generic hover affordance for any button that opted-in via [data-hover] but isn't
      a Btn-atom variant (e.g. table row actions, kebab triggers, list rows). */
-  button[data-hover="row"]:not(:disabled)               { transition: background 0.1s; }
-  button[data-hover="row"]:not(:disabled):hover         { background: #F9FAFB; }
+  [data-hover="row"]:not(:disabled)                     { transition: background 0.1s; }
+  [data-hover="row"]:not(:disabled):hover               { background: #F9FAFB; }
   button[data-hover="surface"]:not(:disabled)           { transition: background 0.12s, border-color 0.12s; }
   button[data-hover="surface"]:not(:disabled):hover     { background: #F3F4F6; border-color: #D1D5DB; }
   /* Dashboard interactives — lift + indigo halo so KPIs/tiles feel clickable
@@ -805,6 +805,15 @@ const Icon = ({
     }), /*#__PURE__*/React.createElement("path", {
       d: "M8 11V7a4 4 0 0 1 8 0v4"
     })),
+    unlock: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("rect", {
+      x: "5",
+      y: "11",
+      width: "14",
+      height: "10",
+      rx: "2"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M8 11V7a4 4 0 0 1 7.5-1.5"
+    })),
     building: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("rect", {
       x: "6",
       y: "3",
@@ -931,6 +940,17 @@ const Icon = ({
     chevronDown: /*#__PURE__*/React.createElement("polyline", {
       points: "6 9 12 15 18 9"
     }),
+    chevronUp: /*#__PURE__*/React.createElement("polyline", {
+      points: "18 15 12 9 6 15"
+    }),
+    terminal: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("polyline", {
+      points: "4 17 10 11 4 5"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "12",
+      y1: "19",
+      x2: "20",
+      y2: "19"
+    })),
     plus: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("line", {
       x1: "12",
       y1: "5",
@@ -80794,13 +80814,58 @@ const WF_MESSAGE_TEMPLATES = [{
   label: 'Google review prompt',
   channel: 'email',
   group: 'Reputation',
+  audience: 'external',
   subject: 'Could you leave us a Google review?',
   body: 'Hi {clientFirstName},\n\nThanks for the kind feedback. Could you take a moment to leave us a Google review?\n\n{googleReviewLink}\n\nKind regards,\n{firmName}',
   sms: null,
   tokens: ['{clientFirstName}', '{googleReviewLink}', '{firmName}']
+},
+// Internal (staff-facing) notifications — sent to your team, never to the client.
+{
+  id: 'staff-review',
+  label: 'Proposal needs your review',
+  channel: 'email',
+  group: 'Internal',
+  audience: 'internal',
+  subject: '[Action] {clientName} — proposal ready for review',
+  body: 'Hi {staffFirstName},\n\nThe proposal for {clientName} in “{workflowName}” is ready for your review.\n\nOpen it in Sole to approve it or send it back.\n\n— Sole workflow',
+  sms: null,
+  tokens: ['{staffFirstName}', '{clientName}', '{workflowName}']
+}, {
+  id: 'staff-stalled',
+  label: 'Workflow stalled — action needed',
+  channel: 'email',
+  group: 'Internal',
+  audience: 'internal',
+  subject: '[Action] “{workflowName}” stalled for {clientName}',
+  body: 'Hi {staffFirstName},\n\n“{workflowName}” stopped at “{stepName}” for {clientName}.\n\nReason: {reason}\n\nFix the issue in Sole, then choose Continue execution to resume.\n\n— Sole workflow',
+  sms: null,
+  tokens: ['{staffFirstName}', '{workflowName}', '{clientName}', '{stepName}', '{reason}']
+}, {
+  id: 'staff-approval',
+  label: 'Approval required: bulk send',
+  channel: 'email',
+  group: 'Internal',
+  audience: 'internal',
+  subject: '[Approval] {recipientCount} recipients awaiting your sign-off',
+  body: 'Hi {staffFirstName},\n\n“{workflowName}” is ready to send to {recipientCount} clients ({segment}) and needs your approval before it goes out.\n\nReview the recipients and message in Sole, then approve or hold.\n\n— Sole workflow',
+  sms: null,
+  tokens: ['{staffFirstName}', '{workflowName}', '{recipientCount}', '{segment}']
+}, {
+  id: 'staff-assigned',
+  label: 'New job assigned to you',
+  channel: 'email',
+  group: 'Internal',
+  audience: 'internal',
+  subject: '[New] {jobName} assigned to you',
+  body: 'Hi {staffFirstName},\n\nA new job has been assigned to you from “{workflowName}”:\n\n{jobName} — {clientName}\nDue: {dueDate}\n\n— Sole workflow',
+  sms: null,
+  tokens: ['{staffFirstName}', '{jobName}', '{clientName}', '{workflowName}', '{dueDate}']
 }];
 const wfTemplateById = id => WF_MESSAGE_TEMPLATES.find(t => t.id === id) || null;
 const wfTemplateByLabel = l => WF_MESSAGE_TEMPLATES.find(t => t.label === l) || null;
+// Templates default to client-facing ('external') when no audience is set (back-compat).
+const wfTemplatesByAudience = aud => WF_MESSAGE_TEMPLATES.filter(t => (t.audience || 'external') === aud);
 
 // Trigger catalog (the palette, grouped by module) — real SPM vocabulary.
 // Trigger catalog — grounded in the prototype's real vocabulary (harvested by
@@ -81474,6 +81539,18 @@ const wfFindCatalog = ref => {
   return null;
 };
 const fmtRunCount = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n || 0);
+// Runs that need attention: explicit failCount if seeded, else count stalled/failed runs.
+const wfFailCount = wf => wf.failCount != null ? wf.failCount : (wf.runs || []).filter(r => r.status === 'fail' || r.status === 'stalled').length;
+// A short, actionable "how to fix" remedy inferred from a stalled run's reason text.
+const wfFixHint = reason => {
+  const r = (reason || '').toLowerCase();
+  if (/bank|bsb|account number/.test(r)) return 'Add the client’s bank details on their profile, then resume.';
+  if (/approval|approve|sign-?off|partner/.test(r)) return 'Get the required approval, then resume from this step.';
+  if (/precondition|compliance|profile|authority|obligation/.test(r)) return 'Update the compliance profile, then re-run the precheck.';
+  if (/contact|email|phone|invalid|bounce/.test(r)) return 'Fix the client’s contact details, then resume.';
+  if (/missing|document|upload|info/.test(r)) return 'Collect the missing information from the client, then resume.';
+  return 'Resolve the issue above, then resume from the failed step.';
+};
 
 // Human one-line summary of a node's config — drives the node card's secondary line.
 const wfNodeSummary = node => {
@@ -81746,6 +81823,96 @@ const wfStepsNeedingGate = wf => Object.keys(wf.nodes).filter(id => {
   return !(prev && prev.type === 'approvalGate');
 });
 
+// Live activity-summary derivations — the single source for the builder rail's
+// ACTIVITY SUMMARY, the mode-bar counts and the Test & publish checks, so the
+// numbers can never drift between surfaces. All read node.config set in the rail.
+const wfBudgetHours = wf => Object.values(wf.nodes).reduce((a, n) => a + (Number(n.config && n.config.budgetHours) || 0), 0);
+const wfTouchpointCount = wf => Object.values(wf.nodes).filter(n => n.type === 'clientTouchpoint').length;
+const wfLockedGateCount = wf => Object.values(wf.nodes).filter(n => n.type === 'approvalGate' && n.locked).length;
+const wfHighRiskCount = wf => Object.values(wf.nodes).filter(n => n.config && n.config.riskLevel === 'High' || wfStepNeedsGate(n)).length;
+// Roles available wherever a workflow/step owner or reviewer is chosen.
+const WF_ROLE_OPTIONS = ['Partner', 'Manager', 'Reviewer', 'Senior accountant', 'Client manager', 'Payroll specialist', 'Admin'];
+
+// Resolve a display name (or id) to a real client / staff object so entity names can
+// become clickable (opening the same relational drawers the Deals module uses).
+// Returns null when unresolved → the name just renders as plain, non-clickable text.
+const wfClientByName = nameOrId => {
+  if (!nameOrId) return null;
+  const byId = clientById(nameOrId);
+  if (byId) return byId;
+  const n = String(nameOrId).trim().toLowerCase();
+  return PRACTICE_CLIENTS.find(c => c.name.toLowerCase() === n) || null;
+};
+const wfStaffByName = nameOrId => {
+  if (!nameOrId) return null;
+  const byId = spmStaffBy(nameOrId);
+  if (byId) return byId;
+  const n = String(nameOrId).trim().toLowerCase();
+  return SPM_STAFF.find(s => s.name.toLowerCase() === n) || null;
+};
+
+// The "Safe to publish" checklist on the Test & publish tab. Derived from the SAME
+// computeWorkflowIssues plus a few direct reads, so it can never disagree with the
+// publish gate (which stays computeWorkflowIssues errors → doPublish). state: ok | warn | na.
+const wfSafeChecks = (wf, issues) => {
+  const nodes = Object.values(wf.nodes);
+  const has = id => issues.some(i => i.id === id);
+  const hasGate = nodes.some(n => n.type === 'approvalGate');
+  const billingNode = nodes.some(n => WF_LODGE_BILLING_REFS.includes(n.ref) || n.type === 'moduleImpact' && /bill|invoic/i.test(n.config && n.config.target || ''));
+  const auditOff = nodes.some(n => (n.type === 'clientTouchpoint' || n.type === 'moduleImpact') && n.config && n.config.auditLogged === false);
+  const internalVisible = nodes.some(n => {
+    if (n.type !== 'clientTouchpoint' || !n.config || !n.config.clientVisible) return false;
+    const t = wfTemplateById(n.config.templateId);
+    return t && t.audience === 'internal';
+  });
+  const cfgError = issues.some(i => i.id && i.id.indexOf('cfg-') === 0);
+  return [{
+    label: 'Trigger configured',
+    detail: 'Trigger type and timing are defined.',
+    state: has('ok-trigger') ? 'ok' : 'warn'
+  }, {
+    label: 'Preconditions configured',
+    detail: 'Every step has its required options set.',
+    state: cfgError ? 'warn' : 'ok'
+  }, {
+    label: 'Owner assigned',
+    detail: 'A default owner is assigned.',
+    state: wf.ownerRole ? 'ok' : 'warn'
+  }, {
+    label: 'Reviewer assigned',
+    detail: 'A reviewer or approval gate is mapped.',
+    state: wf.reviewerRole || hasGate ? 'ok' : 'warn'
+  }, {
+    label: 'Client approval configured',
+    detail: 'Client approval is mapped where required.',
+    state: hasGate || wf.clientApprovalRequired ? 'ok' : 'warn'
+  }, {
+    label: 'Client message exists',
+    detail: 'At least one step contacts the client.',
+    state: wfTouchpointCount(wf) > 0 ? 'ok' : 'warn'
+  }, {
+    label: 'Test simulation completed',
+    detail: 'A test simulation has been run.',
+    state: wf._tested ? 'ok' : 'warn'
+  }, {
+    label: 'Billing trigger mapped',
+    detail: billingNode ? 'An invoice / lodgement step is mapped.' : 'No billing step here — not required.',
+    state: billingNode ? 'ok' : 'na'
+  }, {
+    label: 'Audit trail enabled',
+    detail: 'Steps are recorded in the audit log.',
+    state: auditOff ? 'warn' : 'ok'
+  }, {
+    label: 'High-risk gates locked',
+    detail: 'High-risk steps sit behind an approval gate.',
+    state: wfStepsNeedingGate(wf).length === 0 ? 'ok' : 'warn'
+  }, {
+    label: 'No client-facing internal notes',
+    detail: 'No internal staff message is exposed to clients.',
+    state: internalVisible ? 'warn' : 'ok'
+  }];
+};
+
 // The node ids visited on one plausible path (conditions take their first branch).
 // Drives the on-canvas test animation; same walk order as wfSimulate.
 const wfSimPathIds = wf => {
@@ -81826,23 +81993,46 @@ const wfSimulate = wf => {
     steps
   };
 };
-const cloneAsNewVersion = wf => {
-  const v = (wf.version || 1) + 1;
-  const base = wf.baseId || wf.id;
-  return {
-    ...wfClone(wf),
-    id: base + '-v' + v,
-    baseId: base,
-    version: v,
-    status: 'Draft',
-    runCount: 0,
-    lastRun: null,
-    successRate: null,
-    _tested: false,
-    enrollments: [],
-    runs: []
-  };
+
+// On "Continue execution", synthesise mock outcomes for the steps downstream of the one
+// that stalled (conditions take their first branch) — used to complete a resumed run.
+// Takes the resolved start node (by id, not label) so duplicate labels can't misroute.
+const wfResumeSteps = (wf, startNode) => {
+  const out = [];
+  const seen = new Set();
+  let cur = startNode;
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    const b0 = cur.type === 'condition' ? (cur.branches || [])[0] : null;
+    const nextId = b0 ? b0.next : cur.next;
+    cur = nextId ? wf.nodes[nextId] : null;
+    if (cur) out.push({
+      label: cur.label,
+      outcome: 'Completed on resume',
+      tone: 'ok'
+    });
+  }
+  return out;
 };
+
+// Editing a baseline never mutates it — instead we fork an INDEPENDENT new workflow
+// (fresh id + baseId, no version chain, no link back) so the firm's template stays intact.
+const forkAsNewWorkflow = wf => ({
+  ...wfClone(wf),
+  id: wfUid('wf-'),
+  baseId: wfUid('base-'),
+  name: wf.name + ' (copy)',
+  version: 1,
+  status: 'Draft',
+  isBaseline: false,
+  runCount: 0,
+  lastRun: null,
+  successRate: null,
+  failCount: 0,
+  _tested: false,
+  enrollments: [],
+  runs: []
+});
 
 // ---- seed library (3 fully-built canonical workflows + 2 lighter, real ones; projects/team start empty) ----
 const WORKFLOW_LIBRARY = [{
@@ -81855,9 +82045,11 @@ const WORKFLOW_LIBRARY = [{
   status: 'Active',
   version: 3,
   ownerRole: 'Client manager',
+  isBaseline: true,
   runCount: 142,
-  lastRun: '2026-06-02',
+  lastRun: '2026-06-04',
   successRate: 96,
+  failCount: 1,
   _tested: true,
   enrollment: {
     reentry: 'once'
@@ -81984,6 +82176,12 @@ const WORKFLOW_LIBRARY = [{
     }
   },
   enrollments: [{
+    client: 'c-northcoast',
+    startedAt: '2026-06-04',
+    step: 'Start onboarding',
+    status: 'failed',
+    runId: 'r3'
+  }, {
     client: 'c-bondi',
     startedAt: '2026-05-30',
     step: 'Send proposal',
@@ -82005,6 +82203,40 @@ const WORKFLOW_LIBRARY = [{
     status: 'waiting'
   }],
   runs: [{
+    id: 'r3',
+    at: '2026-06-04',
+    trigger: 'New enquiry from Sole Link',
+    status: 'stalled',
+    failedStepIndex: 5,
+    client: 'North Coast Partners',
+    reason: 'The client signed the proposal, but onboarding could not start — the deal is still parked at the Proposal stage. Move the deal to Won, then resume.',
+    steps: [{
+      label: 'Schedule discovery call',
+      outcome: 'Task created for Priya Nair',
+      tone: 'ok'
+    }, {
+      label: 'Request client details',
+      outcome: 'Email sent to 1 contact',
+      tone: 'ok'
+    }, {
+      label: 'Accountant reviews proposal',
+      outcome: 'Approved by Priya Nair',
+      tone: 'ok'
+    }, {
+      label: 'Send proposal',
+      outcome: 'Email sent to 1 contact',
+      tone: 'ok'
+    }, {
+      label: 'Proposal accepted?',
+      outcome: 'Took “Accepted” path',
+      tone: 'ok'
+    }, {
+      label: 'Start onboarding',
+      outcome: 'Blocked — the deal is not marked Won',
+      tone: 'error',
+      nodeId: 'n8'
+    }]
+  }, {
     id: 'r1',
     at: '2026-06-02',
     trigger: 'New enquiry from Sole Link',
@@ -82055,6 +82287,7 @@ const WORKFLOW_LIBRARY = [{
   status: 'Active',
   version: 1,
   ownerRole: 'Manager',
+  isBaseline: true,
   runCount: 38,
   lastRun: '2026-05-26',
   successRate: 99,
@@ -82258,6 +82491,7 @@ const WORKFLOW_LIBRARY = [{
   status: 'Active',
   version: 2,
   ownerRole: 'Manager',
+  isBaseline: true,
   runCount: 64,
   lastRun: '2026-06-01',
   successRate: 94,
@@ -82363,6 +82597,7 @@ const WORKFLOW_LIBRARY = [{
   status: 'Active',
   version: 1,
   ownerRole: 'Payroll specialist',
+  isBaseline: true,
   runCount: 12,
   lastRun: '2026-05-31',
   successRate: 100,
@@ -83061,7 +83296,8 @@ const WfStat = ({
   icon,
   label,
   value,
-  sub
+  sub,
+  valueColor
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
     flex: 1,
@@ -83080,7 +83316,7 @@ const WfStat = ({
 }, /*#__PURE__*/React.createElement(Icon, {
   name: icon,
   size: 14,
-  color: T.muted
+  color: valueColor || T.muted
 }), /*#__PURE__*/React.createElement("span", {
   style: {
     fontSize: 11.5,
@@ -83092,7 +83328,8 @@ const WfStat = ({
     fontSize: 22,
     fontWeight: 700,
     letterSpacing: -0.3,
-    marginTop: 6
+    marginTop: 6,
+    color: valueColor || T.text
   }
 }, value), sub && /*#__PURE__*/React.createElement(Helper, {
   style: {
@@ -83153,8 +83390,38 @@ const WfConnector = ({
 // The 6 most-common blocks, surfaced as a one-click menu on the "+" connector so the
 // common case never needs the full palette drawer. "Browse all…" falls back to it.
 const WF_QUICK_ADD = ['send.email', 'send.sms', 'task.create', 'wait', 'condition', 'approval.gate'];
+// Context-relevant suggestions for the quick-add grid, by workflow module + the step it
+// follows. Keeps the common grid for everyone; surfaces a small "Suggested" group on top.
+const WF_MODULE_SUGGEST = {
+  tax: ['notify.compliance', 'mark.lodged', 'approval.gate'],
+  payroll: ['payroll.email_payslips', 'payroll.finalize'],
+  deals: ['meeting.schedule', 'deal.move_stage'],
+  proposal: ['proposal.send', 'proposal.request_signature'],
+  onboarding: ['request.documents', 'attach.q'],
+  projects: ['job.create', 'job.assign'],
+  team: ['notify.internal', 'staff.microkeeper']
+};
+const wfQuickAddSuggestions = (module, prevNode) => {
+  const ids = [];
+  if (prevNode) {
+    if (prevNode.type === 'clientTouchpoint') ids.push('wait'); // a delay usually follows a client message
+    else if (prevNode.type === 'approvalGate') ids.push('module.impact'); // act on the thing that was approved
+  }
+  (WF_MODULE_SUGGEST[module] || []).forEach(id => ids.push(id));
+  const seen = new Set();
+  const out = [];
+  ids.forEach(id => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const it = wfFindCatalog(id);
+    if (it) out.push(it);
+  });
+  return out.slice(0, 4);
+};
 const WfQuickAddMenu = ({
   pos,
+  module,
+  prevNode,
   onClose,
   onPick,
   onBrowse
@@ -83174,61 +83441,37 @@ const WfQuickAddMenu = ({
     };
   }, [onClose]);
   const items = WF_QUICK_ADD.map(id => wfFindCatalog(id)).filter(Boolean);
-  const menuH = items.length * 40 + 78;
-  const top = pos.y + menuH > window.innerHeight ? Math.max(8, pos.y - menuH - 12) : pos.y;
-  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
-    onClick: onClose,
-    style: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 247
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'fixed',
-      left: pos.x,
-      top,
-      transform: 'translateX(-50%)',
-      zIndex: 248,
-      width: 248,
-      background: T.card,
-      border: `1px solid ${T.border}`,
-      borderRadius: 12,
-      boxShadow: '0 12px 32px rgba(15,17,23,0.18)',
-      overflow: 'hidden',
-      animation: 'expand 0.12s ease'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '9px 14px 5px',
-      fontSize: 10,
-      fontWeight: 700,
-      color: T.muted,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase'
-    }
-  }, "Add a step"), items.map(it => {
+  const suggestions = wfQuickAddSuggestions(module, prevNode);
+  const width = 300;
+  // Estimate height to flip/clamp the popover so it stays fully on-screen.
+  const tileRows = Math.ceil(items.length / 2) + (suggestions.length ? Math.ceil(suggestions.length / 2) : 0);
+  const menuH = tileRows * 70 + (suggestions.length ? 28 : 0) + 30 + 44;
+  const top = Math.max(8, Math.min(pos.y, window.innerHeight - menuH - 8));
+  const left = Math.max(8 + width / 2, Math.min(pos.x, window.innerWidth - width / 2 - 8));
+  const Tile = it => {
     const meta = WF_NODE_META[it.type || 'action'] || WF_NODE_META.action;
     const tint = WF_TINT[meta.color] || WF_TINT.neutral;
     return /*#__PURE__*/React.createElement("button", {
       key: it.id,
       "data-hover": "row",
       onClick: () => onPick(it),
+      title: it.label,
       style: {
-        width: '100%',
-        padding: '8px 14px',
-        border: 'none',
-        background: 'transparent',
-        textAlign: 'left',
+        border: `1px solid ${T.border}`,
+        background: T.card,
+        borderRadius: 10,
+        padding: 10,
         cursor: 'pointer',
         display: 'flex',
-        alignItems: 'center',
-        gap: 10
+        flexDirection: 'column',
+        gap: 7,
+        textAlign: 'left',
+        minHeight: 62
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
-        width: 26,
-        height: 26,
+        width: 28,
+        height: 28,
         borderRadius: 7,
         flexShrink: 0,
         background: tint.bg,
@@ -83239,21 +83482,73 @@ const WfQuickAddMenu = ({
       }
     }, /*#__PURE__*/React.createElement(Icon, {
       name: it.icon,
-      size: 14,
+      size: 15,
       color: tint.fg
     })), /*#__PURE__*/React.createElement("span", {
       style: {
-        fontSize: 12.5,
+        fontSize: 11.5,
         fontWeight: 600,
-        color: T.text
+        color: T.text,
+        lineHeight: 1.25
       }
     }, it.label));
-  }), /*#__PURE__*/React.createElement("button", {
+  };
+  const grid = list => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 8,
+      padding: '4px 12px 10px'
+    }
+  }, list.map(Tile));
+  const groupLabel = t => /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 14px 2px',
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase'
+    }
+  }, t);
+  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 247
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      left,
+      top,
+      transform: 'translateX(-50%)',
+      zIndex: 248,
+      width,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      boxShadow: '0 12px 32px rgba(15,17,23,0.18)',
+      overflow: 'hidden',
+      animation: 'expand 0.12s ease',
+      maxHeight: 'min(72vh, ' + (window.innerHeight - 16) + 'px)',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      overflowY: 'auto',
+      flex: 1,
+      minHeight: 0
+    }
+  }, suggestions.length > 0 && /*#__PURE__*/React.createElement(Fragment, null, groupLabel('Suggested for this workflow'), grid(suggestions)), groupLabel(suggestions.length ? 'Common steps' : 'Add a step'), grid(items)), /*#__PURE__*/React.createElement("button", {
     "data-hover": "row",
     onClick: onBrowse,
     style: {
       width: '100%',
-      padding: '10px 14px',
+      padding: '11px 14px',
       border: 'none',
       borderTop: `1px solid ${T.border}`,
       background: 'transparent',
@@ -83264,7 +83559,8 @@ const WfQuickAddMenu = ({
       gap: 10,
       color: T.primary,
       fontWeight: 600,
-      fontSize: 12.5
+      fontSize: 12.5,
+      flexShrink: 0
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "search",
@@ -83300,33 +83596,36 @@ const WfNodeCard = ({
   onClick,
   onDelete,
   needsSetup,
-  active
+  active,
+  selected
 }) => {
   const meta = WF_NODE_META[node.type] || WF_NODE_META.action;
   const tint = WF_TINT[meta.color] || WF_TINT.neutral;
   const cat = wfFindCatalog(node.ref);
+  const bdColor = active ? T.greenDark : selected ? T.primary : T.border;
+  const shadow = active ? `0 0 0 3px ${withAlpha(T.green, 0.35)}` : selected ? `0 0 0 3px ${withAlpha(T.primary, 0.18)}` : '0 1px 2px rgba(15,17,23,0.04)';
   return /*#__PURE__*/React.createElement("div", {
     onClick: onClick,
     style: {
       width: 300,
       background: active ? T.greenSoft : T.card,
-      border: `1px solid ${active ? T.greenDark : T.border}`,
+      border: `1px solid ${bdColor}`,
       borderRadius: 12,
       padding: 12,
       display: 'flex',
       alignItems: 'flex-start',
       gap: 10,
       cursor: 'pointer',
-      boxShadow: active ? `0 0 0 3px ${withAlpha(T.green, 0.35)}` : '0 1px 2px rgba(15,17,23,0.04)',
+      boxShadow: shadow,
       transition: 'border-color 0.12s, box-shadow 0.12s'
     },
     onMouseEnter: e => {
-      if (active) return;
+      if (active || selected) return;
       e.currentTarget.style.borderColor = T.borderStrong;
       e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,17,23,0.09)';
     },
     onMouseLeave: e => {
-      if (active) return;
+      if (active || selected) return;
       e.currentTarget.style.borderColor = T.border;
       e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,17,23,0.04)';
     }
@@ -83403,7 +83702,33 @@ const WfNodeCard = ({
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
     }
-  }, wfNodeSummary(node))), onDelete && /*#__PURE__*/React.createElement("button", {
+  }, wfNodeSummary(node)), node.config && (node.config.dueTiming || node.config.ownerRole || node.config.riskLevel === 'High') && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 4,
+      marginTop: 6
+    }
+  }, node.config.dueTiming && /*#__PURE__*/React.createElement(Pill, {
+    color: "neutral",
+    style: {
+      fontSize: 9.5,
+      gap: 3
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clock",
+    size: 9
+  }), node.config.dueTiming), node.config.ownerRole && /*#__PURE__*/React.createElement(Pill, {
+    color: "neutral",
+    style: {
+      fontSize: 9.5
+    }
+  }, node.config.ownerRole), node.config.riskLevel === 'High' && /*#__PURE__*/React.createElement(Pill, {
+    color: "red",
+    style: {
+      fontSize: 9.5
+    }
+  }, "High risk"))), onDelete && /*#__PURE__*/React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
       onDelete();
@@ -83446,7 +83771,8 @@ const WfCanvas = ({
   onAddAfter,
   onDeleteNode,
   onAddTrigger,
-  simActiveId
+  simActiveId,
+  selectedId
 }) => {
   const nodes = wf.nodes;
   const branchChip = {
@@ -83471,6 +83797,7 @@ const WfCanvas = ({
       node: node,
       needsSetup: wfNodeNeedsSetup(node),
       active: simActiveId === node.id,
+      selected: selectedId === node.id,
       onClick: () => onOpenNode(node.id),
       onDelete: node.type === 'trigger' || node.locked ? null : () => onDeleteNode(node.id)
     }), node.type === 'condition' ? /*#__PURE__*/React.createElement("div", {
@@ -83684,7 +84011,10 @@ const WfAdvancedCanvas = ({
   onOpenNode,
   onAddAfter,
   onAddTrigger,
-  simActiveId
+  onDeleteNode,
+  onMoveNode,
+  simActiveId,
+  selectedId
 }) => {
   const ANW = 186,
     ANH = 54,
@@ -83699,6 +84029,7 @@ const WfAdvancedCanvas = ({
     y: 48
   });
   const [override, setOverride] = useState({});
+  const [hoverId, setHoverId] = useState(null);
 
   // Auto-layout: depth → column; condition branches fan into fresh lanes below.
   const autoPos = {};
@@ -83720,7 +84051,8 @@ const WfAdvancedCanvas = ({
     };
     if (wf.root) place(wf.root, 0, 0);
   }
-  const posOf = id => override[id] || autoPos[id] || {
+  // override = live drag layer; wf.advPos = persisted layer (survives tab switch / save).
+  const posOf = id => override[id] || wf.advPos && wf.advPos[id] || autoPos[id] || {
     x: 0,
     y: 0
   };
@@ -83732,20 +84064,26 @@ const WfAdvancedCanvas = ({
       if (d.type === 'pan') setPan({
         x: d.origPan.x + (e.clientX - d.startX),
         y: d.origPan.y + (e.clientY - d.startY)
-      });else setOverride(o => ({
-        ...o,
-        [d.id]: {
+      });else {
+        const pos = {
           x: d.origX + (e.clientX - d.startX) / zoom,
           y: d.origY + (e.clientY - d.startY) / zoom
-        }
-      }));
+        };
+        d.lastPos = pos;
+        setOverride(o => ({
+          ...o,
+          [d.id]: pos
+        }));
+      }
     };
     const up = () => {
-      if (drag.current && drag.current.moved) {
+      const d = drag.current;
+      if (d && d.moved) {
         justDragged.current = true;
         setTimeout(() => {
           justDragged.current = false;
         }, 0);
+        if (d.type === 'node' && d.lastPos && onMoveNode) onMoveNode(d.id, d.lastPos); // persist final position
       }
       drag.current = null;
     };
@@ -83941,14 +84279,22 @@ const WfAdvancedCanvas = ({
       strokeWidth: 2,
       fill: "none",
       markerEnd: "url(#wfAdvArr)"
-    }), ed.label && /*#__PURE__*/React.createElement("text", {
+    }), ed.label && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("rect", {
+      x: mx - ed.label.length * 3.2 - 5,
+      y: (y1 + y2) / 2 - 18,
+      width: ed.label.length * 6.4 + 10,
+      height: 15,
+      rx: 4,
+      fill: T.card,
+      opacity: 0.92
+    }), /*#__PURE__*/React.createElement("text", {
       x: mx,
       y: (y1 + y2) / 2 - 7,
       textAnchor: "middle",
       fontSize: "10.5",
       fontWeight: "600",
       fill: T.muted
-    }, ed.label));
+    }, ed.label)));
   })), edges.map((ed, i) => {
     const a = posOf(ed.from),
       b = posOf(ed.to);
@@ -83995,6 +84341,7 @@ const WfAdvancedCanvas = ({
     const tint = WF_TINT[meta.color] || WF_TINT.neutral;
     const cat = wfFindCatalog(n.ref);
     const active = simActiveId === n.id;
+    const selected = selectedId === n.id;
     const needs = wfNodeNeedsSetup(n);
     return /*#__PURE__*/React.createElement("div", {
       key: n.id,
@@ -84004,6 +84351,8 @@ const WfAdvancedCanvas = ({
         if (justDragged.current) return;
         onOpenNode(n.id);
       },
+      onMouseEnter: () => setHoverId(n.id),
+      onMouseLeave: () => setHoverId(h => h === n.id ? null : h),
       style: {
         position: 'absolute',
         left: p.x,
@@ -84011,9 +84360,9 @@ const WfAdvancedCanvas = ({
         width: ANW,
         height: ANH,
         background: active ? T.greenSoft : T.card,
-        border: `1.5px solid ${active ? T.greenDark : n.type === 'trigger' ? '#BFC5D6' : T.border}`,
+        border: `1.5px solid ${active ? T.greenDark : selected ? T.primary : n.type === 'trigger' ? '#BFC5D6' : T.border}`,
         borderRadius: 12,
-        boxShadow: active ? `0 0 0 3px ${withAlpha(T.green, 0.35)}` : '0 1px 3px rgba(15,17,23,0.08)',
+        boxShadow: active ? `0 0 0 3px ${withAlpha(T.green, 0.35)}` : selected ? `0 0 0 3px ${withAlpha(T.primary, 0.18)}` : '0 1px 3px rgba(15,17,23,0.08)',
         display: 'flex',
         alignItems: 'center',
         gap: 9,
@@ -84073,7 +84422,36 @@ const WfAdvancedCanvas = ({
       name: "lock",
       size: 11,
       color: T.primary
-    }));
+    }), hoverId === n.id && onDeleteNode && !n.locked && n.type !== 'trigger' && /*#__PURE__*/React.createElement("button", {
+      title: "Delete step",
+      onMouseDown: e => e.stopPropagation(),
+      onClick: e => {
+        e.stopPropagation();
+        onDeleteNode(n.id);
+      },
+      style: {
+        position: 'absolute',
+        top: -9,
+        right: -9,
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        border: `1px solid ${T.border}`,
+        background: T.card,
+        color: T.red,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 0,
+        boxShadow: '0 1px 3px rgba(15,17,23,0.18)',
+        zIndex: 4
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "trash",
+      size: 11,
+      color: T.red
+    })));
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
@@ -84522,21 +84900,45 @@ const WfNodeDrawer = ({
       onChange: e => pickTemplate(e.target.value)
     }, /*#__PURE__*/React.createElement("option", {
       value: ""
-    }, "No template \u2014 compose later"), WF_MESSAGE_TEMPLATES.map(tpl => /*#__PURE__*/React.createElement("option", {
+    }, "No template \u2014 compose later"), /*#__PURE__*/React.createElement("optgroup", {
+      label: "Client-facing (external)"
+    }, wfTemplatesByAudience('external').map(tpl => /*#__PURE__*/React.createElement("option", {
       key: tpl.id,
       value: tpl.id
-    }, tpl.label))), !t ? /*#__PURE__*/React.createElement(Helper, {
+    }, tpl.label))), /*#__PURE__*/React.createElement("optgroup", {
+      label: "Internal (staff)"
+    }, wfTemplatesByAudience('internal').map(tpl => /*#__PURE__*/React.createElement("option", {
+      key: tpl.id,
+      value: tpl.id
+    }, tpl.label)))), !t ? /*#__PURE__*/React.createElement(Helper, {
       style: {
         marginTop: 6
       }
-    }, "Pick a ready-made email/SMS, or leave blank to write it later.") : /*#__PURE__*/React.createElement("div", {
+    }, "Pick a ready-made client or internal message, or leave blank to write it later.") : /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 10,
         border: `1px solid ${T.border}`,
         borderRadius: 10,
         overflow: 'hidden'
       }
-    }, t.subject && /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '8px 12px',
+        borderBottom: `1px solid ${T.border}`,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement(Pill, {
+      color: (t.audience || 'external') === 'internal' ? 'amber' : 'blue',
+      style: {
+        fontSize: 9.5
+      }
+    }, (t.audience || 'external') === 'internal' ? 'Internal · staff' : 'Client-facing'), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 10.5
+      }
+    }, t.group)), t.subject && /*#__PURE__*/React.createElement("div", {
       style: {
         padding: '9px 12px',
         borderBottom: `1px solid ${T.border}`,
@@ -85189,6 +85591,115 @@ const WfSettingsTab = ({
     style: {
       marginBottom: 6
     }
+  }, "People & approvals"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 12
+    }
+  }, "Who owns, reviews and signs off work in this workflow."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Reviewer"), /*#__PURE__*/React.createElement(Select, {
+    value: wf.reviewerRole || '',
+    onChange: e => onChange({
+      reviewerRole: e.target.value
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "No fixed reviewer"), WF_ROLE_OPTIONS.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r,
+    value: r
+  }, r)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Escalation owner"), /*#__PURE__*/React.createElement(Select, {
+    value: wf.escalationOwner || '',
+    onChange: e => onChange({
+      escalationOwner: e.target.value
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Workflow owner"), WF_ROLE_OPTIONS.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r,
+    value: r
+  }, r))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Client approval required"), /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'yes',
+      label: 'Yes — required'
+    }, {
+      value: 'no',
+      label: 'Not required'
+    }],
+    value: wf.clientApprovalRequired ? 'yes' : 'no',
+    onChange: v => onChange({
+      clientApprovalRequired: v === 'yes'
+    })
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6,
+      fontSize: 11.5
+    }
+  }, "When required, lodgement/billing steps wait for the client to approve in the portal."))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Communication overrides"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 12
+    }
+  }, "Leave blank to use your firm defaults from ", /*#__PURE__*/React.createElement("b", null, "Workflow settings"), ". Messages still send from your Sole number."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "From name"), /*#__PURE__*/React.createElement(Input, {
+    value: wf.comms && wf.comms.fromName || '',
+    placeholder: WF_GLOBAL_SETTINGS.fromName,
+    onChange: e => onChange({
+      comms: {
+        ...(wf.comms || {}),
+        fromName: e.target.value
+      }
+    })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "From email"), /*#__PURE__*/React.createElement(Input, {
+    value: wf.comms && wf.comms.fromEmail || '',
+    placeholder: WF_GLOBAL_SETTINGS.fromEmail,
+    onChange: e => onChange({
+      comms: {
+        ...(wf.comms || {}),
+        fromEmail: e.target.value
+      }
+    })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "SMS number"), /*#__PURE__*/React.createElement(Input, {
+    value: wf.comms && wf.comms.smsNumber || '',
+    placeholder: (WF_GLOBAL_SETTINGS.numbers[0] || {}).number || '+61 …',
+    onChange: e => onChange({
+      comms: {
+        ...(wf.comms || {}),
+        smsNumber: e.target.value
+      }
+    })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Time zone"), /*#__PURE__*/React.createElement(Select, {
+    value: wf.comms && wf.comms.timeZone || '',
+    onChange: e => onChange({
+      comms: {
+        ...(wf.comms || {}),
+        timeZone: e.target.value
+      }
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Firm default (", WF_GLOBAL_SETTINGS.timeZone, ")"), ['Australia/Sydney', 'Australia/Brisbane', 'Australia/Melbourne', 'Australia/Adelaide', 'Australia/Perth'].map(t => /*#__PURE__*/React.createElement("option", {
+    key: t,
+    value: t
+  }, t)))))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
   }, "Enrollment"), /*#__PURE__*/React.createElement(Helper, {
     style: {
       marginBottom: 12
@@ -85239,26 +85750,170 @@ const WfSettingsTab = ({
         reentry: v
       }
     })
-  }))), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14,
+      borderTop: `1px solid ${T.border}`,
+      paddingTop: 4
+    }
+  }, [{
+    k: 'allowReentryByPeriod',
+    l: 'Allow re-entry by period',
+    d: 'A client can re-enter when a new period opens, once the prior run closes.',
+    def: true
+  }, {
+    k: 'allowConcurrent',
+    l: 'Allow concurrent obligations',
+    d: 'BAS, IAS and tax can run at the same time with separate audit trails.',
+    def: true
+  }, {
+    k: 'stopOnClientResponse',
+    l: 'Stop on client response',
+    d: 'Ends reminder steps once the client responds via the portal.',
+    def: false
+  }].map((r, i) => {
+    const on = wf.enrollment && wf.enrollment[r.k] != null ? wf.enrollment[r.k] : r.def;
+    return /*#__PURE__*/React.createElement("div", {
+      key: r.k,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 0',
+        borderTop: i ? `1px solid ${T.border}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, r.l), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, r.d)), /*#__PURE__*/React.createElement(Toggle, {
+      on: !!on,
+      onChange: v => onChange({
+        enrollment: {
+          ...(wf.enrollment || {}),
+          [r.k]: v
+        }
+      })
+    }));
+  }))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      flex: 1
+    }
+  }, "Locked SPM controls"), /*#__PURE__*/React.createElement(Pill, {
+    color: "accent",
+    style: {
+      gap: 3
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 9
+  }), "Cannot be disabled")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 8
+    }
+  }, "Compliance guardrails Sole enforces on every firm \u2014 shown here for transparency."), /*#__PURE__*/React.createElement("div", null, [{
+    l: 'Reviewer sign-off before client approval',
+    d: 'Blocks client approval until a reviewer has signed off.'
+  }, {
+    l: 'Client approval before lodgement',
+    d: 'Lodgement and billing wait for client approval where required.'
+  }, {
+    l: 'High-risk steps locked behind a gate',
+    d: 'Bulk sends and lodgement sit behind an approval gate.'
+  }, {
+    l: 'Audit trail on gate events',
+    d: 'Every approval and gate event is written to the audit log.'
+  }].map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '10px 0',
+      borderTop: i ? `1px solid ${T.border}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, r.l), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, r.d)), /*#__PURE__*/React.createElement("span", {
+    title: "Locked on",
+    style: {
+      width: 38,
+      height: 22,
+      borderRadius: 999,
+      background: withAlpha(T.primary, 0.5),
+      position: 'relative',
+      flexShrink: 0,
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      top: 2,
+      left: 18,
+      width: 18,
+      height: 18,
+      borderRadius: '50%',
+      background: '#fff',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 9,
+    color: T.primary
+  }))))))), wf.isBaseline && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '12px 14px',
-      background: T.amberSoft,
-      border: '1px solid #FCD34D',
+      background: T.primarySofter,
+      border: `1px solid ${T.border}`,
       borderRadius: 10,
       fontSize: 12,
-      color: T.amber,
+      color: T.textSoft,
       display: 'flex',
       gap: 10,
       alignItems: 'flex-start'
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: "info",
+    name: "lock",
     size: 15,
-    color: T.amber
-  }), /*#__PURE__*/React.createElement("span", null, "Editing an ", /*#__PURE__*/React.createElement("b", null, "Active"), " workflow never changes the live version. When you save, Sole creates the next version as a ", /*#__PURE__*/React.createElement("b", null, "Draft"), " \u2014 the running version keeps going until you publish the new one.")));
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", null, "This is a firm ", /*#__PURE__*/React.createElement("b", null, "template"), ". Editing never changes it \u2014 when you save, Sole creates a new, editable workflow from your edits and the baseline keeps running.")));
 };
 const WfEnrollmentTab = ({
-  wf
+  wf,
+  onContinue,
+  onOpenCompany
 }) => {
   const [filter, setFilter] = useState('all');
   const statusColor = {
@@ -85274,7 +85929,27 @@ const WfEnrollmentTab = ({
     failed: 'Failed'
   };
   const all = wf.enrollments || [];
-  const rows = filter === 'all' ? all : all.filter(e => e.status === filter);
+  const failedCount = all.filter(e => e.status === 'failed').length;
+  // If the Failed chip has just disappeared (last failure resolved), fall back to All.
+  const activeFilter = filter === 'failed' && !failedCount ? 'all' : filter;
+  const rows = activeFilter === 'all' ? all : all.filter(e => e.status === activeFilter);
+  const chips = [{
+    id: 'all',
+    l: 'All'
+  }, {
+    id: 'running',
+    l: 'Running'
+  }, {
+    id: 'completed',
+    l: 'Completed'
+  }, {
+    id: 'waiting',
+    l: 'Waiting'
+  }];
+  if (failedCount) chips.push({
+    id: 'failed',
+    l: 'Failed'
+  });
   return /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: 760
@@ -85287,24 +85962,12 @@ const WfEnrollmentTab = ({
       marginBottom: 14,
       flexWrap: 'wrap'
     }
-  }, [{
-    id: 'all',
-    l: 'All'
-  }, {
-    id: 'running',
-    l: 'Running'
-  }, {
-    id: 'completed',
-    l: 'Completed'
-  }, {
-    id: 'waiting',
-    l: 'Waiting'
-  }].map(f => /*#__PURE__*/React.createElement(Chip, {
+  }, chips.map(f => /*#__PURE__*/React.createElement(Chip, {
     key: f.id,
     size: "sm",
-    selected: filter === f.id,
+    selected: activeFilter === f.id,
     onClick: () => setFilter(f.id)
-  }, f.l, f.id === 'all' ? ' · ' + all.length : ''))), rows.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+  }, f.l, f.id === 'all' ? ' · ' + all.length : f.id === 'failed' ? ' · ' + failedCount : ''))), rows.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '40px 20px',
       textAlign: 'center'
@@ -85339,99 +86002,253 @@ const WfEnrollmentTab = ({
         fontWeight: 600,
         color: T.text
       }
-    }, c.name), /*#__PURE__*/React.createElement(Helper, {
+    }, c.id && onOpenCompany ? /*#__PURE__*/React.createElement("span", {
+      "data-link": "cell",
+      onClick: () => onOpenCompany(c.id)
+    }, c.name) : c.name), /*#__PURE__*/React.createElement(Helper, {
       style: {
         fontSize: 11.5
       }
     }, "Started ", daysAgo(e.startedAt), " \xB7 now at \u201C", e.step, "\u201D")), /*#__PURE__*/React.createElement(Pill, {
       color: statusColor[e.status] || 'neutral'
-    }, statusLabel[e.status] || e.status));
+    }, statusLabel[e.status] || e.status), e.status === 'failed' && onContinue && e.runId && /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "play",
+      onClick: () => onContinue(e.runId)
+    }, "Continue"));
   })));
 };
 const WfLogsTab = ({
   wf,
-  simLog
+  simLog,
+  onContinue,
+  onOpenChecklist,
+  onFix,
+  onOpenCompany
 }) => {
   const runs = wf.runs || [];
+  const [logFilter, setLogFilter] = useState('all');
   const toneColor = {
     ok: T.green,
     warn: T.amber,
     error: T.red
   };
+  const needsAttn = wfFailCount(wf);
+  // A run card; stalled/failed runs render red and expand by default to show where + why it stopped.
   const RunCard = ({
     run
-  }) => /*#__PURE__*/React.createElement(Card, {
-    padded: false,
-    style: {
-      overflow: 'hidden'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '12px 16px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      borderBottom: `1px solid ${T.border}`,
-      background: run.sim ? T.amberSoft : T.fieldBg
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: run.sim ? 'play' : 'bolt',
-    size: 14,
-    color: run.sim ? T.amber : T.muted
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: T.text
-    }
-  }, run.trigger), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11
-    }
-  }, run.sim ? 'Simulation (not live)' : run.at === 'now' ? 'just now' : daysAgo(run.at))), /*#__PURE__*/React.createElement(Pill, {
-    color: run.sim ? 'amber' : run.status === 'success' ? 'green' : 'red'
-  }, run.sim ? 'Test' : run.status === 'success' ? 'Success' : 'Failed')), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '6px 16px 12px'
-    }
-  }, run.steps.map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: 'flex',
-      gap: 10,
-      padding: '7px 0',
-      alignItems: 'flex-start'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 8,
-      height: 8,
-      borderRadius: '50%',
-      background: toneColor[s.tone] || T.muted,
-      marginTop: 5,
-      flexShrink: 0
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      color: T.text,
-      fontWeight: 500
-    }
-  }, s.label), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5
-    }
-  }, s.outcome))))));
+  }) => {
+    const stalled = run.status === 'stalled' || run.status === 'fail';
+    const [open, setOpen] = useState(stalled);
+    const fs = run.steps[run.failedStepIndex];
+    const failedNodeId = fs ? fs.nodeId && wf.nodes[fs.nodeId] ? fs.nodeId : (Object.values(wf.nodes).find(n => n.label === fs.label) || {}).id : null;
+    const pill = run.sim ? {
+      c: 'amber',
+      l: 'Test'
+    } : run.status === 'success' ? {
+      c: 'green',
+      l: 'Success'
+    } : run.status === 'stalled' ? {
+      c: 'red',
+      l: 'Stalled'
+    } : {
+      c: 'red',
+      l: 'Failed'
+    };
+    return /*#__PURE__*/React.createElement(Card, {
+      padded: false,
+      style: {
+        overflow: 'hidden',
+        border: `1px solid ${stalled ? '#FECACA' : T.border}`
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => setOpen(o => !o),
+      style: {
+        width: '100%',
+        textAlign: 'left',
+        border: 'none',
+        cursor: 'pointer',
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        borderBottom: open ? `1px solid ${T.border}` : 'none',
+        background: run.sim ? T.amberSoft : stalled ? T.redSoft : T.fieldBg
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: run.sim ? 'play' : stalled ? 'alertTriangle' : 'bolt',
+      size: 14,
+      color: run.sim ? T.amber : stalled ? T.red : T.muted
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, run.trigger, run.client && (() => {
+      const c = wfClientByName(run.client);
+      return /*#__PURE__*/React.createElement(Fragment, null, ' · ', c && onOpenCompany ? /*#__PURE__*/React.createElement("span", {
+        "data-link": "cell",
+        onClick: ev => {
+          ev.stopPropagation();
+          onOpenCompany(c.id);
+        }
+      }, run.client) : run.client);
+    })()), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, run.sim ? 'Simulation (not live)' : run.at === 'now' ? 'just now' : daysAgo(run.at))), /*#__PURE__*/React.createElement(Pill, {
+      color: pill.c
+    }, pill.l), /*#__PURE__*/React.createElement(Icon, {
+      name: open ? 'chevronDown' : 'chevronRight',
+      size: 15,
+      color: T.muted
+    })), open && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '6px 16px 12px'
+      }
+    }, run.steps.map((s, i) => {
+      const isFail = i === run.failedStepIndex;
+      return /*#__PURE__*/React.createElement("div", {
+        key: i,
+        style: {
+          display: 'flex',
+          gap: 10,
+          padding: '7px 10px',
+          margin: '2px -10px',
+          alignItems: 'flex-start',
+          background: isFail ? T.redSoft : 'transparent',
+          borderRadius: 8
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          background: toneColor[s.tone] || T.muted,
+          marginTop: 5,
+          flexShrink: 0
+        }
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 12.5,
+          color: T.text,
+          fontWeight: 500
+        }
+      }, s.label, isFail && /*#__PURE__*/React.createElement("span", {
+        style: {
+          marginLeft: 8,
+          fontSize: 10,
+          fontWeight: 700,
+          color: T.red,
+          letterSpacing: 0.3
+        }
+      }, "FAILED HERE")), /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          fontSize: 11.5
+        }
+      }, s.outcome)));
+    }), stalled && run.reason && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 10,
+        padding: '12px 14px',
+        background: T.redSoft,
+        border: '1px solid #FECACA',
+        borderRadius: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        alignItems: 'flex-start'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "alertTriangle",
+      size: 15,
+      color: T.red
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.red,
+        marginBottom: 2
+      }
+    }, "Why it stopped"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: T.textSoft,
+        lineHeight: 1.5
+      }
+    }, run.reason))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 10,
+        padding: '9px 12px',
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        display: 'flex',
+        gap: 8,
+        alignItems: 'flex-start'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "sparkle2",
+      size: 14,
+      color: T.primary
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, "How to fix"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: T.textSoft,
+        marginTop: 1,
+        lineHeight: 1.5
+      }
+    }, wfFixHint(run.reason)))), run.status === 'stalled' && (onFix || onContinue) && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 12,
+        flexWrap: 'wrap'
+      }
+    }, onFix && failedNodeId && /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "sm",
+      icon: "edit",
+      onClick: () => onFix(failedNodeId)
+    }, "Fix this step"), onContinue && /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "play",
+      onClick: () => onContinue(run.id)
+    }, "Continue execution")))));
+  };
+  const shown = logFilter === 'all' ? runs : logFilter === 'attention' ? runs.filter(r => r.status === 'stalled' || r.status === 'fail') : runs.filter(r => r.status === 'success');
   return /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: 760
@@ -85455,7 +86272,44 @@ const WfLogsTab = ({
     icon: "check",
     label: "Success rate",
     value: wf.successRate != null ? wf.successRate + '%' : '—'
+  }), /*#__PURE__*/React.createElement(WfStat, {
+    icon: "alertTriangle",
+    label: "Needs attention",
+    value: needsAttn,
+    valueColor: needsAttn ? T.red : undefined,
+    sub: needsAttn ? 'stalled run' + (needsAttn === 1 ? '' : 's') : 'all clear'
   })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+      flexWrap: 'wrap'
+    }
+  }, [{
+    id: 'all',
+    l: 'All'
+  }, {
+    id: 'success',
+    l: 'Success'
+  }, {
+    id: 'attention',
+    l: 'Needs attention'
+  }].map(f => /*#__PURE__*/React.createElement(Chip, {
+    key: f.id,
+    size: "sm",
+    selected: logFilter === f.id,
+    onClick: () => setLogFilter(f.id)
+  }, f.l, f.id === 'all' ? ' · ' + runs.length : f.id === 'attention' && needsAttn ? ' · ' + needsAttn : '')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), onOpenChecklist && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "check",
+    onClick: onOpenChecklist
+  }, "Safe-to-publish checklist")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -85463,12 +86317,12 @@ const WfLogsTab = ({
     }
   }, simLog && /*#__PURE__*/React.createElement(RunCard, {
     run: simLog
-  }), runs.length === 0 && !simLog && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+  }), shown.length === 0 && !simLog && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '40px 20px',
       textAlign: 'center'
     }
-  }, /*#__PURE__*/React.createElement(Helper, null, "No runs yet. Use ", /*#__PURE__*/React.createElement("b", null, "Test"), " in the header to simulate a run."))), runs.map(r => /*#__PURE__*/React.createElement(RunCard, {
+  }, /*#__PURE__*/React.createElement(Helper, null, runs.length === 0 ? /*#__PURE__*/React.createElement(React.Fragment, null, "No runs yet. Use ", /*#__PURE__*/React.createElement("b", null, "Test"), " in the header to simulate a run.") : 'No runs match this filter.'))), shown.map(r => /*#__PURE__*/React.createElement(RunCard, {
     key: r.id,
     run: r
   }))));
@@ -85481,7 +86335,7 @@ const WF_PERMISSIONS = [{
   v: ['yes', 'yes', 'yes', 'no', 'no', 'never']
 }, {
   label: 'Edit workflow steps',
-  v: ['yes', 'yes', 'partial', 'no', 'no', 'never']
+  v: ['yes', 'yes', 'Timing/owner only', 'no', 'no', 'never']
 }, {
   label: 'Delete unlocked steps',
   v: ['yes', 'yes', 'no', 'no', 'no', 'never']
@@ -85490,7 +86344,7 @@ const WF_PERMISSIONS = [{
   v: ['never', 'never', 'never', 'never', 'never', 'never']
 }, {
   label: 'Publish a workflow',
-  v: ['yes', 'partial', 'no', 'no', 'no', 'never']
+  v: ['yes', 'Low risk only', 'no', 'no', 'no', 'never']
 }, {
   label: 'Approve high-risk gates',
   v: ['yes', 'no', 'no', 'no', 'no', 'never']
@@ -85524,11 +86378,20 @@ const WfRolePreviewTab = ({
       color: T.red,
       strokeWidth: 2.5
     });
-    return /*#__PURE__*/React.createElement("span", {
+    if (v === 'no' || !v) return /*#__PURE__*/React.createElement("span", {
       style: {
         color: T.mutedSoft
       }
     }, "\u2014");
+    return /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: T.blue,
+        lineHeight: 1.25,
+        display: 'inline-block'
+      }
+    }, v);
   };
   const touchpoints = Object.values(wf.nodes).filter(n => n.type === 'clientTouchpoint');
   return /*#__PURE__*/React.createElement("div", {
@@ -85692,23 +86555,1860 @@ const WfRolePreviewTab = ({
   }), t))))));
 };
 
+// ---- test & publish tab ----
+// Dedicated surface: a client-selectable step-by-step simulation plus the "Safe to
+// publish" checklist. Shares onTest (terminal + canvas glow) and the canonical
+// computeWorkflowIssues gate — the publish CTA here is the SAME doPublish path.
+const WfTestPublishTab = ({
+  wf,
+  issues,
+  onTest,
+  simLog,
+  onPublish,
+  canPublish
+}) => {
+  const clients = PRACTICE_CLIENTS;
+  const [client, setClient] = useState(clients[0] ? clients[0].id : '');
+  const errors = issues.filter(i => i.severity === 'error');
+  const checks = wfSafeChecks(wf, issues);
+  const okCount = checks.filter(c => c.state === 'ok').length;
+  const sel = clientById(client);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 760,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+      flexWrap: 'wrap',
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, null, "Step-by-step simulation"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Dry-run this workflow for one client \u2014 nothing is sent or changed.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: client,
+    onChange: e => setClient(e.target.value),
+    style: {
+      width: 200
+    }
+  }, clients.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c.id,
+    value: c.id
+  }, c.name))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "md",
+    icon: "play",
+    onClick: () => onTest(sel ? sel.name : undefined, {
+      stay: true
+    })
+  }, "Run simulation"))), !simLog ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '26px 20px',
+      textAlign: 'center',
+      border: `1px dashed ${T.border}`,
+      borderRadius: 10
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "Click ", /*#__PURE__*/React.createElement("b", null, "Run simulation"), " to step through this workflow for the selected client. The result also lands in Execution Logs.")) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '8px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.fieldBg,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: "amber",
+    style: {
+      fontSize: 9.5
+    }
+  }, "Dry run"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, simLog.client ? simLog.client + ' · ' : '', simLog.steps.length, " step", simLog.steps.length === 1 ? '' : 's', " walked")), simLog.steps.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      gap: 10,
+      padding: '9px 12px',
+      alignItems: 'flex-start',
+      borderTop: i ? `1px solid ${T.border}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+      background: s.tone === 'warn' ? T.amber : s.tone === 'error' ? T.red : T.green,
+      marginTop: 5,
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 500,
+      color: T.text
+    }
+  }, s.label), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, s.outcome)))))), /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '13px 16px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Safe to publish"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Every check should pass before this workflow goes live.")), /*#__PURE__*/React.createElement(Pill, {
+    color: errors.length ? 'red' : 'green'
+  }, errors.length ? errors.length + ' to fix' : okCount + '/' + checks.length + ' passing')), /*#__PURE__*/React.createElement("div", null, checks.map((c, i) => {
+    const p = c.state === 'ok' ? {
+      fg: T.greenDark,
+      bg: T.greenSoft,
+      bd: '#A7F3D0',
+      icon: 'check'
+    } : c.state === 'warn' ? {
+      fg: T.amber,
+      bg: T.amberSoft,
+      bd: '#FCD34D',
+      icon: 'info'
+    } : {
+      fg: T.mutedSoft,
+      bg: T.fieldBg,
+      bd: T.border,
+      icon: null
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        gap: 10,
+        padding: '11px 16px',
+        alignItems: 'flex-start',
+        borderTop: i ? `1px solid ${T.border}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 22,
+        height: 22,
+        borderRadius: '50%',
+        background: p.bg,
+        color: p.fg,
+        border: `1px solid ${p.bd}`,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        marginTop: 1
+      }
+    }, p.icon ? /*#__PURE__*/React.createElement(Icon, {
+      name: p.icon,
+      size: 11,
+      color: p.fg,
+      strokeWidth: 2.5
+    }) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: p.fg,
+        lineHeight: 1
+      }
+    }, "\u2013")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, c.label), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5,
+        marginTop: 1
+      }
+    }, c.detail)));
+  })), canPublish && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 12,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: errors.length ? 'soft' : 'primary',
+    size: "md",
+    icon: "check",
+    disabled: errors.length > 0,
+    onClick: onPublish,
+    style: {
+      width: '100%',
+      justifyContent: 'center'
+    }
+  }, errors.length ? 'Fix required items to publish' : 'Publish workflow'))));
+};
+
 // ---- builder page ----
+// Claude-Code-style terminal that streams a test run line-by-line, in lockstep with the
+// on-canvas node glow. Non-blocking; docked bottom-right so the animation stays visible.
+const WfTerminalPanel = ({
+  open,
+  lines,
+  running,
+  onClose,
+  onToggleView
+}) => {
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+  }, [lines, running]);
+  if (!open) return null;
+  const glyph = {
+    ok: '✓',
+    warn: '⏸',
+    error: '✗'
+  };
+  const glyphColor = {
+    ok: '#4ADE80',
+    warn: '#FBBF24',
+    error: '#F87171'
+  };
+  const mono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      right: 16,
+      bottom: 16,
+      width: 'min(470px, calc(100vw - 32px))',
+      maxHeight: '48vh',
+      background: '#0E1117',
+      border: '1px solid #1F2733',
+      borderRadius: 12,
+      boxShadow: '0 16px 48px rgba(0,0,0,0.45)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      zIndex: 120
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '9px 12px',
+      borderBottom: '1px solid #1F2733',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 9,
+      height: 9,
+      borderRadius: '50%',
+      background: '#FF5F57'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 9,
+      height: 9,
+      borderRadius: '50%',
+      background: '#FEBC2E'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 9,
+      height: 9,
+      borderRadius: '50%',
+      background: '#28C840'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: '#C9D1D9',
+      fontFamily: mono
+    }
+  }, "test-run \xB7 workflow simulation"), running && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      color: '#93C5FD'
+    }
+  }, "running\u2026"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), onToggleView && /*#__PURE__*/React.createElement("button", {
+    onClick: onToggleView,
+    title: "Back to steps",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      height: 22,
+      padding: '0 8px',
+      borderRadius: 6,
+      border: '1px solid #1F2733',
+      background: 'transparent',
+      color: '#C9D1D9',
+      cursor: 'pointer',
+      fontSize: 10.5,
+      fontWeight: 600
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "listNumbered",
+    size: 11,
+    color: "#C9D1D9"
+  }), "Steps"), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    title: "Close",
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      border: 'none',
+      background: 'transparent',
+      color: '#8B949E',
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 13,
+    color: "#8B949E"
+  }))), /*#__PURE__*/React.createElement("div", {
+    ref: bodyRef,
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto',
+      padding: '10px 12px',
+      fontFamily: mono,
+      fontSize: 11.5,
+      lineHeight: 1.65
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#6E7681',
+      marginBottom: 4
+    }
+  }, "$ sole workflow test --dry-run"), lines.map((ln, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      gap: 8,
+      whiteSpace: 'pre-wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: glyphColor[ln.tone] || '#C9D1D9',
+      flexShrink: 0
+    }
+  }, glyph[ln.tone] || '▸'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#E6EDF3'
+    }
+  }, ln.label), ln.outcome ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: '#8B949E'
+    }
+  }, '  — ' + ln.outcome) : null))), running && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#6E7681'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      animation: 'pulseDot 1s steps(1) infinite'
+    }
+  }, "\u258C")), !running && lines.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: '#4ADE80',
+      marginTop: 6
+    }
+  }, "\u25CF simulation complete \u2014 dropped into Execution Logs")));
+};
+
+// Friendly, UI-first run progress. Default surface for a test simulation: a minimized
+// spinner pill (click to expand) → a vertical stepper where each step shows status and,
+// on click, its detail + re-glows the matching canvas node. "View as log" flips to the
+// raw terminal (WfTerminalPanel) for power users. Replaces the terminal as the default.
+const WfRunProgress = ({
+  open,
+  steps,
+  stepIdx,
+  running,
+  view,
+  minimized,
+  lines,
+  onToggleMin,
+  onToggleView,
+  onSelectStep,
+  onClose
+}) => {
+  const [expanded, setExpanded] = useState(-1);
+  useEffect(() => {
+    if (running && stepIdx >= 0) setExpanded(stepIdx);
+  }, [stepIdx, running]);
+  if (!open) return null;
+  if (view === 'log') return /*#__PURE__*/React.createElement(WfTerminalPanel, {
+    open: open,
+    lines: lines,
+    running: running,
+    onClose: onClose,
+    onToggleView: onToggleView
+  });
+  const total = steps.length;
+  const done = running ? Math.min(stepIdx, total) : total;
+  const Spin = ({
+    size = 14,
+    color = T.primary
+  }) => /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: size,
+      height: size,
+      borderRadius: '50%',
+      border: `2px solid ${withAlpha(color, 0.25)}`,
+      borderTopColor: color,
+      display: 'inline-block',
+      animation: 'spin 0.7s linear infinite',
+      flexShrink: 0
+    }
+  });
+  const statusOf = i => i < stepIdx ? 'done' : i === stepIdx && running ? steps[i] && steps[i].tone === 'warn' ? 'paused' : 'running' : i === stepIdx && !running ? 'done' : 'pending';
+  const glyph = st => {
+    if (st === 'done') return /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        background: T.greenSoft,
+        border: '1px solid #A7F3D0',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 10,
+      color: T.greenDark,
+      strokeWidth: 2.5
+    }));
+    if (st === 'running') return /*#__PURE__*/React.createElement(Spin, {
+      size: 18
+    });
+    if (st === 'paused') return /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        background: T.amberSoft,
+        border: '1px solid #FCD34D',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 10,
+        fontWeight: 800,
+        color: T.amber
+      }
+    }, "\u2016");
+    return /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        border: `2px solid ${T.border}`,
+        display: 'inline-block',
+        boxSizing: 'border-box'
+      }
+    });
+  };
+  if (minimized) {
+    return /*#__PURE__*/React.createElement("button", {
+      onClick: onToggleMin,
+      title: "Show steps",
+      style: {
+        position: 'fixed',
+        right: 16,
+        bottom: 16,
+        zIndex: 120,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 14px',
+        borderRadius: 999,
+        border: `1px solid ${T.border}`,
+        background: T.card,
+        boxShadow: '0 8px 24px rgba(15,17,23,0.16)',
+        cursor: 'pointer'
+      }
+    }, running ? /*#__PURE__*/React.createElement(Spin, null) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 16,
+        height: 16,
+        borderRadius: '50%',
+        background: T.greenSoft,
+        border: '1px solid #A7F3D0',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 10,
+      color: T.greenDark,
+      strokeWidth: 2.5
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, running ? `Running simulation… ${Math.min(stepIdx + 1, total)}/${total}` : 'Simulation complete'), /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronUp",
+      size: 14,
+      color: T.muted
+    }));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      right: 16,
+      bottom: 16,
+      width: 'min(380px, calc(100vw - 32px))',
+      maxHeight: '56vh',
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      boxShadow: '0 16px 48px rgba(15,17,23,0.22)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      zIndex: 120
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '10px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0
+    }
+  }, running ? /*#__PURE__*/React.createElement(Spin, null) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 18,
+      height: 18,
+      borderRadius: '50%',
+      background: T.greenSoft,
+      border: '1px solid #A7F3D0',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: T.greenDark,
+    strokeWidth: 2.5
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, running ? 'Running simulation' : 'Simulation complete'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, done, "/", total, " steps", running ? '' : ' · dropped into Execution Logs')), /*#__PURE__*/React.createElement("button", {
+    onClick: onToggleView,
+    title: "View as log",
+    "data-hover": "row",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      height: 26,
+      padding: '0 9px',
+      borderRadius: 7,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      color: T.muted,
+      cursor: 'pointer',
+      fontSize: 11,
+      fontWeight: 600
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "terminal",
+    size: 12,
+    color: T.muted
+  }), "Log"), /*#__PURE__*/React.createElement("button", {
+    onClick: onToggleMin,
+    title: "Minimize",
+    style: {
+      width: 26,
+      height: 26,
+      borderRadius: 7,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronDown",
+    size: 14
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    title: "Close",
+    style: {
+      width: 26,
+      height: 26,
+      borderRadius: 7,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 13
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto',
+      padding: '6px 0'
+    }
+  }, total === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "No steps to run.")) : steps.map((s, i) => {
+    const st = statusOf(i);
+    const isOpen = expanded === i;
+    return /*#__PURE__*/React.createElement("div", {
+      key: i
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setExpanded(o => o === i ? -1 : i);
+        onSelectStep(i);
+      },
+      "data-hover": "row",
+      style: {
+        width: '100%',
+        textAlign: 'left',
+        border: 'none',
+        background: isOpen ? T.fieldBg : 'transparent',
+        cursor: 'pointer',
+        padding: '9px 14px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 11
+      }
+    }, glyph(st), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: 12.5,
+        fontWeight: st === 'pending' ? 500 : 600,
+        color: st === 'pending' ? T.muted : T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, s.label), /*#__PURE__*/React.createElement(Icon, {
+      name: isOpen ? 'chevronDown' : 'chevronRight',
+      size: 13,
+      color: T.mutedSoft
+    })), isOpen && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '0 14px 11px 36px',
+        fontSize: 11.5,
+        color: T.textSoft,
+        lineHeight: 1.5
+      }
+    }, s.outcome));
+  })));
+};
+
+// Persistent contextual right rail for the builder. Two modes: a Workflow overview
+// when nothing is selected, and a rich node Properties/Impact panel when a step is.
+// It subsumes the old click-a-node modal drawer and mirrors the live readiness — the
+// publish gate itself still lives solely in WfReadinessPanel's footer.
+const WfBuilderRail = ({
+  wf,
+  selectedNodeId,
+  issues,
+  readyTone,
+  readyLabel,
+  collapsed,
+  onToggleCollapse,
+  onSelectNode,
+  onTest,
+  onAddTrigger,
+  onAddToEnd,
+  onGoSettings,
+  onOpenCompany,
+  onOpenStaff,
+  onChangeNode,
+  onDuplicateNode,
+  onDeleteNode,
+  onToggleLock,
+  onAddBranch,
+  onRemoveBranch,
+  onRenameBranch,
+  onPreviewBulk
+}) => {
+  const [propTab, setPropTab] = useState('properties');
+  const [advOpen, setAdvOpen] = useState(false);
+  useEffect(() => {
+    setPropTab('properties');
+  }, [selectedNodeId]);
+  const node = selectedNodeId ? wf.nodes[selectedNodeId] : null;
+  // Collapsed strip — placed AFTER all hooks so hook order never changes (toggling collapse must not change hook count).
+  if (collapsed) {
+    return /*#__PURE__*/React.createElement("aside", {
+      style: {
+        width: 46,
+        flexShrink: 0,
+        borderLeft: `1px solid ${T.border}`,
+        background: T.card,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        paddingTop: 12,
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: onToggleCollapse,
+      title: "Expand panel",
+      "data-hover": "row",
+      style: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        border: `1px solid ${T.border}`,
+        background: T.card,
+        color: T.muted,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronLeft",
+      size: 15
+    })), /*#__PURE__*/React.createElement("span", {
+      title: readyLabel,
+      style: {
+        width: 9,
+        height: 9,
+        borderRadius: '50%',
+        background: readyTone.fg
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        writingMode: 'vertical-rl',
+        transform: 'rotate(180deg)',
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+        color: T.muted,
+        marginTop: 4
+      }
+    }, "Overview"));
+  }
+  const sectionTitle = (title, extra) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 9
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase'
+    }
+  }, title), extra);
+  const kv = (label, value, valColor) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '4px 0',
+      fontSize: 12.5,
+      alignItems: 'baseline'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted,
+      flexShrink: 0
+    }
+  }, label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: valColor || T.text,
+      fontWeight: 600,
+      textAlign: 'right',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      minWidth: 0
+    }
+  }, value));
+  const quickAction = (icon, label, fn) => /*#__PURE__*/React.createElement("button", {
+    onClick: fn,
+    "data-hover": "row",
+    style: {
+      width: '100%',
+      textAlign: 'left',
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      borderRadius: 9,
+      padding: '9px 11px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 14,
+    color: T.muted
+  }), label);
+
+  // ---- Workflow overview (nothing selected) ----
+  const renderOverview = () => {
+    const root = wf.root ? wf.nodes[wf.root] : null;
+    const triggerLabel = root ? root.label : 'Not set yet';
+    const triggerType = root ? /\.due$|\.due_|due$/.test(root.ref || '') ? 'Time-based' : 'Event-based' : '—';
+    const reviewer = wf.reviewerRole || (Object.values(wf.nodes).some(n => n.type === 'approvalGate') ? 'Reviewer' : '—');
+    const meta = wfModuleMeta(wf.module);
+    const steps = Object.keys(wf.nodes).length;
+    const touch = wfTouchpointCount(wf);
+    const gates = wfLockedGateCount(wf);
+    const hrs = wfBudgetHours(wf);
+    const risk = wfHighRiskCount(wf);
+    const open = issues.filter(i => i.severity !== 'ok');
+    return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('This workflow'), kv('Module', meta.label), kv('Trigger', triggerLabel), kv('Trigger type', triggerType), kv('Owner', wf.ownerRole || '—'), kv('Reviewer', reviewer), kv('SLA', wf.sla || '—')), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('Activity summary'), kv('Total steps', steps), kv('Client touchpoints', touch, touch ? T.blue : undefined), kv('Locked gates', gates, gates ? T.amber : undefined), kv('Budget hours', hrs ? hrs.toFixed(1).replace(/\.0$/, '') + ' hrs' : '—'), kv('High-risk steps', risk, risk ? T.red : undefined)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('Publish readiness', /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        height: 22,
+        padding: '0 9px',
+        borderRadius: 999,
+        border: `1px solid ${readyTone.bd}`,
+        background: readyTone.bg,
+        color: readyTone.fg,
+        fontSize: 11,
+        fontWeight: 700
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: readyTone.fg
+      }
+    }), readyLabel)), open.length === 0 ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 12.5,
+        color: T.greenDark,
+        fontWeight: 600
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 13,
+      color: T.greenDark,
+      strokeWidth: 2.5
+    }), "All checks pass \u2014 ready to publish.") : /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2
+      }
+    }, open.map(it => {
+      const p = it.severity === 'error' ? {
+        fg: T.red,
+        bg: T.redSoft,
+        bd: '#FECACA',
+        icon: 'close'
+      } : {
+        fg: T.amber,
+        bg: T.amberSoft,
+        bd: '#FCD34D',
+        icon: 'info'
+      };
+      return /*#__PURE__*/React.createElement("button", {
+        key: it.id,
+        "data-hover": "row",
+        onClick: () => {
+          if (it.section) onSelectNode(it.section);
+        },
+        disabled: !it.section,
+        style: {
+          width: '100%',
+          textAlign: 'left',
+          border: 'none',
+          background: 'transparent',
+          cursor: it.section ? 'pointer' : 'default',
+          padding: '7px 6px',
+          margin: '0 -6px',
+          borderRadius: 8,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          background: p.bg,
+          color: p.fg,
+          border: `1px solid ${p.bd}`,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          marginTop: 1
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: p.icon,
+        size: 9,
+        color: p.fg,
+        strokeWidth: 2.5
+      })), /*#__PURE__*/React.createElement("span", {
+        style: {
+          flex: 1,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          display: 'block',
+          fontSize: 12,
+          fontWeight: 600,
+          color: T.text
+        }
+      }, it.label), /*#__PURE__*/React.createElement("span", {
+        style: {
+          display: 'block',
+          fontSize: 11,
+          color: T.muted,
+          marginTop: 1
+        }
+      }, it.detail)), it.section && /*#__PURE__*/React.createElement(Icon, {
+        name: "arrow",
+        size: 11,
+        color: T.muted
+      }));
+    })), /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "play",
+      onClick: onTest,
+      style: {
+        width: '100%',
+        justifyContent: 'center',
+        marginTop: 10
+      }
+    }, "Run test simulation")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('What this workflow does'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: T.textSoft,
+        lineHeight: 1.5
+      }
+    }, wf.outcome || 'No outcome described yet — add one in Settings.'), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11,
+        marginTop: 6
+      }
+    }, steps, " step", steps === 1 ? '' : 's', " \xB7 ", touch, " client contact", touch === 1 ? '' : 's', hrs ? ' · ' + hrs.toFixed(1).replace(/\.0$/, '') + ' hrs budgeted' : '', ".")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px'
+      }
+    }, sectionTitle('Quick actions'), !wf.root ? quickAction('bolt', 'Add a trigger to start', onAddTrigger) : quickAction('plus', 'Add a step to the end', onAddToEnd), quickAction('sliders', 'Workflow settings', onGoSettings)));
+  };
+
+  // ---- Node properties (a step is selected) ----
+  const renderProps = () => {
+    const cat = wfFindCatalog(node.ref);
+    const setField = (key, value) => onChangeNode(node.id, n => ({
+      ...n,
+      config: {
+        ...n.config,
+        [key]: value
+      }
+    }));
+    const setLabel = value => onChangeNode(node.id, n => ({
+      ...n,
+      label: value
+    }));
+    const cfg = node.config || {};
+    const isTrigger = node.type === 'trigger';
+    return /*#__PURE__*/React.createElement(Fragment, null, node.locked && /*#__PURE__*/React.createElement("div", {
+      style: {
+        margin: '14px 16px 0',
+        padding: '9px 12px',
+        background: T.primarySofter,
+        border: `1px solid ${T.border}`,
+        borderRadius: 9,
+        fontSize: 11.5,
+        color: T.textSoft,
+        display: 'flex',
+        gap: 8,
+        alignItems: 'flex-start'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "lock",
+      size: 13,
+      color: T.primary
+    }), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Locked control."), " You can edit its label, owner and timing \u2014 it can\u2019t be deleted, so a mandatory step can\u2019t be removed by mistake.")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('Basic'), /*#__PURE__*/React.createElement(Label, null, "Step name"), /*#__PURE__*/React.createElement(Input, {
+      value: node.label,
+      onChange: e => setLabel(e.target.value),
+      placeholder: "Name this step"
+    }), cat && cat.note && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 10,
+        padding: '8px 12px',
+        background: T.amberSoft,
+        border: '1px solid #FCD34D',
+        borderRadius: 8,
+        fontSize: 11.5,
+        color: T.amber
+      }
+    }, cat.note), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 12
+      }
+    }, /*#__PURE__*/React.createElement(Label, null, "Description"), /*#__PURE__*/React.createElement(Input, {
+      value: cfg.description || '',
+      onChange: e => setField('description', e.target.value),
+      placeholder: "What this step is for (optional)"
+    })), cat && cat.fields && cat.fields.filter(f => !(node.type === 'clientTouchpoint' && f.key === 'template')).map(f => /*#__PURE__*/React.createElement("div", {
+      key: f.key,
+      style: {
+        marginTop: 12
+      }
+    }, /*#__PURE__*/React.createElement(Label, null, f.label), f.type === 'select' ? /*#__PURE__*/React.createElement(Select, {
+      value: cfg[f.key] ?? '',
+      onChange: e => setField(f.key, e.target.value)
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "",
+      disabled: true
+    }, "Choose\u2026"), f.options.map(o => {
+      const v = typeof o === 'string' ? o : o.value;
+      const l = typeof o === 'string' ? o : o.label;
+      return /*#__PURE__*/React.createElement("option", {
+        key: v,
+        value: v
+      }, l);
+    })) : /*#__PURE__*/React.createElement(Input, {
+      type: f.type === 'number' ? 'number' : 'text',
+      value: cfg[f.key] ?? '',
+      placeholder: f.label,
+      onChange: e => setField(f.key, f.type === 'number' ? e.target.value === '' ? '' : Number(e.target.value) : e.target.value)
+    }))), node.type === 'clientTouchpoint' && (() => {
+      const tid = cfg.templateId || '';
+      const t = wfTemplateById(tid);
+      const pickTemplate = id => {
+        const tpl = wfTemplateById(id);
+        onChangeNode(node.id, n => ({
+          ...n,
+          config: {
+            ...n.config,
+            templateId: id,
+            template: tpl ? tpl.label : undefined
+          }
+        }));
+      };
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 12
+        }
+      }, /*#__PURE__*/React.createElement(Label, null, "Message template"), /*#__PURE__*/React.createElement(Select, {
+        value: tid,
+        onChange: e => pickTemplate(e.target.value)
+      }, /*#__PURE__*/React.createElement("option", {
+        value: ""
+      }, "No template \u2014 compose later"), /*#__PURE__*/React.createElement("optgroup", {
+        label: "Client-facing (external)"
+      }, wfTemplatesByAudience('external').map(tpl => /*#__PURE__*/React.createElement("option", {
+        key: tpl.id,
+        value: tpl.id
+      }, tpl.label))), /*#__PURE__*/React.createElement("optgroup", {
+        label: "Internal (staff)"
+      }, wfTemplatesByAudience('internal').map(tpl => /*#__PURE__*/React.createElement("option", {
+        key: tpl.id,
+        value: tpl.id
+      }, tpl.label)))), !t ? /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          marginTop: 6
+        }
+      }, "Pick a ready-made client or internal message, or leave blank to write it later.") : /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 10,
+          border: `1px solid ${T.border}`,
+          borderRadius: 10,
+          overflow: 'hidden'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '8px 12px',
+          borderBottom: `1px solid ${T.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement(Pill, {
+        color: (t.audience || 'external') === 'internal' ? 'amber' : 'blue',
+        style: {
+          fontSize: 9.5
+        }
+      }, (t.audience || 'external') === 'internal' ? 'Internal · staff' : 'Client-facing'), /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          fontSize: 10.5
+        }
+      }, t.group)), t.subject && /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '9px 12px',
+          borderBottom: `1px solid ${T.border}`,
+          background: T.fieldBg
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 9.5,
+          fontWeight: 700,
+          color: T.muted,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase'
+        }
+      }, "Subject"), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: T.text,
+          marginTop: 2
+        }
+      }, t.subject)), /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '10px 12px',
+          fontSize: 12,
+          color: T.textSoft,
+          whiteSpace: 'pre-wrap',
+          lineHeight: 1.5,
+          maxHeight: 150,
+          overflowY: 'auto'
+        }
+      }, t.body), t.sms && /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '9px 12px',
+          borderTop: `1px solid ${T.border}`,
+          background: T.greenSoft
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 9.5,
+          fontWeight: 700,
+          color: T.greenDark,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase'
+        }
+      }, "SMS"), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 12,
+          color: T.textSoft,
+          marginTop: 2
+        }
+      }, t.sms)), t.tokens && t.tokens.length > 0 && /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '9px 12px',
+          borderTop: `1px solid ${T.border}`,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 5
+        }
+      }, t.tokens.map(tok => /*#__PURE__*/React.createElement(Pill, {
+        key: tok,
+        color: "neutral",
+        style: {
+          fontSize: 9.5
+        }
+      }, tok)))));
+    })(), cat && cat.fields && cat.fields.some(f => f.key === 'segment') && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 12
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "users",
+      onClick: () => onPreviewBulk(node)
+    }, "Preview recipients")), (() => {
+      const who = cfg.assignee || cfg.who || cfg.to;
+      const st = wfStaffByName(who);
+      return st ? /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 12
+        }
+      }, /*#__PURE__*/React.createElement(Label, null, "Assigned to"), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'inline-flex'
+        }
+      }, /*#__PURE__*/React.createElement(OwnerChip, {
+        staff: st,
+        onOpen: onOpenStaff,
+        size: 22
+      }))) : null;
+    })(), node.type === 'condition' && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 14
+      }
+    }, /*#__PURE__*/React.createElement(Label, null, "Branches"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8
+      }
+    }, (node.branches || []).map(br => /*#__PURE__*/React.createElement("div", {
+      key: br.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Input, {
+      value: br.label,
+      onChange: e => onRenameBranch(node.id, br.id, e.target.value),
+      placeholder: "Branch label"
+    }), /*#__PURE__*/React.createElement(Btn, {
+      variant: "iconOnly",
+      size: "sm",
+      title: "Remove branch",
+      disabled: (node.branches || []).length <= 1,
+      onClick: () => onRemoveBranch(node.id, br.id)
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "trash",
+      size: 13
+    }))))), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "plus",
+      style: {
+        marginTop: 10
+      },
+      onClick: () => onAddBranch(node.id)
+    }, "Add branch"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('Ownership & timing'), /*#__PURE__*/React.createElement(Label, null, "Owner role"), /*#__PURE__*/React.createElement(Select, {
+      value: cfg.ownerRole || '',
+      onChange: e => setField('ownerRole', e.target.value)
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "Inherit from workflow (", wf.ownerRole || 'Manager', ")"), WF_ROLE_OPTIONS.map(r => /*#__PURE__*/React.createElement("option", {
+      key: r,
+      value: r
+    }, r))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 10,
+        marginTop: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Due timing"), /*#__PURE__*/React.createElement(Input, {
+      value: cfg.dueTiming || '',
+      onChange: e => setField('dueTiming', e.target.value),
+      placeholder: "e.g. 21 days before"
+    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Budget hrs"), /*#__PURE__*/React.createElement(Input, {
+      type: "number",
+      value: cfg.budgetHours ?? '',
+      onChange: e => setField('budgetHours', e.target.value === '' ? '' : Number(e.target.value)),
+      placeholder: "0"
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 12
+      }
+    }, /*#__PURE__*/React.createElement(Label, null, "Risk level"), /*#__PURE__*/React.createElement(SegToggle, {
+      options: [{
+        value: 'Low',
+        label: 'Low'
+      }, {
+        value: 'Medium',
+        label: 'Medium'
+      }, {
+        value: 'High',
+        label: 'High'
+      }],
+      value: cfg.riskLevel || 'Low',
+      onChange: v => setField('riskLevel', v)
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => setAdvOpen(o => !o),
+      "data-hover": "row",
+      style: {
+        width: '100%',
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        padding: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        textAlign: 'left',
+        fontSize: 10.5,
+        fontWeight: 700,
+        color: T.muted,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase'
+      }
+    }, "Advanced"), !advOpen && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 10.5
+      }
+    }, "Visibility \xB7 audit \xB7 on-failure"), /*#__PURE__*/React.createElement(Icon, {
+      name: advOpen ? 'chevronDown' : 'chevronRight',
+      size: 14,
+      color: T.muted
+    })), advOpen && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 9
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '5px 0'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, "Visible to client"), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, "Show this step\u2019s status in the portal.")), /*#__PURE__*/React.createElement(Toggle, {
+      size: "sm",
+      on: !!cfg.clientVisible,
+      onChange: v => setField('clientVisible', v)
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '5px 0',
+        borderTop: `1px solid ${T.border}`
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, "Write to audit trail"), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, "Record this step in the audit log.")), /*#__PURE__*/React.createElement(Toggle, {
+      size: "sm",
+      on: cfg.auditLogged !== false,
+      onChange: v => setField('auditLogged', v)
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 12
+      }
+    }, /*#__PURE__*/React.createElement(Label, null, "If this step fails"), /*#__PURE__*/React.createElement(Select, {
+      value: cfg.onFailure || 'notify',
+      onChange: e => setField('onFailure', e.target.value)
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "stop"
+    }, "Stop the workflow"), /*#__PURE__*/React.createElement("option", {
+      value: "continue"
+    }, "Continue anyway"), /*#__PURE__*/React.createElement("option", {
+      value: "notify"
+    }, "Notify the owner and pause"))))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        display: 'flex',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "copy",
+      onClick: () => onDuplicateNode(node.id),
+      style: {
+        flex: 1,
+        justifyContent: 'center'
+      }
+    }, "Duplicate"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "trash",
+      disabled: isTrigger || node.locked,
+      title: node.locked ? 'Locked controls can’t be deleted' : isTrigger ? 'The trigger can’t be deleted' : '',
+      onClick: () => onDeleteNode(node.id),
+      style: {
+        flex: 1,
+        justifyContent: 'center',
+        color: isTrigger || node.locked ? undefined : T.red
+      }
+    }, "Delete")));
+  };
+
+  // ---- Impact sub-tab (read-only derived) ----
+  const renderImpact = () => {
+    const seen = new Set();
+    const stack = [];
+    if (node.next) stack.push(node.next);
+    (node.branches || []).forEach(b => {
+      if (b.next) stack.push(b.next);
+    });
+    while (stack.length) {
+      const id = stack.pop();
+      if (!id || seen.has(id) || !wf.nodes[id]) continue;
+      seen.add(id);
+      const m = wf.nodes[id];
+      if (m.next) stack.push(m.next);
+      (m.branches || []).forEach(b => {
+        if (b.next) stack.push(b.next);
+      });
+    }
+    const cat = wfFindCatalog(node.ref);
+    const cfg = node.config || {};
+    const touches = [];
+    if (node.type === 'clientTouchpoint') {
+      if (cat && cat.bulk) {
+        const tot = WF_SEGMENT_COUNTS[cfg.segment] || 0;
+        touches.push(['Contacts clients', (tot ? tot - Math.round(tot * 0.03) + ' recipients' : 'a client segment') + (cfg.segment ? ' · ' + cfg.segment : '')]);
+      } else touches.push(['Contacts the client', cfg.template || cfg.templateId && (wfTemplateById(cfg.templateId) || {}).label || '1 contact']);
+    }
+    if (node.type === 'moduleImpact') touches.push(['Updates a module', cfg.target || 'another module']);
+    if (node.type === 'approvalGate') touches.push(['Pauses for approval', (cfg.approver || 'an approver') + ' must sign off']);
+    if (node.type === 'attachQuestionnaire') touches.push(['Attaches a form', cfg.questionnaire || 'a questionnaire']);
+    if (node.type === 'condition') touches.push(['Branches the flow', (node.branches || []).map(b => b.label).join(' / ') || 'no branches']);
+    return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('What this step touches'), touches.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "This is an internal step \u2014 it doesn\u2019t contact clients or update another module.") : /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8
+      }
+    }, touches.map(([h, d], i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        gap: 8,
+        alignItems: 'flex-start'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: T.primary,
+        flexShrink: 0,
+        marginTop: 6
+      }
+    }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, h), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, d)))))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px',
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, sectionTitle('Downstream'), kv('Steps after this', seen.size), kv('Budget hrs (this step)', cfg.budgetHours ? Number(cfg.budgetHours) : '—'), kv('Owner', cfg.ownerRole || 'Inherits · ' + (wf.ownerRole || 'Manager'))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 16px'
+      }
+    }, sectionTitle('Flags'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement(Pill, {
+      color: cfg.clientVisible ? 'blue' : 'neutral'
+    }, cfg.clientVisible ? 'Client-visible' : 'Internal only'), /*#__PURE__*/React.createElement(Pill, {
+      color: cfg.auditLogged !== false ? 'green' : 'red'
+    }, cfg.auditLogged !== false ? 'Audit-logged' : 'Not audited'), /*#__PURE__*/React.createElement(Pill, {
+      color: cfg.riskLevel === 'High' ? 'red' : cfg.riskLevel === 'Medium' ? 'amber' : 'neutral'
+    }, (cfg.riskLevel || 'Low') + ' risk'), node.locked && /*#__PURE__*/React.createElement(Pill, {
+      color: "accent",
+      style: {
+        gap: 3
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "lock",
+      size: 9
+    }), "Locked"))));
+  };
+  const nodeMeta = node ? WF_NODE_META[node.type] || WF_NODE_META.action : null;
+  const nodeTint = nodeMeta ? WF_TINT[nodeMeta.color] || WF_TINT.neutral : null;
+  const nodeCat = node ? wfFindCatalog(node.ref) : null;
+  return /*#__PURE__*/React.createElement("aside", {
+    style: {
+      width: 344,
+      flexShrink: 0,
+      borderLeft: `1px solid ${T.border}`,
+      background: T.card,
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: 0
+    }
+  }, !node ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '13px 16px',
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, "Workflow overview"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11,
+      marginTop: 1
+    }
+  }, "Click any step to edit it.")), /*#__PURE__*/React.createElement("button", {
+    onClick: onToggleCollapse,
+    title: "Collapse panel",
+    "data-hover": "row",
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 7,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 15
+  }))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      flexShrink: 0,
+      borderBottom: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      background: nodeTint.bg,
+      color: nodeTint.fg,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: nodeCat && nodeCat.icon || nodeMeta.icon,
+    size: 16,
+    color: nodeTint.fg
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: nodeMeta.color,
+    style: {
+      fontSize: 9.5
+    }
+  }, nodeMeta.label)), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onToggleLock(node.id),
+    title: node.locked ? 'Unlock this step' : 'Lock this step so it can’t be deleted',
+    "data-hover": "row",
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 7,
+      border: `1px solid ${node.locked ? '#C7C9FB' : T.border}`,
+      background: node.locked ? T.primarySoft : T.card,
+      color: node.locked ? T.primary : T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: node.locked ? 'lock' : 'unlock',
+    size: 13,
+    color: node.locked ? T.primary : T.muted
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onSelectNode(null),
+    title: "Back to overview",
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 7,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: onToggleCollapse,
+    title: "Collapse panel",
+    "data-hover": "row",
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 7,
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 2,
+      padding: '0 12px'
+    }
+  }, [{
+    id: 'properties',
+    l: 'Properties'
+  }, {
+    id: 'impact',
+    l: 'Impact'
+  }].map(t => /*#__PURE__*/React.createElement("button", {
+    key: t.id,
+    onClick: () => setPropTab(t.id),
+    style: {
+      padding: '7px 10px',
+      border: 'none',
+      background: 'transparent',
+      borderBottom: `2px solid ${propTab === t.id ? T.primary : 'transparent'}`,
+      color: propTab === t.id ? T.text : T.muted,
+      fontWeight: propTab === t.id ? 600 : 500,
+      fontSize: 12.5,
+      cursor: 'pointer'
+    }
+  }, t.l)))), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto'
+    }
+  }, !node ? renderOverview() : propTab === 'properties' ? renderProps() : renderImpact()));
+};
 const WorkflowBuilderPage = ({
   workflowId,
   fireToast
 }) => {
   const original = workflowById(workflowId);
   const [wf, setWf] = useState(() => original ? wfClone(original) : null);
-  const [loadedStatus] = useState(() => original ? original.status : 'Draft');
-  const [tab, setTab] = useState('builder');
+  const [loadedBaseline] = useState(() => original ? !!original.isBaseline : false);
+  const [tab, setTab] = useState(() => {
+    const t = WF_PENDING_TAB;
+    WF_PENDING_TAB = null;
+    return t || 'builder';
+  });
   const [builderMode, setBuilderMode] = useState('std');
-  const [openNodeId, setOpenNodeId] = useState(null);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [palette, setPalette] = useState(null);
   const [quickAdd, setQuickAdd] = useState(null);
   const [bulkNode, setBulkNode] = useState(null);
   const [readinessOpen, setReadinessOpen] = useState(false);
   const [simLog, setSimLog] = useState(null);
   const [simActiveId, setSimActiveId] = useState(null);
+  const [simTerm, setSimTerm] = useState([]);
+  const [simTermOpen, setSimTermOpen] = useState(false);
+  const [simTermRunning, setSimTermRunning] = useState(false);
+  const [simSteps, setSimSteps] = useState([]); // full planned step list (drives the stepper)
+  const [simStepIdx, setSimStepIdx] = useState(-1); // running index: < idx done, === idx running, > pending
+  const [simView, setSimView] = useState('progress'); // 'progress' (friendly) | 'log' (terminal)
+  const [simMin, setSimMin] = useState(true); // minimized pill vs expanded stepper
+  const simTimers = useRef([]);
+  useEffect(() => () => {
+    simTimers.current.forEach(clearTimeout);
+  }, []);
+  const [railCollapsed, setRailCollapsed] = useState(() => !!loadPrefs().wfRailCollapsed);
+  useEffect(() => {
+    savePref({
+      wfRailCollapsed: railCollapsed
+    });
+  }, [railCollapsed]);
+  useEffect(() => {
+    if (selectedNodeId) setRailCollapsed(false);
+  }, [selectedNodeId]); // selecting a step always reveals its properties
+  const [openCompanyId, setOpenCompanyId] = useState(null);
+  const [openStaffId, setOpenStaffId] = useState(null);
   const [dirty, setDirty] = useState(false);
   const markDirty = () => setDirty(true);
   const goLibrary = () => {
@@ -85778,7 +88478,7 @@ const WorkflowBuilderPage = ({
     markDirty();
     setWf(w => wfInsertNode(w, tgt, node));
     const worthConfiguring = !!(item.fields || item.type === 'clientTouchpoint' || item.type === 'condition');
-    if (opts && opts.openDrawer && worthConfiguring) setOpenNodeId(node.id);
+    if (opts && opts.openDrawer && worthConfiguring) setSelectedNodeId(node.id);
     return node;
   };
   const handlePick = item => {
@@ -85799,7 +88499,7 @@ const WorkflowBuilderPage = ({
     const snapshot = wfClone(wf);
     markDirty();
     setWf(w => wfDeleteNode(w, id));
-    if (openNodeId === id) setOpenNodeId(null);
+    if (selectedNodeId === id) setSelectedNodeId(null);
     fireToast({
       message: 'Step removed',
       action: {
@@ -85808,25 +88508,92 @@ const WorkflowBuilderPage = ({
       }
     });
   };
-  const onTest = () => {
+  // Duplicate a node as an independent sibling immediately after the source (not the
+  // catalog insertItem path — this clones an existing configured node). Fresh ids, unlocked.
+  const onDuplicateNode = id => {
+    const src = wf.nodes[id];
+    if (!src) return;
+    const copy = {
+      ...wfClone(src),
+      id: wfUid('n'),
+      next: null,
+      locked: false,
+      label: src.label + ' (copy)'
+    };
+    if (copy.branches) copy.branches = copy.branches.map(b => ({
+      ...b,
+      id: wfUid('b'),
+      next: null
+    }));
+    const snapshot = wfClone(wf);
+    markDirty();
+    setWf(w => wfInsertNode(w, {
+      afterNodeId: id
+    }, copy));
+    setSelectedNodeId(copy.id);
+    fireToast({
+      message: 'Step duplicated',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setWf(snapshot);
+          setSelectedNodeId(id);
+        }
+      }
+    });
+  };
+  const onToggleLock = id => {
+    updateNode(id, n => ({
+      ...n,
+      locked: !n.locked
+    }));
+  };
+  // Open the palette targeting the tail of the linear path (overview "Add a step to the end").
+  const onAddToEnd = () => {
+    if (!wf.root) {
+      setPalette({
+        mode: 'trigger'
+      });
+      return;
+    }
     const path = wfSimPathIds(wf);
+    setPalette({
+      afterNodeId: path[path.length - 1]
+    });
+  };
+  const onTest = (clientName, opts) => {
+    simTimers.current.forEach(clearTimeout);
+    simTimers.current = [];
+    const path = wfSimPathIds(wf);
+    const sim = wfSimulate(wf);
+    if (clientName) sim.client = clientName;
     const finish = () => {
       setSimActiveId(null);
-      setSimLog(wfSimulate(wf));
+      setSimLog(sim);
+      setSimTermRunning(false);
+      setSimStepIdx(sim.steps.length); // all done
       setWf(w => ({
         ...w,
         _tested: true
       }));
-      setTab('logs');
       fireToast('Test simulation complete — see Execution Logs');
     };
+    // Seed BOTH the friendly stepper (full plan up-front + running index) and the raw
+    // terminal lines (accumulating), so the "View as log" toggle stays in sync.
+    setSimSteps(sim.steps);
+    setSimStepIdx(0);
+    setSimMin(true);
+    setSimTerm([]);
+    setSimTermOpen(true);
+    setSimTermRunning(true);
     if (!path.length) {
       finish();
       return;
     }
-    setTab('builder');
-    let i = 0;
+    if (!(opts && opts.stay)) setTab('builder');
     setSimActiveId(path[0]);
+    setSimTerm(sim.steps.length ? [sim.steps[0]] : []);
+    let i = 0;
     const tick = () => {
       i++;
       if (i >= path.length) {
@@ -85834,15 +88601,47 @@ const WorkflowBuilderPage = ({
         return;
       }
       setSimActiveId(path[i]);
-      setTimeout(tick, 620);
+      setSimStepIdx(i);
+      setSimTerm(prev => sim.steps[i] ? prev.concat(sim.steps[i]) : prev);
+      simTimers.current.push(setTimeout(tick, 620));
     };
-    setTimeout(tick, 620);
+    simTimers.current.push(setTimeout(tick, 620));
   };
   const onSendReview = () => {
     setPatch({
       status: 'In review'
     });
     fireToast('Sent for review — the approving partner has been notified');
+  };
+  // Resume a stalled run from its failed step (mock): complete the failed + downstream steps,
+  // flip the run to success, clear the failed enrollment, and persist to the library.
+  const onContinueRun = runId => {
+    const next = wfClone(wf);
+    const run = (next.runs || []).find(r => r.id === runId);
+    if (!run || run.status !== 'stalled') return;
+    const fi = run.failedStepIndex;
+    const fs = run.steps[fi];
+    const startNode = fs ? fs.nodeId && next.nodes[fs.nodeId] || Object.values(next.nodes).find(n => n.label === fs.label) : null;
+    if (fs) {
+      fs.tone = 'ok';
+      fs.outcome = 'Resumed — completed';
+    }
+    if (startNode) run.steps = run.steps.concat(wfResumeSteps(next, startNode));
+    run.status = 'success';
+    delete run.failedStepIndex;
+    delete run.reason;
+    next.failCount = Math.max(0, (next.failCount || 0) - 1);
+    next.successRate = Math.min(99, (next.successRate || 90) + 1);
+    (next.enrollments || []).forEach(e => {
+      if (e.status === 'failed' && (!e.runId || e.runId === runId)) {
+        e.status = 'completed';
+        e.step = 'Completed';
+      }
+    });
+    setWf(next);
+    const idx = WORKFLOW_LIBRARY.findIndex(w => w.id === next.id);
+    if (idx >= 0) WORKFLOW_LIBRARY[idx] = wfClone(next);
+    fireToast('Execution resumed' + (fs ? ' from “' + fs.label + '”' : '') + ' — workflow completed');
   };
   // Non-destructive: insert a locked approval gate before each high-risk step that lacks one.
   // Idempotent — running again does nothing once every high-risk step is covered.
@@ -85871,9 +88670,6 @@ const WorkflowBuilderPage = ({
     fireToast('Added ' + targets.length + ' approval gate' + (targets.length === 1 ? '' : 's'));
   };
   const doPublish = () => {
-    WORKFLOW_LIBRARY.forEach(w => {
-      if (w.baseId === wf.baseId && w.status === 'Active' && w.id !== wf.id) w.status = 'Deprecated';
-    });
     const next = {
       ...wf,
       status: 'Active'
@@ -85883,23 +88679,24 @@ const WorkflowBuilderPage = ({
     setWf(next);
     setDirty(false);
     setReadinessOpen(false);
-    fireToast('Published — this version is now Active');
+    fireToast('Published — this workflow is now Active');
   };
+  // Saving a baseline never touches it — it forks an independent new Draft (no version history).
   const onSave = () => {
-    if (loadedStatus === 'Active') {
-      const clone = cloneAsNewVersion(wf);
-      WORKFLOW_LIBRARY.push(clone);
+    if (loadedBaseline) {
+      const fork = forkAsNewWorkflow(wf);
+      WORKFLOW_LIBRARY.push(fork);
       setDirty(false);
       fireToast({
-        message: 'Saved as v' + clone.version + ' (Draft)',
+        message: 'New workflow created from template — the baseline is unchanged',
         action: {
           label: 'Open',
           onClick: () => {
-            window.location.hash = '#/practice/workflow-builder/' + clone.id;
+            window.location.hash = '#/practice/workflow-builder/' + fork.id;
           }
         }
       });
-      window.location.hash = '#/practice/workflow-builder/' + clone.id;
+      window.location.hash = '#/practice/workflow-builder/' + fork.id;
     } else {
       const idx = WORKFLOW_LIBRARY.findIndex(w => w.id === wf.id);
       if (idx >= 0) WORKFLOW_LIBRARY[idx] = wfClone(wf);else WORKFLOW_LIBRARY.push(wfClone(wf));
@@ -85923,8 +88720,11 @@ const WorkflowBuilderPage = ({
     label: 'Execution Logs',
     count: (wf.runs || []).length + (simLog ? 1 : 0)
   }, {
+    id: 'testpublish',
+    label: 'Test & publish'
+  }, {
     id: 'access',
-    label: 'Access'
+    label: 'Role preview'
   }];
   return /*#__PURE__*/React.createElement("main", {
     style: {
@@ -85975,7 +88775,15 @@ const WorkflowBuilderPage = ({
       fontWeight: 700,
       letterSpacing: -0.3
     }
-  }), /*#__PURE__*/React.createElement(Pill, {
+  }), wf.isBaseline && /*#__PURE__*/React.createElement(Pill, {
+    color: "accent",
+    style: {
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 10
+  }), "Template"), /*#__PURE__*/React.createElement(Pill, {
     color: "neutral"
   }, "v", wf.version), /*#__PURE__*/React.createElement(Pill, {
     color: WF_STATUS_COLOR[wf.status] || 'neutral'
@@ -86042,34 +88850,34 @@ const WorkflowBuilderPage = ({
     size: "md",
     icon: "save",
     onClick: onSave
-  }, loadedStatus === 'Active' ? 'Save as new version' : 'Save'), /*#__PURE__*/React.createElement(WfReadinessPanel, {
+  }, loadedBaseline ? 'Save as new workflow' : 'Save'), /*#__PURE__*/React.createElement(WfReadinessPanel, {
     open: readinessOpen,
     onClose: () => setReadinessOpen(false),
     issues: issues,
     canPublish: wf.status !== 'Active',
     onJump: nodeId => {
       setTab('builder');
-      if (nodeId) setOpenNodeId(nodeId);
+      if (nodeId) setSelectedNodeId(nodeId);
     },
     onPublish: doPublish
-  }))), dirty && loadedStatus === 'Active' && /*#__PURE__*/React.createElement("div", {
+  }))), loadedBaseline && /*#__PURE__*/React.createElement("div", {
     style: {
       margin: '8px 0 4px',
       padding: '10px 14px',
-      background: T.amberSoft,
-      border: '1px solid #FCD34D',
+      background: T.primarySofter,
+      border: `1px solid ${T.border}`,
       borderRadius: 10,
       fontSize: 12.5,
-      color: T.amber,
+      color: T.textSoft,
       display: 'flex',
       alignItems: 'center',
       gap: 10
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: "info",
+    name: "lock",
     size: 15,
-    color: T.amber
-  }), /*#__PURE__*/React.createElement("span", null, "You\u2019re editing an Active workflow. Saving creates ", /*#__PURE__*/React.createElement("b", null, "v", (wf.version || 1) + 1), " as a Draft \u2014 the live v", wf.version, " keeps running until you publish.")), /*#__PURE__*/React.createElement("div", {
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", null, "This is a firm ", /*#__PURE__*/React.createElement("b", null, "template"), ". Saving never changes it \u2014 Sole creates a new, editable workflow from your edits and leaves the baseline running.")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 4,
@@ -86115,7 +88923,21 @@ const WorkflowBuilderPage = ({
       display: 'flex',
       flexDirection: 'column'
     }
-  }, tab === 'builder' && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(WfBuilderModeBar, {
+  }, tab === 'builder' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minHeight: 0,
+      display: 'flex'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 0,
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement(WfBuilderModeBar, {
     wf: wf,
     mode: builderMode,
     onMode: setBuilderMode
@@ -86127,45 +88949,55 @@ const WorkflowBuilderPage = ({
     }
   }, builderMode === 'std' ? /*#__PURE__*/React.createElement(WfCanvas, {
     wf: wf,
-    onOpenNode: setOpenNodeId,
+    onOpenNode: setSelectedNodeId,
     onAddAfter: handleConnectorClick,
     onDeleteNode: handleDelete,
     onAddTrigger: () => setPalette({
       mode: 'trigger'
     }),
-    simActiveId: simActiveId
+    simActiveId: simActiveId,
+    selectedId: selectedNodeId
   }) : /*#__PURE__*/React.createElement(WfAdvancedCanvas, {
     wf: wf,
-    onOpenNode: setOpenNodeId,
+    onOpenNode: setSelectedNodeId,
     onAddAfter: handleConnectorClick,
     onAddTrigger: () => setPalette({
       mode: 'trigger'
     }),
-    simActiveId: simActiveId
-  }))), tab !== 'builder' && /*#__PURE__*/React.createElement("div", {
-    className: "scroll-area",
-    style: {
-      flex: 1,
-      minHeight: 0,
-      overflow: 'auto',
-      padding: '20px 28px 48px'
-    }
-  }, tab === 'settings' && /*#__PURE__*/React.createElement(WfSettingsTab, {
+    onDeleteNode: handleDelete,
+    onMoveNode: (id, pos) => {
+      markDirty();
+      setWf(w => ({
+        ...w,
+        advPos: {
+          ...(w.advPos || {}),
+          [id]: pos
+        }
+      }));
+    },
+    simActiveId: simActiveId,
+    selectedId: selectedNodeId
+  }))), /*#__PURE__*/React.createElement(WfBuilderRail, {
     wf: wf,
-    onChange: setPatch,
-    onAddGates: handleAddGates
-  }), tab === 'enrollment' && /*#__PURE__*/React.createElement(WfEnrollmentTab, {
-    wf: wf
-  }), tab === 'logs' && /*#__PURE__*/React.createElement(WfLogsTab, {
-    wf: wf,
-    simLog: simLog
-  }), tab === 'access' && /*#__PURE__*/React.createElement(WfRolePreviewTab, {
-    wf: wf
-  }))), /*#__PURE__*/React.createElement(WfNodeDrawer, {
-    wf: wf,
-    nodeId: openNodeId,
-    onChange: updateNode,
-    onClose: () => setOpenNodeId(null),
+    selectedNodeId: selectedNodeId,
+    issues: issues,
+    readyTone: readyTone,
+    readyLabel: readyLabel,
+    collapsed: railCollapsed,
+    onToggleCollapse: () => setRailCollapsed(c => !c),
+    onSelectNode: setSelectedNodeId,
+    onTest: onTest,
+    onAddTrigger: () => setPalette({
+      mode: 'trigger'
+    }),
+    onAddToEnd: onAddToEnd,
+    onGoSettings: () => setTab('settings'),
+    onOpenCompany: setOpenCompanyId,
+    onOpenStaff: setOpenStaffId,
+    onChangeNode: updateNode,
+    onDuplicateNode: onDuplicateNode,
+    onDeleteNode: handleDelete,
+    onToggleLock: onToggleLock,
     onAddBranch: id => {
       markDirty();
       setWf(w => wfAddBranch(w, id));
@@ -86185,13 +89017,50 @@ const WorkflowBuilderPage = ({
       });
     },
     onPreviewBulk: node => setBulkNode(node)
-  }), /*#__PURE__*/React.createElement(WfPaletteDrawer, {
+  })), tab !== 'builder' && /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflow: 'auto',
+      padding: '20px 28px 48px'
+    }
+  }, tab === 'settings' && /*#__PURE__*/React.createElement(WfSettingsTab, {
+    wf: wf,
+    onChange: setPatch,
+    onAddGates: handleAddGates
+  }), tab === 'enrollment' && /*#__PURE__*/React.createElement(WfEnrollmentTab, {
+    wf: wf,
+    onContinue: onContinueRun,
+    onOpenCompany: setOpenCompanyId
+  }), tab === 'logs' && /*#__PURE__*/React.createElement(WfLogsTab, {
+    wf: wf,
+    simLog: simLog,
+    onContinue: onContinueRun,
+    onOpenChecklist: () => setTab('testpublish'),
+    onOpenCompany: setOpenCompanyId,
+    onFix: nodeId => {
+      setTab('builder');
+      if (nodeId) setSelectedNodeId(nodeId);
+    }
+  }), tab === 'testpublish' && /*#__PURE__*/React.createElement(WfTestPublishTab, {
+    wf: wf,
+    issues: issues,
+    onTest: onTest,
+    simLog: simLog,
+    onPublish: doPublish,
+    canPublish: wf.status !== 'Active'
+  }), tab === 'access' && /*#__PURE__*/React.createElement(WfRolePreviewTab, {
+    wf: wf
+  }))), /*#__PURE__*/React.createElement(WfPaletteDrawer, {
     open: !!palette,
     initialTab: palette && palette.mode === 'trigger' ? 'trigger' : 'action',
     onClose: () => setPalette(null),
     onPick: handlePick
   }), quickAdd && /*#__PURE__*/React.createElement(WfQuickAddMenu, {
     pos: quickAdd,
+    module: wf.module,
+    prevNode: quickAdd.target && quickAdd.target.afterNodeId ? wf.nodes[quickAdd.target.afterNodeId] : null,
     onClose: () => setQuickAdd(null),
     onPick: item => {
       insertItem(item, quickAdd.target, {
@@ -86207,6 +89076,43 @@ const WorkflowBuilderPage = ({
     open: !!bulkNode,
     node: bulkNode,
     onClose: () => setBulkNode(null)
+  }), /*#__PURE__*/React.createElement(WfRunProgress, {
+    open: simTermOpen,
+    steps: simSteps,
+    stepIdx: simStepIdx,
+    running: simTermRunning,
+    view: simView,
+    minimized: simMin,
+    lines: simTerm,
+    onToggleMin: () => setSimMin(m => !m),
+    onToggleView: () => setSimView(v => v === 'progress' ? 'log' : 'progress'),
+    onSelectStep: i => {
+      const p = wfSimPathIds(wf);
+      if (p[i]) setSimActiveId(p[i]);
+    },
+    onClose: () => {
+      simTimers.current.forEach(clearTimeout);
+      simTimers.current = [];
+      setSimActiveId(null);
+      setSimTermRunning(false);
+      setSimTermOpen(false);
+    }
+  }), openCompanyId && /*#__PURE__*/React.createElement(CompanyDrawer, {
+    client: clientById(openCompanyId),
+    deals: [],
+    onClose: () => setOpenCompanyId(null),
+    onOpenDeal: () => {},
+    onOpenEmployee: () => {},
+    onOpenProposal: () => {},
+    fireToast: fireToast,
+    zIndex: 240
+  }), openStaffId && /*#__PURE__*/React.createElement(StaffDrawer, {
+    staff: spmStaffBy(openStaffId),
+    deals: [],
+    onClose: () => setOpenStaffId(null),
+    onOpenDeal: () => {},
+    fireToast: fireToast,
+    zIndex: 240
   }));
 };
 
@@ -86376,6 +89282,9 @@ const WfRecipeCard = ({
 const WorkflowRow = ({
   wf,
   onClick,
+  onEdit,
+  onDuplicate,
+  onDelete,
   first
 }) => {
   const levelColor = {
@@ -86385,15 +89294,64 @@ const WorkflowRow = ({
   };
   const m = wfModuleMeta(wf.module);
   const tint = WF_TINT[m.color] || WF_TINT.neutral;
-  return /*#__PURE__*/React.createElement("button", {
-    onClick: onClick,
+  const [menu, setMenu] = useState(null);
+  const lastRun = (wf.runs || [])[0];
+  const stalledStep = lastRun && lastRun.status === 'stalled' && lastRun.steps[lastRun.failedStepIndex] ? lastRun.steps[lastRun.failedStepIndex].label : null;
+  const activity = lastRun ? lastRun.status === 'stalled' ? 'Stalled at “' + (stalledStep || 'a step') + '” · ' + daysAgo(lastRun.at) : 'Last run ' + daysAgo(lastRun.at) + ' · ' + (lastRun.status === 'success' ? 'completed' : lastRun.status) : wf.status === 'Draft' ? 'Not run yet' : null;
+  const openMenu = e => {
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenu({
+      x: r.right - 172,
+      y: r.bottom + 4
+    });
+  };
+  const item = (icon, label, fn, opts = {}) => /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      if (opts.disabled) return;
+      setMenu(null);
+      fn();
+    },
+    title: opts.title || '',
     "data-hover": "row",
+    disabled: opts.disabled,
     style: {
       width: '100%',
       textAlign: 'left',
       border: 'none',
-      borderTop: first ? 'none' : `1px solid ${T.border}`,
       background: 'transparent',
+      cursor: opts.disabled ? 'not-allowed' : 'pointer',
+      opacity: opts.disabled ? 0.45 : 1,
+      padding: '8px 10px',
+      borderRadius: 7,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      fontSize: 12.5,
+      fontWeight: 500,
+      color: opts.danger ? T.red : T.text
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 14,
+    color: opts.danger ? T.red : T.muted
+  }), label);
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onClick,
+    onKeyDown: e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClick();
+      }
+    },
+    "data-hover": "row",
+    role: "button",
+    tabIndex: 0,
+    style: {
+      width: '100%',
+      textAlign: 'left',
+      borderTop: first ? 'none' : `1px solid ${T.border}`,
       padding: '14px 16px',
       cursor: 'pointer',
       display: 'flex',
@@ -86418,7 +89376,16 @@ const WorkflowRow = ({
       fontWeight: 600,
       color: T.text
     }
-  }, wf.name), /*#__PURE__*/React.createElement("span", {
+  }, wf.name), wf.isBaseline && /*#__PURE__*/React.createElement(Pill, {
+    color: "accent",
+    style: {
+      fontSize: 9.5,
+      gap: 3
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 9
+  }), "Template"), /*#__PURE__*/React.createElement("span", {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -86455,7 +89422,23 @@ const WorkflowRow = ({
       fontSize: 11.5,
       marginTop: 3
     }
-  }, wf.outcome || 'No outcome described yet')), /*#__PURE__*/React.createElement("div", {
+  }, wf.outcome || 'No outcome described yet'), activity && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clock",
+    size: 11,
+    color: stalledStep ? T.red : T.mutedSoft
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: stalledStep ? T.red : T.mutedSoft
+    }
+  }, activity))), /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: 'right',
       flexShrink: 0
@@ -86471,23 +89454,274 @@ const WorkflowRow = ({
     style: {
       fontSize: 11
     }
-  }, "runs", wf.lastRun ? ' · ' + daysAgo(wf.lastRun) : '')), /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 16,
-    color: T.muted
-  }));
+  }, "runs"), wfFailCount(wf) > 0 && /*#__PURE__*/React.createElement(Pill, {
+    color: "red",
+    style: {
+      fontSize: 9.5,
+      marginTop: 4,
+      gap: 3
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "alertTriangle",
+    size: 9
+  }), wfFailCount(wf), " need", wfFailCount(wf) === 1 ? 's' : '', " attention")), /*#__PURE__*/React.createElement("button", {
+    onClick: openMenu,
+    title: "Actions",
+    "data-hover": "row",
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "moreHorizontal",
+    size: 16
+  })), menu && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: e => {
+      e.stopPropagation();
+      setMenu(null);
+    },
+    onMouseDown: e => e.stopPropagation(),
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 200
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      position: 'fixed',
+      left: menu.x,
+      top: menu.y,
+      width: 172,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      boxShadow: '0 12px 32px rgba(15,17,23,0.16)',
+      padding: 4,
+      zIndex: 201
+    }
+  }, item('edit', 'Edit', onEdit), item('copy', 'Duplicate', onDuplicate), item('trash', 'Delete', onDelete, {
+    danger: true,
+    disabled: wf.isBaseline,
+    title: wf.isBaseline ? 'Templates can’t be deleted' : ''
+  }))));
+};
+
+// Lets a caller (e.g. the attention rail) deep-link to a specific builder tab.
+// Read once on builder mount (which remounts per workflow via key={route.id}) then cleared.
+let WF_PENDING_TAB = null;
+const wfGoToWorkflow = (id, tab) => {
+  WF_PENDING_TAB = tab || null;
+  window.location.hash = '#/practice/workflow-builder/' + id;
+};
+
+// Actionable "needs attention" items across the whole library — stalled runs, clients
+// awaiting approval, and workflows pending review — each routing to the right place.
+const wfAttentionItems = () => {
+  const items = [];
+  WORKFLOW_LIBRARY.forEach(w => {
+    (w.runs || []).forEach(r => {
+      if (r.status === 'stalled' || r.status === 'fail') {
+        const reason = r.reason || 'A run stalled and needs attention';
+        items.push({
+          id: w.id + '-' + r.id,
+          wfId: w.id,
+          tone: 'red',
+          module: w.module,
+          icon: 'alertTriangle',
+          title: w.name,
+          clientName: r.client,
+          detail: reason.length > 64 ? reason.slice(0, 64) + '…' : reason,
+          cta: 'Fix',
+          tab: 'logs'
+        });
+      }
+    });
+    const waiting = (w.enrollments || []).filter(e => e.status === 'waiting').length;
+    if (waiting > 0) items.push({
+      id: w.id + '-wait',
+      wfId: w.id,
+      tone: 'amber',
+      module: w.module,
+      icon: 'clock',
+      title: w.name,
+      detail: waiting + ' client' + (waiting === 1 ? '' : 's') + ' awaiting approval',
+      cta: 'View',
+      tab: 'enrollment'
+    });
+    if (w.status === 'In review') items.push({
+      id: w.id + '-review',
+      wfId: w.id,
+      tone: 'blue',
+      module: w.module,
+      icon: 'eye',
+      title: w.name,
+      detail: 'Awaiting partner approval',
+      cta: 'Review',
+      tab: 'testpublish'
+    });
+  });
+  return items;
+};
+const WfAttentionRail = ({
+  items,
+  onOpenCompany
+}) => {
+  const toneFg = {
+    red: T.red,
+    amber: T.amber,
+    blue: T.blue
+  };
+  return /*#__PURE__*/React.createElement(Card, {
+    padded: false,
+    style: {
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '13px 16px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      flex: 1
+    }
+  }, "Needs attention"), /*#__PURE__*/React.createElement(Pill, {
+    color: items.length ? 'red' : 'green'
+  }, items.length || 'Clear')), items.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '28px 20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "Nothing needs your attention \u2014 every workflow is running clean.")) : /*#__PURE__*/React.createElement("div", null, items.map((it, i) => {
+    const c = it.clientName ? wfClientByName(it.clientName) : null;
+    return /*#__PURE__*/React.createElement("div", {
+      key: it.id,
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 10,
+        padding: '12px 16px',
+        borderTop: i ? `1px solid ${T.border}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: toneFg[it.tone] || T.muted,
+        flexShrink: 0,
+        marginTop: 6
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, it.title, it.clientName && !c ? ' — ' + it.clientName : ''), c && onOpenCompany && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 3
+      }
+    }, /*#__PURE__*/React.createElement(CompanyChip, {
+      client: c,
+      onOpen: onOpenCompany,
+      size: 15
+    })), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5,
+        marginTop: 2
+      }
+    }, it.detail)), /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      onClick: () => wfGoToWorkflow(it.wfId, it.tab)
+    }, it.cta));
+  })));
 };
 const WorkflowLibraryPage = ({
   fireToast
 }) => {
   const [filter, setFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerStep, setPickerStep] = useState('area');
   const [pickerModule, setPickerModule] = useState(null);
+  const [openCompanyId, setOpenCompanyId] = useState(null);
+  const [, forceTick] = useState(0);
+  const refresh = () => forceTick(t => t + 1); // re-render after mutating the module array
   const open = id => {
     window.location.hash = '#/practice/workflow-builder/' + id;
   };
+  const openSettings = () => {
+    window.location.hash = '#/practice/workflow-settings';
+  };
   const wfForModule = mid => WORKFLOW_LIBRARY.filter(w => w.module === mid);
+  const duplicateWorkflow = w => {
+    const copy = {
+      ...wfClone(w),
+      id: wfUid('wf-'),
+      baseId: wfUid('base-'),
+      name: w.name + ' (copy)',
+      status: 'Draft',
+      isBaseline: false,
+      version: 1,
+      runCount: 0,
+      lastRun: null,
+      successRate: null,
+      failCount: 0,
+      _tested: false,
+      enrollments: [],
+      runs: [],
+      advPos: undefined
+    };
+    WORKFLOW_LIBRARY.push(copy);
+    refresh();
+    fireToast({
+      message: 'Workflow duplicated — “' + copy.name + '”',
+      action: {
+        label: 'Open',
+        onClick: () => open(copy.id)
+      }
+    });
+  };
+  const deleteWorkflow = w => {
+    if (w.isBaseline) {
+      fireToast('Templates can’t be deleted');
+      return;
+    }
+    const idx = WORKFLOW_LIBRARY.findIndex(x => x.id === w.id);
+    if (idx < 0) return;
+    const [removed] = WORKFLOW_LIBRARY.splice(idx, 1);
+    refresh();
+    fireToast({
+      message: 'Workflow deleted — “' + removed.name + '”',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          WORKFLOW_LIBRARY.splice(idx, 0, removed);
+          refresh();
+        }
+      }
+    });
+  };
   const newWorkflow = mid => {
     const base = wfUid('base-');
     const draft = {
@@ -86563,7 +89797,13 @@ const WorkflowLibraryPage = ({
     setPickerOpen(true);
   };
   const total = WORKFLOW_LIBRARY.length;
-  const shown = WORKFLOW_LIBRARY.filter(w => filter === 'all' || w.module === filter).slice().sort((a, b) => {
+  const activeCount = WORKFLOW_LIBRARY.filter(w => w.status === 'Active').length;
+  const reviewCount = WORKFLOW_LIBRARY.filter(w => w.status === 'In review').length;
+  const attentionCount = WORKFLOW_LIBRARY.filter(w => wfFailCount(w) > 0).length;
+  const attnItems = wfAttentionItems();
+  const ratedActive = WORKFLOW_LIBRARY.filter(w => w.status === 'Active' && w.successRate != null);
+  const completion = ratedActive.length ? Math.round(ratedActive.reduce((a, w) => a + w.successRate, 0) / ratedActive.length) : null;
+  const shown = WORKFLOW_LIBRARY.filter(w => (filter === 'all' || w.module === filter) && (statusFilter === 'all' || w.status === statusFilter)).slice().sort((a, b) => {
     const mi = WF_MODULES.findIndex(m => m.id === a.module) - WF_MODULES.findIndex(m => m.id === b.module);
     return mi !== 0 ? mi : (b.runCount || 0) - (a.runCount || 0);
   });
@@ -86593,18 +89833,70 @@ const WorkflowLibraryPage = ({
     style: {
       marginTop: 2
     }
-  }, "Automate how your practice moves work from one stage to the next \u2014 ", total, " workflow", total === 1 ? '' : 's', " across your practice.")), /*#__PURE__*/React.createElement(Btn, {
+  }, "Automate how your practice moves work from one stage to the next \u2014 ", total, " workflow", total === 1 ? '' : 's', " across your practice.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "sliders",
+    onClick: openSettings,
+    title: "Workflow settings"
+  }, "Settings"), /*#__PURE__*/React.createElement(Btn, {
     variant: "primary",
     size: "md",
     icon: "plus",
     onClick: openAreaPicker
-  }, "New workflow")), /*#__PURE__*/React.createElement("div", {
+  }, "New workflow"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 12,
+      marginBottom: 18,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(WfStat, {
+    icon: "alertTriangle",
+    label: "Needs attention",
+    value: attentionCount,
+    valueColor: attentionCount ? T.red : undefined,
+    sub: attentionCount ? 'workflow' + (attentionCount === 1 ? '' : 's') + ' stalled' : 'all running clean'
+  }), /*#__PURE__*/React.createElement(WfStat, {
+    icon: "bolt",
+    label: "Active workflows",
+    value: activeCount,
+    sub: "live in your practice"
+  }), /*#__PURE__*/React.createElement(WfStat, {
+    icon: "clock",
+    label: "Pending reviews",
+    value: reviewCount,
+    sub: reviewCount ? 'awaiting approval' : 'none waiting'
+  }), /*#__PURE__*/React.createElement(WfStat, {
+    icon: "check",
+    label: "Completion rate",
+    value: completion != null ? completion + '%' : '—',
+    sub: "avg across active"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 16,
+      alignItems: 'flex-start',
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 480px',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
       gap: 8,
       flexWrap: 'wrap',
-      marginBottom: 16
+      marginBottom: 10
     }
   }, /*#__PURE__*/React.createElement(Chip, {
     size: "sm",
@@ -86618,7 +89910,27 @@ const WorkflowLibraryPage = ({
       selected: filter === m.id,
       onClick: () => setFilter(m.id)
     }, m.label, c ? ' · ' + c : '');
-  })), shown.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      fontWeight: 600,
+      marginRight: 2
+    }
+  }, "Status"), ['all', 'Active', 'Draft', 'In review', 'Deprecated'].map(s => /*#__PURE__*/React.createElement(Chip, {
+    key: s,
+    size: "sm",
+    selected: statusFilter === s,
+    onClick: () => setStatusFilter(s)
+  }, s === 'all' ? 'All' : s))), shown.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       border: `1px dashed ${T.border}`,
       borderRadius: 12,
@@ -86636,7 +89948,7 @@ const WorkflowLibraryPage = ({
     style: {
       marginBottom: 14
     }
-  }, filter === 'all' ? 'Create your first workflow to get started.' : 'No workflows tagged ' + wfModuleMeta(filter).label + ' yet.'), /*#__PURE__*/React.createElement(Btn, {
+  }, filter === 'all' && statusFilter === 'all' ? 'Create your first workflow to get started.' : 'No workflows match these filters.'), /*#__PURE__*/React.createElement(Btn, {
     variant: "primaryOutline",
     size: "md",
     icon: "plus",
@@ -86647,7 +89959,18 @@ const WorkflowLibraryPage = ({
     key: w.id,
     wf: w,
     first: i === 0,
-    onClick: () => open(w.id)
+    onClick: () => open(w.id),
+    onEdit: () => open(w.id),
+    onDuplicate: () => duplicateWorkflow(w),
+    onDelete: () => deleteWorkflow(w)
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '0 1 326px',
+      minWidth: 280
+    }
+  }, /*#__PURE__*/React.createElement(WfAttentionRail, {
+    items: attnItems,
+    onOpenCompany: setOpenCompanyId
   }))), /*#__PURE__*/React.createElement(Modal, {
     open: pickerOpen,
     onClose: () => setPickerOpen(false),
@@ -86737,7 +90060,290 @@ const WorkflowLibraryPage = ({
       setPickerOpen(false);
       wfFromRecipe(r, pickerModule);
     }
-  }))))));
+  }))))), openCompanyId && /*#__PURE__*/React.createElement(CompanyDrawer, {
+    client: clientById(openCompanyId),
+    deals: [],
+    onClose: () => setOpenCompanyId(null),
+    onOpenDeal: () => {},
+    onOpenEmployee: () => {},
+    onOpenProposal: () => {},
+    fireToast: fireToast,
+    zIndex: 240
+  }));
+};
+
+// Firm-wide workflow defaults (mock; display/identity only — messages still send via SPM).
+const WF_GLOBAL_SETTINGS = {
+  timeZone: 'Australia/Sydney',
+  timeWindow: 'business',
+  // 'none' | 'business'
+  businessHours: {
+    start: '09:00',
+    end: '17:00',
+    days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+  },
+  fromName: 'Sole Practice',
+  fromEmail: 'service@solepractice.com.au',
+  numbers: [{
+    id: 'num-sales',
+    label: 'Sales',
+    number: '+61 7 3000 1001'
+  }, {
+    id: 'num-support',
+    label: 'Support',
+    number: '+61 7 3000 1002'
+  }]
+};
+const WorkflowGlobalSettingsPage = ({
+  fireToast
+}) => {
+  const [gs, setGs] = useState(() => JSON.parse(JSON.stringify(WF_GLOBAL_SETTINGS)));
+  // Mutate the module object too so values persist if you leave and come back.
+  const patch = p => setGs(g => {
+    const n = {
+      ...g,
+      ...p
+    };
+    Object.assign(WF_GLOBAL_SETTINGS, n);
+    return n;
+  });
+  const setHours = p => patch({
+    businessHours: {
+      ...gs.businessHours,
+      ...p
+    }
+  });
+  const toggleDay = d => {
+    const has = gs.businessHours.days.includes(d);
+    setHours({
+      days: has ? gs.businessHours.days.filter(x => x !== d) : [...gs.businessHours.days, d]
+    });
+  };
+  const setNumber = (id, p) => patch({
+    numbers: gs.numbers.map(n => n.id === id ? {
+      ...n,
+      ...p
+    } : n)
+  });
+  const addNumber = () => patch({
+    numbers: [...gs.numbers, {
+      id: wfUid('num-'),
+      label: 'New line',
+      number: '+61 '
+    }]
+  });
+  const removeNumber = id => patch({
+    numbers: gs.numbers.filter(n => n.id !== id)
+  });
+  const goLibrary = () => {
+    window.location.hash = '#/practice/workflow';
+  };
+  const tzOptions = ['Australia/Sydney', 'Australia/Brisbane', 'Australia/Melbourne', 'Australia/Adelaide', 'Australia/Perth'];
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: goLibrary
+  }, "Workflows"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 720,
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, "Workflow settings"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2,
+      marginBottom: 16
+    }
+  }, "Firm-wide defaults for every workflow \u2014 when messages send, and the sender identities your team can choose from."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10,
+      alignItems: 'flex-start',
+      padding: '12px 14px',
+      background: T.primarySofter,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      marginBottom: 16,
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 15,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", null, "Messages always send from your ", /*#__PURE__*/React.createElement("b", null, "Sole (SPM)"), " number and domain. The names and numbers below are for identity and display only \u2014 they don\u2019t change how messages are delivered.")), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 12
+    }
+  }, "Communication"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Time zone"), /*#__PURE__*/React.createElement(Select, {
+    value: gs.timeZone,
+    onChange: e => patch({
+      timeZone: e.target.value
+    })
+  }, tzOptions.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t,
+    value: t
+  }, t)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Send window"), /*#__PURE__*/React.createElement(Select, {
+    value: gs.timeWindow,
+    onChange: e => patch({
+      timeWindow: e.target.value
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "none"
+  }, "No restriction"), /*#__PURE__*/React.createElement("option", {
+    value: "business"
+  }, "Business hours only"))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "From name"), /*#__PURE__*/React.createElement(Input, {
+    value: gs.fromName,
+    onChange: e => patch({
+      fromName: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "From email"), /*#__PURE__*/React.createElement(Input, {
+    value: gs.fromEmail,
+    onChange: e => patch({
+      fromEmail: e.target.value
+    })
+  }))), gs.timeWindow === 'business' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14,
+      paddingTop: 14,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Business hours"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "time",
+    value: gs.businessHours.start,
+    onChange: e => setHours({
+      start: e.target.value
+    }),
+    style: {
+      width: 130
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "to"), /*#__PURE__*/React.createElement(Input, {
+    type: "time",
+    value: gs.businessHours.end,
+    onChange: e => setHours({
+      end: e.target.value
+    }),
+    style: {
+      width: 130
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginTop: 10,
+      flexWrap: 'wrap'
+    }
+  }, days.map(d => /*#__PURE__*/React.createElement(Chip, {
+    key: d,
+    size: "sm",
+    selected: gs.businessHours.days.includes(d),
+    onClick: () => toggleDay(d)
+  }, d))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 8
+    }
+  }, "Outside these hours, sends queue until the next open window."))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Sender numbers"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "plus",
+    onClick: addNumber
+  }, "Add number")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 12
+    }
+  }, "Label the numbers your workflows reference (e.g. Sales vs Support). Delivery still uses your Sole number."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, gs.numbers.map(n => /*#__PURE__*/React.createElement("div", {
+    key: n.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: n.label,
+    placeholder: "Label",
+    onChange: e => setNumber(n.id, {
+      label: e.target.value
+    }),
+    style: {
+      width: 150
+    }
+  }), /*#__PURE__*/React.createElement(Input, {
+    value: n.number,
+    placeholder: "+61 \u2026",
+    onChange: e => setNumber(n.id, {
+      number: e.target.value
+    }),
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: () => removeNumber(n.id),
+    title: "Remove"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 14
+  })))), gs.numbers.length === 0 && /*#__PURE__*/React.createElement(Helper, null, "No numbers yet \u2014 add one above."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "save",
+    onClick: () => fireToast('Workflow settings saved')
+  }, "Save settings"))));
 };
 
 // --- practice app shell ---
@@ -86775,7 +90381,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -86846,6 +90452,10 @@ const PracticeApp = () => {
         return /*#__PURE__*/React.createElement(WorkflowBuilderPage, {
           key: route.id,
           workflowId: route.id,
+          fireToast: fireToast
+        });
+      case 'workflow-settings':
+        return /*#__PURE__*/React.createElement(WorkflowGlobalSettingsPage, {
           fireToast: fireToast
         });
       case 'spm-forecast':
