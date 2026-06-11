@@ -2243,7 +2243,8 @@ const SegToggle = ({
 const Pill = ({
   children,
   color = 'neutral',
-  style
+  style,
+  title
 }) => {
   const palettes = {
     neutral: {
@@ -2279,6 +2280,7 @@ const Pill = ({
   };
   const p = palettes[color];
   return /*#__PURE__*/React.createElement("span", {
+    title: title,
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -80650,6 +80652,7 @@ const WF_STATUS_COLOR = {
   Draft: 'neutral',
   'In review': 'amber',
   Active: 'green',
+  Inactive: 'neutral',
   Deprecated: 'amber'
 };
 
@@ -80733,6 +80736,24 @@ const WF_MODULES = [{
   icon: 'users',
   color: 'neutral',
   blurb: 'Onboard & offboard staff'
+}, {
+  id: 'billing',
+  label: 'Billing',
+  icon: 'receipt',
+  color: 'green',
+  blurb: 'Invoicing, WIP and debtor follow-up'
+}, {
+  id: 'payments',
+  label: 'Payments',
+  icon: 'creditCard',
+  color: 'accent',
+  blurb: 'Payments received, reconciled & chased'
+}, {
+  id: 'comms',
+  label: 'Client communications',
+  icon: 'inbox',
+  color: 'blue',
+  blurb: 'Replies, routing and bulk messages'
 }];
 const wfModuleMeta = id => WF_MODULES.find(m => m.id === id) || WF_MODULES[0];
 
@@ -80866,6 +80887,666 @@ const wfTemplateById = id => WF_MESSAGE_TEMPLATES.find(t => t.id === id) || null
 const wfTemplateByLabel = l => WF_MESSAGE_TEMPLATES.find(t => t.label === l) || null;
 // Templates default to client-facing ('external') when no audience is set (back-compat).
 const wfTemplatesByAudience = aud => WF_MESSAGE_TEMPLATES.filter(t => (t.audience || 'external') === aud);
+
+// ---- template depth: categories, token resolution, usage + inline create/edit (F23–F32) ----
+const WF_TEMPLATE_GROUPS = ['Tax & BAS', 'Billing', 'Onboarding', 'Reminders', 'Reputation', 'Internal'];
+const WF_MERGE_FIELDS = ['{clientFirstName}', '{clientName}', '{firmName}', '{managerName}', '{period}', '{dueDate}', '{amountDue}', '{invoiceNumber}', '{paymentLink}', '{portalLink}'];
+// Unibox inboxes a client reply could route to. The Unibox module itself is out of scope this round —
+// this configures where replies WOULD land once it's built (F27).
+const WF_INBOXES = [{
+  id: 'inbox-general',
+  label: 'General inbox'
+}, {
+  id: 'inbox-billing',
+  label: 'Billing & payments'
+}, {
+  id: 'inbox-tax',
+  label: 'Tax & BAS team'
+}, {
+  id: 'inbox-onboarding',
+  label: 'Onboarding team'
+}, {
+  id: 'inbox-owner',
+  label: 'Workflow owner'
+}];
+// Group templates by category for the picker (F31). Pass an audience to pre-filter.
+const wfTemplatesByGroup = aud => {
+  const list = aud ? wfTemplatesByAudience(aud) : WF_MESSAGE_TEMPLATES;
+  const map = {};
+  list.forEach(t => {
+    const g = t.group || 'Other';
+    (map[g] = map[g] || []).push(t);
+  });
+  return map;
+};
+// Workflows referencing a template (any status) / only Active ones — for usage mapping + deletion-protection (F32).
+const wfTemplateInUse = id => WORKFLOW_LIBRARY.filter(w => Object.values(w.nodes || {}).some(n => n.config && n.config.templateId === id));
+const wfTemplateActiveUse = id => wfTemplateInUse(id).filter(w => w.status === 'Active');
+const wfExtractTokens = s => {
+  const out = [];
+  ((s || '').match(/\{[a-zA-Z][a-zA-Z0-9]*\}/g) || []).forEach(m => {
+    if (!out.includes(m)) out.push(m);
+  });
+  return out;
+};
+// Create/update a template in place — WF_MESSAGE_TEMPLATES is a module const with no React state, so callers
+// bump a rev counter to re-render (the WorkflowGlobalSettingsPage / WF_GLOBAL_SETTINGS pattern).
+const wfUpsertTemplate = data => {
+  const tokens = wfExtractTokens([data.subject, data.body, data.sms].join(' '));
+  if (data.id) {
+    const t = wfTemplateById(data.id);
+    if (t) {
+      Object.assign(t, data, {
+        tokens
+      });
+      return t;
+    }
+  }
+  const t = {
+    id: wfUid('tpl-'),
+    audience: 'external',
+    channel: 'email',
+    group: 'Reminders',
+    ...data,
+    tokens
+  };
+  WF_MESSAGE_TEMPLATES.push(t);
+  return t;
+};
+const wfDeleteTemplate = id => {
+  const i = WF_MESSAGE_TEMPLATES.findIndex(t => t.id === id);
+  if (i >= 0) WF_MESSAGE_TEMPLATES.splice(i, 1);
+};
+// A representative client + firm context so a template can be previewed with real-looking values (F25).
+const wfSampleCtx = () => {
+  const c = PRACTICE_CLIENTS && PRACTICE_CLIENTS[0] || {};
+  const name = c.name || 'Riverside Plumbing';
+  const firm = WF_GLOBAL_SETTINGS && WF_GLOBAL_SETTINGS.fromName || 'Sole Practice';
+  return {
+    '{clientFirstName}': name.split(' ')[0],
+    '{clientName}': name,
+    '{firmName}': firm,
+    '{managerName}': 'Priya Nair',
+    '{staffFirstName}': 'Jordan',
+    '{period}': 'Q4 FY25',
+    '{dueDate}': '30 Jun 2026',
+    '{requestDate}': '1 Jun 2026',
+    '{amountPayable}': '$4,820.00',
+    '{amountDue}': '$4,820.00',
+    '{invoiceNumber}': 'INV-1042',
+    '{atoReference}': 'ATO-99381',
+    '{paymentLink}': 'pay.sole.app/inv-1042',
+    '{portalLink}': 'portal.sole.app/welcome',
+    '{feedbackLink}': 'sole.app/feedback',
+    '{googleReviewLink}': 'g.page/r/sole/review',
+    '{jobDescription}': 'your BAS lodgement',
+    '{jobName}': 'BAS Q4 lodgement',
+    '{workflowName}': 'this workflow',
+    '{stepName}': 'Send proposal',
+    '{reason}': 'we’re still waiting on documents',
+    '{recipientCount}': '114',
+    '{segment}': 'GST-registered clients'
+  };
+};
+const wfResolveTokens = (text, map) => (text || '').replace(/\{[a-zA-Z][a-zA-Z0-9]*\}/g, m => map[m] != null ? map[m] : m);
+
+// Shared template picker for client-message steps — selection grouped by category, a live preview with a
+// "Preview as client" token-resolve toggle + Send test, inline New/Edit, and optional reply-to / route-to.
+// Used by the builder rail (and the otherwise-dead node drawer) so the two can never diverge again.
+const WfTemplatePicker = ({
+  node,
+  onPick,
+  onPatch,
+  onEdit,
+  onNew,
+  fireToast,
+  compact
+}) => {
+  const [asClient, setAsClient] = useState(false);
+  const cfg = node.config || {};
+  const tid = cfg.templateId || '';
+  const t = wfTemplateById(tid);
+  const byGroup = wfTemplatesByGroup();
+  const ctx = wfSampleCtx();
+  const show = s => asClient ? wfResolveTokens(s, ctx) : s;
+  const linkBtn = {
+    border: 'none',
+    background: 'none',
+    color: T.primary,
+    fontSize: 11.5,
+    fontWeight: 600,
+    cursor: 'pointer',
+    padding: 0
+  };
+  const miniToggle = {
+    border: `1px solid ${T.border}`,
+    background: asClient ? T.primarySoft : T.card,
+    color: asClient ? T.primary : T.muted,
+    fontSize: 10.5,
+    fontWeight: 600,
+    cursor: 'pointer',
+    padding: '2px 8px',
+    borderRadius: 999
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: compact ? 12 : 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginBottom: 0,
+      flex: 1
+    }
+  }, "Message template"), /*#__PURE__*/React.createElement("button", {
+    onClick: onNew,
+    style: linkBtn
+  }, "+ New template")), /*#__PURE__*/React.createElement(Select, {
+    value: tid,
+    onChange: e => onPick(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "No template \u2014 compose later"), WF_TEMPLATE_GROUPS.map(g => {
+    const items = byGroup[g];
+    return items && items.length ? /*#__PURE__*/React.createElement("optgroup", {
+      key: g,
+      label: g
+    }, items.map(tpl => /*#__PURE__*/React.createElement("option", {
+      key: tpl.id,
+      value: tpl.id
+    }, tpl.label, (tpl.audience || 'external') === 'internal' ? ' · internal' : ''))) : null;
+  })), !t ? /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "Pick a ready-made message grouped by type, or ", /*#__PURE__*/React.createElement("b", null, "+ New template"), " to write one without leaving the builder.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '8px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: (t.audience || 'external') === 'internal' ? 'amber' : 'blue',
+    style: {
+      fontSize: 9.5
+    }
+  }, (t.audience || 'external') === 'internal' ? 'Internal · staff' : 'Client-facing'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, t.group), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setAsClient(v => !v),
+    style: miniToggle
+  }, asClient ? 'Show raw tokens' : 'Preview as client')), t.subject && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9.5,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase'
+    }
+  }, "Subject"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text,
+      marginTop: 2
+    }
+  }, show(t.subject))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px',
+      fontSize: 12,
+      color: T.textSoft,
+      whiteSpace: 'pre-wrap',
+      lineHeight: 1.5,
+      maxHeight: compact ? 150 : 170,
+      overflowY: 'auto'
+    }
+  }, show(t.body)), t.sms && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      borderTop: `1px solid ${T.border}`,
+      background: T.greenSoft
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9.5,
+      fontWeight: 700,
+      color: T.greenDark,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase'
+    }
+  }, "SMS"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.textSoft,
+      marginTop: 2
+    }
+  }, show(t.sms))), !asClient && t.tokens && t.tokens.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 5
+    }
+  }, t.tokens.map(tok => /*#__PURE__*/React.createElement(Pill, {
+    key: tok,
+    color: "neutral",
+    style: {
+      fontSize: 9.5
+    }
+  }, tok))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "edit",
+    onClick: () => onEdit(t.id)
+  }, "Edit template"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "send",
+    onClick: () => fireToast && fireToast('Test ' + (t.channel === 'sms' ? 'SMS' : 'email') + ' sent to you — admin@soleapp.com.au')
+  }, "Send test"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12,
+      display: 'flex',
+      gap: 10,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 170px',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Reply-to address"), /*#__PURE__*/React.createElement(Input, {
+    value: cfg.replyTo || '',
+    placeholder: WF_GLOBAL_SETTINGS && WF_GLOBAL_SETTINGS.fromEmail || 'firm default',
+    onChange: e => onPatch({
+      replyTo: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 170px',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Route replies to"), /*#__PURE__*/React.createElement(Select, {
+    value: cfg.routeRepliesTo || '',
+    onChange: e => onPatch({
+      routeRepliesTo: e.target.value
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Firm default inbox"), WF_INBOXES.map(i => /*#__PURE__*/React.createElement("option", {
+    key: i.id,
+    value: i.id
+  }, i.label))))));
+};
+
+// Slide-over editor to create / edit a message template inline (F23/F24/F30) — token-aware body, live
+// "as client" preview, and deletion-protection against active workflows (F32). Each host owns the open state.
+const WfTemplateEditor = ({
+  open,
+  template,
+  onSave,
+  onDelete,
+  onClose
+}) => {
+  const [form, setForm] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setConfirmDel(false);
+    setForm(template ? {
+      ...template
+    } : {
+      label: '',
+      group: 'Reminders',
+      audience: 'external',
+      channel: 'email',
+      subject: '',
+      body: '',
+      sms: ''
+    });
+  }, [open, template]);
+  if (!open || !form) return null;
+  const set = patch => setForm(f => ({
+    ...f,
+    ...patch
+  }));
+  const ctx = wfSampleCtx();
+  const activeUse = form.id ? wfTemplateActiveUse(form.id) : [];
+  const canSave = form.label.trim() && form.body.trim();
+  const taStyle = {
+    width: '100%',
+    minHeight: 150,
+    padding: '10px 12px',
+    border: `1px solid ${T.border}`,
+    borderRadius: 9,
+    fontSize: 12.5,
+    fontFamily: 'inherit',
+    lineHeight: 1.5,
+    resize: 'vertical',
+    color: T.text,
+    background: T.card,
+    boxSizing: 'border-box'
+  };
+  const tokenChip = {
+    border: `1px solid ${T.border}`,
+    background: T.fieldBg,
+    color: T.primary,
+    fontSize: 10,
+    cursor: 'pointer',
+    padding: '2px 7px',
+    borderRadius: 999
+  };
+  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,0.42)',
+      zIndex: 248,
+      animation: 'fadein 0.15s ease'
+    }
+  }), /*#__PURE__*/React.createElement("aside", {
+    style: {
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 'min(560px, 100vw)',
+      background: T.card,
+      zIndex: 249,
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: '-12px 0 32px rgba(15,17,23,0.12)',
+      animation: 'drawerin 0.22s cubic-bezier(0.32, 0.72, 0, 1)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 18px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 600
+    }
+  }, form.id ? 'Edit template' : 'New template'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Used by client-message steps across your workflows.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: onClose,
+    title: "Close"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto',
+      padding: '16px 18px'
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Template name"), /*#__PURE__*/React.createElement(Input, {
+    value: form.label,
+    onChange: e => set({
+      label: e.target.value
+    }),
+    placeholder: "e.g. Invoice overdue reminder"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10,
+      marginTop: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 160px'
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Category"), /*#__PURE__*/React.createElement(Select, {
+    value: form.group,
+    onChange: e => set({
+      group: e.target.value
+    })
+  }, WF_TEMPLATE_GROUPS.map(g => /*#__PURE__*/React.createElement("option", {
+    key: g,
+    value: g
+  }, g)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 160px'
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Channel"), /*#__PURE__*/React.createElement(Select, {
+    value: form.channel,
+    onChange: e => set({
+      channel: e.target.value
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "email"
+  }, "Email"), /*#__PURE__*/React.createElement("option", {
+    value: "sms"
+  }, "SMS"), /*#__PURE__*/React.createElement("option", {
+    value: "both"
+  }, "Email + SMS")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Audience"), /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'external',
+      label: 'Client-facing'
+    }, {
+      value: 'internal',
+      label: 'Internal (staff)'
+    }],
+    value: form.audience,
+    onChange: v => set({
+      audience: v
+    })
+  })), form.channel !== 'sms' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Subject"), /*#__PURE__*/React.createElement(Input, {
+    value: form.subject || '',
+    onChange: e => set({
+      subject: e.target.value
+    }),
+    placeholder: "Email subject line"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginBottom: 0
+    }
+  }, form.channel === 'sms' ? 'SMS message' : 'Email body'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, "Insert field \u2192")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 5,
+      marginBottom: 7
+    }
+  }, WF_MERGE_FIELDS.map(tok => /*#__PURE__*/React.createElement("button", {
+    key: tok,
+    onClick: () => set({
+      body: (form.body || '') + tok
+    }),
+    style: tokenChip
+  }, tok))), /*#__PURE__*/React.createElement("textarea", {
+    value: form.body,
+    onChange: e => set({
+      body: e.target.value
+    }),
+    placeholder: "Write the message. Use {merge fields} for personalisation.",
+    style: taStyle
+  })), form.channel === 'both' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "SMS variant"), /*#__PURE__*/React.createElement("textarea", {
+    value: form.sms || '',
+    onChange: e => set({
+      sms: e.target.value
+    }),
+    placeholder: "Shorter SMS version (optional).",
+    style: {
+      ...taStyle,
+      minHeight: 70
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Preview (as client)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      overflow: 'hidden'
+    }
+  }, form.channel !== 'sms' && form.subject && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.fieldBg,
+      fontSize: 12.5,
+      fontWeight: 600
+    }
+  }, wfResolveTokens(form.subject, ctx)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px',
+      fontSize: 12,
+      color: T.textSoft,
+      whiteSpace: 'pre-wrap',
+      lineHeight: 1.5,
+      maxHeight: 180,
+      overflowY: 'auto'
+    }
+  }, wfResolveTokens(form.body || 'Nothing yet.', ctx)))), confirmDel && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14,
+      padding: '10px 12px',
+      border: `1px solid ${activeUse.length ? '#FECACA' : T.border}`,
+      background: activeUse.length ? T.redSoft : T.fieldBg,
+      borderRadius: 9
+    }
+  }, activeUse.length ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.red
+    }
+  }, /*#__PURE__*/React.createElement("b", null, "Can\u2019t delete."), " In use by ", activeUse.length, " active workflow", activeUse.length === 1 ? '' : 's', ": ", activeUse.map(w => w.name).join(', '), ". Deactivate or update those first.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      fontSize: 12,
+      color: T.textSoft
+    }
+  }, "Delete this template permanently?"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "danger",
+    size: "sm",
+    onClick: () => {
+      wfDeleteTemplate(form.id);
+      onDelete && onDelete(form.id);
+    }
+  }, "Delete")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 12,
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      gap: 8,
+      alignItems: 'center',
+      flexShrink: 0
+    }
+  }, form.id && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "trash",
+    onClick: () => setConfirmDel(true)
+  }, "Delete"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "md",
+    onClick: onClose
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "check",
+    disabled: !canSave,
+    onClick: () => {
+      const saved = wfUpsertTemplate(form);
+      onSave && onSave(saved);
+    }
+  }, form.id ? 'Save changes' : 'Create template'))));
+};
 
 // Trigger catalog (the palette, grouped by module) — real SPM vocabulary.
 // Trigger catalog — grounded in the prototype's real vocabulary (harvested by
@@ -81551,6 +82232,16 @@ const wfFixHint = reason => {
   if (/missing|document|upload|info/.test(r)) return 'Collect the missing information from the client, then resume.';
   return 'Resolve the issue above, then resume from the failed step.';
 };
+// When a stall is a cross-module precondition Sole can fix itself (e.g. the deal isn't marked Won),
+// offer a one-click auto-fix that performs the action then resumes (F4/F12). Null = no auto-fix available.
+const wfReasonAutoFix = reason => {
+  const r = (reason || '').toLowerCase();
+  if (/not marked won|move the deal to won|deal is (?:still |not )?(?:at|parked|marked)/.test(r)) return {
+    label: 'Move deal to Won & resume',
+    note: 'Moved the deal to Won'
+  };
+  return null;
+};
 
 // Human one-line summary of a node's config — drives the node card's secondary line.
 const wfNodeSummary = node => {
@@ -81578,6 +82269,10 @@ const wfNodeSummary = node => {
 // A node "needs setup" when its catalog has option fields and any one is still empty.
 // Single source of truth shared by computeWorkflowIssues and the canvas needs-setup dot.
 const wfNodeNeedsSetup = node => {
+  // A client message step (incl. bulk) must have a message chosen before it counts as configured —
+  // a step left at "No template — compose later" must not be allowed to reach Ready (F1/F40). We accept
+  // the canonical templateId OR the legacy config.template label so seeds with a chosen message still pass.
+  if (node.type === 'clientTouchpoint' && !(node.config && (node.config.templateId || node.config.template))) return true;
   const cat = wfFindCatalog(node.ref);
   if (!cat || !cat.fields) return false;
   return cat.fields.some(f => {
@@ -81720,11 +82415,13 @@ const computeWorkflowIssues = wf => {
     const n = wf.nodes[id];
     if (wfNodeNeedsSetup(n)) {
       unconfigured++;
+      const noTpl = n.type === 'clientTouchpoint' && !(n.config && (n.config.templateId || n.config.template));
       issues.push({
         id: 'cfg-' + id,
         severity: 'error',
-        label: 'Configure “' + n.label + '”',
-        detail: (WF_NODE_META[n.type] || {}).label + ' has options that aren’t set yet.',
+        critical: noTpl || undefined,
+        label: noTpl ? 'Pick a message for “' + n.label + '”' : 'Configure “' + n.label + '”',
+        detail: noTpl ? 'A client message step must have a template selected before publishing.' : (WF_NODE_META[n.type] || {}).label + ' has options that aren’t set yet.',
         section: id
       });
     }
@@ -81747,19 +82444,28 @@ const computeWorkflowIssues = wf => {
       });
     });
   });
-  const bulkId = ids.find(id => {
-    const c = wfFindCatalog(wf.nodes[id].ref);
-    return c && c.bulk;
-  });
-  const hasGate = ids.some(id => wf.nodes[id].type === 'approvalGate');
-  if (bulkId && !hasGate) issues.push({
-    id: 'bulk-gate',
-    severity: sev('warn'),
-    label: 'Bulk send isn’t behind an approval gate',
-    detail: 'Add a “Require approval” step before any bulk client message.',
-    section: bulkId
-  });
-  if (!wf._tested) issues.push({
+  // High-risk steps (bulk send, lodgement, invoicing, or anything flagged) MUST sit immediately behind an
+  // approval gate — a hard blocker regardless of control level (F2/F16/F29). wfStepsNeedingGate already
+  // checks the immediate predecessor, so a gate placed after the step (the old BAS bug) doesn't count.
+  const needGate = wfStepsNeedingGate(wf);
+  needGate.forEach(id => issues.push({
+    id: 'gate-' + id,
+    severity: 'error',
+    critical: true,
+    label: '“' + wf.nodes[id].label + '” isn’t behind an approval gate',
+    detail: 'High-risk steps (bulk send, lodgement, invoicing) must have a “Require approval” step immediately before them.',
+    section: id
+  }));
+  // A workflow that sends in bulk, lodges or invoices must be simulated before publishing (F13) — hard
+  // blocker. Lower-risk workflows keep the soft "test before publish" nudge (escalates under Controlled).
+  const riskySurface = ids.some(id => wfStepNeedsGate(wf.nodes[id]));
+  if (riskySurface && !wf._tested) issues.push({
+    id: 'sim-required',
+    severity: 'error',
+    critical: true,
+    label: 'Run a test simulation',
+    detail: 'Workflows that send in bulk, lodge or invoice must be simulated before they can be published.'
+  });else if (!wf._tested) issues.push({
     id: 'tested',
     severity: sev('warn'),
     label: 'Not tested yet',
@@ -81783,6 +82489,13 @@ const computeWorkflowIssues = wf => {
     detail: 'Add a plain-English outcome on the Settings tab.',
     section: null
   });
+  if (!wf.sla) issues.push({
+    id: 'no-sla',
+    severity: sev('warn'),
+    label: 'No SLA set',
+    detail: 'Set a target turnaround on the Settings tab (required for Controlled workflows).',
+    section: null
+  });
   return issues;
 };
 
@@ -81790,6 +82503,9 @@ const computeWorkflowIssues = wf => {
 // High-risk steps that should sit behind an approval gate: bulk sends, anything flagged
 // highRisk, and lodgement / billing module updates.
 const WF_LODGE_BILLING_REFS = ['mark.lodged', 'billing.draft_invoice'];
+// Plain-English explanation of the High-risk badge (F28) — what it means, whether it blocks,
+// what's enforced, and what the practice manager must confirm. Shown as a tooltip on the badge.
+const WF_HIGH_RISK_HINT = 'High-risk step — it sends in bulk, lodges, invoices or is flagged. It blocks publishing unless an approval gate sits immediately before it, so a reviewer must approve each run before it executes. Confirm the gate, the approver and the recipients before going live.';
 const wfStepNeedsGate = node => {
   if (node.type === 'approvalGate') return false;
   const cat = wfFindCatalog(node.ref);
@@ -81823,12 +82539,82 @@ const wfStepsNeedingGate = wf => Object.keys(wf.nodes).filter(id => {
   return !(prev && prev.type === 'approvalGate');
 });
 
+// Concrete cross-module records a step creates / updates (F39) — drives the Impact tab's
+// "Records this changes" map so a reviewer can see exactly which modules a step touches.
+const wfCrossModuleImpact = node => {
+  const cfg = node.config || {};
+  const cat = wfFindCatalog(node.ref);
+  const out = [];
+  if (node.ref === 'mark.lodged') out.push({
+    mod: 'Lodgement · ATO',
+    act: 'Marks the obligation lodged and writes the ATO reference'
+  });
+  if (node.ref === 'billing.draft_invoice') {
+    out.push({
+      mod: 'Billing',
+      act: 'Creates a draft invoice from WIP'
+    });
+    out.push({
+      mod: 'WIP',
+      act: 'Clears the billed WIP balance'
+    });
+  }
+  if (node.ref === 'payroll.file_stp') out.push({
+    mod: 'Payroll · STP',
+    act: 'Files the STP event with the ATO'
+  });
+  if (node.type === 'moduleImpact') {
+    const t = cfg.target || 'a module';
+    out.push({
+      mod: t,
+      act: 'Creates / updates a record in ' + t
+    });
+    if (/report/i.test(t)) out.push({
+      mod: 'Reporting',
+      act: 'Refreshes practice reporting figures'
+    });
+  }
+  if (node.type === 'clientTouchpoint') {
+    if (cat && cat.bulk) {
+      const tot = WF_SEGMENT_COUNTS[cfg.segment] || 0;
+      out.push({
+        mod: 'Communications',
+        act: 'Logs ' + (tot ? tot - Math.round(tot * 0.03) + ' outbound messages' : 'the bulk send')
+      });
+    } else out.push({
+      mod: 'Communications',
+      act: 'Logs one outbound message' + (cfg.routeRepliesTo ? ' · replies route to ' + ((WF_INBOXES.find(i => i.id === cfg.routeRepliesTo) || {}).label || cfg.routeRepliesTo) : '')
+    });
+  }
+  if (node.type === 'action' && node.ref === 'task.create') out.push({
+    mod: 'Jobs & tasks',
+    act: 'Creates a task' + (cfg.assignee ? ' for ' + cfg.assignee : '')
+  });
+  if (node.type === 'attachQuestionnaire') out.push({
+    mod: 'Forms',
+    act: 'Sends a questionnaire to the client portal'
+  });
+  if (cfg.auditLogged !== false && node.type !== 'condition' && node.type !== 'trigger') out.push({
+    mod: 'Audit trail',
+    act: 'Writes an audit-log entry'
+  });
+  return out;
+};
+
 // Live activity-summary derivations — the single source for the builder rail's
 // ACTIVITY SUMMARY, the mode-bar counts and the Test & publish checks, so the
 // numbers can never drift between surfaces. All read node.config set in the rail.
 const wfBudgetHours = wf => Object.values(wf.nodes).reduce((a, n) => a + (Number(n.config && n.config.budgetHours) || 0), 0);
 const wfTouchpointCount = wf => Object.values(wf.nodes).filter(n => n.type === 'clientTouchpoint').length;
-const wfLockedGateCount = wf => Object.values(wf.nodes).filter(n => n.type === 'approvalGate' && n.locked).length;
+// Count approval gates that are either explicitly locked OR sit immediately before a high-risk step
+// (an effective compliance gate). The old "n.locked only" reading showed 0 on workflows whose gates
+// weren't flagged locked even though they were doing the gating (F14).
+const wfLockedGateCount = wf => Object.values(wf.nodes).filter(n => {
+  if (n.type !== 'approvalGate') return false;
+  if (n.locked) return true;
+  const succ = wf.nodes[n.next];
+  return !!(succ && wfStepNeedsGate(succ));
+}).length;
 const wfHighRiskCount = wf => Object.values(wf.nodes).filter(n => n.config && n.config.riskLevel === 'High' || wfStepNeedsGate(n)).length;
 // Roles available wherever a workflow/step owner or reviewer is chosen.
 const WF_ROLE_OPTIONS = ['Partner', 'Manager', 'Reviewer', 'Senior accountant', 'Client manager', 'Payroll specialist', 'Admin'];
@@ -81866,22 +82652,33 @@ const wfSafeChecks = (wf, issues) => {
     return t && t.audience === 'internal';
   });
   const cfgError = issues.some(i => i.id && i.id.indexOf('cfg-') === 0);
-  return [{
+  // Critical rows map to the hard-block issues produced by computeWorkflowIssues, so the checklist and the
+  // publish gate can never disagree. A critical row that isn't green renders RED (a blocker), not amber.
+  const hasApprover = nodes.some(n => n.type === 'approvalGate' && n.config && n.config.approver);
+  const gateError = issues.some(i => i.id && i.id.indexOf('gate-') === 0 && i.severity === 'error');
+  const simRequired = has('sim-required');
+  const rows = [{
     label: 'Trigger configured',
     detail: 'Trigger type and timing are defined.',
     state: has('ok-trigger') ? 'ok' : 'warn'
   }, {
-    label: 'Preconditions configured',
-    detail: 'Every step has its required options set.',
+    label: 'Steps configured',
+    detail: 'Every step — including a message on each client touchpoint — has its required options set.',
+    critical: true,
     state: cfgError ? 'warn' : 'ok'
   }, {
     label: 'Owner assigned',
     detail: 'A default owner is assigned.',
     state: wf.ownerRole ? 'ok' : 'warn'
   }, {
+    label: 'SLA set',
+    detail: 'A target turnaround is defined' + (wf.level === 'Controlled' ? ' — required for Controlled workflows.' : '.'),
+    critical: wf.level === 'Controlled' || undefined,
+    state: wf.sla ? 'ok' : 'warn'
+  }, {
     label: 'Reviewer assigned',
-    detail: 'A reviewer or approval gate is mapped.',
-    state: wf.reviewerRole || hasGate ? 'ok' : 'warn'
+    detail: 'A reviewer or an approval gate with an approver is mapped.',
+    state: wf.reviewerRole || hasApprover || hasGate ? 'ok' : 'warn'
   }, {
     label: 'Client approval configured',
     detail: 'Client approval is mapped where required.',
@@ -81893,29 +82690,44 @@ const wfSafeChecks = (wf, issues) => {
   }, {
     label: 'Test simulation completed',
     detail: 'A test simulation has been run.',
+    critical: simRequired || undefined,
     state: wf._tested ? 'ok' : 'warn'
-  }, {
+  }, billingNode ? {
     label: 'Billing trigger mapped',
-    detail: billingNode ? 'An invoice / lodgement step is mapped.' : 'No billing step here — not required.',
-    state: billingNode ? 'ok' : 'na'
-  }, {
+    detail: 'An invoice / lodgement step is mapped.',
+    state: 'ok'
+  } : null, {
     label: 'Audit trail enabled',
     detail: 'Steps are recorded in the audit log.',
     state: auditOff ? 'warn' : 'ok'
   }, {
     label: 'High-risk gates locked',
-    detail: 'High-risk steps sit behind an approval gate.',
-    state: wfStepsNeedingGate(wf).length === 0 ? 'ok' : 'warn'
+    detail: 'High-risk steps sit immediately behind an approval gate.',
+    critical: true,
+    state: gateError ? 'warn' : 'ok'
   }, {
     label: 'No client-facing internal notes',
     detail: 'No internal staff message is exposed to clients.',
     state: internalVisible ? 'warn' : 'ok'
   }];
+  return rows.filter(Boolean);
 };
 
-// The node ids visited on one plausible path (conditions take their first branch).
-// Drives the on-canvas test animation; same walk order as wfSimulate.
-const wfSimPathIds = wf => {
+// Pick the branch a condition takes during simulation. `choices` (condId → branchId) lets the user
+// force a specific path (e.g. Signed vs Not signed) so both branches can be tested (F15); falls back
+// to the first branch. wfSimPathIds and wfSimulate MUST use this identically so the canvas glow and the
+// step log always agree on the path walked.
+const wfPickBranch = (n, choices) => {
+  const brs = n.branches || [];
+  if (choices && choices[n.id]) {
+    const b = brs.find(x => x.id === choices[n.id]);
+    if (b) return b;
+  }
+  return brs[0];
+};
+
+// The node ids visited on one plausible path. Drives the on-canvas test animation; same walk as wfSimulate.
+const wfSimPathIds = (wf, choices) => {
   const ids = [];
   const seen = new Set();
   let id = wf.root;
@@ -81924,7 +82736,7 @@ const wfSimPathIds = wf => {
     ids.push(id);
     const n = wf.nodes[id];
     if (n.type === 'condition') {
-      const b = (n.branches || [])[0];
+      const b = wfPickBranch(n, choices);
       id = b && b.next || null;
     } else id = n.next;
   }
@@ -81932,7 +82744,7 @@ const wfSimPathIds = wf => {
 };
 
 // Walk one plausible path and produce a mock dry-run log (no data mutated).
-const wfSimulate = wf => {
+const wfSimulate = (wf, choices) => {
   const steps = [];
   const seen = new Set();
   let id = wf.root;
@@ -81968,7 +82780,7 @@ const wfSimulate = wf => {
         break;
       case 'condition':
         {
-          const b = (n.branches || [])[0];
+          const b = wfPickBranch(n, choices);
           outcome = 'Evaluated → took “' + (b && b.label || 'first') + '” path';
           tone = 'warn';
           break;
@@ -81980,7 +82792,7 @@ const wfSimulate = wf => {
       tone
     });
     if (n.type === 'condition') {
-      const b = (n.branches || [])[0];
+      const b = wfPickBranch(n, choices);
       id = b && b.next || null;
     } else id = n.next;
   }
@@ -82051,6 +82863,7 @@ const WORKFLOW_LIBRARY = [{
   successRate: 96,
   failCount: 1,
   _tested: true,
+  sla: '5 business days',
   enrollment: {
     reentry: 'once'
   },
@@ -82073,7 +82886,8 @@ const WORKFLOW_LIBRARY = [{
       label: 'Schedule discovery call',
       config: {
         assignee: 'Priya Nair',
-        due: 5
+        due: 5,
+        budgetHours: 0.5
       },
       next: 'n3'
     },
@@ -82093,7 +82907,8 @@ const WORKFLOW_LIBRARY = [{
       ref: 'module.impact',
       label: 'Draft a proposal',
       config: {
-        target: 'Tasks'
+        target: 'Tasks',
+        budgetHours: 1.5
       },
       next: 'n5'
     },
@@ -82103,7 +82918,8 @@ const WORKFLOW_LIBRARY = [{
       ref: 'approval.gate',
       label: 'Accountant reviews proposal',
       config: {
-        approver: 'Manager'
+        approver: 'Manager',
+        budgetHours: 0.5
       },
       next: 'n6'
     },
@@ -82292,6 +83108,7 @@ const WORKFLOW_LIBRARY = [{
   lastRun: '2026-05-26',
   successRate: 99,
   _tested: true,
+  sla: '24 hours',
   enrollment: {
     reentry: 'period'
   },
@@ -82305,17 +83122,6 @@ const WORKFLOW_LIBRARY = [{
       config: {
         lead: 14
       },
-      next: 'b2'
-    },
-    b2: {
-      id: 'b2',
-      type: 'clientTouchpoint',
-      ref: 'send.bulk',
-      label: 'Send bulk BAS reminder',
-      config: {
-        segment: 'GST-registered clients',
-        channel: 'Email + SMS'
-      },
       next: 'b3'
     },
     b3: {
@@ -82325,6 +83131,20 @@ const WORKFLOW_LIBRARY = [{
       label: 'Manager approves the send',
       config: {
         approver: 'Manager'
+      },
+      locked: true,
+      next: 'b2'
+    },
+    b2: {
+      id: 'b2',
+      type: 'clientTouchpoint',
+      ref: 'send.bulk',
+      label: 'Send bulk BAS reminder',
+      config: {
+        segment: 'GST-registered clients',
+        channel: 'Email + SMS',
+        templateId: 'bas-request',
+        template: 'BAS information request'
       },
       next: 'b4'
     },
@@ -82362,12 +83182,12 @@ const WORKFLOW_LIBRARY = [{
     trigger: 'BAS due in 14 days',
     status: 'success',
     steps: [{
-      label: 'Send bulk BAS reminder',
-      outcome: 'Sent to 114 recipients · 4 skipped (opted out)',
-      tone: 'ok'
-    }, {
       label: 'Manager approves the send',
       outcome: 'Approved by Priya Nair',
+      tone: 'ok'
+    }, {
+      label: 'Send bulk BAS reminder',
+      outcome: 'Sent to 114 recipients · 4 skipped (opted out)',
       tone: 'ok'
     }, {
       label: 'Chase non-responders',
@@ -82389,6 +83209,7 @@ const WORKFLOW_LIBRARY = [{
   lastRun: null,
   successRate: null,
   _tested: false,
+  sla: '3 business days',
   enrollment: {
     reentry: 'once'
   },
@@ -82496,6 +83317,7 @@ const WORKFLOW_LIBRARY = [{
   lastRun: '2026-06-01',
   successRate: 94,
   _tested: true,
+  sla: '2 business days',
   enrollment: {
     reentry: 'once'
   },
@@ -82602,6 +83424,7 @@ const WORKFLOW_LIBRARY = [{
   lastRun: '2026-05-31',
   successRate: 100,
   _tested: true,
+  sla: '1 business day',
   enrollment: {
     reentry: 'every'
   },
@@ -82832,6 +83655,28 @@ const WF_RECIPES = [{
       config: {
         questionnaire: 'New client intake'
       },
+      next: 'rk'
+    },
+    rk: {
+      id: 'rk',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Run KYC / AML identity check',
+      config: {
+        assignee: 'Sarah Mitchell',
+        due: 2
+      },
+      next: 'rg'
+    },
+    rg: {
+      id: 'rg',
+      type: 'approvalGate',
+      ref: 'approval.gate',
+      label: 'Compliance sign-off (KYC/AML)',
+      config: {
+        approver: 'Manager'
+      },
+      locked: true,
       next: 'r3'
     },
     r3: {
@@ -82874,6 +83719,28 @@ const WF_RECIPES = [{
       config: {
         entityType: 'Any entity'
       },
+      next: 'rk'
+    },
+    rk: {
+      id: 'rk',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Run KYC / AML identity check',
+      config: {
+        assignee: 'Sarah Mitchell',
+        due: 2
+      },
+      next: 'rg'
+    },
+    rg: {
+      id: 'rg',
+      type: 'approvalGate',
+      ref: 'approval.gate',
+      label: 'Compliance sign-off (KYC/AML)',
+      config: {
+        approver: 'Manager'
+      },
+      locked: true,
       next: 'r2'
     },
     r2: {
@@ -82916,6 +83783,16 @@ const WF_RECIPES = [{
         assignee: 'Sarah Mitchell',
         due: 3
       },
+      next: 'r4w'
+    },
+    r4w: {
+      id: 'r4w',
+      type: 'clientTouchpoint',
+      ref: 'send.email',
+      label: 'Send portal welcome',
+      config: {
+        template: 'Welcome pack'
+      },
       next: null
     },
     r5: {
@@ -82937,6 +83814,16 @@ const WF_RECIPES = [{
         assignee: 'Morgan Davis',
         due: 5
       },
+      next: 'r6w'
+    },
+    r6w: {
+      id: 'r6w',
+      type: 'clientTouchpoint',
+      ref: 'send.email',
+      label: 'Send portal welcome',
+      config: {
+        template: 'Welcome pack'
+      },
       next: null
     },
     r7: {
@@ -82947,6 +83834,16 @@ const WF_RECIPES = [{
       config: {
         assignee: 'Priya Nair',
         due: 2
+      },
+      next: 'r7w'
+    },
+    r7w: {
+      id: 'r7w',
+      type: 'clientTouchpoint',
+      ref: 'send.email',
+      label: 'Send portal welcome',
+      config: {
+        template: 'Welcome pack'
       },
       next: null
     }
@@ -83006,13 +83903,55 @@ const WF_RECIPES = [{
       },
       next: null
     },
+    // "Not signed" escalates instead of ending after one nudge (F7): reminder → wait → 2nd reminder → wait → manager.
     r5: {
       id: 'r5',
       type: 'clientTouchpoint',
       ref: 'send.email',
-      label: 'Send reminder email',
+      label: 'First reminder',
       config: {
         template: 'Document request'
+      },
+      next: 'r5w'
+    },
+    r5w: {
+      id: 'r5w',
+      type: 'action',
+      ref: 'wait',
+      label: 'Wait 4 days',
+      config: {
+        days: 4
+      },
+      next: 'r6'
+    },
+    r6: {
+      id: 'r6',
+      type: 'clientTouchpoint',
+      ref: 'send.email',
+      label: 'Second reminder',
+      config: {
+        template: 'Document request'
+      },
+      next: 'r6w'
+    },
+    r6w: {
+      id: 'r6w',
+      type: 'action',
+      ref: 'wait',
+      label: 'Wait 7 days',
+      config: {
+        days: 7
+      },
+      next: 'r7'
+    },
+    r7: {
+      id: 'r7',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Escalate to a manager',
+      config: {
+        assignee: 'Manager',
+        due: 1
       },
       next: null
     }
@@ -83074,6 +84013,10 @@ const WF_RECIPES = [{
   outcome: 'Remind every GST-registered client before BAS is due',
   blurb: 'A bulk reminder sitting behind a manager approval gate.',
   tags: ['BAS due', 'Approval gate', 'Bulk send', 'Chase'],
+  enrollment: {
+    reentry: 'period',
+    stopOnClientResponse: true
+  },
   root: 'r1',
   nodes: {
     r1: {
@@ -83104,7 +84047,9 @@ const WF_RECIPES = [{
       label: 'Send bulk BAS reminder',
       config: {
         segment: 'GST-registered clients',
-        channel: 'Email + SMS'
+        channel: 'Email + SMS',
+        templateId: 'bas-request',
+        template: 'BAS information request'
       },
       next: 'r4'
     },
@@ -83200,7 +84145,7 @@ const WF_RECIPES = [{
   level: 'Standard',
   outcome: 'Distribute payslips and update reporting after a pay run',
   blurb: 'Email payslips, then push STP and reporting.',
-  tags: ['Pay run finalised', 'Email payslips', 'Update reporting'],
+  tags: ['Pay run finalised', 'Reviewer gate', 'Email payslips', 'Update reporting'],
   root: 'r1',
   nodes: {
     r1: {
@@ -83209,6 +84154,17 @@ const WF_RECIPES = [{
       ref: 'payrun.finalised',
       label: 'Pay run finalised',
       config: {},
+      next: 'rg'
+    },
+    rg: {
+      id: 'rg',
+      type: 'approvalGate',
+      ref: 'approval.gate',
+      label: 'Reviewer approves payslip send',
+      config: {
+        approver: 'Manager'
+      },
+      locked: true,
       next: 'r2'
     },
     r2: {
@@ -83280,6 +84236,209 @@ const WF_RECIPES = [{
       next: null
     }
   }
+}, {
+  id: 'rcp-invoice-overdue',
+  module: 'billing',
+  name: 'Invoice overdue by 7 days',
+  level: 'Standard',
+  outcome: 'Chase an unpaid invoice, then branch on whether it’s paid',
+  blurb: 'Reminder, wait, then escalate unpaid invoices to accounts.',
+  tags: ['Invoice overdue', 'Reminder', 'Paid?', 'Escalate'],
+  root: 'r1',
+  nodes: {
+    r1: {
+      id: 'r1',
+      type: 'trigger',
+      ref: 'invoice.overdue',
+      label: 'Invoice 7 days overdue',
+      config: {
+        days: 7
+      },
+      next: 'r2'
+    },
+    r2: {
+      id: 'r2',
+      type: 'clientTouchpoint',
+      ref: 'send.email',
+      label: 'Send payment reminder',
+      config: {
+        templateId: 'invoice-sent',
+        template: 'Invoice sent'
+      },
+      next: 'r3'
+    },
+    r3: {
+      id: 'r3',
+      type: 'action',
+      ref: 'wait',
+      label: 'Wait 7 days',
+      config: {
+        days: 7
+      },
+      next: 'r4'
+    },
+    r4: {
+      id: 'r4',
+      type: 'condition',
+      ref: 'condition',
+      label: 'Paid yet?',
+      config: {},
+      next: null,
+      branches: [{
+        id: 'r4b1',
+        label: 'Paid',
+        next: 'r5'
+      }, {
+        id: 'r4b2',
+        label: 'Not paid',
+        next: 'r6'
+      }]
+    },
+    r5: {
+      id: 'r5',
+      type: 'moduleImpact',
+      ref: 'module.impact',
+      label: 'Close out the invoice',
+      config: {
+        target: 'Billing'
+      },
+      next: null
+    },
+    r6: {
+      id: 'r6',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Escalate to accounts',
+      config: {
+        assignee: 'Manager',
+        due: 1
+      },
+      next: null
+    }
+  }
+}, {
+  id: 'rcp-debtor-escalation',
+  module: 'billing',
+  name: 'Debtor escalation (30+ days)',
+  level: 'Standard',
+  outcome: 'Escalate a long-overdue debtor with a call and a final notice',
+  blurb: 'Book a collections call, then send a final notice email.',
+  tags: ['Invoice 30+ days', 'Collections call', 'Final notice'],
+  root: 'r1',
+  nodes: {
+    r1: {
+      id: 'r1',
+      type: 'trigger',
+      ref: 'invoice.overdue',
+      label: 'Invoice 30+ days overdue',
+      config: {
+        days: 30
+      },
+      next: 'r2'
+    },
+    r2: {
+      id: 'r2',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Book a collections call',
+      config: {
+        assignee: 'Jordan Lee',
+        due: 2
+      },
+      next: 'r3'
+    },
+    r3: {
+      id: 'r3',
+      type: 'clientTouchpoint',
+      ref: 'send.email',
+      label: 'Send final notice',
+      config: {
+        templateId: 'docs-chase',
+        template: 'Missing documents chase'
+      },
+      next: null
+    }
+  }
+}, {
+  id: 'rcp-payment-received',
+  module: 'payments',
+  name: 'Payment received',
+  level: 'Standard',
+  outcome: 'Reconcile a received payment and close the job when fully paid',
+  blurb: 'Reconcile against the invoice, then close the job.',
+  tags: ['Payment received', 'Reconcile', 'Close job'],
+  root: 'r1',
+  nodes: {
+    r1: {
+      id: 'r1',
+      type: 'trigger',
+      ref: 'payment.received',
+      label: 'Payment received',
+      config: {},
+      next: 'r2'
+    },
+    r2: {
+      id: 'r2',
+      type: 'moduleImpact',
+      ref: 'module.impact',
+      label: 'Reconcile against invoice',
+      config: {
+        target: 'Billing'
+      },
+      next: 'r3'
+    },
+    r3: {
+      id: 'r3',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Close the job if fully paid',
+      config: {
+        assignee: 'Sarah Mitchell',
+        due: 1
+      },
+      next: null
+    }
+  }
+}, {
+  id: 'rcp-reply-triage',
+  module: 'comms',
+  name: 'Route client replies to Unibox',
+  level: 'Simple',
+  outcome: 'Route inbound client replies to the right inbox and owner',
+  blurb: 'Capture a reply, route it to an inbox, and assign a staff member.',
+  tags: ['Reply received', 'Route to inbox', 'Assign'],
+  root: 'r1',
+  nodes: {
+    r1: {
+      id: 'r1',
+      type: 'trigger',
+      ref: 'reply.received',
+      label: 'Client reply received',
+      config: {},
+      next: 'r2'
+    },
+    r2: {
+      id: 'r2',
+      type: 'moduleImpact',
+      ref: 'module.impact',
+      label: 'Route to the right inbox',
+      config: {
+        target: 'Communications'
+      },
+      next: 'r3'
+    },
+    r3: {
+      id: 'r3',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Assign to a staff member',
+      config: {
+        assignee: 'Priya Nair',
+        due: 1
+      },
+      next: null
+    }
+  }
 }];
 const recipesForModule = mid => WF_RECIPES.filter(r => r.module === mid);
 
@@ -83297,15 +84456,18 @@ const WfStat = ({
   label,
   value,
   sub,
-  valueColor
+  valueColor,
+  title
 }) => /*#__PURE__*/React.createElement("div", {
+  title: title,
   style: {
     flex: 1,
     minWidth: 0,
     padding: '14px 16px',
     border: `1px solid ${T.border}`,
     borderRadius: 12,
-    background: T.card
+    background: T.card,
+    cursor: title ? 'help' : undefined
   }
 }, /*#__PURE__*/React.createElement("div", {
   style: {
@@ -83664,10 +84826,22 @@ const WfNodeCard = ({
     }
   }, meta.label), node.type === 'approvalGate' && /*#__PURE__*/React.createElement(Pill, {
     color: "amber",
+    title: "Approval gate \u2014 a reviewer must approve each run here before the steps after it can execute.",
     style: {
       fontSize: 10
     }
-  }, "High-risk"), node.locked && /*#__PURE__*/React.createElement(Pill, {
+  }, "Gate"), wfStepNeedsGate(node) && /*#__PURE__*/React.createElement(Pill, {
+    color: "amber",
+    title: WF_HIGH_RISK_HINT,
+    style: {
+      fontSize: 10,
+      gap: 3,
+      cursor: 'help'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "alertTriangle",
+    size: 9
+  }), "High-risk"), node.locked && /*#__PURE__*/React.createElement(Pill, {
     color: "accent",
     style: {
       fontSize: 10,
@@ -83725,8 +84899,10 @@ const WfNodeCard = ({
     }
   }, node.config.ownerRole), node.config.riskLevel === 'High' && /*#__PURE__*/React.createElement(Pill, {
     color: "red",
+    title: WF_HIGH_RISK_HINT,
     style: {
-      fontSize: 9.5
+      fontSize: 9.5,
+      cursor: 'help'
     }
   }, "High risk"))), onDelete && /*#__PURE__*/React.createElement("button", {
     onClick: e => {
@@ -85332,8 +86508,9 @@ const WfReadinessPanel = ({
     style: {
       width: '100%',
       justifyContent: 'center'
-    }
-  }, errors.length ? 'Fix required items to publish' : 'Publish workflow'))));
+    },
+    title: errors.length ? errors.map(e => '• ' + e.label).join('\n') : undefined
+  }, errors.length ? errors.length + ' blocker' + (errors.length > 1 ? 's' : '') + ' — ' + errors[0].label : 'Publish workflow'))));
 };
 
 // ---- builder tabs ----
@@ -85511,6 +86688,24 @@ const WfSettingsTab = ({
     }),
     placeholder: "What does a successful run achieve?"
   })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Target turnaround (SLA)", wf.level === 'Controlled' ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.red
+    }
+  }, " *") : null), /*#__PURE__*/React.createElement(Input, {
+    value: wf.sla || '',
+    onChange: e => onChange({
+      sla: e.target.value
+    }),
+    placeholder: "e.g. 5 business days \xB7 24 hours"
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, wf.level === 'Controlled' ? 'Required for Controlled workflows.' : 'How quickly a run should complete. Optional but recommended.')), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 14
     }
@@ -85863,36 +87058,17 @@ const WfSettingsTab = ({
     style: {
       fontSize: 11
     }
-  }, r.d)), /*#__PURE__*/React.createElement("span", {
-    title: "Locked on",
+  }, r.d)), /*#__PURE__*/React.createElement(Pill, {
+    color: "accent",
+    title: "Enforced by Sole \u2014 can't be turned off",
     style: {
-      width: 38,
-      height: 22,
-      borderRadius: 999,
-      background: withAlpha(T.primary, 0.5),
-      position: 'relative',
-      flexShrink: 0,
-      display: 'inline-flex'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      position: 'absolute',
-      top: 2,
-      left: 18,
-      width: 18,
-      height: 18,
-      borderRadius: '50%',
-      background: '#fff',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
+      gap: 3,
+      flexShrink: 0
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "lock",
-    size: 9,
-    color: T.primary
-  }))))))), wf.isBaseline && /*#__PURE__*/React.createElement("div", {
+    size: 9
+  }), "Locked on"))))), wf.isBaseline && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '12px 14px',
       background: T.primarySofter,
@@ -86023,6 +87199,7 @@ const WfLogsTab = ({
   wf,
   simLog,
   onContinue,
+  onAutoFix,
   onOpenChecklist,
   onFix,
   onOpenCompany
@@ -86228,25 +87405,33 @@ const WfLogsTab = ({
         marginTop: 1,
         lineHeight: 1.5
       }
-    }, wfFixHint(run.reason)))), run.status === 'stalled' && (onFix || onContinue) && /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 12,
-        flexWrap: 'wrap'
-      }
-    }, onFix && failedNodeId && /*#__PURE__*/React.createElement(Btn, {
-      variant: "primaryOutline",
-      size: "sm",
-      icon: "edit",
-      onClick: () => onFix(failedNodeId)
-    }, "Fix this step"), onContinue && /*#__PURE__*/React.createElement(Btn, {
-      variant: "primary",
-      size: "sm",
-      icon: "play",
-      onClick: () => onContinue(run.id)
-    }, "Continue execution")))));
+    }, wfFixHint(run.reason)))), run.status === 'stalled' && (onFix || onContinue || onAutoFix) && (() => {
+      const af = wfReasonAutoFix(run.reason);
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginTop: 12,
+          flexWrap: 'wrap'
+        }
+      }, af && onAutoFix && /*#__PURE__*/React.createElement(Btn, {
+        variant: "primary",
+        size: "sm",
+        icon: "sparkle2",
+        onClick: () => onAutoFix(run.id)
+      }, af.label), onFix && failedNodeId && /*#__PURE__*/React.createElement(Btn, {
+        variant: "primaryOutline",
+        size: "sm",
+        icon: "edit",
+        onClick: () => onFix(failedNodeId)
+      }, "Fix this step"), onContinue && /*#__PURE__*/React.createElement(Btn, {
+        variant: af ? 'soft' : 'primary',
+        size: "sm",
+        icon: "play",
+        onClick: () => onContinue(run.id)
+      }, "Continue execution"));
+    })())));
   };
   const shown = logFilter === 'all' ? runs : logFilter === 'attention' ? runs.filter(r => r.status === 'stalled' || r.status === 'fail') : runs.filter(r => r.status === 'success');
   return /*#__PURE__*/React.createElement("div", {
@@ -86263,7 +87448,8 @@ const WfLogsTab = ({
     icon: "gauge",
     label: "Total runs",
     value: fmtRunCount(wf.runCount || 0),
-    sub: "since launch"
+    sub: "cumulative, since launch",
+    title: "Cumulative count of every time this workflow has run since launch. The log below shows only the most recent runs, not all of them \u2014 so this number is usually larger."
   }), /*#__PURE__*/React.createElement(WfStat, {
     icon: "clock",
     label: "Last run",
@@ -86309,7 +87495,11 @@ const WfLogsTab = ({
     size: "sm",
     icon: "check",
     onClick: onOpenChecklist
-  }, "Safe-to-publish checklist")), /*#__PURE__*/React.createElement("div", {
+  }, "Safe-to-publish checklist")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 10
+    }
+  }, "Showing the ", runs.length, " most recent run", runs.length === 1 ? '' : 's', ". ", /*#__PURE__*/React.createElement("b", null, "Total runs"), " above is the cumulative lifetime count."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -86569,10 +87759,12 @@ const WfTestPublishTab = ({
 }) => {
   const clients = PRACTICE_CLIENTS;
   const [client, setClient] = useState(clients[0] ? clients[0].id : '');
+  const [choices, setChoices] = useState({}); // condId → branchId — force a branch so both paths can be tested (F15)
   const errors = issues.filter(i => i.severity === 'error');
   const checks = wfSafeChecks(wf, issues);
   const okCount = checks.filter(c => c.state === 'ok').length;
   const sel = clientById(client);
+  const conditions = Object.values(wf.nodes).filter(n => n.type === 'condition' && (n.branches || []).length > 1);
   return /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: 760,
@@ -86613,9 +87805,45 @@ const WfTestPublishTab = ({
     size: "md",
     icon: "play",
     onClick: () => onTest(sel ? sel.name : undefined, {
-      stay: true
+      stay: true,
+      choices
     })
-  }, "Run simulation"))), !simLog ? /*#__PURE__*/React.createElement("div", {
+  }, "Run simulation"))), conditions.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 12,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Force a branch to test both paths (e.g. Signed vs Not signed):"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 10
+    }
+  }, conditions.map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.id,
+    style: {
+      flex: '1 1 220px',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, c.label), /*#__PURE__*/React.createElement(Select, {
+    value: choices[c.id] || '',
+    onChange: e => setChoices(ch => ({
+      ...ch,
+      [c.id]: e.target.value
+    }))
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Default (first branch)"), (c.branches || []).map(b => /*#__PURE__*/React.createElement("option", {
+    key: b.id,
+    value: b.id
+  }, b.label))))))), !simLog ? /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '26px 20px',
       textAlign: 'center',
@@ -86700,11 +87928,17 @@ const WfTestPublishTab = ({
   }, "Every check should pass before this workflow goes live.")), /*#__PURE__*/React.createElement(Pill, {
     color: errors.length ? 'red' : 'green'
   }, errors.length ? errors.length + ' to fix' : okCount + '/' + checks.length + ' passing')), /*#__PURE__*/React.createElement("div", null, checks.map((c, i) => {
+    const blocked = c.critical && c.state !== 'ok'; // a failing critical check is a hard blocker → red
     const p = c.state === 'ok' ? {
       fg: T.greenDark,
       bg: T.greenSoft,
       bd: '#A7F3D0',
       icon: 'check'
+    } : blocked ? {
+      fg: T.red,
+      bg: T.redSoft,
+      bd: '#FECACA',
+      icon: 'close'
     } : c.state === 'warn' ? {
       fg: T.amber,
       bg: T.amberSoft,
@@ -86758,11 +87992,22 @@ const WfTestPublishTab = ({
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
         fontSize: 13,
         fontWeight: 600,
         color: T.text
       }
-    }, c.label), /*#__PURE__*/React.createElement(Helper, {
+    }, c.label), /*#__PURE__*/React.createElement(Pill, {
+      color: c.critical ? blocked ? 'red' : 'neutral' : 'neutral',
+      style: {
+        fontSize: 9
+      }
+    }, c.critical ? 'Critical' : 'Advisory')), /*#__PURE__*/React.createElement(Helper, {
       style: {
         fontSize: 11.5,
         marginTop: 1
@@ -86782,8 +88027,9 @@ const WfTestPublishTab = ({
     style: {
       width: '100%',
       justifyContent: 'center'
-    }
-  }, errors.length ? 'Fix required items to publish' : 'Publish workflow'))));
+    },
+    title: errors.length ? errors.map(e => '• ' + e.label).join('\n') : undefined
+  }, errors.length ? errors.length + ' blocker' + (errors.length > 1 ? 's' : '') + ' — ' + errors[0].label : 'Publish workflow'))));
 };
 
 // ---- builder page ----
@@ -87316,6 +88562,8 @@ const WfBuilderRail = ({
   onDuplicateNode,
   onDeleteNode,
   onToggleLock,
+  onEditTemplate,
+  fireToast,
   onAddBranch,
   onRemoveBranch,
   onRenameBranch,
@@ -87708,10 +88956,11 @@ const WfBuilderRail = ({
       value: cfg[f.key] ?? '',
       placeholder: f.label,
       onChange: e => setField(f.key, f.type === 'number' ? e.target.value === '' ? '' : Number(e.target.value) : e.target.value)
-    }))), node.type === 'clientTouchpoint' && (() => {
-      const tid = cfg.templateId || '';
-      const t = wfTemplateById(tid);
-      const pickTemplate = id => {
+    }))), node.type === 'clientTouchpoint' && /*#__PURE__*/React.createElement(WfTemplatePicker, {
+      node: node,
+      compact: true,
+      fireToast: fireToast,
+      onPick: id => {
         const tpl = wfTemplateById(id);
         onChangeNode(node.id, n => ({
           ...n,
@@ -87721,121 +88970,23 @@ const WfBuilderRail = ({
             template: tpl ? tpl.label : undefined
           }
         }));
-      };
-      return /*#__PURE__*/React.createElement("div", {
-        style: {
-          marginTop: 12
+      },
+      onPatch: patch => onChangeNode(node.id, n => ({
+        ...n,
+        config: {
+          ...n.config,
+          ...patch
         }
-      }, /*#__PURE__*/React.createElement(Label, null, "Message template"), /*#__PURE__*/React.createElement(Select, {
-        value: tid,
-        onChange: e => pickTemplate(e.target.value)
-      }, /*#__PURE__*/React.createElement("option", {
-        value: ""
-      }, "No template \u2014 compose later"), /*#__PURE__*/React.createElement("optgroup", {
-        label: "Client-facing (external)"
-      }, wfTemplatesByAudience('external').map(tpl => /*#__PURE__*/React.createElement("option", {
-        key: tpl.id,
-        value: tpl.id
-      }, tpl.label))), /*#__PURE__*/React.createElement("optgroup", {
-        label: "Internal (staff)"
-      }, wfTemplatesByAudience('internal').map(tpl => /*#__PURE__*/React.createElement("option", {
-        key: tpl.id,
-        value: tpl.id
-      }, tpl.label)))), !t ? /*#__PURE__*/React.createElement(Helper, {
-        style: {
-          marginTop: 6
-        }
-      }, "Pick a ready-made client or internal message, or leave blank to write it later.") : /*#__PURE__*/React.createElement("div", {
-        style: {
-          marginTop: 10,
-          border: `1px solid ${T.border}`,
-          borderRadius: 10,
-          overflow: 'hidden'
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          padding: '8px 12px',
-          borderBottom: `1px solid ${T.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6
-        }
-      }, /*#__PURE__*/React.createElement(Pill, {
-        color: (t.audience || 'external') === 'internal' ? 'amber' : 'blue',
-        style: {
-          fontSize: 9.5
-        }
-      }, (t.audience || 'external') === 'internal' ? 'Internal · staff' : 'Client-facing'), /*#__PURE__*/React.createElement(Helper, {
-        style: {
-          fontSize: 10.5
-        }
-      }, t.group)), t.subject && /*#__PURE__*/React.createElement("div", {
-        style: {
-          padding: '9px 12px',
-          borderBottom: `1px solid ${T.border}`,
-          background: T.fieldBg
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 9.5,
-          fontWeight: 700,
-          color: T.muted,
-          letterSpacing: 0.5,
-          textTransform: 'uppercase'
-        }
-      }, "Subject"), /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: T.text,
-          marginTop: 2
-        }
-      }, t.subject)), /*#__PURE__*/React.createElement("div", {
-        style: {
-          padding: '10px 12px',
-          fontSize: 12,
-          color: T.textSoft,
-          whiteSpace: 'pre-wrap',
-          lineHeight: 1.5,
-          maxHeight: 150,
-          overflowY: 'auto'
-        }
-      }, t.body), t.sms && /*#__PURE__*/React.createElement("div", {
-        style: {
-          padding: '9px 12px',
-          borderTop: `1px solid ${T.border}`,
-          background: T.greenSoft
-        }
-      }, /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 9.5,
-          fontWeight: 700,
-          color: T.greenDark,
-          letterSpacing: 0.5,
-          textTransform: 'uppercase'
-        }
-      }, "SMS"), /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 12,
-          color: T.textSoft,
-          marginTop: 2
-        }
-      }, t.sms)), t.tokens && t.tokens.length > 0 && /*#__PURE__*/React.createElement("div", {
-        style: {
-          padding: '9px 12px',
-          borderTop: `1px solid ${T.border}`,
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 5
-        }
-      }, t.tokens.map(tok => /*#__PURE__*/React.createElement(Pill, {
-        key: tok,
-        color: "neutral",
-        style: {
-          fontSize: 9.5
-        }
-      }, tok)))));
-    })(), cat && cat.fields && cat.fields.some(f => f.key === 'segment') && /*#__PURE__*/React.createElement("div", {
+      })),
+      onEdit: id => onEditTemplate && onEditTemplate({
+        id,
+        nodeId: node.id
+      }),
+      onNew: () => onEditTemplate && onEditTemplate({
+        id: null,
+        nodeId: node.id
+      })
+    }), cat && cat.fields && cat.fields.some(f => f.key === 'segment') && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 12
       }
@@ -88146,7 +89297,38 @@ const WfBuilderRail = ({
       style: {
         fontSize: 11
       }
-    }, d)))))), /*#__PURE__*/React.createElement("div", {
+    }, d)))))), (() => {
+      const recs = wfCrossModuleImpact(node);
+      return recs.length ? /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '14px 16px',
+          borderBottom: `1px solid ${T.border}`
+        }
+      }, sectionTitle('Records this changes'), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 7
+        }
+      }, recs.map((r, i) => /*#__PURE__*/React.createElement("div", {
+        key: i,
+        style: {
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center'
+        }
+      }, /*#__PURE__*/React.createElement(Pill, {
+        color: "neutral",
+        style: {
+          fontSize: 9.5,
+          flexShrink: 0
+        }
+      }, r.mod), /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          fontSize: 11.5
+        }
+      }, r.act))))) : null;
+    })(), /*#__PURE__*/React.createElement("div", {
       style: {
         padding: '14px 16px',
         borderBottom: `1px solid ${T.border}`
@@ -88166,7 +89348,11 @@ const WfBuilderRail = ({
     }, cfg.clientVisible ? 'Client-visible' : 'Internal only'), /*#__PURE__*/React.createElement(Pill, {
       color: cfg.auditLogged !== false ? 'green' : 'red'
     }, cfg.auditLogged !== false ? 'Audit-logged' : 'Not audited'), /*#__PURE__*/React.createElement(Pill, {
-      color: cfg.riskLevel === 'High' ? 'red' : cfg.riskLevel === 'Medium' ? 'amber' : 'neutral'
+      color: cfg.riskLevel === 'High' ? 'red' : cfg.riskLevel === 'Medium' ? 'amber' : 'neutral',
+      title: cfg.riskLevel === 'High' || wfStepNeedsGate(node) ? WF_HIGH_RISK_HINT : undefined,
+      style: cfg.riskLevel === 'High' || wfStepNeedsGate(node) ? {
+        cursor: 'help'
+      } : undefined
     }, (cfg.riskLevel || 'Low') + ' risk'), node.locked && /*#__PURE__*/React.createElement(Pill, {
       color: "accent",
       style: {
@@ -88409,10 +89595,36 @@ const WorkflowBuilderPage = ({
   }, [selectedNodeId]); // selecting a step always reveals its properties
   const [openCompanyId, setOpenCompanyId] = useState(null);
   const [openStaffId, setOpenStaffId] = useState(null);
+  const [tplEditor, setTplEditor] = useState(null); // { id, nodeId } | null — inline template create/edit slide-over
+  const [tplRev, setTplRev] = useState(0); // bump to re-render after WF_MESSAGE_TEMPLATES mutates
   const [dirty, setDirty] = useState(false);
   const markDirty = () => setDirty(true);
   const goLibrary = () => {
     window.location.hash = '#/practice/workflow';
+  };
+  const tplEditorTemplate = tplEditor && tplEditor.id ? wfTemplateById(tplEditor.id) : null;
+  const onSaveTemplate = saved => {
+    if (tplEditor && tplEditor.nodeId && saved) {
+      setWf(w => {
+        const nx = wfClone(w);
+        const n = nx.nodes[tplEditor.nodeId];
+        if (n) n.config = {
+          ...n.config,
+          templateId: saved.id,
+          template: saved.label
+        };
+        return nx;
+      });
+      markDirty();
+    }
+    setTplRev(r => r + 1);
+    setTplEditor(null);
+    fireToast && fireToast('Template saved');
+  };
+  const onDeleteTemplate = () => {
+    setTplRev(r => r + 1);
+    setTplEditor(null);
+    fireToast && fireToast('Template deleted');
   };
   if (!wf) {
     return /*#__PURE__*/React.createElement("main", {
@@ -88564,8 +89776,9 @@ const WorkflowBuilderPage = ({
   const onTest = (clientName, opts) => {
     simTimers.current.forEach(clearTimeout);
     simTimers.current = [];
-    const path = wfSimPathIds(wf);
-    const sim = wfSimulate(wf);
+    const choices = opts && opts.choices; // condId → branchId (branch-forcing); falls back to first branch
+    const path = wfSimPathIds(wf, choices);
+    const sim = wfSimulate(wf, choices);
     if (clientName) sim.client = clientName;
     const finish = () => {
       setSimActiveId(null);
@@ -88615,7 +89828,7 @@ const WorkflowBuilderPage = ({
   };
   // Resume a stalled run from its failed step (mock): complete the failed + downstream steps,
   // flip the run to success, clear the failed enrollment, and persist to the library.
-  const onContinueRun = runId => {
+  const onContinueRun = (runId, prefixNote) => {
     const next = wfClone(wf);
     const run = (next.runs || []).find(r => r.id === runId);
     if (!run || run.status !== 'stalled') return;
@@ -88624,8 +89837,13 @@ const WorkflowBuilderPage = ({
     const startNode = fs ? fs.nodeId && next.nodes[fs.nodeId] || Object.values(next.nodes).find(n => n.label === fs.label) : null;
     if (fs) {
       fs.tone = 'ok';
-      fs.outcome = 'Resumed — completed';
+      fs.outcome = prefixNote ? prefixNote + ' — resumed' : 'Resumed — completed';
     }
+    if (prefixNote) run.steps = run.steps.concat([{
+      label: prefixNote,
+      outcome: 'Done automatically by Sole',
+      tone: 'ok'
+    }]);
     if (startNode) run.steps = run.steps.concat(wfResumeSteps(next, startNode));
     run.status = 'success';
     delete run.failedStepIndex;
@@ -88641,7 +89859,13 @@ const WorkflowBuilderPage = ({
     setWf(next);
     const idx = WORKFLOW_LIBRARY.findIndex(w => w.id === next.id);
     if (idx >= 0) WORKFLOW_LIBRARY[idx] = wfClone(next);
-    fireToast('Execution resumed' + (fs ? ' from “' + fs.label + '”' : '') + ' — workflow completed');
+    fireToast((prefixNote ? prefixNote + ' — ' : '') + 'Execution resumed' + (fs && !prefixNote ? ' from “' + fs.label + '”' : '') + ' — workflow completed');
+  };
+  // One-click cross-module auto-fix (F4/F12): perform the precondition Sole can resolve itself, then resume.
+  const onAutoFix = runId => {
+    const run = (wf.runs || []).find(r => r.id === runId);
+    const af = run ? wfReasonAutoFix(run.reason) : null;
+    onContinueRun(runId, af ? af.note : null);
   };
   // Non-destructive: insert a locked approval gate before each high-risk step that lacks one.
   // Idempotent — running again does nothing once every high-risk step is covered.
@@ -88998,6 +90222,8 @@ const WorkflowBuilderPage = ({
     onDuplicateNode: onDuplicateNode,
     onDeleteNode: handleDelete,
     onToggleLock: onToggleLock,
+    onEditTemplate: setTplEditor,
+    fireToast: fireToast,
     onAddBranch: id => {
       markDirty();
       setWf(w => wfAddBranch(w, id));
@@ -89037,6 +90263,7 @@ const WorkflowBuilderPage = ({
     wf: wf,
     simLog: simLog,
     onContinue: onContinueRun,
+    onAutoFix: onAutoFix,
     onOpenChecklist: () => setTab('testpublish'),
     onOpenCompany: setOpenCompanyId,
     onFix: nodeId => {
@@ -89076,6 +90303,12 @@ const WorkflowBuilderPage = ({
     open: !!bulkNode,
     node: bulkNode,
     onClose: () => setBulkNode(null)
+  }), /*#__PURE__*/React.createElement(WfTemplateEditor, {
+    open: !!tplEditor,
+    template: tplEditorTemplate,
+    onSave: onSaveTemplate,
+    onDelete: onDeleteTemplate,
+    onClose: () => setTplEditor(null)
   }), /*#__PURE__*/React.createElement(WfRunProgress, {
     open: simTermOpen,
     steps: simSteps,
@@ -89285,6 +90518,7 @@ const WorkflowRow = ({
   onEdit,
   onDuplicate,
   onDelete,
+  onDeactivate,
   first
 }) => {
   const levelColor = {
@@ -89509,7 +90743,9 @@ const WorkflowRow = ({
       padding: 4,
       zIndex: 201
     }
-  }, item('edit', 'Edit', onEdit), item('copy', 'Duplicate', onDuplicate), item('trash', 'Delete', onDelete, {
+  }, item('edit', 'Edit', onEdit), item('copy', 'Duplicate', onDuplicate), wf.status === 'Inactive' ? item('bolt', 'Reactivate', onDeactivate) : wf.status !== 'Draft' && item('archive', 'Deactivate', onDeactivate, {
+    title: 'Pause new enrolments — keeps all history'
+  }), item('trash', 'Delete', onDelete, {
     danger: true,
     disabled: wf.isBaseline,
     title: wf.isBaseline ? 'Templates can’t be deleted' : ''
@@ -89722,6 +90958,28 @@ const WorkflowLibraryPage = ({
       }
     });
   };
+  // Deactivate/Reactivate — non-destructive (F37). Inactive pauses new enrolments but keeps every run,
+  // log and enrolment record; status flips back to Active on reactivate. Mutates the library in place.
+  const deactivateWorkflow = w => {
+    const idx = WORKFLOW_LIBRARY.findIndex(x => x.id === w.id);
+    if (idx < 0) return;
+    const wasOn = w.status !== 'Inactive';
+    WORKFLOW_LIBRARY[idx] = {
+      ...w,
+      status: wasOn ? 'Inactive' : 'Active'
+    };
+    refresh();
+    fireToast({
+      message: wasOn ? 'Workflow deactivated — “' + w.name + '”. New enrolments paused; history kept.' : 'Workflow reactivated — “' + w.name + '”',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          WORKFLOW_LIBRARY[idx] = w;
+          refresh();
+        }
+      }
+    });
+  };
   const newWorkflow = mid => {
     const base = wfUid('base-');
     const draft = {
@@ -89768,7 +91026,8 @@ const WorkflowLibraryPage = ({
       successRate: null,
       _tested: false,
       enrollment: {
-        reentry: 'once'
+        reentry: 'once',
+        ...(recipe.enrollment || {})
       },
       ...wfClone({
         root: recipe.root,
@@ -89840,6 +91099,14 @@ const WorkflowLibraryPage = ({
       gap: 8
     }
   }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "mail",
+    onClick: () => {
+      window.location.hash = '#/practice/workflow-templates';
+    },
+    title: "Message template library"
+  }, "Templates"), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "md",
     icon: "sliders",
@@ -89962,7 +91229,8 @@ const WorkflowLibraryPage = ({
     onClick: () => open(w.id),
     onEdit: () => open(w.id),
     onDuplicate: () => duplicateWorkflow(w),
-    onDelete: () => deleteWorkflow(w)
+    onDelete: () => deleteWorkflow(w),
+    onDeactivate: () => deactivateWorkflow(w)
   })))), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: '0 1 326px',
@@ -90226,6 +91494,12 @@ const WorkflowGlobalSettingsPage = ({
     onChange: e => patch({
       fromEmail: e.target.value
     })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Reply-to address"), /*#__PURE__*/React.createElement(Input, {
+    value: gs.replyTo || '',
+    placeholder: gs.fromEmail,
+    onChange: e => patch({
+      replyTo: e.target.value
+    })
   }))), gs.timeWindow === 'business' && /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 14,
@@ -90346,6 +91620,249 @@ const WorkflowGlobalSettingsPage = ({
   }, "Save settings"))));
 };
 
+// Central message-template library (F32) — every template, its category/audience/channel, which
+// workflows reference it, and create/edit/clone/delete (deletion blocked while an Active workflow uses it).
+const WfTemplateLibraryPage = ({
+  fireToast
+}) => {
+  const [, forceTick] = useState(0);
+  const refresh = () => forceTick(t => t + 1); // re-render after mutating the module template array
+  const [editor, setEditor] = useState(null); // { id } | { id: null } | null
+  const [usageOpen, setUsageOpen] = useState(null); // templateId whose usage list is expanded
+  const goLibrary = () => {
+    window.location.hash = '#/practice/workflow';
+  };
+  const byGroup = wfTemplatesByGroup();
+  const total = WF_MESSAGE_TEMPLATES.length;
+  const cloneTemplate = t => {
+    const c = wfUpsertTemplate({
+      ...t,
+      id: undefined,
+      label: t.label + ' (copy)'
+    });
+    refresh();
+    fireToast({
+      message: 'Template duplicated — “' + c.label + '”',
+      action: {
+        label: 'Edit',
+        onClick: () => setEditor({
+          id: c.id
+        })
+      }
+    });
+  };
+  const onSaved = saved => {
+    setEditor(null);
+    refresh();
+    fireToast(saved ? 'Template saved' : 'Saved');
+  };
+  const onDeleted = () => {
+    setEditor(null);
+    refresh();
+    fireToast('Template deleted');
+  };
+  const chMeta = {
+    email: 'Email',
+    sms: 'SMS',
+    both: 'Email + SMS'
+  };
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: goLibrary
+  }, "Workflows"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginTop: 12,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, "Message templates"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "The library every client-message step draws from \u2014 ", total, " template", total === 1 ? '' : 's', ". Editing one updates it everywhere it\u2019s used.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "plus",
+    onClick: () => setEditor({
+      id: null
+    })
+  }, "New template")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 880,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 18
+    }
+  }, WF_TEMPLATE_GROUPS.map(g => {
+    const items = byGroup[g];
+    if (!items || !items.length) return null;
+    return /*#__PURE__*/React.createElement("div", {
+      key: g
+    }, /*#__PURE__*/React.createElement(SectionTitle, {
+      style: {
+        marginBottom: 8
+      }
+    }, g), /*#__PURE__*/React.createElement(Card, {
+      padded: false
+    }, items.map((t, i) => {
+      const uses = wfTemplateInUse(t.id);
+      const activeUses = uses.filter(w => w.status === 'Active');
+      const expanded = usageOpen === t.id;
+      return /*#__PURE__*/React.createElement("div", {
+        key: t.id,
+        style: {
+          borderTop: i ? `1px solid ${T.border}` : 'none'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '12px 16px'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          flexWrap: 'wrap'
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 13.5,
+          fontWeight: 600,
+          color: T.text
+        }
+      }, t.label), /*#__PURE__*/React.createElement(Pill, {
+        color: (t.audience || 'external') === 'internal' ? 'amber' : 'blue',
+        style: {
+          fontSize: 9.5
+        }
+      }, (t.audience || 'external') === 'internal' ? 'Internal' : 'Client-facing'), /*#__PURE__*/React.createElement(Pill, {
+        color: "neutral",
+        style: {
+          fontSize: 9.5
+        }
+      }, chMeta[t.channel] || t.channel)), /*#__PURE__*/React.createElement("button", {
+        onClick: () => setUsageOpen(expanded ? null : t.id),
+        style: {
+          marginTop: 3,
+          border: 'none',
+          background: 'none',
+          padding: 0,
+          cursor: uses.length ? 'pointer' : 'default',
+          color: uses.length ? T.primary : T.muted,
+          fontSize: 11.5,
+          fontWeight: uses.length ? 600 : 400
+        },
+        disabled: !uses.length
+      }, uses.length ? 'Used by ' + uses.length + ' workflow' + (uses.length === 1 ? '' : 's') + (expanded ? ' ▾' : ' ▸') : 'Not used by any workflow yet')), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 6,
+          flexShrink: 0
+        }
+      }, /*#__PURE__*/React.createElement(Btn, {
+        variant: "soft",
+        size: "sm",
+        icon: "edit",
+        onClick: () => setEditor({
+          id: t.id
+        })
+      }, "Edit"), /*#__PURE__*/React.createElement(Btn, {
+        variant: "ghost",
+        size: "sm",
+        icon: "copy",
+        onClick: () => cloneTemplate(t),
+        title: "Duplicate"
+      }), /*#__PURE__*/React.createElement(Btn, {
+        variant: "ghost",
+        size: "sm",
+        icon: "trash",
+        onClick: () => {
+          if (activeUses.length) {
+            fireToast('Can’t delete — used by ' + activeUses.length + ' active workflow' + (activeUses.length === 1 ? '' : 's'));
+            setEditor({
+              id: t.id
+            });
+          } else {
+            setEditor({
+              id: t.id
+            });
+          }
+        },
+        title: activeUses.length ? 'In use by active workflows' : 'Delete'
+      }))), expanded && uses.length > 0 && /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '0 16px 12px 16px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 6
+        }
+      }, uses.map(w => /*#__PURE__*/React.createElement("button", {
+        key: w.id,
+        onClick: () => {
+          window.location.hash = '#/practice/workflow-builder/' + w.id;
+        },
+        "data-hover": "row",
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          border: `1px solid ${T.border}`,
+          borderRadius: 999,
+          background: T.card,
+          padding: '3px 10px',
+          cursor: 'pointer',
+          fontSize: 11.5,
+          color: T.text
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: w.status === 'Active' ? T.green : w.status === 'Inactive' ? T.mutedSoft : T.amber
+        }
+      }), w.name, /*#__PURE__*/React.createElement(Icon, {
+        name: "arrow",
+        size: 11,
+        color: T.muted
+      })))));
+    })));
+  })), /*#__PURE__*/React.createElement(WfTemplateEditor, {
+    open: !!editor,
+    template: editor && editor.id ? wfTemplateById(editor.id) : null,
+    onSave: onSaved,
+    onDelete: onDeleted,
+    onClose: () => setEditor(null)
+  }));
+};
+
 // --- practice app shell ---
 // Parse the practice hash into {section, id}. Allows nested routes
 // like #/practice/payrun-detail/pr-028 so detail screens can carry
@@ -90381,7 +91898,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -90456,6 +91973,10 @@ const PracticeApp = () => {
         });
       case 'workflow-settings':
         return /*#__PURE__*/React.createElement(WorkflowGlobalSettingsPage, {
+          fireToast: fireToast
+        });
+      case 'workflow-templates':
+        return /*#__PURE__*/React.createElement(WfTemplateLibraryPage, {
           fireToast: fireToast
         });
       case 'spm-forecast':
