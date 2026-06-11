@@ -81036,7 +81036,7 @@ const WfTemplatePicker = ({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
       marginBottom: 6
     }
   }, /*#__PURE__*/React.createElement(Label, {
@@ -81047,7 +81047,16 @@ const WfTemplatePicker = ({
   }, "Message template"), /*#__PURE__*/React.createElement("button", {
     onClick: onNew,
     style: linkBtn
-  }, "+ New template")), /*#__PURE__*/React.createElement(Select, {
+  }, "+ New template"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = '#/practice/workflow-templates';
+    },
+    style: {
+      ...linkBtn,
+      color: T.muted
+    },
+    title: "Open the email template manager"
+  }, "Manage all")), /*#__PURE__*/React.createElement(Select, {
     value: tid,
     onChange: e => onPick(e.target.value)
   }, /*#__PURE__*/React.createElement("option", {
@@ -84440,7 +84449,191 @@ const WF_RECIPES = [{
     }
   }
 }];
-const recipesForModule = mid => WF_RECIPES.filter(r => r.module === mid);
+// ---- recipe library: global catalog vs the firm's own, core defaults, favourites (Johann feedback) ----
+// WF_RECIPES is Sole's shared/global catalog. Tag each as 'global' and mark one flagship "core" recipe per
+// area — the standard end-to-end workflow a firm starts from, then configures (answers "is this the default,
+// then firms configure the rest?"). Mutating element props on a const array is fine (module-eval, once).
+WF_RECIPES.forEach(r => {
+  r.source = 'global';
+});
+const WF_CORE_RECIPE_IDS = ['rcp-deal-lifecycle', 'rcp-onboard-company', 'rcp-proposal-chase', 'rcp-bas-lodge', 'rcp-payrun-finalised', 'rcp-invoice-overdue', 'rcp-payment-received', 'rcp-reply-triage'];
+WF_CORE_RECIPE_IDS.forEach(id => {
+  const r = WF_RECIPES.find(x => x.id === id);
+  if (r) r.core = true;
+});
+// The firm's own recipes (authored via "Save as recipe" or downloaded from the global library). Session-only
+// mutable store, same pattern as WORKFLOW_LIBRARY / WF_MESSAGE_TEMPLATES. Seeded with one example.
+const FIRM_RECIPES = [{
+  id: 'rcp-firm-yearend',
+  module: 'tax',
+  name: 'Year-end checklist (our firm)',
+  level: 'Standard',
+  source: 'firm',
+  outcome: 'Our internal year-end close checklist for company clients',
+  blurb: 'Request docs, prepare workpapers, partner review, then file.',
+  tags: ['Year-end', 'Workpapers', 'Partner review'],
+  root: 'r1',
+  nodes: {
+    r1: {
+      id: 'r1',
+      type: 'trigger',
+      ref: 'bas.due',
+      label: 'Year-end period starts',
+      config: {
+        lead: 30
+      },
+      next: 'r2'
+    },
+    r2: {
+      id: 'r2',
+      type: 'clientTouchpoint',
+      ref: 'request.documents',
+      label: 'Request year-end documents',
+      config: {
+        docType: 'Supporting documents',
+        templateId: 'docs-chase',
+        template: 'Missing documents chase'
+      },
+      next: 'r3'
+    },
+    r3: {
+      id: 'r3',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Prepare workpapers',
+      config: {
+        assignee: 'Sarah Mitchell',
+        due: 10
+      },
+      next: 'r4'
+    },
+    r4: {
+      id: 'r4',
+      type: 'approvalGate',
+      ref: 'approval.gate',
+      label: 'Partner review',
+      config: {
+        approver: 'Partner'
+      },
+      locked: true,
+      next: 'r5'
+    },
+    r5: {
+      id: 'r5',
+      type: 'moduleImpact',
+      ref: 'module.impact',
+      label: 'File and update reporting',
+      config: {
+        target: 'Reporting'
+      },
+      next: null
+    }
+  }
+}];
+// Single source for every recipe surface: global catalog + the firm's own.
+const wfAllRecipes = () => WF_RECIPES.concat(FIRM_RECIPES);
+const recipesForModule = mid => wfAllRecipes().filter(r => r.module === mid);
+const wfRecipeById = id => wfAllRecipes().find(r => r.id === id) || null;
+const wfCoreRecipeForModule = mid => wfAllRecipes().find(r => r.module === mid && r.core) || null;
+// Favourited recipe ids persist per-firm in the shared editor prefs (key sole.editor.prefs.v1).
+const wfFavRecipeIds = () => loadPrefs().wfFavRecipes || [];
+const wfIsFavRecipe = id => wfFavRecipeIds().includes(id);
+const wfToggleFavRecipe = id => {
+  const cur = wfFavRecipeIds();
+  savePref({
+    wfFavRecipes: cur.includes(id) ? cur.filter(x => x !== id) : cur.concat(id)
+  });
+};
+// Download a global recipe into the firm's own set (mock "download / add to my firm"). Idempotent-ish: a
+// fresh firm id each time so re-downloading just adds another copy the firm can rename.
+const wfDownloadRecipe = recipe => {
+  const copy = {
+    ...wfCloneRecipe(recipe),
+    id: wfUid('rcp-firm-'),
+    source: 'firm',
+    core: false,
+    downloadedFrom: recipe.id
+  };
+  FIRM_RECIPES.push(copy);
+  return copy;
+};
+// Share a firm recipe to the global library (mock between-firms publish).
+const wfShareRecipeToGlobal = recipe => {
+  const copy = {
+    ...wfCloneRecipe(recipe),
+    id: wfUid('rcp-global-'),
+    source: 'global',
+    core: false,
+    sharedFrom: recipe.id
+  };
+  WF_RECIPES.push(copy);
+  return copy;
+};
+const wfRemoveFirmRecipe = id => {
+  const i = FIRM_RECIPES.findIndex(r => r.id === id);
+  if (i >= 0) return FIRM_RECIPES.splice(i, 1)[0];
+  return null;
+};
+// Deep-clone a recipe (graph included) so the global/firm sources are never aliased — same guard wfFromRecipe relies on.
+const wfCloneRecipe = recipe => ({
+  ...recipe,
+  tags: (recipe.tags || []).slice(),
+  ...wfClone({
+    root: recipe.root,
+    nodes: recipe.nodes
+  })
+});
+// Build a fresh Draft workflow from a recipe and open it in the builder. Module-level so the Recipe Library
+// page and the new-workflow picker share ONE path (mirrors WorkflowLibraryPage's local wfFromRecipe).
+const wfStartFromRecipe = (recipe, mid) => {
+  const draft = {
+    id: wfUid('wf-'),
+    baseId: wfUid('base-'),
+    name: recipe.name,
+    module: mid || recipe.module,
+    outcome: recipe.outcome || '',
+    level: recipe.level || 'Standard',
+    status: 'Draft',
+    version: 1,
+    ownerRole: 'Manager',
+    runCount: 0,
+    lastRun: null,
+    successRate: null,
+    _tested: false,
+    enrollment: {
+      reentry: 'once',
+      ...(recipe.enrollment || {})
+    },
+    ...wfClone({
+      root: recipe.root,
+      nodes: recipe.nodes
+    }),
+    enrollments: [],
+    runs: []
+  };
+  WORKFLOW_LIBRARY.push(draft);
+  window.location.hash = '#/practice/workflow-builder/' + draft.id;
+  return draft;
+};
+// Snapshot a built workflow into the firm's own recipe set ("Save as recipe" — covers "build out & add").
+const wfSaveAsRecipe = wf => {
+  const recipe = {
+    id: wfUid('rcp-firm-'),
+    module: wf.module,
+    name: wf.name + ' (recipe)',
+    level: wf.level || 'Standard',
+    source: 'firm',
+    outcome: wf.outcome || '',
+    blurb: 'Saved from your workflow “' + wf.name + '”.',
+    tags: [],
+    ...wfClone({
+      root: wf.root,
+      nodes: wf.nodes
+    })
+  };
+  FIRM_RECIPES.push(recipe);
+  return recipe;
+};
 
 // ---- small builder atoms ----
 // Canvas palette: a cool recessed panel distinct from the (lighter) page, plus
@@ -89928,6 +90121,23 @@ const WorkflowBuilderPage = ({
       fireToast('Workflow saved');
     }
   };
+  // Snapshot this workflow into the firm's recipe set so it can be reused / shared (Johann: "build out & add").
+  const onSaveAsRecipe = () => {
+    if (!wf.root) {
+      fireToast('Add at least a trigger before saving as a recipe');
+      return;
+    }
+    const r = wfSaveAsRecipe(wf);
+    fireToast({
+      message: 'Saved as a firm recipe — “' + r.name + '”',
+      action: {
+        label: 'View',
+        onClick: () => {
+          window.location.hash = '#/practice/workflow-recipes';
+        }
+      }
+    });
+  };
   const tabs = [{
     id: 'builder',
     label: 'Builder',
@@ -90055,6 +90265,12 @@ const WorkflowBuilderPage = ({
       background: readyTone.fg
     }
   }), readyLabel), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "layers",
+    onClick: onSaveAsRecipe,
+    title: "Save this workflow as a reusable firm recipe"
+  }, "Save as recipe"), /*#__PURE__*/React.createElement(Btn, {
     variant: "soft",
     size: "md",
     icon: "play",
@@ -90443,18 +90659,35 @@ const WorkflowModuleCard = ({
     color: T.primary
   }))));
 };
+
+// Root is a div role=button (not <button>) so it can legally hold the favourite-star and action buttons.
+// Backwards-compatible: passing just {recipe, onClick} renders like before (no star / area chip / footer).
 const WfRecipeCard = ({
   recipe,
-  onClick
+  onClick,
+  fav,
+  onToggleFav,
+  action,
+  showArea
 }) => {
   const levelColor = {
     Simple: 'neutral',
     Standard: 'blue',
     Controlled: 'amber'
   };
-  return /*#__PURE__*/React.createElement("button", {
+  const m = wfModuleMeta(recipe.module);
+  const tint = WF_TINT[m.color] || WF_TINT.neutral;
+  return /*#__PURE__*/React.createElement("div", {
     onClick: onClick,
+    role: "button",
+    tabIndex: 0,
     "data-hover": "row",
+    onKeyDown: e => {
+      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onClick();
+      }
+    },
     style: {
       textAlign: 'left',
       border: `1px solid ${T.border}`,
@@ -90489,12 +90722,67 @@ const WfRecipeCard = ({
       fontWeight: 600,
       color: T.text
     }
-  }, recipe.name), /*#__PURE__*/React.createElement(Pill, {
+  }, recipe.name), recipe.core && /*#__PURE__*/React.createElement(Pill, {
+    color: "accent",
+    style: {
+      fontSize: 9.5,
+      gap: 3
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "sparkle2",
+    size: 9
+  }), "Core"), /*#__PURE__*/React.createElement(Pill, {
     color: levelColor[recipe.level] || 'neutral',
     style: {
       fontSize: 10
     }
-  }, recipe.level)), /*#__PURE__*/React.createElement(Helper, {
+  }, recipe.level), onToggleFav && /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      onToggleFav();
+    },
+    title: fav ? 'Remove from favourites' : 'Favourite this recipe',
+    style: {
+      border: 'none',
+      background: 'none',
+      cursor: 'pointer',
+      padding: 0,
+      lineHeight: 0,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "star",
+    size: 15,
+    color: fav ? T.amber : T.mutedSoft
+  }))), showArea && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      padding: '2px 8px',
+      borderRadius: 999,
+      background: tint.bg,
+      color: tint.fg,
+      fontSize: 10,
+      fontWeight: 600
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: m.icon,
+    size: 10,
+    color: tint.fg
+  }), m.label), recipe.source === 'firm' && /*#__PURE__*/React.createElement(Pill, {
+    color: "green",
+    style: {
+      fontSize: 9.5
+    }
+  }, "Our firm")), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11.5
     }
@@ -90510,7 +90798,15 @@ const WfRecipeCard = ({
     style: {
       fontSize: 9.5
     }
-  }, t))));
+  }, t))), action && /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginTop: 2,
+      flexWrap: 'wrap'
+    }
+  }, action));
 };
 const WorkflowRow = ({
   wf,
@@ -91101,12 +91397,20 @@ const WorkflowLibraryPage = ({
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "md",
+    icon: "layers",
+    onClick: () => {
+      window.location.hash = '#/practice/workflow-recipes';
+    },
+    title: "Recipe library \u2014 core, global & your firm's recipes"
+  }, "Recipes"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
     icon: "mail",
     onClick: () => {
       window.location.hash = '#/practice/workflow-templates';
     },
-    title: "Message template library"
-  }, "Templates"), /*#__PURE__*/React.createElement(Btn, {
+    title: "Email template manager"
+  }, "Email templates"), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "md",
     icon: "sliders",
@@ -91268,67 +91572,127 @@ const WorkflowLibraryPage = ({
     style: {
       marginBottom: 12
     }
-  }, "All areas"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-      gap: 12
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setPickerOpen(false);
-      newWorkflow(pickerModule);
-    },
-    "data-hover": "row",
-    style: {
-      textAlign: 'left',
-      border: `1.5px dashed ${T.borderStrong}`,
-      borderRadius: 12,
-      background: T.card,
-      padding: 16,
-      cursor: 'pointer',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      background: T.fieldBg,
-      color: T.muted,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "plus",
-    size: 16
-  })), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 600,
-      color: T.text
-    }
-  }, "Start blank")), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5
-    }
-  }, "Build from an empty canvas.")), recipesForModule(pickerModule).map(r => /*#__PURE__*/React.createElement(WfRecipeCard, {
-    key: r.id,
-    recipe: r,
-    onClick: () => {
+  }, "All areas"), (() => {
+    const recs = recipesForModule(pickerModule);
+    const core = recs.find(r => r.core);
+    const favIds = wfFavRecipeIds();
+    const rest = recs.filter(r => !core || r.id !== core.id);
+    const favs = rest.filter(r => favIds.includes(r.id));
+    const others = rest.filter(r => !favIds.includes(r.id));
+    const pick = r => {
       setPickerOpen(false);
       wfFromRecipe(r, pickerModule);
-    }
-  }))))), openCompanyId && /*#__PURE__*/React.createElement(CompanyDrawer, {
+    };
+    const blank = /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setPickerOpen(false);
+        newWorkflow(pickerModule);
+      },
+      "data-hover": "row",
+      style: {
+        textAlign: 'left',
+        border: `1.5px dashed ${T.borderStrong}`,
+        borderRadius: 12,
+        background: T.card,
+        padding: 16,
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        background: T.fieldBg,
+        color: T.muted,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "plus",
+      size: 16
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, "Start blank")), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5
+      }
+    }, "Build from an empty canvas."));
+    return /*#__PURE__*/React.createElement(Fragment, null, core && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginBottom: 6,
+        fontWeight: 700,
+        color: T.primary
+      }
+    }, "Recommended starting point"), /*#__PURE__*/React.createElement(WfRecipeCard, {
+      recipe: core,
+      onClick: () => pick(core)
+    })), favs.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginBottom: 6,
+        fontWeight: 700
+      }
+    }, "Your favourites"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+        gap: 12
+      }
+    }, favs.map(r => /*#__PURE__*/React.createElement(WfRecipeCard, {
+      key: r.id,
+      recipe: r,
+      onClick: () => pick(r)
+    })))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+        gap: 12
+      }
+    }, blank, others.map(r => /*#__PURE__*/React.createElement(WfRecipeCard, {
+      key: r.id,
+      recipe: r,
+      onClick: () => pick(r)
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 16,
+        textAlign: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setPickerOpen(false);
+        window.location.hash = '#/practice/workflow-recipes';
+      },
+      style: {
+        border: 'none',
+        background: 'none',
+        color: T.primary,
+        fontSize: 12.5,
+        fontWeight: 600,
+        cursor: 'pointer'
+      }
+    }, "Browse all recipes \u2014 global library & your firm \u2192")));
+  })())), openCompanyId && /*#__PURE__*/React.createElement(CompanyDrawer, {
     client: clientById(openCompanyId),
     deals: [],
     onClose: () => setOpenCompanyId(null),
@@ -91620,6 +91984,168 @@ const WorkflowGlobalSettingsPage = ({
   }, "Save settings"))));
 };
 
+// Recipe library (Johann feedback) — the firm's starting points: a built-in Core default per area, a shared
+// Global catalog you download into your firm, your firm's own recipes you can share back, and favourites.
+// Answers "where's the default workflow, is it standard then firms configure the rest?" — yes, start from Core.
+const WfRecipeLibraryPage = ({
+  fireToast
+}) => {
+  const [, forceTick] = useState(0);
+  const refresh = () => forceTick(t => t + 1); // re-render after mutating FIRM_RECIPES / WF_RECIPES / prefs
+  const [area, setArea] = useState('all');
+  const goLibrary = () => {
+    window.location.hash = '#/practice/workflow';
+  };
+  const inArea = r => area === 'all' || r.module === area;
+  const all = wfAllRecipes().filter(inArea);
+  const favIds = wfFavRecipeIds();
+  const core = all.filter(r => r.core);
+  const favs = all.filter(r => favIds.includes(r.id));
+  const global = all.filter(r => r.source === 'global' && !r.core);
+  const firm = all.filter(r => r.source === 'firm');
+  const use = r => wfStartFromRecipe(r);
+  const toggleFav = r => {
+    wfToggleFavRecipe(r.id);
+    refresh();
+  };
+  const download = r => {
+    const c = wfDownloadRecipe(r);
+    refresh();
+    fireToast({
+      message: 'Added to your firm — “' + c.name + '”',
+      action: {
+        label: 'Use',
+        onClick: () => use(c)
+      }
+    });
+  };
+  const share = r => {
+    wfShareRecipeToGlobal(r);
+    refresh();
+    fireToast('Shared to the global library — other firms can now download it');
+  };
+  const removeFirm = r => {
+    const removed = wfRemoveFirmRecipe(r.id);
+    refresh();
+    if (removed) fireToast({
+      message: 'Removed “' + removed.name + '” from your firm',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          FIRM_RECIPES.push(removed);
+          refresh();
+        }
+      }
+    });
+  };
+  const card = (r, action) => /*#__PURE__*/React.createElement(WfRecipeCard, {
+    key: r.id,
+    recipe: r,
+    showArea: true,
+    onClick: () => use(r),
+    fav: wfIsFavRecipe(r.id),
+    onToggleFav: () => toggleFav(r),
+    action: action
+  });
+  const grid = (items, action) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+      gap: 12
+    }
+  }, items.map(r => card(r, action && action(r))));
+  const section = (title, helper, body) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 22
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: helper ? 2 : 8
+    }
+  }, title), helper && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 8
+    }
+  }, helper), body);
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: goLibrary
+  }, "Workflows"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginTop: 12,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, "Recipe library"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Ready-made starting points. Every area ships a ", /*#__PURE__*/React.createElement("b", null, "Core"), " recipe \u2014 the standard end-to-end workflow \u2014 which you then configure. Download more from the global library, build your own, and favourite the ones you use.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "plus",
+    onClick: () => {
+      window.location.hash = '#/practice/workflow';
+    },
+    title: "Build a workflow, then Save as recipe"
+  }, "New workflow \u2192 Save as recipe")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: area === 'all',
+    onClick: () => setArea('all')
+  }, "All areas"), WF_MODULES.map(m => {
+    const c = wfAllRecipes().filter(r => r.module === m.id).length;
+    return c ? /*#__PURE__*/React.createElement(Chip, {
+      key: m.id,
+      size: "sm",
+      selected: area === m.id,
+      onClick: () => setArea(m.id)
+    }, m.label, " \xB7 ", c) : null;
+  })), core.length > 0 && section('Core recipes', 'The default workflow built into Sole for each area — start here, then configure the rest.', grid(core)), favs.length > 0 && section('Your favourites', null, grid(favs)), section('Global library', 'Shared recipes maintained by Sole. Download one to add it to your firm and customise it.', global.length ? grid(global, r => /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "download",
+    onClick: () => download(r)
+  }, "Add to my firm")) : /*#__PURE__*/React.createElement(Helper, null, "No more global recipes in this area.")), section("Your firm's recipes", 'Recipes your firm built (via “Save as recipe”) or downloaded. Share one to publish it to the global library.', firm.length ? grid(firm, r => /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "share",
+    onClick: () => share(r)
+  }, "Share to global"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "trash",
+    onClick: () => removeFirm(r),
+    title: "Remove from your firm"
+  }))) : /*#__PURE__*/React.createElement(Helper, null, "None yet \u2014 open a workflow and choose ", /*#__PURE__*/React.createElement("b", null, "Save as recipe"), ", or download one from the global library above.")));
+};
+
 // Central message-template library (F32) — every template, its category/audience/channel, which
 // workflows reference it, and create/edit/clone/delete (deletion blocked while an Active workflow uses it).
 const WfTemplateLibraryPage = ({
@@ -91629,6 +92155,9 @@ const WfTemplateLibraryPage = ({
   const refresh = () => forceTick(t => t + 1); // re-render after mutating the module template array
   const [editor, setEditor] = useState(null); // { id } | { id: null } | null
   const [usageOpen, setUsageOpen] = useState(null); // templateId whose usage list is expanded
+  const [q, setQ] = useState('');
+  const ql = q.trim().toLowerCase();
+  const matchesQ = t => !ql || [t.label, t.subject, t.body, t.sms].some(s => (s || '').toLowerCase().includes(ql));
   const goLibrary = () => {
     window.location.hash = '#/practice/workflow';
   };
@@ -91708,13 +92237,27 @@ const WfTemplateLibraryPage = ({
   }, "New template")), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: 880,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: q,
+    onChange: e => setQ(e.target.value),
+    placeholder: "Search templates by name, subject or body\u2026",
+    prefix: /*#__PURE__*/React.createElement(Icon, {
+      name: "search",
+      size: 14,
+      color: T.muted
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 880,
       display: 'flex',
       flexDirection: 'column',
       gap: 18
     }
   }, WF_TEMPLATE_GROUPS.map(g => {
-    const items = byGroup[g];
-    if (!items || !items.length) return null;
+    const items = (byGroup[g] || []).filter(matchesQ);
+    if (!items.length) return null;
     return /*#__PURE__*/React.createElement("div", {
       key: g
     }, /*#__PURE__*/React.createElement(SectionTitle, {
@@ -91854,7 +92397,12 @@ const WfTemplateLibraryPage = ({
         color: T.muted
       })))));
     })));
-  })), /*#__PURE__*/React.createElement(WfTemplateEditor, {
+  }), ql && !WF_MESSAGE_TEMPLATES.some(matchesQ) && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '32px 20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "No templates match \u201C", q, "\u201D.")))), /*#__PURE__*/React.createElement(WfTemplateEditor, {
     open: !!editor,
     template: editor && editor.id ? wfTemplateById(editor.id) : null,
     onSave: onSaved,
@@ -91898,7 +92446,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -91977,6 +92525,10 @@ const PracticeApp = () => {
         });
       case 'workflow-templates':
         return /*#__PURE__*/React.createElement(WfTemplateLibraryPage, {
+          fireToast: fireToast
+        });
+      case 'workflow-recipes':
+        return /*#__PURE__*/React.createElement(WfRecipeLibraryPage, {
           fireToast: fireToast
         });
       case 'spm-forecast':
