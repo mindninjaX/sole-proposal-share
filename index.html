@@ -80550,8 +80550,8 @@ const ReportsPage = ({
 // --- workflow module ---
 // GoHighLevel "Standard Builder"-style automation, tailored to an
 // accounting practice. Library (major-workflow cards → drill into a
-// module's sub-workflows) → Builder (top-down node flow + 4 tabs:
-// Builder · Settings · Enrollment History · Execution Logs).
+// module's sub-workflows) → Builder (top-down node flow + tabs:
+// Builder · Activation · Settings · Runs (By run / By client) · Test & publish · Role preview).
 // All data mocked. A workflow's steps live in a FLAT node map keyed by
 // id and are walked from `root` via `.next`; a `condition` node fans into
 // `.branches[]`, each its own `.next` chain that terminates independently.
@@ -82214,6 +82214,78 @@ const WF_ACTIONS = [{
   }]
 }];
 
+// Checkable values for a condition node and for a workflow's qualifying entry-conditions — a single
+// source so "is the proposal signed?" reads the same in the builder and on the Activation tab.
+const WF_CONDITION_FIELDS = [{
+  id: 'proposal.signed',
+  label: 'Proposal signed',
+  module: 'proposals',
+  type: 'bool'
+}, {
+  id: 'proposal.created',
+  label: 'Proposal created',
+  module: 'proposals',
+  type: 'bool'
+}, {
+  id: 'proposal.status',
+  label: 'Proposal status',
+  module: 'proposals',
+  type: 'select',
+  options: ['Draft', 'Sent', 'Viewed', 'Signed', 'Declined']
+}, {
+  id: 'tasks.all_complete',
+  label: 'All tasks complete',
+  module: 'jobs',
+  type: 'bool'
+}, {
+  id: 'kyc.received',
+  label: 'KYC / ID received',
+  module: 'onboarding',
+  type: 'bool'
+}, {
+  id: 'documents.received',
+  label: 'Documents received',
+  module: 'onboarding',
+  type: 'bool'
+}, {
+  id: 'deal.stage',
+  label: 'Deal stage',
+  module: 'deals',
+  type: 'select',
+  options: DEAL_STAGES.map(s => s.label)
+}, {
+  id: 'invoice.paid',
+  label: 'Invoice paid',
+  module: 'billing',
+  type: 'bool'
+}, {
+  id: 'invoice.days_overdue',
+  label: 'Invoice days overdue',
+  module: 'billing',
+  type: 'number'
+}, {
+  id: 'client.risk',
+  label: 'Client risk flag',
+  module: 'practice',
+  type: 'select',
+  options: ['None', 'Watch', 'High-value', 'High-risk']
+}];
+const WF_CONDITION_OPS = {
+  bool: ['is true', 'is false'],
+  select: ['is', 'is not'],
+  number: ['≥', '≤', '=', '>', '<']
+};
+const wfConditionFieldById = id => WF_CONDITION_FIELDS.find(f => f.id === id) || null;
+// One-line human summary of a value-check, e.g. "Proposal signed is true" / "Deal stage is Won".
+const wfCheckSummary = check => {
+  if (!check || !check.field) return '';
+  const f = wfConditionFieldById(check.field);
+  const label = f ? f.label : check.field;
+  if (f && f.type === 'bool') return label + ' ' + (check.op || 'is true');
+  const op = check.op || 'is';
+  return label + ' ' + op + (check.value != null && check.value !== '' ? ' ' + check.value : '');
+};
+
 // ---- workflow helpers (pure) ----
 const wfUid = p => (p || 'n') + Math.random().toString(36).slice(2, 8);
 const wfClone = wf => JSON.parse(JSON.stringify(wf));
@@ -82255,8 +82327,10 @@ const wfReasonAutoFix = reason => {
 // Human one-line summary of a node's config — drives the node card's secondary line.
 const wfNodeSummary = node => {
   if (node.type === 'condition') {
+    const chk = node.config && node.config.check ? wfCheckSummary(node.config.check) : '';
     const labels = (node.branches || []).map(b => b.label).join(' / ');
-    return labels ? 'Branches: ' + labels : 'No branches yet';
+    const br = labels ? 'Branches: ' + labels : 'No branches yet';
+    return chk ? chk + ' · ' + br : br;
   }
   const cat = wfFindCatalog(node.ref);
   if (node.type === 'clientTouchpoint' && node.config && node.config.templateId) {
@@ -82815,6 +82889,116 @@ const wfSimulate = (wf, choices) => {
   };
 };
 
+// Ordered stage nodes for the per-client run tracker — one plausible path through the graph.
+const wfTrackerStages = wf => wfSimPathIds(wf).map(id => wf.nodes[id]).filter(Boolean);
+// Resolve an enrollment's current step (a label string) to a stage index. Tolerates labels that don't
+// match a node (seeds use "Completed" etc.) → terminal:true so the UI shows a clean "finished" state.
+const wfStageIndexForEnrollment = (wf, e) => {
+  const stages = wfTrackerStages(wf);
+  if (!e || !e.step) return {
+    index: -1,
+    node: null,
+    terminal: false,
+    stages
+  };
+  const idx = stages.findIndex(n => n && n.label === e.step);
+  if (idx >= 0) return {
+    index: idx,
+    node: stages[idx],
+    terminal: false,
+    stages
+  };
+  const done = e.status === 'completed' || /complet|done|closed|finished/i.test(e.step);
+  return {
+    index: done ? stages.length : -1,
+    node: null,
+    terminal: done,
+    stages
+  };
+};
+// Other workflows that start from the SAME trigger ref — the "parallel trees fire together" model,
+// so a user can drill between sibling workflows instead of cramming them into one tree.
+const wfSiblingWorkflows = wf => {
+  const root = wf.root && wf.nodes ? wf.nodes[wf.root] : null;
+  if (!root) return [];
+  return WORKFLOW_LIBRARY.filter(w => w.id !== wf.id && w.root && w.nodes && w.nodes[w.root] && w.nodes[w.root].ref === root.ref);
+};
+// Mock "inspect this step" detail (request/response style) for a run/sim step — friendly key→value rows,
+// not raw JSON. Result rows reuse wfCrossModuleImpact so "records changed" stay consistent with the Impact
+// tab. Safe when node is missing (label-only steps).
+const wfStepInspect = (node, step) => {
+  const cfg = node && node.config || {};
+  const cat = node ? wfFindCatalog(node.ref) : null;
+  const type = node ? node.type : 'action';
+  const s = step || {};
+  const input = [{
+    k: 'Trigger context',
+    v: s.client || 'Sample client'
+  }];
+  if (node) input.push({
+    k: 'Step type',
+    v: (WF_NODE_META[type] || {}).label || type
+  });
+  if (cfg.template) input.push({
+    k: 'Template',
+    v: cfg.template
+  });
+  if (cfg.segment) input.push({
+    k: 'Segment',
+    v: cfg.segment
+  });
+  if (cfg.assignee || cfg.who) input.push({
+    k: 'Assignee',
+    v: cfg.assignee || cfg.who
+  });
+  if (cfg.approver) input.push({
+    k: 'Approver role',
+    v: cfg.approver
+  });
+  if (type === 'condition' && cfg.check) input.push({
+    k: 'Checks',
+    v: wfCheckSummary(cfg.check)
+  });
+  const action = [{
+    k: 'Action',
+    v: cat ? cat.label : node ? node.label : s.label || 'Step'
+  }];
+  if (type === 'clientTouchpoint') action.push({
+    k: 'Channel',
+    v: cfg.channel || 'Email'
+  });
+  if (cfg.target) action.push({
+    k: 'Target module',
+    v: cfg.target
+  });
+  const tone = s.tone || 'ok';
+  const result = [{
+    k: 'Status',
+    v: tone === 'error' ? 'Failed' : tone === 'warn' ? 'Paused' : 'Success'
+  }, {
+    k: 'Outcome',
+    v: s.outcome || 'Step ran'
+  }];
+  (node ? wfCrossModuleImpact(node) : []).forEach(im => result.push({
+    k: im.mod,
+    v: im.act
+  }));
+  const ms = node ? 40 + (node.label || '').length * 7 : 60;
+  const timing = [{
+    k: 'Started',
+    v: s.at && s.at !== 'now' ? s.at : 'just now'
+  }, {
+    k: 'Duration',
+    v: ms + ' ms'
+  }];
+  return {
+    input,
+    action,
+    result,
+    timing
+  };
+};
+
 // On "Continue execution", synthesise mock outcomes for the steps downstream of the one
 // that stalled (conditions take their first branch) — used to complete a resumed run.
 // Takes the resolved start node (by id, not label) so duplicate labels can't misroute.
@@ -82877,6 +83061,34 @@ const WORKFLOW_LIBRARY = [{
     reentry: 'once'
   },
   root: 'n1',
+  activation: {
+    mode: 'automatic',
+    conditions: [{
+      id: 'ac1',
+      field: 'deal.stage',
+      op: 'is',
+      value: 'New Enquiry'
+    }],
+    attachPoints: [{
+      id: 'ap1',
+      kind: 'dealStage',
+      label: 'Deals · New Enquiry stage'
+    }, {
+      id: 'ap2',
+      kind: 'client',
+      label: 'Any client without an active engagement'
+    }],
+    assignments: [{
+      client: 'c-northcoast',
+      enabled: true
+    }, {
+      client: 'c-bondi',
+      enabled: true
+    }, {
+      client: 'c-solepay',
+      enabled: false
+    }]
+  },
   nodes: {
     n1: {
       id: 'n1',
@@ -83415,6 +83627,91 @@ const WORKFLOW_LIBRARY = [{
     }, {
       label: 'Send reminder email',
       outcome: 'Email sent to 1 contact',
+      tone: 'ok'
+    }]
+  }]
+}, {
+  id: 'wf-proposal-project',
+  baseId: 'proposal-project',
+  name: 'Proposal sent → create project & notify',
+  module: 'proposal',
+  outcome: 'Spin up a proposal project and alert the owner when a proposal goes out',
+  level: 'Standard',
+  status: 'Active',
+  version: 1,
+  ownerRole: 'Manager',
+  runCount: 22,
+  lastRun: '2026-06-03',
+  successRate: 100,
+  _tested: true,
+  sla: '1 business day',
+  enrollment: {
+    reentry: 'every'
+  },
+  root: 'pp1',
+  activation: {
+    mode: 'automatic',
+    conditions: [],
+    attachPoints: [{
+      id: 'ap1',
+      kind: 'dealStage',
+      label: 'Deals · Proposal Sent stage'
+    }],
+    assignments: []
+  },
+  nodes: {
+    pp1: {
+      id: 'pp1',
+      type: 'trigger',
+      ref: 'proposal.sent',
+      label: 'Proposal sent',
+      config: {},
+      next: 'pp2'
+    },
+    pp2: {
+      id: 'pp2',
+      type: 'moduleImpact',
+      ref: 'module.impact',
+      label: 'Create proposal project',
+      config: {
+        target: 'Tasks'
+      },
+      next: 'pp3'
+    },
+    pp3: {
+      id: 'pp3',
+      type: 'action',
+      ref: 'notify.internal',
+      label: 'Notify the proposal owner',
+      config: {
+        who: 'Priya Nair'
+      },
+      next: null
+    }
+  },
+  enrollments: [{
+    client: 'c-greenleaf',
+    startedAt: '2026-06-03',
+    step: 'Notify the proposal owner',
+    status: 'running'
+  }, {
+    client: 'c-acme',
+    startedAt: '2026-05-29',
+    step: 'Completed',
+    status: 'completed'
+  }],
+  runs: [{
+    id: 'r1',
+    at: '2026-06-03',
+    trigger: 'Proposal sent',
+    status: 'success',
+    steps: [{
+      label: 'Create proposal project',
+      outcome: 'Project created in Tasks',
+      tone: 'ok'
+    }, {
+      label: 'Notify the proposal owner',
+      outcome: 'Notified Priya Nair',
       tone: 'ok'
     }]
   }]
@@ -84898,7 +85195,29 @@ const WfQuickAddMenu = ({
       flex: 1,
       minHeight: 0
     }
-  }, suggestions.length > 0 && /*#__PURE__*/React.createElement(Fragment, null, groupLabel('Suggested for this workflow'), grid(suggestions)), groupLabel(suggestions.length ? 'Common steps' : 'Add a step'), grid(items)), /*#__PURE__*/React.createElement("button", {
+  }, suggestions.length > 0 && /*#__PURE__*/React.createElement(Fragment, null, groupLabel('Suggested for this workflow'), grid(suggestions)), groupLabel(suggestions.length ? 'Common steps' : 'Add a step'), grid(items), prevNode && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '0 14px 8px',
+      display: 'flex',
+      gap: 6,
+      alignItems: 'flex-start'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flexShrink: 0,
+      marginTop: 1
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "bolt",
+    size: 11,
+    color: T.mutedSoft
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      color: T.mutedSoft,
+      lineHeight: 1.4
+    }
+  }, "The trigger already started this workflow \u2014 add actions and conditions here."))), /*#__PURE__*/React.createElement("button", {
     "data-hover": "row",
     onClick: onBrowse,
     style: {
@@ -85869,16 +86188,17 @@ const WfPaletteDrawer = ({
   open,
   initialTab,
   onClose,
-  onPick
+  onPick,
+  lockTrigger
 }) => {
   const [tab, setTab] = useState('action');
   const [q, setQ] = useState('');
   useEffect(() => {
     if (open) {
-      setTab(initialTab || 'action');
+      setTab(lockTrigger ? 'action' : initialTab || 'action');
       setQ('');
     }
-  }, [open, initialTab]);
+  }, [open, initialTab, lockTrigger]);
   useEffect(() => {
     if (!open) return;
     const onKey = e => {
@@ -85964,29 +86284,35 @@ const WfPaletteDrawer = ({
       background: T.fieldBg,
       marginTop: 12
     }
-  }, typeTabs.map(t => /*#__PURE__*/React.createElement("button", {
-    key: t.id,
-    onClick: () => setTab(t.id),
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      padding: '6px 16px',
-      border: 'none',
-      borderRadius: 6,
-      background: tab === t.id ? T.card : 'transparent',
-      color: tab === t.id ? T.text : T.muted,
-      fontWeight: tab === t.id ? 600 : 500,
-      fontSize: 12.5,
-      cursor: 'pointer',
-      boxShadow: tab === t.id ? `0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px ${T.border}` : 'none',
-      transition: 'all 0.1s'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: t.ic,
-    size: 13,
-    color: tab === t.id ? T.primary : T.muted
-  }), t.l))), /*#__PURE__*/React.createElement("div", {
+  }, typeTabs.map(t => {
+    const disabled = lockTrigger && t.id === 'trigger';
+    return /*#__PURE__*/React.createElement("button", {
+      key: t.id,
+      disabled: disabled,
+      title: disabled ? 'This workflow already has its trigger — a workflow always starts from exactly one event. Add actions and conditions instead.' : undefined,
+      onClick: () => !disabled && setTab(t.id),
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 16px',
+        border: 'none',
+        borderRadius: 6,
+        background: tab === t.id ? T.card : 'transparent',
+        color: disabled ? T.mutedSoft : tab === t.id ? T.text : T.muted,
+        fontWeight: tab === t.id ? 600 : 500,
+        fontSize: 12.5,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
+        boxShadow: tab === t.id ? `0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px ${T.border}` : 'none',
+        transition: 'all 0.1s'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: disabled ? 'lock' : t.ic,
+      size: t.id === 'trigger' && disabled ? 11 : 13,
+      color: tab === t.id ? T.primary : T.muted
+    }), t.l);
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       margin: '12px 0'
     }
@@ -87279,12 +87605,548 @@ const WfSettingsTab = ({
     color: T.primary
   }), /*#__PURE__*/React.createElement("span", null, "This is a firm ", /*#__PURE__*/React.createElement("b", null, "template"), ". Editing never changes it \u2014 when you save, Sole creates a new, editable workflow from your edits and the baseline keeps running.")));
 };
+
+// Where a workflow attaches and when it fires — the missing "entry point". Automatic vs manual, qualifying
+// entry-conditions, attach points (task / project / client / deal stage), a per-client enable/pause register
+// (so a firm can stop a default workflow for one company), and the sibling workflows that share its trigger.
+const WF_ATTACH_KINDS = [{
+  kind: 'task',
+  icon: 'check',
+  label: 'A task is completed',
+  hint: 'Runs when a task in a project is marked done.'
+}, {
+  kind: 'project',
+  icon: 'briefcase',
+  label: 'A project stage is reached',
+  hint: 'Runs when a project moves into a stage.'
+}, {
+  kind: 'client',
+  icon: 'building',
+  label: 'A client is created or tagged',
+  hint: 'Runs when a client is added or given a tag.'
+}, {
+  kind: 'dealStage',
+  icon: 'arrow',
+  label: 'A deal moves to a stage',
+  hint: 'Runs when a deal card moves swim-lane.'
+}];
+const WfActivationTab = ({
+  wf,
+  onChange,
+  onGoBuilder,
+  onOpenCompany
+}) => {
+  const act = wf.activation || {};
+  const setAct = patch => onChange({
+    activation: {
+      ...act,
+      ...patch
+    }
+  });
+  const root = wf.root ? wf.nodes[wf.root] : null;
+  const trigSummary = root ? wfNodeSummary(root) : '';
+  const startWhen = root ? root.label + (trigSummary && trigSummary !== 'Not configured' ? ' (' + trigSummary + ')' : '') : 'No trigger set yet';
+  const conditions = act.conditions || [];
+  const setConditions = next => setAct({
+    conditions: next
+  });
+  const addCondition = () => setConditions([...conditions, {
+    id: wfUid('ac'),
+    field: '',
+    op: '',
+    value: ''
+  }]);
+  const patchCondition = (id, patch) => setConditions(conditions.map(c => c.id === id ? {
+    ...c,
+    ...patch
+  } : c));
+  const removeCondition = id => setConditions(conditions.filter(c => c.id !== id));
+  const apOf = kind => (act.attachPoints || []).find(p => p.kind === kind);
+  const toggleAttach = k => {
+    const has = apOf(k.kind);
+    if (has) setAct({
+      attachPoints: (act.attachPoints || []).filter(p => p.kind !== k.kind)
+    });else setAct({
+      attachPoints: [...(act.attachPoints || []), {
+        id: wfUid('ap'),
+        kind: k.kind,
+        label: k.label
+      }]
+    });
+  };
+  const asgEnabled = cid => {
+    const a = (act.assignments || []).find(x => x.client === cid);
+    return a ? a.enabled : true;
+  };
+  const setAsg = (cid, enabled) => {
+    const list = act.assignments || [];
+    const next = list.some(x => x.client === cid) ? list.map(x => x.client === cid ? {
+      ...x,
+      enabled
+    } : x) : [...list, {
+      client: cid,
+      enabled
+    }];
+    setAct({
+      assignments: next
+    });
+  };
+  const siblings = wfSiblingWorkflows(wf);
+  const stColor = {
+    Active: 'green',
+    Draft: 'neutral',
+    'In review': 'amber',
+    Inactive: 'neutral',
+    Deprecated: 'red'
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 680,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "How this workflow starts"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 12
+    }
+  }, "A workflow always begins from one trigger that\u2019s always watching. Set what that trigger is, then qualify when it actually runs."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px',
+      background: T.primarySofter,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      fontSize: 12.5,
+      color: T.text,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "bolt",
+    size: 14,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("b", {
+    style: {
+      fontWeight: 600
+    }
+  }, "Trigger:"), " ", startWhen), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "edit",
+    onClick: onGoBuilder
+  }, "Edit on Builder")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Activation"), /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'automatic',
+      label: 'Automatic'
+    }, {
+      value: 'manual',
+      label: 'Manual'
+    }],
+    value: act.mode || 'automatic',
+    onChange: v => setAct({
+      mode: v
+    })
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, (act.mode || 'automatic') === 'automatic' ? 'Runs by itself every time the trigger fires and the conditions below are met.' : 'A team member starts each run by hand — nothing fires automatically.'))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Only run when\u2026"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 12
+    }
+  }, "Qualifying conditions, so the workflow runs only when they\u2019re all met \u2014 not on every trigger."), conditions.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px',
+      textAlign: 'center',
+      border: `1px dashed ${T.border}`,
+      borderRadius: 8
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "No conditions \u2014 the workflow runs on every trigger.")) : conditions.map((c, idx) => {
+    const fld = wfConditionFieldById(c.field);
+    const ops = fld ? WF_CONDITION_OPS[fld.type] || [] : [];
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      style: {
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        width: 28,
+        flexShrink: 0
+      }
+    }, idx === 0 ? 'IF' : 'AND'), /*#__PURE__*/React.createElement(Select, {
+      value: c.field,
+      onChange: e => {
+        const f = wfConditionFieldById(e.target.value);
+        patchCondition(c.id, {
+          field: e.target.value,
+          op: f ? (WF_CONDITION_OPS[f.type] || [])[0] : '',
+          value: ''
+        });
+      },
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "",
+      disabled: true
+    }, "Choose a value\u2026"), WF_CONDITION_FIELDS.map(f => /*#__PURE__*/React.createElement("option", {
+      key: f.id,
+      value: f.id
+    }, f.label))), fld && /*#__PURE__*/React.createElement(Select, {
+      value: c.op || ops[0],
+      onChange: e => patchCondition(c.id, {
+        op: e.target.value
+      }),
+      style: {
+        flex: '0 0 120px'
+      }
+    }, ops.map(o => /*#__PURE__*/React.createElement("option", {
+      key: o,
+      value: o
+    }, o))), fld && fld.type === 'select' && /*#__PURE__*/React.createElement(Select, {
+      value: c.value || '',
+      onChange: e => patchCondition(c.id, {
+        value: e.target.value
+      }),
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "",
+      disabled: true
+    }, "Value\u2026"), fld.options.map(o => /*#__PURE__*/React.createElement("option", {
+      key: o,
+      value: o
+    }, o))), fld && fld.type === 'number' && /*#__PURE__*/React.createElement(Input, {
+      type: "number",
+      value: c.value ?? '',
+      placeholder: "Value",
+      style: {
+        flex: 1
+      },
+      onChange: e => patchCondition(c.id, {
+        value: e.target.value === '' ? '' : Number(e.target.value)
+      })
+    }), /*#__PURE__*/React.createElement(Btn, {
+      variant: "iconOnly",
+      size: "sm",
+      title: "Remove",
+      onClick: () => removeCondition(c.id)
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "trash",
+      size: 13
+    })));
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    style: {
+      marginTop: 4
+    },
+    onClick: addCondition
+  }, "Add condition")), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Attach to"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 12
+    }
+  }, "The places this workflow can be started from across Sole. Attach it to a task and the run begins the moment that task is done."), WF_ATTACH_KINDS.map((k, i) => {
+    const ap = apOf(k.kind);
+    const on = !!ap;
+    return /*#__PURE__*/React.createElement("div", {
+      key: k.kind,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 0',
+        borderTop: i ? `1px solid ${T.border}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        background: on ? T.primarySofter : T.fieldBg,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: k.icon,
+      size: 14,
+      color: on ? T.primary : T.muted
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, ap ? ap.label : k.label), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, k.hint)), /*#__PURE__*/React.createElement(Toggle, {
+      on: on,
+      onChange: () => toggleAttach(k)
+    }));
+  })), /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 16px 6px'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Assigned clients"), /*#__PURE__*/React.createElement(Helper, null, "Which clients this workflow runs for. Pause it for a client to stop it firing for that company without deleting anything.")), PRACTICE_CLIENTS.map((c, i) => {
+    const on = asgEnabled(c.id);
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 16px',
+        borderTop: `1px solid ${T.border}`
+      }
+    }, /*#__PURE__*/React.createElement(ClientMark, {
+      client: c,
+      size: 26
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, onOpenCompany ? /*#__PURE__*/React.createElement("span", {
+      "data-link": "cell",
+      onClick: () => onOpenCompany(c.id)
+    }, c.name) : c.name), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, on ? 'Active — runs when triggered' : 'Paused — won’t fire for this client')), /*#__PURE__*/React.createElement(Pill, {
+      color: on ? 'green' : 'neutral'
+    }, on ? 'Active' : 'Paused'), /*#__PURE__*/React.createElement(Toggle, {
+      on: on,
+      onChange: v => setAsg(c.id, v)
+    }));
+  })), siblings.length > 0 && /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 16px 6px'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Runs alongside"), /*#__PURE__*/React.createElement(Helper, null, "Other workflows that start from the same trigger \u2014 they fire in parallel, each doing its own job. Open one to see or edit it.")), siblings.map(s => /*#__PURE__*/React.createElement("button", {
+    key: s.id,
+    onClick: () => wfGoToWorkflow(s.id),
+    "data-hover": "row",
+    style: {
+      width: '100%',
+      textAlign: 'left',
+      border: 'none',
+      borderTop: `1px solid ${T.border}`,
+      background: 'transparent',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 16px'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "flow",
+    size: 14,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, s.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, s.outcome)), /*#__PURE__*/React.createElement(Pill, {
+    color: stColor[s.status] || 'neutral'
+  }, s.status), /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 15,
+    color: T.muted
+  })))));
+};
+
+// Per-client run tracker — a vertical stage flow showing exactly where this client is in the workflow,
+// so you can see "it's stuck here" without drilling into the underlying module. Reuses the run-stepper's
+// visual language as a plain inline list (NOT the fixed-position WfRunProgress panel).
+const WfEnrollmentStages = ({
+  wf,
+  e,
+  onOpenCompany,
+  onContinue
+}) => {
+  const c = clientById(e.client) || {
+    name: e.client,
+    color: 'neutral'
+  };
+  const stages = wfTrackerStages(wf);
+  const pos = wfStageIndexForEnrollment(wf, e);
+  const finished = e.status === 'completed' || pos.terminal;
+  const curColor = e.status === 'failed' ? T.red : e.status === 'waiting' ? T.amber : T.primary;
+  const curSoft = e.status === 'failed' ? T.redSoft : e.status === 'waiting' ? T.amberSoft : T.primarySofter;
+  const stState = i => finished ? 'done' : i < pos.index ? 'done' : i === pos.index ? 'current' : 'upcoming';
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '2px 16px 14px 16px',
+      background: T.fieldBg,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      margin: '10px 0 12px'
+    }
+  }, finished ? 'Completed every stage — this run is closed.' : `Pending at “${e.step}”${e.status === 'waiting' ? ' — waiting on approval / client response' : e.status === 'failed' ? ' — this run stalled here' : ' — in progress'}.`), /*#__PURE__*/React.createElement("div", null, stages.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "This workflow has no steps to track yet.") : stages.map((n, i) => {
+    const st = stState(i);
+    const color = st === 'done' ? T.green : st === 'current' ? curColor : T.border;
+    const last = i === stages.length - 1;
+    return /*#__PURE__*/React.createElement("div", {
+      key: n.id,
+      style: {
+        display: 'flex',
+        gap: 12,
+        alignItems: 'flex-start'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        boxSizing: 'border-box',
+        background: st === 'done' ? T.greenSoft : st === 'current' ? curSoft : T.card,
+        border: `2px solid ${color}`,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, st === 'done' && /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 10,
+      color: T.greenDark,
+      strokeWidth: 2.5
+    }), st === 'current' && /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: color
+      }
+    })), !last && /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 2,
+        height: 22,
+        background: st === 'done' ? T.green : T.border
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        paddingBottom: last ? 0 : 6,
+        minWidth: 0,
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: st === 'current' ? 700 : 500,
+        color: st === 'upcoming' ? T.muted : T.text
+      }
+    }, n.label), st === 'current' && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: curColor,
+        fontWeight: 600,
+        marginTop: 1
+      }
+    }, e.status === 'failed' ? 'Stalled here' : e.status === 'waiting' ? 'Waiting here' : 'In progress')));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 14,
+      flexWrap: 'wrap'
+    }
+  }, c.id && onOpenCompany && /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "building",
+    onClick: () => onOpenCompany(c.id)
+  }, "Open ", c.name), e.status === 'failed' && onContinue && e.runId && /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "play",
+    onClick: () => onContinue(e.runId)
+  }, "Continue run")));
+};
 const WfEnrollmentTab = ({
   wf,
   onContinue,
   onOpenCompany
 }) => {
   const [filter, setFilter] = useState('all');
+  const [openRow, setOpenRow] = useState(-1);
   const statusColor = {
     running: 'blue',
     completed: 'green',
@@ -87335,7 +88197,10 @@ const WfEnrollmentTab = ({
     key: f.id,
     size: "sm",
     selected: activeFilter === f.id,
-    onClick: () => setFilter(f.id)
+    onClick: () => {
+      setFilter(f.id);
+      setOpenRow(-1);
+    }
   }, f.l, f.id === 'all' ? ' · ' + all.length : f.id === 'failed' ? ' · ' + failedCount : ''))), rows.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '40px 20px',
@@ -87348,14 +88213,25 @@ const WfEnrollmentTab = ({
       name: e.client,
       color: 'neutral'
     };
+    const isOpen = openRow === i;
     return /*#__PURE__*/React.createElement("div", {
       key: i,
       style: {
+        borderTop: i ? `1px solid ${T.border}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => setOpenRow(o => o === i ? -1 : i),
+      "data-hover": "row",
+      style: {
+        width: '100%',
+        textAlign: 'left',
+        border: 'none',
+        background: isOpen ? T.fieldBg : 'transparent',
+        cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         gap: 12,
-        padding: '12px 16px',
-        borderTop: i ? `1px solid ${T.border}` : 'none'
+        padding: '12px 16px'
       }
     }, /*#__PURE__*/React.createElement(ClientMark, {
       client: c,
@@ -87371,21 +88247,22 @@ const WfEnrollmentTab = ({
         fontWeight: 600,
         color: T.text
       }
-    }, c.id && onOpenCompany ? /*#__PURE__*/React.createElement("span", {
-      "data-link": "cell",
-      onClick: () => onOpenCompany(c.id)
-    }, c.name) : c.name), /*#__PURE__*/React.createElement(Helper, {
+    }, c.name), /*#__PURE__*/React.createElement(Helper, {
       style: {
         fontSize: 11.5
       }
     }, "Started ", daysAgo(e.startedAt), " \xB7 now at \u201C", e.step, "\u201D")), /*#__PURE__*/React.createElement(Pill, {
       color: statusColor[e.status] || 'neutral'
-    }, statusLabel[e.status] || e.status), e.status === 'failed' && onContinue && e.runId && /*#__PURE__*/React.createElement(Btn, {
-      variant: "soft",
-      size: "sm",
-      icon: "play",
-      onClick: () => onContinue(e.runId)
-    }, "Continue"));
+    }, statusLabel[e.status] || e.status), /*#__PURE__*/React.createElement(Icon, {
+      name: isOpen ? 'chevronDown' : 'chevronRight',
+      size: 15,
+      color: T.muted
+    })), isOpen && /*#__PURE__*/React.createElement(WfEnrollmentStages, {
+      wf: wf,
+      e: e,
+      onOpenCompany: onOpenCompany,
+      onContinue: onContinue
+    }));
   })));
 };
 const WfLogsTab = ({
@@ -87399,6 +88276,11 @@ const WfLogsTab = ({
 }) => {
   const runs = wf.runs || [];
   const [logFilter, setLogFilter] = useState('all');
+  const [view, setView] = useState(() => {
+    const v = WF_PENDING_LOGS_VIEW;
+    WF_PENDING_LOGS_VIEW = null;
+    return v || 'run';
+  }); // 'run' = per-execution log · 'client' = per-client current stage
   const toneColor = {
     ok: T.green,
     warn: T.amber,
@@ -87411,6 +88293,7 @@ const WfLogsTab = ({
   }) => {
     const stalled = run.status === 'stalled' || run.status === 'fail';
     const [open, setOpen] = useState(stalled);
+    const [openStep, setOpenStep] = useState(-1);
     const fs = run.steps[run.failedStepIndex];
     const failedNodeId = fs ? fs.nodeId && wf.nodes[fs.nodeId] ? fs.nodeId : (Object.values(wf.nodes).find(n => n.label === fs.label) || {}).id : null;
     const pill = run.sim ? {
@@ -87486,16 +88369,28 @@ const WfLogsTab = ({
       }
     }, run.steps.map((s, i) => {
       const isFail = i === run.failedStepIndex;
+      const isOpen = openStep === i;
+      const node = s.nodeId && wf.nodes[s.nodeId] || Object.values(wf.nodes).find(n => n.label === s.label) || null;
       return /*#__PURE__*/React.createElement("div", {
         key: i,
         style: {
+          margin: '2px -10px',
+          borderRadius: 8,
+          background: isFail ? T.redSoft : isOpen ? T.fieldBg : 'transparent'
+        }
+      }, /*#__PURE__*/React.createElement("button", {
+        onClick: () => setOpenStep(o => o === i ? -1 : i),
+        "data-hover": "row",
+        style: {
+          width: '100%',
+          textAlign: 'left',
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
           display: 'flex',
           gap: 10,
           padding: '7px 10px',
-          margin: '2px -10px',
-          alignItems: 'flex-start',
-          background: isFail ? T.redSoft : 'transparent',
-          borderRadius: 8
+          alignItems: 'flex-start'
         }
       }, /*#__PURE__*/React.createElement("span", {
         style: {
@@ -87529,7 +88424,23 @@ const WfLogsTab = ({
         style: {
           fontSize: 11.5
         }
-      }, s.outcome)));
+      }, s.outcome)), /*#__PURE__*/React.createElement("span", {
+        style: {
+          marginTop: 3,
+          flexShrink: 0
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: isOpen ? 'chevronDown' : 'chevronRight',
+        size: 13,
+        color: T.mutedSoft
+      }))), isOpen && /*#__PURE__*/React.createElement("div", {
+        style: {
+          padding: '0 10px 10px 28px'
+        }
+      }, /*#__PURE__*/React.createElement(WfStepInspect, {
+        node: node,
+        step: s
+      })));
     }), stalled && run.reason && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 10,
@@ -87634,6 +88545,34 @@ const WfLogsTab = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'run',
+      label: 'By run'
+    }, {
+      value: 'client',
+      label: 'By client'
+    }],
+    value: view,
+    onChange: setView
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      flex: 1,
+      minWidth: 180
+    }
+  }, view === 'run' ? 'Every execution and what happened at each step.' : 'Where each client is right now — the stage they’ve reached or stalled at.')), view === 'client' ? /*#__PURE__*/React.createElement(WfEnrollmentTab, {
+    wf: wf,
+    onContinue: onContinue,
+    onOpenCompany: onOpenCompany
+  }) : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
       gap: 12,
       marginBottom: 16
     }
@@ -87708,7 +88647,7 @@ const WfLogsTab = ({
   }, /*#__PURE__*/React.createElement(Helper, null, runs.length === 0 ? /*#__PURE__*/React.createElement(React.Fragment, null, "No runs yet. Use ", /*#__PURE__*/React.createElement("b", null, "Test"), " in the header to simulate a run.") : 'No runs match this filter.'))), shown.map(r => /*#__PURE__*/React.createElement(RunCard, {
     key: r.id,
     run: r
-  }))));
+  })))));
 };
 
 // ---- role / access preview ----
@@ -88420,7 +89359,97 @@ const WfTerminalPanel = ({
 // spinner pill (click to expand) → a vertical stepper where each step shows status and,
 // on click, its detail + re-glows the matching canvas node. "View as log" flips to the
 // raw terminal (WfTerminalPanel) for power users. Replaces the terminal as the default.
+// Friendly "inspect this step" detail — request/response-style key→value groups (Input · Action · Result ·
+// Timing), the way you'd inspect an API call, but in plain language. Shown when a run/sim step is expanded.
+const WfStepInspect = ({
+  node,
+  step
+}) => {
+  const data = wfStepInspect(node, step);
+  const groups = [{
+    key: 'input',
+    label: 'Input',
+    icon: 'arrow'
+  }, {
+    key: 'action',
+    label: 'Action',
+    icon: 'bolt'
+  }, {
+    key: 'result',
+    label: 'Result',
+    icon: 'check'
+  }, {
+    key: 'timing',
+    label: 'Timing',
+    icon: 'clock'
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, groups.map(g => {
+    const rows = data[g.key] || [];
+    if (!rows.length) return null;
+    return /*#__PURE__*/React.createElement("div", {
+      key: g.key,
+      style: {
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        overflow: 'hidden',
+        background: T.card
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '5px 10px',
+        background: T.fieldBg,
+        borderBottom: `1px solid ${T.border}`
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: g.icon,
+      size: 11,
+      color: T.muted
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.4,
+        textTransform: 'uppercase',
+        color: T.muted
+      }
+    }, g.label)), /*#__PURE__*/React.createElement("div", null, rows.map((r, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        gap: 10,
+        padding: '5px 10px',
+        borderTop: i ? `1px solid ${T.border}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 120,
+        flexShrink: 0,
+        fontSize: 11,
+        color: T.muted,
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace'
+      }
+    }, r.k), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: 11.5,
+        color: T.text,
+        wordBreak: 'break-word'
+      }
+    }, r.v)))));
+  }));
+};
 const WfRunProgress = ({
+  wf,
   open,
   steps,
   stepIdx,
@@ -88723,12 +89752,18 @@ const WfRunProgress = ({
       color: T.mutedSoft
     })), isOpen && /*#__PURE__*/React.createElement("div", {
       style: {
-        padding: '0 14px 11px 36px',
+        padding: '0 14px 11px 36px'
+      }
+    }, wf ? /*#__PURE__*/React.createElement(WfStepInspect, {
+      node: s.nodeId && wf.nodes[s.nodeId] || Object.values(wf.nodes).find(n => n.label === s.label) || null,
+      step: s
+    }) : /*#__PURE__*/React.createElement("div", {
+      style: {
         fontSize: 11.5,
         color: T.textSoft,
         lineHeight: 1.5
       }
-    }, s.outcome));
+    }, s.outcome)));
   })));
 };
 
@@ -89204,6 +90239,98 @@ const WfBuilderRail = ({
         onOpen: onOpenStaff,
         size: 22
       }))) : null;
+    })(), node.type === 'condition' && (() => {
+      const check = cfg.check || {};
+      const fld = wfConditionFieldById(check.field);
+      const ops = fld ? WF_CONDITION_OPS[fld.type] || [] : [];
+      const setCheck = patch => setField('check', {
+        ...check,
+        ...patch
+      });
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 14,
+          paddingTop: 14,
+          borderTop: `1px solid ${T.border}`
+        }
+      }, /*#__PURE__*/React.createElement(Label, null, "Check a value ", /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontWeight: 400,
+          color: T.muted
+        }
+      }, "\xB7 optional")), /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          marginBottom: 8
+        }
+      }, "Branch on a real value \u2014 e.g. \u201CIs the proposal signed?\u201D or \u201CAre all tasks complete?\u201D"), /*#__PURE__*/React.createElement(Select, {
+        value: check.field || '',
+        onChange: e => {
+          const f = wfConditionFieldById(e.target.value);
+          setField('check', e.target.value ? {
+            field: e.target.value,
+            op: (WF_CONDITION_OPS[f.type] || [])[0],
+            value: ''
+          } : undefined);
+        }
+      }, /*#__PURE__*/React.createElement("option", {
+        value: ""
+      }, "No value check \u2014 branch manually"), WF_CONDITION_FIELDS.map(f => /*#__PURE__*/React.createElement("option", {
+        key: f.id,
+        value: f.id
+      }, f.label))), fld && /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 8,
+          marginTop: 8
+        }
+      }, /*#__PURE__*/React.createElement(Select, {
+        value: check.op || ops[0],
+        onChange: e => setCheck({
+          op: e.target.value
+        }),
+        style: {
+          flex: fld.type === 'bool' ? 1 : '0 0 130px'
+        }
+      }, ops.map(o => /*#__PURE__*/React.createElement("option", {
+        key: o,
+        value: o
+      }, o))), fld.type === 'select' && /*#__PURE__*/React.createElement(Select, {
+        value: check.value || '',
+        onChange: e => setCheck({
+          value: e.target.value
+        }),
+        style: {
+          flex: 1
+        }
+      }, /*#__PURE__*/React.createElement("option", {
+        value: "",
+        disabled: true
+      }, "Choose\u2026"), fld.options.map(o => /*#__PURE__*/React.createElement("option", {
+        key: o,
+        value: o
+      }, o))), fld.type === 'number' && /*#__PURE__*/React.createElement(Input, {
+        type: "number",
+        value: check.value ?? '',
+        placeholder: "Value",
+        style: {
+          flex: 1
+        },
+        onChange: e => setCheck({
+          value: e.target.value === '' ? '' : Number(e.target.value)
+        })
+      })), fld && /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginTop: 8
+        }
+      }, /*#__PURE__*/React.createElement(Pill, {
+        color: "blue",
+        style: {
+          gap: 4
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "flow",
+        size: 9
+      }), wfCheckSummary(check))));
     })(), node.type === 'condition' && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 14
@@ -89878,6 +91005,12 @@ const WorkflowBuilderPage = ({
   // Single insertion path shared by the palette drawer, the quick-add menu and the
   // advanced canvas. openDrawer auto-opens the config drawer for steps worth configuring.
   const insertItem = (item, target, opts) => {
+    // A workflow has exactly one trigger (always watching). Block adding a second one mid-graph — only
+    // actions and conditions can follow the root. The legit first-trigger path uses target.mode==='trigger'.
+    if (wf.root && (!target || target.mode !== 'trigger') && (!item.type || item.type === 'trigger')) {
+      fireToast('A workflow has a single trigger — add actions or conditions instead.');
+      return null;
+    }
     const node = mkWorkflowNode(item);
     const tgt = target && target.mode === 'trigger' ? {} : target;
     markDirty();
@@ -90143,15 +91276,14 @@ const WorkflowBuilderPage = ({
     label: 'Builder',
     count: Object.keys(wf.nodes).length
   }, {
+    id: 'activation',
+    label: 'Activation'
+  }, {
     id: 'settings',
     label: 'Settings'
   }, {
-    id: 'enrollment',
-    label: 'Enrollment History',
-    count: (wf.enrollments || []).length
-  }, {
     id: 'logs',
-    label: 'Execution Logs',
+    label: 'Runs',
     count: (wf.runs || []).length + (simLog ? 1 : 0)
   }, {
     id: 'testpublish',
@@ -90467,14 +91599,15 @@ const WorkflowBuilderPage = ({
       overflow: 'auto',
       padding: '20px 28px 48px'
     }
-  }, tab === 'settings' && /*#__PURE__*/React.createElement(WfSettingsTab, {
+  }, tab === 'activation' && /*#__PURE__*/React.createElement(WfActivationTab, {
+    wf: wf,
+    onChange: setPatch,
+    onGoBuilder: () => setTab('builder'),
+    onOpenCompany: setOpenCompanyId
+  }), tab === 'settings' && /*#__PURE__*/React.createElement(WfSettingsTab, {
     wf: wf,
     onChange: setPatch,
     onAddGates: handleAddGates
-  }), tab === 'enrollment' && /*#__PURE__*/React.createElement(WfEnrollmentTab, {
-    wf: wf,
-    onContinue: onContinueRun,
-    onOpenCompany: setOpenCompanyId
   }), tab === 'logs' && /*#__PURE__*/React.createElement(WfLogsTab, {
     wf: wf,
     simLog: simLog,
@@ -90498,6 +91631,7 @@ const WorkflowBuilderPage = ({
   }))), /*#__PURE__*/React.createElement(WfPaletteDrawer, {
     open: !!palette,
     initialTab: palette && palette.mode === 'trigger' ? 'trigger' : 'action',
+    lockTrigger: !!wf.root && !(palette && palette.mode === 'trigger'),
     onClose: () => setPalette(null),
     onPick: handlePick
   }), quickAdd && /*#__PURE__*/React.createElement(WfQuickAddMenu, {
@@ -90526,6 +91660,7 @@ const WorkflowBuilderPage = ({
     onDelete: onDeleteTemplate,
     onClose: () => setTplEditor(null)
   }), /*#__PURE__*/React.createElement(WfRunProgress, {
+    wf: wf,
     open: simTermOpen,
     steps: simSteps,
     stepIdx: simStepIdx,
@@ -90906,7 +92041,12 @@ const WorkflowRow = ({
       fontWeight: 600,
       color: T.text
     }
-  }, wf.name), wf.isBaseline && /*#__PURE__*/React.createElement(Pill, {
+  }, wf.name), /*#__PURE__*/React.createElement(Pill, {
+    color: WF_STATUS_COLOR[wf.status] || 'neutral',
+    style: {
+      fontSize: 10
+    }
+  }, wf.status), wf.isBaseline && /*#__PURE__*/React.createElement(Pill, {
     color: "accent",
     style: {
       fontSize: 9.5,
@@ -90915,7 +92055,15 @@ const WorkflowRow = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "lock",
     size: 9
-  }), "Template"), /*#__PURE__*/React.createElement("span", {
+  }), "Template")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 7,
+      marginTop: 5,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -90931,26 +92079,26 @@ const WorkflowRow = ({
     name: m.icon,
     size: 10,
     color: tint.fg
-  }), m.label), /*#__PURE__*/React.createElement(Pill, {
-    color: WF_STATUS_COLOR[wf.status] || 'neutral',
+  }), m.label), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 10
-    }
-  }, wf.status), /*#__PURE__*/React.createElement(Pill, {
-    color: levelColor[wf.level] || 'neutral',
-    style: {
-      fontSize: 10
+      fontSize: 11,
+      color: T.muted
     }
   }, wf.level), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 10.5,
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, "\xB7"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
       color: T.mutedSoft,
       fontWeight: 600
     }
   }, "v", wf.version)), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11.5,
-      marginTop: 3
+      marginTop: 5
     }
   }, wf.outcome || 'No outcome described yet'), activity && /*#__PURE__*/React.createElement("div", {
     style: {
@@ -90970,10 +92118,19 @@ const WorkflowRow = ({
     }
   }, activity))), /*#__PURE__*/React.createElement("div", {
     style: {
-      textAlign: 'right',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-end',
+      gap: 5,
       flexShrink: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 13,
       fontWeight: 700,
@@ -90984,17 +92141,17 @@ const WorkflowRow = ({
     style: {
       fontSize: 11
     }
-  }, "runs"), wfFailCount(wf) > 0 && /*#__PURE__*/React.createElement(Pill, {
+  }, "runs")), wfFailCount(wf) > 0 && /*#__PURE__*/React.createElement(Pill, {
     color: "red",
     style: {
       fontSize: 9.5,
-      marginTop: 4,
       gap: 3
-    }
+    },
+    title: wfFailCount(wf) + ' run' + (wfFailCount(wf) === 1 ? '' : 's') + ' need' + (wfFailCount(wf) === 1 ? 's' : '') + ' attention'
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "alertTriangle",
     size: 9
-  }), wfFailCount(wf), " need", wfFailCount(wf) === 1 ? 's' : '', " attention")), /*#__PURE__*/React.createElement("button", {
+  }), wfFailCount(wf), " stalled")), /*#__PURE__*/React.createElement("button", {
     onClick: openMenu,
     title: "Actions",
     "data-hover": "row",
@@ -91051,8 +92208,10 @@ const WorkflowRow = ({
 // Lets a caller (e.g. the attention rail) deep-link to a specific builder tab.
 // Read once on builder mount (which remounts per workflow via key={route.id}) then cleared.
 let WF_PENDING_TAB = null;
-const wfGoToWorkflow = (id, tab) => {
+let WF_PENDING_LOGS_VIEW = null; // 'run' | 'client' — which Runs sub-view to open when deep-linking to 'logs'
+const wfGoToWorkflow = (id, tab, logsView) => {
   WF_PENDING_TAB = tab || null;
+  WF_PENDING_LOGS_VIEW = logsView || null;
   window.location.hash = '#/practice/workflow-builder/' + id;
 };
 
@@ -91088,7 +92247,8 @@ const wfAttentionItems = () => {
       title: w.name,
       detail: waiting + ' client' + (waiting === 1 ? '' : 's') + ' awaiting approval',
       cta: 'View',
-      tab: 'enrollment'
+      tab: 'logs',
+      logsView: 'client'
     });
     if (w.status === 'In review') items.push({
       id: w.id + '-review',
@@ -91184,7 +92344,7 @@ const WfAttentionRail = ({
     }, it.detail)), /*#__PURE__*/React.createElement(Btn, {
       variant: "soft",
       size: "sm",
-      onClick: () => wfGoToWorkflow(it.wfId, it.tab)
+      onClick: () => wfGoToWorkflow(it.wfId, it.tab, it.logsView)
     }, it.cta));
   })));
 };
@@ -91452,18 +92612,6 @@ const WorkflowLibraryPage = ({
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      gap: 16,
-      alignItems: 'flex-start',
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: '1 1 480px',
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
       alignItems: 'center',
       gap: 8,
       flexWrap: 'wrap',
@@ -91501,7 +92649,19 @@ const WorkflowLibraryPage = ({
     size: "sm",
     selected: statusFilter === s,
     onClick: () => setStatusFilter(s)
-  }, s === 'all' ? 'All' : s))), shown.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, s === 'all' ? 'All' : s))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 16,
+      alignItems: 'flex-start',
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 480px',
+      minWidth: 0
+    }
+  }, shown.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       border: `1px dashed ${T.border}`,
       borderRadius: 12,
