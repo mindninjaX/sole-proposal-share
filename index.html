@@ -352,6 +352,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
      a Btn-atom variant (e.g. table row actions, kebab triggers, list rows). */
   [data-hover="row"]:not(:disabled)                     { transition: background 0.1s; }
   [data-hover="row"]:not(:disabled):hover               { background: #F9FAFB; }
+  /* Notification rows: quick-action strip stays hidden until the row is hovered,
+     keeping the list calm at scale (reveal-on-hover, like an email client). */
+  [data-ntf-row] .ntf-actions                           { opacity: 0; transition: opacity 0.12s; }
+  [data-ntf-row]:hover .ntf-actions                     { opacity: 1; }
+  [data-ntf-row]:hover                                  { background: #F9FAFB; }
   button[data-hover="surface"]:not(:disabled)           { transition: background 0.12s, border-color 0.12s; }
   button[data-hover="surface"]:not(:disabled):hover     { background: #F3F4F6; border-color: #D1D5DB; }
   /* Dashboard interactives — lift + indigo halo so KPIs/tiles feel clickable
@@ -59184,10 +59189,48 @@ const isdStaff = id => ISD_STAFF.find(s => s.id === id) || null;
 // bump a local rev to re-render — the same CustomEvent bus the proposal editor
 // uses for 'preview:focus'. No backend; this resets on reload.
 let _ntfSeq = 2000;
+// "You" in this prototype is Sarah Mitchell (sm) — matches the comment composer.
+const ME_ID = 'sm';
 let PRACTICE_NOTIFICATIONS = [
-// Review events that match the seeded Work Management states (wm1/wm4/wm6)…
+// Needs-your-action: review requests assigned to you, changes on your task, a mention, an SLA…
 {
   id: 'ntf-1',
+  kind: 'review_requested',
+  actorId: 'ac',
+  recipientId: 'sm',
+  taskId: 'wm1',
+  taskName: 'Send email outreach to existing database',
+  at: 'just now',
+  read: false
+}, {
+  id: 'ntf-2',
+  kind: 'review_requested',
+  actorId: 'md',
+  recipientId: 'sm',
+  taskId: 'wm3',
+  taskName: 'Website content',
+  at: '40m ago',
+  read: false
+}, {
+  id: 'ntf-3',
+  kind: 'review_requested',
+  actorId: 'tb',
+  recipientId: 'sm',
+  taskId: 'wm8',
+  taskName: 'Create social media ads',
+  at: '2h ago',
+  read: false
+}, {
+  id: 'ntf-4',
+  kind: 'review_resubmitted',
+  actorId: 'jl',
+  recipientId: 'sm',
+  taskId: 'wm10',
+  taskName: 'Set up qualification scorecard',
+  at: '3h ago',
+  read: false
+}, {
+  id: 'ntf-5',
   kind: 'review_changes',
   actorId: 'ac',
   recipientId: 'sm',
@@ -59197,27 +59240,7 @@ let PRACTICE_NOTIFICATIONS = [
   at: '1d ago',
   read: false
 }, {
-  id: 'ntf-2',
-  kind: 'review_requested',
-  actorId: 'sm',
-  recipientId: 'ac',
-  taskId: 'wm1',
-  taskName: 'Send email outreach to existing database',
-  at: '2h ago',
-  read: false
-}, {
-  id: 'ntf-3',
-  kind: 'review_approved',
-  actorId: 'tb',
-  recipientId: 'jl',
-  taskId: 'wm4',
-  taskName: 'New Website Design Request',
-  at: '1d ago',
-  read: true
-},
-// …plus a few non-review items so the feed reads like a real inbox.
-{
-  id: 'ntf-4',
+  id: 'ntf-6',
   kind: 'mention',
   actorId: 'md',
   recipientId: 'sm',
@@ -59227,7 +59250,7 @@ let PRACTICE_NOTIFICATIONS = [
   at: '4h ago',
   read: false
 }, {
-  id: 'ntf-5',
+  id: 'ntf-7',
   kind: 'sla',
   actorId: null,
   recipientId: 'sm',
@@ -59236,8 +59259,28 @@ let PRACTICE_NOTIFICATIONS = [
   note: 'Due in 2 days · lodgement pack not started',
   at: '6h ago',
   read: false
+},
+// …updates / FYI: approvals + system.
+{
+  id: 'ntf-8',
+  kind: 'review_approved',
+  actorId: 'tb',
+  recipientId: 'sm',
+  taskId: 'wm4',
+  taskName: 'New Website Design Request',
+  at: '1d ago',
+  read: true
 }, {
-  id: 'ntf-6',
+  id: 'ntf-9',
+  kind: 'review_approved',
+  actorId: 'jl',
+  recipientId: 'sm',
+  taskId: 'wm12',
+  taskName: 'Tax Return — Davidson Enterprises',
+  at: '1d ago',
+  read: true
+}, {
+  id: 'ntf-10',
   kind: 'system',
   actorId: null,
   recipientId: 'sm',
@@ -59245,52 +59288,64 @@ let PRACTICE_NOTIFICATIONS = [
   at: 'Yesterday',
   read: true
 }];
-// kind → { icon, tone, label, phrase(actorShort) }. tone keys map to NTF_TONE below.
+// kind → { icon, tone, label, verb (no actor — the page renders an actor chip),
+// action (does it need a decision from you → the "Needs action" bucket) }.
 const NTF_KIND = {
   review_requested: {
     icon: 'eye',
     tone: 'blue',
     label: 'Review request',
-    phrase: a => `${a} asked you to review`
+    verb: 'needs your review on',
+    action: true
   },
   review_resubmitted: {
     icon: 'eye',
     tone: 'blue',
     label: 'Re-submitted',
-    phrase: a => `${a} re-submitted for review`
-  },
-  review_approved: {
-    icon: 'checkCircle',
-    tone: 'green',
-    label: 'Review approved',
-    phrase: a => `${a} approved your task`
+    verb: 're-submitted for review',
+    action: true
   },
   review_changes: {
     icon: 'alertTriangle',
     tone: 'amber',
     label: 'Changes requested',
-    phrase: a => `${a} requested changes on`
+    verb: 'requested changes on',
+    action: true
   },
   mention: {
     icon: 'messageSquare',
     tone: 'blue',
     label: 'Mention',
-    phrase: a => `${a} mentioned you on`
+    verb: 'mentioned you on',
+    action: true
   },
   sla: {
     icon: 'flame',
     tone: 'red',
     label: 'SLA alert',
-    phrase: () => `Deadline approaching for`
+    verb: '',
+    action: true
+  },
+  review_approved: {
+    icon: 'checkCircle',
+    tone: 'green',
+    label: 'Approved',
+    verb: 'approved',
+    action: false
   },
   system: {
     icon: 'bell',
     tone: 'neutral',
     label: 'System',
-    phrase: () => `System update`
+    verb: '',
+    action: false
   }
 };
+const ntfNeedsAction = n => !!(NTF_KIND[n.kind] && NTF_KIND[n.kind].action) && !n.read;
+// Mock recency bucketing off the display string (no real timestamps here).
+const ntfBucket = n => /(just now|\d+\s*[mh]\s*ago|today)/i.test(n.at || '') ? 'Today' : 'Earlier';
 const notifyUnread = () => PRACTICE_NOTIFICATIONS.filter(n => !n.read).length;
+const notifyActionCount = () => PRACTICE_NOTIFICATIONS.filter(ntfNeedsAction).length;
 const _notifyEmit = () => {
   try {
     window.dispatchEvent(new CustomEvent('spm:notify'));
@@ -59312,6 +59367,189 @@ const markNotificationsRead = ids => {
     read: true
   } : n);
   _notifyEmit();
+};
+// Archive = "Done" — clears items out of the inbox so the list stays manageable
+// at volume. They move to the Done view.
+const archiveNotifications = (ids, on = true) => {
+  const set = ids ? new Set(ids) : null;
+  PRACTICE_NOTIFICATIONS = PRACTICE_NOTIFICATIONS.map(n => !set || set.has(n.id) ? {
+    ...n,
+    archived: on,
+    read: on ? true : n.read
+  } : n);
+  _notifyEmit();
+};
+// Category model for the secondary sidebar. Each view answers "does this
+// notification belong here?" Archived items only appear in Done.
+const ntfMatchesView = (view, n) => {
+  if (n.archived) return view === 'done';
+  switch (view) {
+    case 'inbox':
+      return true;
+    case 'action':
+      return ntfNeedsAction(n);
+    case 'done':
+      return false;
+    case 'reviews':
+      return n.kind.indexOf('review') === 0 && n.kind !== 'review_approved';
+    case 'mentions':
+      return n.kind === 'mention';
+    case 'approvals':
+      return n.kind === 'review_approved';
+    case 'alerts':
+      return n.kind === 'sla';
+    case 'system':
+      return n.kind === 'system';
+    default:
+      return true;
+  }
+};
+// Rail badge counts: unread for live views, total for Done.
+const ntfViewCount = view => view === 'done' ? PRACTICE_NOTIFICATIONS.filter(n => n.archived).length : PRACTICE_NOTIFICATIONS.filter(n => ntfMatchesView(view, n) && !n.read).length;
+
+// ── Work Management review state (cross-route SSOT) ──────────────────────
+// Lifted out of WorkManagementPage's local `extras` so the Notifications inbox
+// drawer can Approve / Request-changes and have it reflect in the task pane (and
+// vice-versa). state ∈ none | in_review | changes_requested | approved. Each
+// action pushes a notification + emits 'spm:notify'; both surfaces re-render.
+let WM_REVIEW = {
+  wm1: {
+    state: 'in_review',
+    submittedAt: 'just now'
+  },
+  wm3: {
+    state: 'in_review',
+    submittedAt: '40m ago'
+  },
+  wm8: {
+    state: 'in_review',
+    submittedAt: '2h ago'
+  },
+  wm10: {
+    state: 'in_review',
+    submittedAt: '3h ago'
+  },
+  wm6: {
+    state: 'changes_requested',
+    note: 'Reviewer flagged the email step — we lose ~14% of signups there.',
+    decidedAt: '1d ago'
+  },
+  wm4: {
+    state: 'approved',
+    decidedAt: '1d ago'
+  },
+  wm12: {
+    state: 'approved',
+    decidedAt: '1d ago'
+  }
+};
+const wmReviewState = taskId => WM_REVIEW[taskId] && WM_REVIEW[taskId].state || 'none';
+const wmReviewSlot = taskId => WM_REVIEW[taskId] || {};
+const wmTaskById = taskId => {
+  for (const p of WM_PROJECTS) {
+    const t = p.tasks.find(x => x.id === taskId);
+    if (t) return {
+      ...t,
+      _projectName: p.name,
+      _projectColor: p.color
+    };
+  }
+  return null;
+};
+const wmDefaultReviewer = task => {
+  if (!task) return null;
+  const i = ISD_STAFF.findIndex(s => s.id === task.assignee);
+  return i < 0 ? null : ISD_STAFF[(i + 1) % ISD_STAFF.length];
+};
+const _wmReviewSnap = () => Object.assign({}, WM_REVIEW);
+const _wmReviewSet = (taskId, val) => {
+  WM_REVIEW = {
+    ...WM_REVIEW,
+    [taskId]: val
+  };
+};
+const _wmReviewDel = taskId => {
+  const n = {
+    ...WM_REVIEW
+  };
+  delete n[taskId];
+  WM_REVIEW = n;
+};
+const _reviewToast = (fireToast, message, prev, undoMsg) => {
+  if (fireToast) fireToast({
+    message,
+    action: {
+      label: 'Undo',
+      onClick: () => {
+        WM_REVIEW = prev;
+        _notifyEmit();
+        fireToast(undoMsg || 'Reverted');
+      }
+    }
+  });
+};
+// opts: { fireToast, reviewer } — reviewer overrides the round-robin default
+// (the task pane passes its override-aware reviewer; the inbox drawer uses the default).
+const reviewSubmit = (taskId, opts = {}) => {
+  const prev = _wmReviewSnap();
+  const task = wmTaskById(taskId);
+  const r = opts.reviewer || wmDefaultReviewer(task);
+  const wasRework = wmReviewState(taskId) === 'changes_requested';
+  _wmReviewSet(taskId, {
+    state: 'in_review',
+    submittedAt: 'just now'
+  });
+  if (task && r) pushNotification({
+    kind: wasRework ? 'review_resubmitted' : 'review_requested',
+    actorId: task.assignee,
+    recipientId: r.id,
+    taskId,
+    taskName: task.name
+  });else _notifyEmit();
+  _reviewToast(opts.fireToast, r ? `Sent to ${r.name} for review` : 'Submitted for review', prev, 'Submission withdrawn');
+};
+const reviewApprove = (taskId, opts = {}) => {
+  const prev = _wmReviewSnap();
+  const task = wmTaskById(taskId);
+  const r = opts.reviewer || wmDefaultReviewer(task);
+  _wmReviewSet(taskId, {
+    state: 'approved',
+    decidedAt: 'just now'
+  });
+  if (task && r) pushNotification({
+    kind: 'review_approved',
+    actorId: r.id,
+    recipientId: task.assignee,
+    taskId,
+    taskName: task.name
+  });else _notifyEmit();
+  _reviewToast(opts.fireToast, `Approved${r ? ' by ' + r.name : ''} · lodged`, prev, 'Approval reverted');
+};
+const reviewRequestChanges = (taskId, note, opts = {}) => {
+  if (!note || !note.trim()) return;
+  const prev = _wmReviewSnap();
+  const task = wmTaskById(taskId);
+  const r = opts.reviewer || wmDefaultReviewer(task);
+  _wmReviewSet(taskId, {
+    state: 'changes_requested',
+    note: note.trim(),
+    decidedAt: 'just now'
+  });
+  if (task && r) pushNotification({
+    kind: 'review_changes',
+    actorId: r.id,
+    recipientId: task.assignee,
+    taskId,
+    taskName: task.name,
+    note: note.trim()
+  });else _notifyEmit();
+  _reviewToast(opts.fireToast, 'Changes requested — sent back to assignee', prev, 'Reverted');
+};
+const reviewClear = (taskId, opts = {}) => {
+  const prev = _wmReviewSnap();
+  _wmReviewDel(taskId);
+  _notifyEmit();
+  _reviewToast(opts.fireToast, opts.message || 'Reopened for editing', prev, opts.undoMsg || 'Restored');
 };
 const ISD_TONE = {
   red: {
@@ -66368,30 +66606,18 @@ const WorkManagementPage = ({
   //   review: { state, submittedAt, decidedAt, note } }  ← reviewer flow (see below).
   // Seed a few tasks mid-review so the flow is visible on load (the chosen tasks'
   // existing seed `status` already implies the state — no contradiction).
-  const [extras, setExtras] = useState(() => ({
-    // wm6 ('Reworked') — reviewer sent it back; the note matches WM_COMMENT_BODIES.wm6.
-    wm6: {
-      review: {
-        state: 'changes_requested',
-        note: 'Reviewer flagged the email step — we lose ~14% of signups there.',
-        decidedAt: '1d ago'
-      }
-    },
-    // wm4 ('Reviewed') — approved but not yet lodged, so it displays "Reviewed".
-    wm4: {
-      review: {
-        state: 'approved',
-        decidedAt: '1d ago'
-      }
-    },
-    // wm1 ('In Progress') — submitted, awaiting the reviewer (Approve / Request changes reachable).
-    wm1: {
-      review: {
-        state: 'in_review',
-        submittedAt: '2h ago'
-      }
-    }
-  }));
+  // Review state is no longer stored here — it lives in the cross-route module
+  // store `WM_REVIEW` (so the Notifications inbox drawer can act on it too). This
+  // map still owns completion (no-reviewer tasks), comments, assignee, etc.
+  const [extras, setExtras] = useState({});
+  // Re-render when the shared review store / notifications change (e.g. a review
+  // approved from the inbox drawer must reflect here immediately).
+  const [, _bumpReview] = useState(0);
+  useEffect(() => {
+    const h = () => _bumpReview(x => x + 1);
+    window.addEventListener('spm:notify', h);
+    return () => window.removeEventListener('spm:notify', h);
+  }, []);
   // Flatten with project context for the detail pane + KPI math.
   const allTasksWithProject = projects.flatMap(p => p.tasks.map(t => ({
     ...t,
@@ -66401,7 +66627,11 @@ const WorkManagementPage = ({
   })));
   const selected = allTasksWithProject.find(t => t.id === selectedId) || allTasksWithProject[0];
   const selectedExtras = extras[selected.id] || {};
-  const isCompleted = id => !!(extras[id] && extras[id].completed);
+  // Done/Lodged = review-approved (reviewer tasks; approval IS completion) OR
+  // manually completed (no-reviewer tasks, where review state stays 'none').
+  // Derived from the module store so it doesn't forward-reference taskReviewer
+  // (which is defined later — calling it here would hit a TDZ during the KPI calcs).
+  const isCompleted = id => wmReviewState(id) === 'approved' || !!(extras[id] && extras[id].completed);
   const toggleProject = id => setOpen(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -66554,9 +66784,10 @@ const WorkManagementPage = ({
   // A task may carry an OPTIONAL reviewer (taskReviewer, above). When it
   // does, the assignee can't complete it directly — they submit it for
   // review and the reviewer must Approve or Request changes first. The
-  // lifecycle lives on extras[id].review.state:
+  // lifecycle lives in the cross-route module store `WM_REVIEW` (so the
+  // Notifications inbox drawer acts on the same state):
   //   none → in_review → approved (→ completable)  |  changes_requested (→ re-submit)
-  const reviewState = task => extras[task.id] && extras[task.id].review && extras[task.id].review.state || 'none';
+  const reviewState = task => wmReviewState(task.id);
   const hasReviewer = task => !!taskReviewer(task);
   const canCompleteDirectly = task => !hasReviewer(task) || reviewState(task) === 'approved';
   // The label shown in the Status row + list-row pill: completion and the
@@ -66604,134 +66835,52 @@ const WorkManagementPage = ({
     reviewerId: null
   }, 'Reviewer restored', 'Reviewer cleared');
 
-  // ── Reviewer-flow actions (all capture prev state + Undo toast) ─────
-  // Assignee submits (first time OR re-submits after changes were requested).
-  const submitForReview = taskId => {
-    const task = allTasksWithProject.find(t => t.id === taskId);
-    const r = task && taskReviewer(task);
-    const wasRework = task && reviewState(task) === 'changes_requested';
-    patchExtras(taskId, {
-      review: {
-        state: 'in_review',
-        submittedAt: 'just now'
-      }
-    }, 'Submission withdrawn', r ? `Sent to ${r.name} for review` : 'Submitted for review');
-    if (task && r) pushNotification({
-      kind: wasRework ? 'review_resubmitted' : 'review_requested',
-      actorId: taskAssignee(task).id,
-      recipientId: r.id,
-      taskId,
-      taskName: task.name
-    });
+  // ── Reviewer-flow actions ────────────────────────────────────────────
+  // Thin wrappers over the module-level review actions (which own WM_REVIEW +
+  // push notifications + emit). The pane passes its override-aware reviewer so
+  // the notification names the right person; the inbox drawer uses the default.
+  const reviewerOf = taskId => {
+    const t = allTasksWithProject.find(x => x.id === taskId);
+    return t ? taskReviewer(t) : null;
   };
-  // Assignee pulls a submission back before it's been decided.
-  const withdrawReview = taskId => patchExtras(taskId, {
-    review: null
-  }, 'Submission restored', 'Submission withdrawn');
-  // Reviewer approves → task is approved AND completed (lodged); a reviewer
-  // note lands in the thread. One setExtras so Undo restores everything.
-  const approveReview = taskId => {
-    const task = allTasksWithProject.find(t => t.id === taskId);
-    const r = task && taskReviewer(task);
-    const prev = extras;
-    const list = prev[taskId] && prev[taskId].comments || [];
-    const note = {
-      author: r ? r.name : 'Reviewer',
-      initials: r ? r.initials : 'RV',
-      body: 'Approved — ready to lodge.',
-      at: 'just now'
-    };
-    setExtras({
-      ...prev,
-      [taskId]: {
-        ...(prev[taskId] || {}),
-        review: {
-          state: 'approved',
-          decidedAt: 'just now'
-        },
-        completed: true,
-        comments: [...list, note]
-      }
-    });
-    fireToast({
-      message: `Approved by ${r ? r.name : 'reviewer'} · lodged`,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          setExtras(prev);
-          fireToast('Approval reverted');
-        }
-      }
-    });
-    if (task) pushNotification({
-      kind: 'review_approved',
-      actorId: r ? r.id : null,
-      recipientId: taskAssignee(task).id,
-      taskId,
-      taskName: task.name
-    });
-  };
-  // Reviewer rejects with a REQUIRED note → task stays open (reassigned to
-  // the assignee) and the note is appended to the comments thread.
-  const requestChanges = (taskId, noteText) => {
-    if (!noteText || !noteText.trim()) return;
-    const task = allTasksWithProject.find(t => t.id === taskId);
-    const r = task && taskReviewer(task);
-    const prev = extras;
-    const list = prev[taskId] && prev[taskId].comments || [];
-    const comment = {
-      author: r ? r.name : 'Reviewer',
-      initials: r ? r.initials : 'RV',
-      body: noteText.trim(),
-      at: 'just now'
-    };
-    setExtras({
-      ...prev,
-      [taskId]: {
-        ...(prev[taskId] || {}),
-        review: {
-          state: 'changes_requested',
-          note: noteText.trim(),
-          decidedAt: 'just now'
-        },
-        completed: false,
-        comments: [...list, comment]
-      }
-    });
-    fireToast({
-      message: 'Changes requested — sent back to assignee',
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          setExtras(prev);
-          fireToast('Reverted');
-        }
-      }
-    });
-    if (task) pushNotification({
-      kind: 'review_changes',
-      actorId: r ? r.id : null,
-      recipientId: taskAssignee(task).id,
-      taskId,
-      taskName: task.name,
-      note: noteText.trim()
-    });
-  };
-  // Reset an approved/lodged task back to editable (demo convenience).
-  const reopenApproved = taskId => patchExtras(taskId, {
-    review: null,
-    completed: false
-  }, 'Re-approved', 'Reopened for editing');
+  const submitForReview = taskId => reviewSubmit(taskId, {
+    fireToast,
+    reviewer: reviewerOf(taskId)
+  });
+  const withdrawReview = taskId => reviewClear(taskId, {
+    fireToast,
+    message: 'Submission withdrawn',
+    undoMsg: 'Submission restored'
+  });
+  const approveReview = taskId => reviewApprove(taskId, {
+    fireToast,
+    reviewer: reviewerOf(taskId)
+  });
+  const requestChanges = (taskId, noteText) => reviewRequestChanges(taskId, noteText, {
+    fireToast,
+    reviewer: reviewerOf(taskId)
+  });
+  const reopenApproved = taskId => reviewClear(taskId, {
+    fireToast,
+    message: 'Reopened for editing',
+    undoMsg: 'Re-approved'
+  });
 
   // Completion entry points (list-row checkbox, header button) route through
-  // here so a reviewer task can't be silently completed: it submits instead.
+  // here so a reviewer task can't be silently completed: it submits instead,
+  // and an approved task is reopened (un-lodged) rather than re-toggled.
   const attemptComplete = task => {
-    if (canCompleteDirectly(task)) {
+    if (!hasReviewer(task)) {
       markComplete(task.id);
       return;
     }
-    const r = taskReviewer(task);
-    if (reviewState(task) === 'in_review') {
+    const st = reviewState(task);
+    if (st === 'approved') {
+      reopenApproved(task.id);
+      return;
+    }
+    if (st === 'in_review') {
+      const r = taskReviewer(task);
       fireToast(`Awaiting ${r ? r.name : 'the reviewer'}'s review`);
       return;
     }
@@ -66740,17 +66889,23 @@ const WorkManagementPage = ({
   // The header's primary button is context-aware: label + handler by state.
   const primaryAction = task => {
     const done = isCompleted(task.id);
-    if (canCompleteDirectly(task)) return {
+    if (!hasReviewer(task)) return {
       label: done ? 'Completed' : 'Mark complete',
       onClick: () => markComplete(task.id),
       done
     };
-    if (reviewState(task) === 'in_review') return {
+    const st = reviewState(task);
+    if (st === 'approved') return {
+      label: 'Completed',
+      onClick: () => reopenApproved(task.id),
+      done: true
+    };
+    if (st === 'in_review') return {
       label: 'Awaiting review',
       waiting: true
     };
     return {
-      label: reviewState(task) === 'changes_requested' ? 'Re-submit for review' : 'Submit for review',
+      label: st === 'changes_requested' ? 'Re-submit for review' : 'Submit for review',
       onClick: () => submitForReview(task.id),
       submit: true
     };
@@ -68085,7 +68240,7 @@ const WorkManagementPage = ({
         "aria-checked": done,
         onClick: e => {
           e.stopPropagation();
-          done ? markComplete(t.id) : attemptComplete(t);
+          attemptComplete(t);
         },
         style: {
           width: 16,
@@ -69395,7 +69550,7 @@ const WorkManagementPage = ({
   })()), hasReviewer(selected) && (() => {
     const r = taskReviewer(selected);
     const st = reviewState(selected);
-    const slot = extras[selected.id] && extras[selected.id].review || {};
+    const slot = wmReviewSlot(selected.id);
     const reviewerChip = /*#__PURE__*/React.createElement("span", {
       style: {
         display: 'inline-flex',
@@ -94316,10 +94471,11 @@ const WfTemplateLibraryPage = ({
 // Parse the practice hash into {section, id}. Allows nested routes
 // like #/practice/payrun-detail/pr-028 so detail screens can carry
 // the entity id in the URL (refresh-survivable, deep-linkable).
-// Notifications page — a real (mock) inbox over the module-level
-// PRACTICE_NOTIFICATIONS feed. Re-renders on the 'spm:notify' bus so events
-// raised on other routes (the Work Management reviewer flow) appear live.
-// Clicking a task-linked item deep-links to that task in Work Management.
+// Notifications inbox — a real (mock) surface over PRACTICE_NOTIFICATIONS + the
+// WM_REVIEW store. Action-first ("Needs your action" cleared first, then
+// "Updates"), every entity is a clickable chip, and a row opens a right drawer
+// where you Approve / Request-changes WITHOUT leaving the inbox (state syncs via
+// WM_REVIEW). Built to stay scannable at hundreds of items. Re-renders on 'spm:notify'.
 const NTF_TONE = {
   blue: {
     bg: T.blueSoft,
@@ -94342,136 +94498,709 @@ const NTF_TONE = {
     fg: T.muted
   }
 };
-const ntfMatchesFilter = (fid, n) => fid === 'all' ? true : fid === 'reviews' ? n.kind.indexOf('review') === 0 : fid === 'mentions' ? n.kind === 'mention' : fid === 'system' ? n.kind === 'system' || n.kind === 'sla' : true;
-const NotificationsPage = ({
+// Clickable person chip (avatar + name) with a small info popover — honours the
+// "no flat text; everything clickable + interconnected" principle. Fixed-position
+// popover so it never gets clipped by the card.
+const NameChip = ({
+  staffId,
+  bare
+}) => {
+  const [pos, setPos] = useState(null);
+  const s = isdStaff(staffId);
+  if (!s) return null;
+  const pending = PRACTICE_NOTIFICATIONS.filter(n => n.actorId === staffId && !n.read).length;
+  const toggle = e => {
+    e.stopPropagation();
+    if (pos) {
+      setPos(null);
+      return;
+    }
+    const r = e.currentTarget.getBoundingClientRect();
+    setPos({
+      left: r.left,
+      top: r.bottom + 6
+    });
+  };
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex'
+    }
+  }, bare ?
+  /*#__PURE__*/
+  // Avatar already shown elsewhere (e.g. the row) — render just the name,
+  // clickable, no chip border. Keeps dense lists calm but still interconnected.
+  React.createElement("button", {
+    onClick: toggle,
+    title: s.name,
+    style: {
+      padding: 0,
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.text
+    },
+    onMouseEnter: e => e.currentTarget.style.color = T.primary,
+    onMouseLeave: e => e.currentTarget.style.color = T.text
+  }, s.name) : /*#__PURE__*/React.createElement("button", {
+    onClick: toggle,
+    title: s.name,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      cursor: 'pointer',
+      padding: '1px 8px 1px 2px',
+      borderRadius: 999,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      verticalAlign: 'middle'
+    },
+    onMouseEnter: e => e.currentTarget.style.background = T.fieldBg,
+    onMouseLeave: e => e.currentTarget.style.background = T.card
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 18,
+      height: 18,
+      borderRadius: 999,
+      background: s.avatar.bg,
+      color: s.avatar.fg,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 8.5,
+      fontWeight: 700
+    }
+  }, s.initials), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, s.name)), pos && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: e => {
+      e.stopPropagation();
+      setPos(null);
+    },
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 210
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      position: 'fixed',
+      left: pos.left,
+      top: pos.top,
+      zIndex: 211,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      boxShadow: '0 12px 32px rgba(15,17,23,.14)',
+      width: 244,
+      padding: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 38,
+      height: 38,
+      borderRadius: 999,
+      background: s.avatar.bg,
+      color: s.avatar.fg,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 14,
+      fontWeight: 700
+    }
+  }, s.initials), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, s.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, s.role, " \xB7 ", s.team))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10,
+      fontSize: 11.5,
+      color: T.textSoft
+    }
+  }, pending > 0 ? `${pending} unread from ${s.short}` : `Nothing unread from ${s.short}`))));
+};
+// Lightweight clickable task reference (no chip border) — opens the drawer.
+const TaskLink = ({
+  label,
+  onClick
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: e => {
+    e.stopPropagation();
+    onClick && onClick();
+  },
+  title: label,
+  style: {
+    padding: 0,
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    color: T.textSoft,
+    textAlign: 'left'
+  },
+  onMouseEnter: e => e.currentTarget.style.color = T.primary,
+  onMouseLeave: e => e.currentTarget.style.color = T.textSoft
+}, label);
+// Reading pane (right side of the two-pane inbox): the selected notification's
+// full content + inline review actions (Approve / Request-changes) that mutate
+// WM_REVIEW so the task pane reflects it immediately. Acting does NOT close —
+// the pane re-renders in place (it subscribes to 'spm:notify'). No overlay.
+const NotificationPreview = ({
+  notif,
   fireToast
 }) => {
   const [, setRev] = useState(0);
-  const [filter, setFilter] = useState('all');
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [note, setNote] = useState('');
   useEffect(() => {
     const h = () => setRev(r => r + 1);
     window.addEventListener('spm:notify', h);
     return () => window.removeEventListener('spm:notify', h);
   }, []);
-  const unread = notifyUnread();
-  const list = PRACTICE_NOTIFICATIONS.filter(n => ntfMatchesFilter(filter, n));
-  const open = n => {
-    markNotificationsRead([n.id]);
-    if (n.taskId) window.location.hash = `#/practice/work-management/${n.taskId}`;
-  };
-  const filters = [{
-    id: 'all',
-    label: 'All'
-  }, {
-    id: 'reviews',
-    label: 'Reviews'
-  }, {
-    id: 'mentions',
-    label: 'Mentions'
-  }, {
-    id: 'system',
-    label: 'System'
-  }];
-  return /*#__PURE__*/React.createElement("main", {
+  // Drop a half-typed note when the selection changes.
+  useEffect(() => {
+    setRejectOpen(false);
+    setNote('');
+  }, [notif && notif.id]);
+  if (!notif) return /*#__PURE__*/React.createElement("div", {
     style: {
-      flex: 1,
-      minWidth: 0,
-      padding: '24px 28px 56px',
-      overflow: 'auto'
-    }
-  }, /*#__PURE__*/React.createElement(PageHeader, {
-    eyebrow: "Inbox",
-    icon: "bell",
-    title: "Notifications",
-    subtitle: unread > 0 ? `${unread} unread` : 'All caught up',
-    updatedLabel: "",
-    actions: /*#__PURE__*/React.createElement(Btn, {
-      variant: "ghost",
-      icon: "check",
-      disabled: unread === 0,
-      onClick: () => {
-        markNotificationsRead();
-        fireToast('All notifications marked read');
-      }
-    }, "Mark all read")
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
+      height: '100%',
       display: 'flex',
-      gap: 8,
-      marginBottom: 14,
-      flexWrap: 'wrap'
-    }
-  }, filters.map(f => {
-    const n = PRACTICE_NOTIFICATIONS.filter(x => ntfMatchesFilter(f.id, x) && !x.read).length;
-    const on = filter === f.id;
-    return /*#__PURE__*/React.createElement("button", {
-      key: f.id,
-      onClick: () => setFilter(f.id),
-      style: {
-        padding: '5px 12px',
-        borderRadius: 999,
-        cursor: 'pointer',
-        background: on ? T.primary : T.card,
-        color: on ? '#fff' : T.textSoft,
-        border: `1px solid ${on ? T.primary : T.border}`,
-        fontSize: 12,
-        fontWeight: 600,
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6
-      }
-    }, f.label, n > 0 && /*#__PURE__*/React.createElement("span", {
-      style: {
-        padding: '0 6px',
-        borderRadius: 999,
-        fontSize: 10,
-        fontWeight: 700,
-        background: on ? 'rgba(255,255,255,.25)' : T.primarySofter,
-        color: on ? '#fff' : T.primary
-      }
-    }, n));
-  })), /*#__PURE__*/React.createElement(Card, {
-    padded: false
-  }, list.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '48px 20px',
-      textAlign: 'center',
-      color: T.muted
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: T.muted,
+      padding: 24,
+      textAlign: 'center'
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: "bell",
-    size: 22,
+    name: "inbox",
+    size: 26,
     color: T.mutedSoft
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
+      marginTop: 10,
+      fontWeight: 600,
+      color: T.textSoft
+    }
+  }, "Select a notification"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      marginTop: 3
+    }
+  }, "Its details and actions show here."));
+  const meta = NTF_KIND[notif.kind] || NTF_KIND.system;
+  const tone = NTF_TONE[meta.tone] || NTF_TONE.neutral;
+  const task = notif.taskId ? wmTaskById(notif.taskId) : null;
+  const st = task ? wmReviewState(task.id) : 'none';
+  const slot = task ? wmReviewSlot(task.id) : {};
+  const assignee = task ? isdStaff(task.assignee) : null;
+  const reviewer = task ? wmDefaultReviewer(task) : null;
+  const statusLabel = !task ? '' : st === 'approved' ? 'Lodged' : st === 'in_review' ? 'In Review' : st === 'changes_requested' ? 'Reworked' : task.status || '';
+  const sp = HV_STATUS[(statusLabel || '').toLowerCase().replace(/ /g, '_')] || {
+    fg: T.muted,
+    dot: T.muted,
+    bg: T.fieldBg,
+    label: statusLabel
+  };
+  const act = fn => {
+    fn();
+  };
+  const primaryBtn = {
+    padding: '7px 14px',
+    borderRadius: 6,
+    background: T.primary,
+    color: '#fff',
+    border: 'none',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer'
+  };
+  const greenBtn = {
+    ...primaryBtn,
+    background: T.greenDark
+  };
+  const redBtn = {
+    ...primaryBtn,
+    background: T.red
+  };
+  const outlineBtn = {
+    padding: '7px 14px',
+    borderRadius: 6,
+    background: T.card,
+    color: T.text,
+    border: `1px solid ${T.border}`,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer'
+  };
+  const ghost = {
+    padding: '7px 12px',
+    borderRadius: 6,
+    background: 'transparent',
+    color: T.muted,
+    border: 'none',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer'
+  };
+  const taStyle = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: `1px solid ${T.border}`,
+    background: T.card,
+    fontSize: 12.5,
+    color: T.text,
+    outline: 'none',
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    lineHeight: 1.5
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 18px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 999,
+      background: tone.bg,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: meta.icon,
+    size: 15,
+    color: tone.fg
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, meta.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted
+    }
+  }, notif.at))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      overflow: 'auto',
+      padding: '16px 18px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: T.text,
+      lineHeight: 2,
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, notif.actorId && /*#__PURE__*/React.createElement(NameChip, {
+    staffId: notif.actorId
+  }), meta.verb && /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.textSoft
+    }
+  }, meta.verb), task && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700
+    }
+  }, task.name)), notif.note && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10,
+      fontSize: 12.5,
+      color: T.textSoft,
+      lineHeight: 1.55,
+      padding: '10px 12px',
+      borderRadius: 8,
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
+      borderLeft: `3px solid ${tone.fg}`
+    }
+  }, notif.note), task && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      borderRadius: 10,
+      border: `1px solid ${T.border}`,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 14px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase'
+    }
+  }, "Task"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      padding: '1px 8px',
+      borderRadius: 999,
+      background: sp.bg || T.fieldBg,
+      color: sp.fg,
+      fontSize: 10,
+      fontWeight: 700
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 5,
+      height: 5,
+      borderRadius: 999,
+      background: sp.dot
+    }
+  }), sp.label)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 14px',
+      display: 'grid',
+      gridTemplateColumns: '76px 1fr',
+      rowGap: 10,
+      columnGap: 10,
+      alignItems: 'center',
+      fontSize: 12.5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Project"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      background: task._projectColor
+    }
+  }), task._projectName), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Assignee"), /*#__PURE__*/React.createElement("span", null, assignee ? /*#__PURE__*/React.createElement(NameChip, {
+    staffId: assignee.id
+  }) : '—'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Reviewer"), /*#__PURE__*/React.createElement("span", null, reviewer ? /*#__PURE__*/React.createElement(NameChip, {
+    staffId: reviewer.id
+  }) : '—'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Due"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.text
+    }
+  }, task.due))), task && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+      marginBottom: 8
+    }
+  }, "Take action"), st === 'in_review' && !rejectOpen && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => act(() => reviewApprove(task.id, {
+      fireToast
+    })),
+    style: greenBtn
+  }, "Approve"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRejectOpen(true),
+    style: outlineBtn
+  }, "Request changes")), st === 'in_review' && rejectOpen && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("textarea", {
+    value: note,
+    onChange: e => setNote(e.target.value),
+    placeholder: "What needs to change? (required)",
+    rows: 3,
+    autoFocus: true,
+    style: taStyle
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
       marginTop: 8
     }
-  }, "Nothing here.")) : list.map((n, i) => {
+  }, /*#__PURE__*/React.createElement("button", {
+    disabled: !note.trim(),
+    onClick: () => {
+      act(() => reviewRequestChanges(task.id, note, {
+        fireToast
+      }));
+      setRejectOpen(false);
+      setNote('');
+    },
+    style: {
+      ...redBtn,
+      opacity: note.trim() ? 1 : 0.5,
+      cursor: note.trim() ? 'pointer' : 'not-allowed'
+    }
+  }, "Send back to assignee"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setRejectOpen(false);
+      setNote('');
+    },
+    style: ghost
+  }, "Cancel"))), st === 'changes_requested' && /*#__PURE__*/React.createElement("div", null, slot.note && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 10,
+      fontSize: 12.5,
+      color: T.textSoft,
+      padding: '8px 12px',
+      borderRadius: 8,
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
+      borderLeft: `3px solid ${T.red}`
+    }
+  }, slot.note), /*#__PURE__*/React.createElement("button", {
+    onClick: () => act(() => reviewSubmit(task.id, {
+      fireToast
+    })),
+    style: primaryBtn
+  }, "Re-submit for review")), st === 'approved' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      color: T.greenDark,
+      fontSize: 12.5,
+      fontWeight: 600
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 15,
+    color: T.greenDark
+  }), " Approved \xB7 lodged"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => act(() => reviewClear(task.id, {
+      fireToast,
+      message: 'Reopened for editing',
+      undoMsg: 'Re-approved'
+    })),
+    style: outlineBtn
+  }, "Reopen")), st === 'none' && /*#__PURE__*/React.createElement("button", {
+    onClick: () => act(() => reviewSubmit(task.id, {
+      fireToast
+    })),
+    style: primaryBtn
+  }, "Submit for review"))), task && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 18px',
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = `#/practice/work-management/${task.id}`;
+    },
+    style: outlineBtn
+  }, "Open in Work Management \u2192")));
+};
+const NotificationsPage = ({
+  fireToast
+}) => {
+  const [, setRev] = useState(0);
+  const [view, setView] = useState('action'); // active tab
+  const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
+  useEffect(() => {
+    const h = () => setRev(r => r + 1);
+    window.addEventListener('spm:notify', h);
+    return () => window.removeEventListener('spm:notify', h);
+  }, []);
+  const all = PRACTICE_NOTIFICATIONS;
+  const unread = notifyUnread();
+  const actionCount = notifyActionCount();
+  const q = query.trim().toLowerCase();
+  const matchesQuery = n => !q || [n.taskName, n.note, (isdStaff(n.actorId) || {}).name].some(s => (s || '').toLowerCase().includes(q));
+  const list = all.filter(n => ntfMatchesView(view, n) && matchesQuery(n));
+  const groups = [['Today', list.filter(n => ntfBucket(n) === 'Today')], ['Earlier', list.filter(n => ntfBucket(n) === 'Earlier')]].filter(g => g[1].length);
+  // Reading-pane selection — fall back to the first row so the preview is never
+  // empty when items exist. Explicit clicks mark read; the default does not.
+  const selectedObj = list.find(n => n.id === selectedId) || list[0] || null;
+  const selectRow = n => {
+    setSelectedId(n.id);
+    if (!n.read) markNotificationsRead([n.id]);
+  };
+
+  // The old sidebar, now horizontal tabs: state group · divider · category group.
+  const tabs = [{
+    id: 'inbox',
+    label: 'Inbox',
+    icon: 'inbox'
+  }, {
+    id: 'action',
+    label: 'Needs your action',
+    icon: 'flame'
+  }, {
+    id: 'done',
+    label: 'Done',
+    icon: 'check'
+  }, {
+    divider: true
+  }, {
+    id: 'reviews',
+    label: 'Review requests',
+    icon: 'eye'
+  }, {
+    id: 'mentions',
+    label: 'Mentions',
+    icon: 'messageSquare'
+  }, {
+    id: 'approvals',
+    label: 'Approvals',
+    icon: 'checkCircle'
+  }, {
+    id: 'alerts',
+    label: 'Alerts',
+    icon: 'alertTriangle'
+  }, {
+    id: 'system',
+    label: 'System',
+    icon: 'bell'
+  }];
+  const qBtn = {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    border: `1px solid ${T.border}`,
+    background: T.card,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0
+  };
+  const renderRow = n => {
     const meta = NTF_KIND[n.kind] || NTF_KIND.system;
     const tone = NTF_TONE[meta.tone] || NTF_TONE.neutral;
     const actor = isdStaff(n.actorId);
-    const actorName = actor ? actor.short : 'Someone';
-    return /*#__PURE__*/React.createElement("button", {
+    const isSel = selectedObj && selectedObj.id === n.id;
+    return /*#__PURE__*/React.createElement("div", {
       key: n.id,
-      onClick: () => open(n),
-      "data-hover": "row",
+      "data-ntf-row": "1",
+      onClick: () => selectRow(n),
       style: {
-        width: '100%',
-        textAlign: 'left',
-        cursor: 'pointer',
-        background: n.read ? 'transparent' : T.primarySofter,
-        border: 'none',
-        borderBottom: i < list.length - 1 ? `1px solid ${T.border}` : 'none',
-        padding: '13px 16px',
         display: 'flex',
-        gap: 12,
-        alignItems: 'flex-start'
+        gap: 11,
+        alignItems: 'center',
+        padding: '10px 14px 10px 15px',
+        borderBottom: `1px solid ${T.border}`,
+        cursor: 'pointer',
+        position: 'relative',
+        background: isSel ? T.primarySofter : undefined
       }
-    }, /*#__PURE__*/React.createElement("span", {
+    }, !n.read && /*#__PURE__*/React.createElement("span", {
       style: {
-        width: 32,
-        height: 32,
+        position: 'absolute',
+        left: 0,
+        top: 8,
+        bottom: 8,
+        width: 3,
+        borderRadius: 999,
+        background: tone.fg
+      }
+    }), actor ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 34,
+        height: 34,
+        borderRadius: 999,
+        background: actor.avatar.bg,
+        color: actor.avatar.fg,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 12,
+        fontWeight: 700,
+        flexShrink: 0
+      }
+    }, actor.initials) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 34,
+        height: 34,
         borderRadius: 999,
         background: tone.bg,
         display: 'inline-flex',
@@ -94492,48 +95221,274 @@ const NotificationsPage = ({
       style: {
         fontSize: 12.5,
         color: T.text,
-        lineHeight: 1.5
+        lineHeight: 1.4,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
       }
-    }, /*#__PURE__*/React.createElement("b", null, meta.phrase(actorName)), n.taskName ? /*#__PURE__*/React.createElement("span", {
+    }, actor && /*#__PURE__*/React.createElement(NameChip, {
+      staffId: actor.id,
+      bare: true
+    }), meta.verb && /*#__PURE__*/React.createElement("span", {
       style: {
         color: T.textSoft
       }
-    }, " \u201C", n.taskName, "\u201D") : null), n.note && /*#__PURE__*/React.createElement("div", {
+    }, actor ? ' ' : '', meta.verb, " "), !actor && !n.taskId && /*#__PURE__*/React.createElement("span", {
       style: {
-        fontSize: 12,
-        color: T.textSoft,
-        marginTop: 3,
-        lineHeight: 1.5
+        fontWeight: 700
       }
-    }, n.note), /*#__PURE__*/React.createElement("div", {
+    }, meta.label), n.taskId && /*#__PURE__*/React.createElement(TaskLink, {
+      label: n.taskName,
+      onClick: () => selectRow(n)
+    })), /*#__PURE__*/React.createElement("div", {
       style: {
-        fontSize: 11,
+        fontSize: 11.5,
         color: T.muted,
-        marginTop: 5,
+        marginTop: 2,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, n.note ? n.note : /*#__PURE__*/React.createElement("span", {
+      style: {
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 8
+        gap: 6
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
-        padding: '1px 7px',
+        width: 6,
+        height: 6,
         borderRadius: 999,
-        background: tone.bg,
-        color: tone.fg,
-        fontWeight: 700,
-        fontSize: 9.5
+        background: tone.fg
       }
-    }, meta.label), n.at)), !n.read && /*#__PURE__*/React.createElement("span", {
+    }), meta.label))), /*#__PURE__*/React.createElement("div", {
       style: {
-        width: 8,
-        height: 8,
-        borderRadius: 999,
-        background: T.primary,
-        flexShrink: 0,
-        marginTop: 6
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexShrink: 0
       }
-    }));
-  })));
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "ntf-actions",
+      style: {
+        display: 'inline-flex'
+      }
+    }, !n.archived && /*#__PURE__*/React.createElement("button", {
+      onClick: e => {
+        e.stopPropagation();
+        archiveNotifications([n.id]);
+        fireToast({
+          message: 'Marked done',
+          action: {
+            label: 'Undo',
+            onClick: () => archiveNotifications([n.id], false)
+          }
+        });
+      },
+      title: "Mark done",
+      style: qBtn
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "archive",
+      size: 13,
+      color: T.muted
+    }))), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        fontVariantNumeric: 'tabular-nums',
+        whiteSpace: 'nowrap'
+      }
+    }, n.at), !n.read && /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 7,
+        height: 7,
+        borderRadius: 999,
+        background: tone.fg,
+        flexShrink: 0
+      }
+    })));
+  };
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 40px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(PageHeader, {
+    icon: "bell",
+    title: "Notifications",
+    updatedLabel: "",
+    subtitle: actionCount > 0 ? `${actionCount} need your action · ${unread} unread` : unread > 0 ? `${unread} unread` : 'All caught up',
+    actions: /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      icon: "check",
+      disabled: unread === 0,
+      onClick: () => {
+        markNotificationsRead();
+        fireToast('All notifications marked read');
+      }
+    }, "Mark all read")
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 2,
+      borderBottom: `1px solid ${T.border}`,
+      marginBottom: 16,
+      overflowX: 'auto'
+    }
+  }, tabs.map((t, i) => {
+    if (t.divider) return /*#__PURE__*/React.createElement("span", {
+      key: `d${i}`,
+      style: {
+        width: 1,
+        height: 18,
+        background: T.border,
+        margin: '0 8px',
+        flexShrink: 0
+      }
+    });
+    const on = view === t.id;
+    const count = ntfViewCount(t.id);
+    const hot = t.id === 'action' && count > 0;
+    return /*#__PURE__*/React.createElement("button", {
+      key: t.id,
+      onClick: () => setView(t.id),
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '9px 12px',
+        cursor: 'pointer',
+        background: 'transparent',
+        border: 'none',
+        borderBottom: `2px solid ${on ? T.primary : 'transparent'}`,
+        marginBottom: -1,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        color: on ? T.primary : T.textSoft,
+        fontSize: 12.5,
+        fontWeight: on ? 700 : 600
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: t.icon,
+      size: 14,
+      color: on ? T.primary : hot ? T.red : T.muted
+    }), t.label, count > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: hot ? '#fff' : on ? T.primary : T.muted,
+        background: hot ? T.red : on ? T.primarySofter : T.fieldBg,
+        padding: '1px 6px',
+        borderRadius: 999,
+        minWidth: 17,
+        textAlign: 'center'
+      }
+    }, count));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 12
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      display: 'inline-flex',
+      alignItems: 'center',
+      flexShrink: 0,
+      paddingBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      left: 9,
+      display: 'inline-flex',
+      pointerEvents: 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "search",
+    size: 13,
+    color: T.muted
+  })), /*#__PURE__*/React.createElement("input", {
+    value: query,
+    onChange: e => setQuery(e.target.value),
+    placeholder: "Search\u2026",
+    style: {
+      width: 168,
+      padding: '6px 10px 6px 28px',
+      borderRadius: 8,
+      border: `1px solid ${T.border}`,
+      fontSize: 12,
+      outline: 'none',
+      background: T.card,
+      color: T.text
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      overflow: 'hidden',
+      background: T.card,
+      display: 'grid',
+      gridTemplateColumns: '380px 1fr',
+      height: 'calc(100vh - 250px)',
+      minHeight: 480
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderRight: `1px solid ${T.border}`,
+      overflow: 'auto',
+      minWidth: 0
+    }
+  }, list.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '56px 20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: view === 'done' ? 'archive' : 'checkCircle',
+    size: 24,
+    color: view === 'done' ? T.mutedSoft : T.greenDark
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      marginTop: 10,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, view === 'action' ? "You're all caught up" : view === 'done' ? 'Nothing archived yet' : 'Nothing here'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      marginTop: 3,
+      color: T.muted
+    }
+  }, view === 'action' ? 'Nothing needs your action right now.' : view === 'done' ? 'Items you mark done land here.' : '')) : groups.map(([gname, gitems]) => /*#__PURE__*/React.createElement("div", {
+    key: gname
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '7px 16px',
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      background: T.fieldBg,
+      borderBottom: `1px solid ${T.border}`,
+      position: 'sticky',
+      top: 0,
+      zIndex: 1
+    }
+  }, gname), gitems.map(renderRow)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(NotificationPreview, {
+    notif: selectedObj,
+    fireToast: fireToast
+  }))));
 };
 const parsePracticeHash = hash => {
   const m = (hash || '').match(/^#\/practice\/?([\w-]+)?(?:\/([\w-]+))?/);
