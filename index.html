@@ -26397,6 +26397,9 @@ const AppSidebar = ({
     window.addEventListener('spm:notify', h);
     return () => window.removeEventListener('spm:notify', h);
   }, []);
+  // Collapsible sidebar groups (Jun 16 demo-prep). Default {} = all expanded;
+  // clicking a group's chevron tucks it away. The active group force-expands.
+  const [collapsed, setCollapsed] = useState({});
   const payrollSubs = [{
     id: 'overview',
     label: 'Overview'
@@ -26413,44 +26416,78 @@ const AppSidebar = ({
     id: 'payroll-list',
     label: 'Payroll'
   }];
-  // Dashboards group — every analytical surface lives here per the user's
-  // round-3 directive ("All Dashboards must be under dashboards"). Sales
-  // Pipeline & Client Profitability are stubs awaiting wireframes.
-  // Project Dashboard keeps its `project-tracking` hash so existing share
-  // links continue to resolve.
-  const dashboardSubs = [{
+  // --- New lifecycle menu (Jun 16 demo-prep) ---
+  // The old flat menu stacked all 9 dashboards under one "Dashboards" group.
+  // It's reorganised into lifecycle sections. PURE NAV CHANGE: every route id
+  // below is unchanged, so all pages still resolve. Relabels per the meeting
+  // (SPM Forecast→Pipeline, Questionnaires & Forms→Templates, Individual Staff
+  // Dashboard→My dashboard). Items marked "stub" render a "wireframe pending"
+  // page in this build. Finance is omitted (not built in this build).
+  const firmOverviewSubs = [{
     id: 'practice-dashboard',
     label: 'Practice Dashboard'
   }, {
     id: 'helicopter-view',
     label: 'Helicopter view'
   }, {
+    id: 'reports',
+    label: 'Reports'
+  }];
+  const dealsSubs = [{
+    id: 'spm-forecast',
+    label: 'Pipeline'
+  } // relabelled from "SPM Forecast"
+  ];
+  const deliverSubs = [{
+    id: 'job-management',
+    label: 'Job Management'
+  },
+  // stub
+  {
     id: 'staff-scheduler',
     label: 'Staff Scheduler & Capacity'
   }, {
-    id: 'individual-staff',
-    label: 'Individual Staff Dashboard'
-  },
-  // Capacity Planner + Workload Planner are now a single merged surface
-  // with internal tabs (Capacity default · Workload). Keeping the
-  // capacity-planner hash as the canonical entry point; the
-  // workload-planner hash still resolves so deep links + external
-  // bookmarks keep working — see route handler.
-  {
     id: 'capacity-planner',
     label: 'Capacity & Workload Planner'
   }, {
     id: 'work-management',
     label: 'Work Management'
   }, {
-    id: 'spm-forecast',
-    label: 'SPM Forecast'
-  }, {
     id: 'project-tracking',
     label: 'Project Dashboard'
   }, {
+    id: 'docs',
+    label: 'Docs'
+  } // stub
+  ];
+  const teamSubs = [{
+    id: 'team-management',
+    label: 'Team Management'
+  },
+  // stub
+  {
     id: 'margin-by-person',
     label: 'Margin by Person'
+  }];
+  const personalizationSubs = [{
+    id: 'workflow',
+    label: 'Workflow'
+  }, {
+    id: 'questionnaires-forms',
+    label: 'Templates'
+  } // stub, relabelled
+  ];
+  const myFocusSubs = [{
+    id: 'individual-staff',
+    label: 'My dashboard'
+  }, {
+    id: 'communications',
+    label: 'Communications'
+  },
+  // stub
+  {
+    id: 'notifications',
+    label: 'Notifications'
   }];
   const goPractice = subId => {
     window.location.hash = `#/practice/${subId}`;
@@ -26460,110 +26497,104 @@ const AppSidebar = ({
   const leavePractice = () => {
     window.location.hash = '#/proposal';
   };
-  const payrollActiveLabel = (payrollSubs.find(s => s.id === activeSubId) || {}).label;
-  const dashboardActiveLabel = (dashboardSubs.find(s => s.id === activeSubId) || {}).label;
-  const isDashboardActive = !!dashboardActiveLabel;
-  const isPayrollActive = !!payrollActiveLabel;
+  const subLabel = subs => (subs.find(s => s.id === activeSubId) || {}).label;
+  const firmOverviewActive = subLabel(firmOverviewSubs);
+  const deliverActive = subLabel(deliverSubs);
+  const teamActive = subLabel(teamSubs);
+  const payrollActiveLabel = subLabel(payrollSubs);
+  const personalizationActive = subLabel(personalizationSubs);
+  const myFocusActive = subLabel(myFocusSubs);
+  // Deals group: header opens the Deals board; the "Pipeline" sub opens the forecast.
+  const dealsActive = activeSubId === 'deals' || activeSubId === 'spm-forecast';
 
-  // Every non-sub item now navigates somewhere. Items with built surfaces go
-  // to that route; items without built surfaces go to a stub page under the
-  // same /practice/<id> path (added in PracticeApp's renderContent switch),
-  // so the user can always exit a module via the sidebar — previously many
-  // parent items were inert and trapped the user in whichever module they'd
-  // entered.
+  // Lifecycle groups (Jun 16 demo-prep). Each group is a collapsible parent:
+  // the label navigates to its primary surface; the chevron tucks it away.
   const items = [
-  // Dashboards lives at the top — most-used analytical surfaces for the
-  // firm leader; everything else descends from there.
+  // My focus pinned to the top (personal hub) per request.
   {
-    id: 'dashboards',
-    i: 'chartBar',
-    l: 'Dashboards',
-    active: isDashboardActive,
-    sub: dashboardSubs.map(s => s.label),
-    subIds: dashboardSubs.map(s => s.id),
-    activeSub: dashboardActiveLabel,
-    // Parent click opens the first sub (Practice Dashboard) — gives the
-    // user a working landing rather than an inert label.
-    onClick: () => goPractice(dashboardSubs[0].id)
-  },
-  // Reports sits next to Dashboards — same surface family for the firm
-  // leader (analytical + export). It's not nested under Dashboards because
-  // it's an export rail, not a dashboard.
-  {
-    id: 'reports',
-    i: 'download',
-    l: 'Reports',
-    active: activeSubId === 'reports',
-    onClick: () => goPractice('reports')
+    id: 'my-focus',
+    i: 'star',
+    l: 'My focus',
+    active: !!myFocusActive,
+    sub: myFocusSubs.map(s => s.label),
+    subIds: myFocusSubs.map(s => s.id),
+    activeSub: myFocusActive,
+    onClick: () => goPractice(myFocusSubs[0].id)
+  }, {
+    id: 'firm-overview',
+    i: 'gauge',
+    l: 'Firm overview',
+    active: !!firmOverviewActive,
+    sub: firmOverviewSubs.map(s => s.label),
+    subIds: firmOverviewSubs.map(s => s.id),
+    activeSub: firmOverviewActive,
+    onClick: () => goPractice(firmOverviewSubs[0].id)
+  }, {
+    id: 'deals',
+    i: 'target',
+    l: 'Deals',
+    active: dealsActive,
+    sub: dealsSubs.map(s => s.label),
+    subIds: dealsSubs.map(s => s.id),
+    activeSub: activeSubId === 'spm-forecast' ? 'Pipeline' : null,
+    onClick: () => goPractice('deals')
   }, {
     id: 'proposal',
     i: 'proposal',
-    l: 'Proposal',
-    active: activeSubId === 'proposal' || activeSubId === 'deals',
-    sub: ['Overview', 'Proposals', 'Deals', 'Services'],
-    // Deals is a real practice route; the other three open the proposal editor.
-    subOnClicks: [leavePractice, leavePractice, () => goPractice('deals'), leavePractice],
-    activeSub: activeSubId === 'deals' ? 'Deals' : activeSubId === 'proposal' ? 'Proposals' : null,
+    l: 'Proposals',
+    active: activeSubId === 'proposal',
+    sub: ['Overview', 'Proposals', 'Services'],
+    subOnClicks: [leavePractice, leavePractice, leavePractice],
+    activeSub: activeSubId === 'proposal' ? 'Proposals' : null,
     onSub: leavePractice,
     onClick: leavePractice
   }, {
-    id: 'job-management',
-    i: 'building',
-    l: 'Job Management',
-    active: activeSubId === 'job-management',
-    onClick: () => goPractice('job-management')
-  }, {
     id: 'clients-management',
     i: 'user',
-    l: 'Clients Management',
+    l: 'Clients',
     active: activeSubId === 'clients-management',
+    // "Onboard New Client" as a plain sub-item. Onboarding flow isn't built
+    // in this build, so it opens the Clients area.
+    sub: ['Onboard New Client'],
+    subIds: ['clients-management'],
+    activeSub: null,
     onClick: () => goPractice('clients-management')
   }, {
-    id: 'team-management',
-    i: 'handshake',
-    l: 'Team Management',
-    active: activeSubId === 'team-management',
-    onClick: () => goPractice('team-management')
+    id: 'deliver',
+    i: 'briefcase',
+    l: 'Deliver',
+    active: !!deliverActive,
+    sub: deliverSubs.map(s => s.label),
+    subIds: deliverSubs.map(s => s.id),
+    activeSub: deliverActive,
+    onClick: () => goPractice(deliverSubs[0].id)
   }, {
-    id: 'workflow',
-    i: 'flow',
-    l: 'Workflow',
-    active: activeSubId === 'workflow',
-    onClick: () => goPractice('workflow')
+    id: 'team',
+    i: 'users',
+    l: 'Team',
+    active: !!teamActive,
+    sub: teamSubs.map(s => s.label),
+    subIds: teamSubs.map(s => s.id),
+    activeSub: teamActive,
+    onClick: () => goPractice(teamSubs[0].id)
   }, {
     id: 'payroll',
     i: 'wallet',
-    l: 'Payroll Management',
-    active: isPayrollActive,
+    l: 'Payroll',
+    active: !!payrollActiveLabel,
     sub: payrollSubs.map(s => s.label),
     subIds: payrollSubs.map(s => s.id),
     activeSub: payrollActiveLabel,
     onClick: () => goPractice(payrollSubs[0].id)
   }, {
-    id: 'docs',
-    i: 'docs',
-    l: 'Docs',
-    active: activeSubId === 'docs',
-    onClick: () => goPractice('docs')
-  }, {
-    id: 'communications',
-    i: 'send',
-    l: 'Communications',
-    active: activeSubId === 'communications',
-    onClick: () => goPractice('communications')
-  }, {
-    id: 'questionnaires-forms',
-    i: 'info',
-    l: 'Questionnaires & Forms',
-    active: activeSubId === 'questionnaires-forms',
-    onClick: () => goPractice('questionnaires-forms')
-  }, {
-    id: 'notifications',
-    i: 'bell',
-    l: 'Notifications',
-    badge: notifyUnread(),
-    active: activeSubId === 'notifications',
-    onClick: () => goPractice('notifications')
+    id: 'personalization',
+    i: 'sliders',
+    l: 'Personalization',
+    active: !!personalizationActive,
+    sub: personalizationSubs.map(s => s.label),
+    subIds: personalizationSubs.map(s => s.id),
+    activeSub: personalizationActive,
+    onClick: () => goPractice(personalizationSubs[0].id)
   }];
   return /*#__PURE__*/React.createElement("aside", {
     style: {
@@ -26631,109 +26662,84 @@ const AppSidebar = ({
       textTransform: 'uppercase',
       padding: '0 8px 6px'
     }
-  }, "Menu"), items.map((m, i) => /*#__PURE__*/React.createElement(Fragment, {
-    key: i
-  }, /*#__PURE__*/React.createElement("button", {
-    "data-hover": "row",
-    onClick: m.onClick,
-    style: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '8px 10px',
-      border: 'none',
-      borderRadius: 8,
-      background: m.active ? T.primary : 'transparent',
-      color: m.active ? '#fff' : T.textSoft,
-      fontSize: 13,
-      fontWeight: m.active ? 600 : 500,
-      cursor: 'pointer',
-      textAlign: 'left'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: m.i,
-    size: 15,
-    color: m.active ? '#fff' : T.muted
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1
-    }
-  }, m.l), m.badge && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700,
-      background: T.red,
-      color: '#fff',
-      padding: '1px 6px',
-      borderRadius: 999
-    }
-  }, m.badge)), m.sub && /*#__PURE__*/React.createElement("div", {
-    style: {
-      paddingLeft: 24,
-      marginTop: 2,
-      marginBottom: 2
-    }
-  }, m.sub.map((s, idx) => {
-    const isActive = m.activeSub === s;
-    const onClick = m.subOnClicks && m.subOnClicks[idx] || (m.subIds ? () => goPractice(m.subIds[idx]) : m.onSub || m.onClick);
-    return /*#__PURE__*/React.createElement("button", {
-      key: s,
+  }, "Menu"), items.map((m, i) => {
+    const hasSub = !!m.sub;
+    // Default {} → all groups open. Active group force-expands so the
+    // current page is always reachable even if the user tucked it away.
+    const isOpen = hasSub && (!collapsed[m.id] || m.active);
+    return /*#__PURE__*/React.createElement(Fragment, {
+      key: i
+    }, /*#__PURE__*/React.createElement("button", {
       "data-hover": "row",
-      onClick: onClick,
+      onClick: m.onClick,
       style: {
         width: '100%',
-        padding: '6px 10px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '7px 10px',
+        marginTop: i === 0 ? 0 : 16,
         border: 'none',
-        background: isActive ? T.primarySoft : 'transparent',
-        color: isActive ? T.primary : T.muted,
-        fontWeight: isActive ? 600 : 500,
         borderRadius: 8,
-        fontSize: 12,
+        background: 'transparent',
+        color: m.active ? T.primary : T.text,
+        fontSize: 13.5,
+        fontWeight: 700,
+        letterSpacing: 0.1,
         cursor: 'pointer',
         textAlign: 'left'
       }
-    }, s);
-  }))))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 'auto',
-      paddingTop: 12,
-      borderTop: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    "data-hover": "row",
-    onClick: () => {
-      window.location.hash = '#/portal';
-    },
-    style: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '8px 10px',
-      border: 'none',
-      borderRadius: 8,
-      background: 'transparent',
-      color: T.muted,
-      fontSize: 12,
-      fontWeight: 500,
-      cursor: 'pointer',
-      textAlign: 'left'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "eye",
-    size: 14,
-    color: T.muted
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1
-    }
-  }, "View client portal"), /*#__PURE__*/React.createElement(Pill, {
-    color: "accent",
-    style: {
-      fontSize: 9
-    }
-  }, "Preview"))));
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1
+      }
+    }, m.l), hasSub && /*#__PURE__*/React.createElement("span", {
+      "data-hover": "row",
+      onClick: e => {
+        e.stopPropagation();
+        setCollapsed(c => ({
+          ...c,
+          [m.id]: !c[m.id]
+        }));
+      },
+      title: isOpen ? 'Hide section' : 'Show section',
+      style: {
+        display: 'inline-flex',
+        padding: 2,
+        borderRadius: 6,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: isOpen ? 'chevronDown' : 'chevronRight',
+      size: 14,
+      color: T.muted
+    }))), hasSub && isOpen && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 2,
+        marginBottom: 2
+      }
+    }, m.sub.map((s, idx) => {
+      const isActive = m.activeSub === s;
+      const onClick = m.subOnClicks && m.subOnClicks[idx] || (m.subIds ? () => goPractice(m.subIds[idx]) : m.onSub || m.onClick);
+      return /*#__PURE__*/React.createElement("button", {
+        key: s,
+        "data-hover": "row",
+        onClick: onClick,
+        style: {
+          width: '100%',
+          padding: '6px 10px 6px 22px',
+          border: 'none',
+          background: isActive ? T.primarySoft : 'transparent',
+          color: isActive ? T.primary : T.muted,
+          fontWeight: isActive ? 600 : 500,
+          borderRadius: 8,
+          fontSize: 12.5,
+          cursor: 'pointer',
+          textAlign: 'left'
+        }
+      }, s);
+    })));
+  })));
 };
 
 // =================================================================
