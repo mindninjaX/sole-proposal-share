@@ -14251,7 +14251,7 @@ const AppSidebar = ({ activeSubId }) => {
           const isOpen = hasSub && (!collapsed[m.id] || m.active);
           return (
           <Fragment key={i}>
-            {/* Section header — bold, no icon, extra top margin for breathing room. */}
+            {/* Section header — icon + bold label, extra top margin for breathing room. */}
             <button data-hover="row" onClick={m.onClick} style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: 8,
               padding: '7px 10px', marginTop: i === 0 ? 0 : 16,
@@ -14260,6 +14260,7 @@ const AppSidebar = ({ activeSubId }) => {
               fontSize: 13.5, fontWeight: 700, letterSpacing: 0.1,
               cursor: 'pointer', textAlign: 'left'
             }}>
+              <Icon name={m.i} size={16} color={m.active ? T.primary : T.muted} />
               <span style={{ flex: 1 }}>{m.l}</span>
               {hasSub && (
                 <span data-hover="row"
@@ -24361,9 +24362,6 @@ const PD_ATTENTION = [
   { id: 'blocked', label: 'Blocked Jobs', count: 5, tone: 'amber',
     breakdown: ['2 — Missing info', '2 — Dependency', '1 — Internal issue'],
     flag: { tone: 'amber', text: '2 jobs blocked >2 days' } },
-  { id: 'wait_client', label: 'Waiting on Client', count: 15, tone: 'amber',
-    breakdown: ['6 — 0-2 days', '5 — 3-5 days', '4 — >5 days'],
-    flag: { tone: 'red', text: '4 jobs waiting >5 days' } },
   { id: 'wait_review', label: 'Waiting on Reviewer', count: 6, tone: 'amber',
     breakdown: ['2 — Today', '4 — 2+ days pending'],
     flag: { tone: 'amber', text: '4 reviews pending >1 day' } },
@@ -25932,69 +25930,7 @@ const PracticeDashboardPage = ({ fireToast }) => {
       <DashSection
         title="WIP & Billing Efficiency"
         subtitle="Monitor work value and billing risk">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: PD.rowGap }}>
-          {/* WIP Value (#41 — every row is now clickable) */}
-          <Card padded={false}>
-            <div style={{ padding: '14px 16px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <CardTitle sub="Total work in progress">WIP Value</CardTitle>
-              <button onClick={() => setDrill({
-                title: 'WIP Value · This month',
-                headline: '$87,200',
-                delta: { value: '$16k older than 60 days', dir: 'up', tone: 'negative' },
-                blurb: 'Total work-in-progress value across all open jobs. Expand a bucket to see the underlying jobs and how to bill them out.',
-                drivers: PD_WIP_AGING.map(a => ({
-                  label: a.label, value: `$${a.value.toLocaleString('en-AU')}`,
-                  share: a.pct, color: a.tone === 'risk' ? T.red : a.tone === 'warn' ? T.amber : T.greenDark,
-                  sub: a.tone === 'risk' ? 'High write-off risk · chase oldest first' : a.tone === 'warn' ? 'Approaching write-off — review for billing' : 'Within normal range',
-                  records: PD_WIP_JOBS[a.label] || [],
-                })),
-                actions: [
-                  { label: 'Open WIP report', icon: 'arrow', primary: true, onClick: () => fireToast('Opening WIP detail') },
-                  { label: 'Export ageing CSV', icon: 'download', onClick: () => fireToast('Exporting WIP ageing CSV') },
-                ],
-                next: 'Click a bucket to expand the underlying jobs',
-              })} style={{ background: 'transparent', border: 'none', color: T.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>Drill in →</button>
-            </div>
-            <div style={{ padding: '0 16px 14px' }}>
-              <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>$87,200</div>
-              <div style={{
-                padding: '8px 10px', borderRadius: 8,
-                background: PD.warnSoft, border: '1px solid #FCD34D',
-                color: PD.warn, fontSize: 11.5, fontWeight: 500, marginBottom: 12,
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}>
-                <Icon name="info" size={11} color={PD.warn} />
-                $16,000 older than 60 days (at risk)
-              </div>
-              {PD_WIP_AGING.map((a, i) => {
-                const records = PD_WIP_JOBS[a.label] || [];
-                const toneColor = a.tone === 'risk' ? T.red : a.tone === 'warn' ? T.amber : T.greenDark;
-                return (
-                  <button key={i} onClick={() => setDrill({
-                    title: `WIP ageing · ${a.label}`, headline: `$${a.value.toLocaleString('en-AU')}`,
-                    delta: { value: `${a.pct}% of WIP`, dir: 'up', tone: a.tone === 'risk' ? 'negative' : a.tone === 'warn' ? 'neutral' : 'positive' },
-                    blurb: records.length ? `${records.length} jobs in this bucket.` : 'No jobs in this bucket.',
-                    list: records,
-                    actions: [{ label: 'Open WIP report', icon: 'arrow', primary: true, onClick: () => fireToast(`Opening ${a.label} WIP detail`) }],
-                  })} style={{
-                    width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
-                    fontSize: 12, color: T.textSoft, padding: '6px 0', borderTop: i === 0 ? 'none' : `1px solid ${T.border}`,
-                    background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
-                  }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: 999, background: toneColor }} />
-                      {a.label}
-                    </span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: T.text }}>${a.value.toLocaleString('en-AU')}</span>
-                      <Icon name="chevronRight" size={11} color={T.mutedSoft} />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: PD.rowGap }}>
           {/* Efficiency Metrics */}
           <Card padded={false}>
             <div style={{ padding: '14px 16px 4px' }}>
@@ -26759,76 +26695,6 @@ const PracticeDashboardPage = ({ fireToast }) => {
         })()}
       </DashSection>
 
-      {/* ============== TODAY'S FOCUS ============== */}
-      <DashSection
-        title="Today's focus"
-        subtitle="The four things to act on before end of day"
-        accent={<Icon name="flame" size={16} color={T.red} />}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {PD_FOCUS.map(f => {
-            const palette = f.tone === 'red'
-              ? { stripe: '#EF4444', chip: { bg: '#FEE2E2', fg: '#B91C1C', bd: '#FECACA', label: 'Urgent' } }
-              : { stripe: '#D97706', chip: { bg: '#FEF3C7', fg: '#92400E', bd: '#FDE68A', label: 'Watch' } };
-            return (
-              <button key={f.id} onClick={() => setDrill({
-                title: f.title,
-                headline: f.action,
-                blurb: 'Click any row below to expand and see the jobs / people that make it up.',
-                drivers: f.bullets.map((b, i) => {
-                  // Parse out a numeric metric (e.g. "92%", "$4,000", "8 jobs") so each driver
-                  // can show a real value + a drill action. Falls back to "·" if nothing parsed.
-                  const numMatch = b.match(/(\$?[\d,]+%?|\d+\s*jobs?)/);
-                  const value = numMatch ? numMatch[1] : '·';
-                  return {
-                    label: b,
-                    value,
-                    share: 60 + i * 10, color: palette.stripe,
-                    records: PD_FOCUS_RECORDS[b] || [],
-                  };
-                }),
-                next: `Action: ${f.action}`,
-              })} data-hover="tile"
-                style={{
-                  textAlign: 'left', padding: '16px 18px', borderRadius: 12,
-                  background: T.card, border: `1px solid ${T.border}`,
-                  borderLeft: `3px solid ${palette.stripe}`,
-                  cursor: 'pointer',
-                  display: 'flex', flexDirection: 'column', gap: 10,
-                  position: 'relative',
-                }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: T.text, lineHeight: 1.35 }}>{f.title}</div>
-                  <span style={{
-                    flexShrink: 0,
-                    display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999,
-                    background: palette.chip.bg, color: palette.chip.fg, border: `1px solid ${palette.chip.bd}`,
-                    fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase',
-                  }}>{palette.chip.label}</span>
-                </div>
-                <div style={{ display: 'grid', gap: 4 }}>
-                  {f.bullets.map((b, i) => (
-                    <div key={i} style={{
-                      fontSize: 12.5, color: T.textSoft, lineHeight: 1.55,
-                      display: 'flex', alignItems: 'flex-start', gap: 6,
-                    }}>
-                      <span style={{ color: T.muted, marginTop: 7, width: 3, height: 3, borderRadius: 999, background: T.mutedSoft, flexShrink: 0 }} />
-                      {b}
-                    </div>
-                  ))}
-                </div>
-                <div style={{
-                  padding: '8px 10px', borderRadius: 8, background: T.fieldBg,
-                  fontSize: 12, color: T.text,
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                }}>
-                  <span><span style={{ fontWeight: 700 }}>Action: </span>{f.action}</span>
-                  <span style={{ color: T.primary, fontWeight: 600, fontSize: 11.5 }}>View breakdown →</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </DashSection>
 
       <PdDrillSheet payload={drill} onClose={() => setDrill(null)} fireToast={fireToast} />
       {/* #80 — Resolve composer modal. Each high-priority issue type gets
@@ -27074,18 +26940,6 @@ const HV_PERFORMANCE = [
   { id: 'nps',  label: 'NPS score',         value: '48',       pill: { tone: 'green', text: 'Good' },         spark: [42,43,44,45,46,46,47,48,48,48], color: T.greenDark, viewLink: true },
 ];
 
-// Firm Flow Overview — 8 cards (4×2). Each is a tappable signal that
-// drills into the underlying list.
-const HV_FIRM_FLOW = [
-  { id: 'mgmt',     icon: 'sliders',       label: 'Management focus', value: '5',       sub: 'items need attention today', tone: 'amber' },
-  { id: 'pipe',     icon: 'dollar',        label: 'Pipeline value',   value: '$124,000',sub: 'across 31 opportunities',     tone: 'neutral' },
-  { id: 'onboard',  icon: 'userPlus',      label: 'Clients onboarding',value: '12',      sub: '4 overdue', subTone: 'red', tone: 'neutral' },
-  { id: 'atrisk',   icon: 'alertTriangle', label: 'Jobs at risk',     value: '7',       sub: '3 clients impacted', tone: 'amber' },
-  { id: 'overdue',  icon: 'clock',         label: 'Overdue jobs',     value: '5',       sub: '4 clients affected',          tone: 'red' },
-  { id: 'review',   icon: 'users',         label: 'Awaiting review',  value: '18',      sub: '6 overdue', subTone: 'red', tone: 'amber' },
-  { id: 'invoices', icon: 'fileText',      label: 'Overdue invoices', value: '$21,400', sub: 'across 9 invoices',           tone: 'red' },
-  { id: 'cap',      icon: 'users',         label: 'Capacity risk',    value: 'High',    sub: '2 staff overallocation',      tone: 'red', isText: true },
-];
 
 // Lifecycle Health — 6 vertical columns. The colored title accent
 // makes the row read as a banner across the business areas.
@@ -27095,13 +26949,13 @@ const HV_LIFECYCLE = [
   { id: 'onboard',  title: 'Onboarding',  accent: '#0E9F8A',   q: 'Are new clients getting activated?',         health: 'at_risk',  rows: [
       { label: '12', sub: 'onboarding' }, { label: '4', sub: 'overdue' }, { label: '7', sub: 'waiting on client' } ] },
   { id: 'deliver',  title: 'Delivery',    accent: T.blue,       q: 'Is work being completed on time?',           health: 'at_risk',  rows: [
-      { label: '31', sub: 'active jobs' }, { label: '7', sub: 'at risk' }, { label: '5', sub: 'overdue' } ] },
+      { label: '31', sub: 'active jobs' }, { label: '7', sub: 'at risk' }, { label: '12', sub: 'overdue' } ] },
   { id: 'review',   title: 'Review',      accent: '#7C3AED',    q: 'Is work stuck with reviewers?',              health: 'critical', rows: [
       { label: '18', sub: 'awaiting review' }, { label: '6', sub: 'overdue' }, { label: 'High', sub: 'reviewer overload', tone: 'red' } ] },
   { id: 'collect',  title: 'Collection',  accent: T.red,        q: 'Are completed jobs being billed and paid?',  health: 'watch',    rows: [
       { label: '$21.4k', sub: 'overdue' }, { label: '$18.6k', sub: 'not billed' }, { label: '82%', sub: 'payment rate' } ] },
   { id: 'resource', title: 'Resourcing',  accent: T.amber,      q: 'Is the team overloaded or underutilised?',   health: 'critical', rows: [
-      { label: '78%', sub: 'utilisation' }, { label: '2', sub: 'overloaded' }, { label: '42 hrs', sub: 'available' } ] },
+      { label: '78%', sub: 'utilisation' }, { label: '2', sub: 'overloaded' }, { label: '87 hrs', sub: 'available' } ] },
 ];
 
 // Client × Service matrix data. Columns map to the keys in cells.
@@ -27269,12 +27123,12 @@ const HV_CLIENTS = [
 // day" strip. Sits between AI Insights and Today's Management Focus.
 const HV_OPS_KPIS = [
   { id: 'jr',   label: 'Jobs at risk',     value: '7',       sub: '3 clients impacted',  tone: 'amber', drill: 'Open: at-risk jobs' },
-  { id: 'od',   label: 'Overdue jobs',     value: '5',       sub: '4 clients affected',   tone: 'red',   drill: 'Open: overdue jobs' },
+  { id: 'od',   label: 'Overdue jobs',     value: '12',      sub: '6 clients affected',   tone: 'red',   drill: 'Open: overdue jobs' },
   { id: 'o10',  label: 'Open > 10 days',   value: '9',       sub: 'Needs review',         tone: 'amber', drill: 'Open: stale jobs' },
   { id: 'var',  label: 'Value at risk',    value: '$47,200', sub: 'Across 5 overdue',     tone: 'red',   drill: 'Open: value at risk' },
   { id: 'cd',   label: 'Clients w/ delays',value: '6',       sub: '75% of total',         tone: 'amber', drill: 'Open: delayed clients' },
   { id: 'to',   label: 'Team overload',    value: 'HIGH',    sub: 'Sarah: 4 jobs',        tone: 'red',   drill: 'Open: capacity view', isText: true },
-  { id: 'bj',   label: 'Blocked jobs',     value: '3',       sub: 'Waiting on client',    tone: 'amber', drill: 'Open: blocked jobs' },
+  { id: 'bj',   label: 'Blocked jobs',     value: '5',       sub: '3 waiting on client',  tone: 'amber', drill: 'Open: blocked jobs' },
   { id: 'avg',  label: 'Avg delay',        value: '8.4d',    sub: 'Up from 6.2d',         tone: 'red',   drill: 'Open: delay trend' },
 ];
 
@@ -28422,54 +28276,6 @@ const HelicopterViewPage = ({ fireToast }) => {
         </div>
       </DashSection>
 
-      {/* ============== FIRM FLOW OVERVIEW ============== */}
-      <DashSection title="Firm flow overview"
-        right={<span style={{ fontSize: 12, color: T.muted }}>8 key signals</span>}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-          {HV_FIRM_FLOW.map(s => {
-            // Tone-aware icon chip (red/amber/grey) so the eye is drawn to risk.
-            const iconPalette = s.tone === 'red'
-              ? { bg: '#FEE2E2', fg: '#B91C1C' }
-              : s.tone === 'amber'
-              ? { bg: '#FEF3C7', fg: '#92400E' }
-              : { bg: '#F3F4F6', fg: T.muted };
-            const valueColor = s.isText
-              ? (s.value === 'High' ? T.red : s.value === 'Watch' ? T.amber : T.greenDark)
-              : T.text;
-            const subColor = s.subTone === 'red' ? T.red : s.subTone === 'amber' ? T.amber : T.muted;
-            return (
-              <button key={s.id} onClick={() => openSignal(s)} data-hover="tile"
-                style={{
-                  textAlign: 'left', padding: '14px 16px', borderRadius: 12,
-                  background: T.card, border: `1px solid ${T.border}`, cursor: 'pointer',
-                  display: 'grid', gridTemplateColumns: '38px 1fr 14px', alignItems: 'center', gap: 14,
-                  minHeight: 92,
-                }}>
-                <span style={{
-                  width: 38, height: 38, borderRadius: 10,
-                  background: iconPalette.bg,
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  alignSelf: 'start', marginTop: 2,
-                }}>
-                  <Icon name={s.icon} size={17} color={iconPalette.fg} />
-                </span>
-                {/* Stack label / value / sub vertically so every tile in the
-                    row shares the same line layout regardless of how long
-                    the sub copy is. Inline baseline-flex was causing the
-                    longer subs ("across 31 opportunities", "across 9
-                    invoices") to wrap to a second line and push only some
-                    tiles taller than the rest. */}
-                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ fontSize: 10.5, color: T.muted, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: -0.4, color: valueColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1.15 }}>{s.value}</div>
-                  <div style={{ fontSize: 11.5, color: subColor, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.sub}</div>
-                </div>
-                <Icon name="arrow" size={13} color={T.muted} />
-              </button>
-            );
-          })}
-        </div>
-      </DashSection>
 
       {/* ============== LIFECYCLE HEALTH ============== */}
       <DashSection title="Lifecycle health"
@@ -31691,7 +31497,7 @@ const IndividualStaffDashboardPage = ({ fireToast }) => {
               actual jobs that make up the count, so a click answers "what's
               behind this number?" rather than just stating the number again. */}
           {isSectionVisible('workflow-snapshot') && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, marginBottom: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 18 }}>
             {(() => {
               const myName = staff.short || staff.name.split(' ')[0];
               // Per-metric record lists. Counts are aligned with workflow.* so
@@ -31711,11 +31517,6 @@ const IndividualStaffDashboardPage = ({ fireToast }) => {
                   sub: ['signed engagement letter','bank statements','STP confirmation','clarifications','prior year working papers','Directors\' info'][i] || 'awaiting info',
                   tag: ['2d','1d','6d','3d','2d','8d'][i] || '1d', tone: 'amber',
                 })),
-                wrev: Array.from({ length: workflow.waitingReviewer }).map((_, i) => ({
-                  name: ['Anderson — BAS Q1','XYZ Ltd — Year-end','Beacon — Bookkeeping','Castor — BAS'][i] || `Job ${i + 1}`,
-                  sub: ['Reviewer: Jordan Lee','Reviewer: Morgan Davis','Reviewer: Jordan Lee','Reviewer: Morgan Davis'][i] || 'Reviewer pending',
-                  tag: ['3d','2d','1d','3d'][i] || '1d', tone: i < 1 ? 'red' : 'amber',
-                })),
                 rwk:  Array.from({ length: throughput.rework }).map((_, i) => ({
                   name: ['MedCorp — Tax Return (rework)'][i] || `Reworked job ${i + 1}`,
                   sub: 'Reviewer requested changes · resubmit by Fri', tag: 'Reworked', tone: 'amber',
@@ -31729,7 +31530,6 @@ const IndividualStaffDashboardPage = ({ fireToast }) => {
                 { id: 'due',  label: 'Due this week',      value: workflow.dueWeek,         tone: workflow.dueWeek > 10 ? 'amber' : 'neutral', sub: 'jobs scheduled',          next: 'Open: Week list' },
                 { id: 'blk',  label: 'Blocked',            value: workflow.blocked,         tone: workflow.blocked > 0 ? 'red' : 'green',      sub: workflow.blocked > 0 ? 'cannot proceed' : 'nothing blocked', next: 'Open: Blocked jobs' },
                 { id: 'wclt', label: 'Waiting on client',  value: workflow.waitingClient,   tone: workflow.waitingClient > 4 ? 'amber' : 'neutral', sub: 'awaiting info',     next: 'Open: Client follow-ups' },
-                { id: 'wrev', label: 'Waiting on reviewer',value: workflow.waitingReviewer, tone: workflow.waitingReviewer > 3 ? 'amber' : 'neutral', sub: 'in review queue', next: 'Open: Review queue' },
                 { id: 'rwk',  label: 'Rework count',       value: throughput.rework,        tone: throughput.rework > 1 ? 'amber' : 'green',   sub: `${pCfg.label}`,            next: 'Open: Reworked jobs' },
                 { id: 'rop',  label: 'Reopen rate',        value: `${throughput.reopen}%`,  tone: throughput.reopen > 8 ? 'amber' : 'green',   sub: 'jobs reopened after close', next: 'Open: Reopen detail' },
               ];
@@ -31763,7 +31563,7 @@ const IndividualStaffDashboardPage = ({ fireToast }) => {
               How many jobs are in my review queue vs waiting on others' reviews? */}
           {isSectionVisible('quality') && (
           <DashSection title="Quality & timeliness" subtitle={`How your work shipped ${pCfg.label}`}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
               {(() => {
                 // Derived counts. completionRate is a %; convert into on-time vs
                 // late counts on a 24-job base for the period so a click can
@@ -31773,27 +31573,6 @@ const IndividualStaffDashboardPage = ({ fireToast }) => {
                 const late      = Math.max(0, totalJobs - onTime);
                 const myName = staff.short || staff.name.split(' ')[0];
                 const tiles = [
-                  {
-                    id: 'mine',  label: 'My review queue', value: workflow.reviewQueue, tone: workflow.reviewQueue > 4 ? 'amber' : workflow.reviewQueue === 0 ? 'green' : 'neutral',
-                    sub: workflow.reviewQueue === 0 ? 'nothing to review' : `oldest ${workflow.reviewAgeing}`,
-                    records: Array.from({ length: workflow.reviewQueue }).map((_, i) => ({
-                      name: ['Anderson — BAS Q1','Beacon — Bookkeeping','Castor Mfg — BAS','Drift — Payroll','Initech — Tax return','Stark — Tax plan','Globex — Compliance'][i] || `Submission ${i + 1}`,
-                      sub: ['Submitted by Emma · 1d','Submitted by Emma · 2d','Submitted by David · 3d','Submitted by David · 1d','Submitted by Michael · 2d','Submitted by Michael · 1d','Submitted by Lisa · 0d'][i] || 'Submitted recently',
-                      tag: ['1d','2d','3d','1d','2d','1d','0d'][i] || '1d',
-                      tone: i < 1 ? 'red' : 'amber',
-                    })),
-                  },
-                  {
-                    id: 'theirs', label: "Waiting on others", value: workflow.waitingReviewer,
-                    tone: workflow.waitingReviewer > 3 ? 'amber' : 'neutral',
-                    sub: 'submitted by me',
-                    records: Array.from({ length: workflow.waitingReviewer }).map((_, i) => ({
-                      name: ['Davidson — ITR (review)','XYZ Ltd — Year-end','Fletcher — Advisory','Beacon — Tax plan'][i] || `Submitted ${i + 1}`,
-                      sub: ['Reviewer: Jordan Lee · 3d','Reviewer: Morgan Davis · 2d','Reviewer: Jordan Lee · 1d','Reviewer: Morgan Davis · 2d'][i] || 'Pending review',
-                      tag: ['3d','2d','1d','2d'][i] || '1d',
-                      tone: i < 1 ? 'red' : 'amber',
-                    })),
-                  },
                   {
                     id: 'ontime', label: 'On time', value: onTime, tone: 'green', sub: `${throughput.completionRate}% completion`,
                     records: Array.from({ length: Math.min(onTime, 6) }).map((_, i) => ({
@@ -32018,47 +31797,6 @@ const IndividualStaffDashboardPage = ({ fireToast }) => {
                     </div>
                   );
                 })}
-                <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
-                  paddingTop: 8, marginTop: 2, borderTop: `1px solid ${T.border}`,
-                }}>
-                  <button onClick={() => setDrill({
-                      title: 'My review queue', headline: `${workflow.reviewQueue} jobs`,
-                      delta: { value: workflow.reviewAgeing !== '—' ? `oldest ${workflow.reviewAgeing}` : 'nothing pending', dir: 'up', tone: 'neutral' },
-                      blurb: 'Work submitted by others that I need to review.',
-                      list: Array.from({ length: workflow.reviewQueue }).map((_, i) => ({
-                        name: ['Anderson — BAS Q1','Beacon — Bookkeeping','Castor Mfg — BAS','Drift — Payroll'][i] || `Submission ${i + 1}`,
-                        sub: ['Emma · 1d','Emma · 2d','David · 3d','David · 1d'][i] || 'Submitted recently',
-                        tag: ['1d','2d','3d','1d'][i] || '1d',
-                        tone: i < 1 ? 'red' : 'amber',
-                      })),
-                      next: 'Open: My review queue',
-                    })} data-hover="row" style={{
-                    background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer',
-                    padding: '8px 10px', borderRadius: 8,
-                  }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: T.muted, letterSpacing: 0.4, textTransform: 'uppercase' }}>My review queue</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{workflow.reviewQueue} jobs</div>
-                  </button>
-                  <button onClick={() => setDrill({
-                      title: 'Waiting on others to review', headline: `${workflow.waitingReviewer} jobs`,
-                      delta: { value: 'submitted by me', dir: 'up', tone: 'neutral' },
-                      blurb: 'Work I have submitted that is sitting in other reviewers\' queues.',
-                      list: Array.from({ length: workflow.waitingReviewer }).map((_, i) => ({
-                        name: ['Davidson — ITR (review)','XYZ Ltd — Year-end','Fletcher — Advisory'][i] || `Submitted ${i + 1}`,
-                        sub: ['Reviewer: Jordan Lee · 3d','Reviewer: Morgan Davis · 2d','Reviewer: Jordan Lee · 1d'][i] || 'Pending review',
-                        tag: ['3d','2d','1d'][i] || '1d',
-                        tone: i < 1 ? 'red' : 'amber',
-                      })),
-                      next: 'Open: My submissions',
-                    })} data-hover="row" style={{
-                    background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer',
-                    padding: '8px 10px', borderRadius: 8,
-                  }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: T.muted, letterSpacing: 0.4, textTransform: 'uppercase' }}>Waiting on others</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>{workflow.waitingReviewer} jobs</div>
-                  </button>
-                </div>
               </div>
             </Card>
 
@@ -32240,46 +31978,7 @@ const IndividualStaffDashboardPage = ({ fireToast }) => {
       {/* CAPABILITY & WORKLOAD MIX */}
       {isSectionVisible('capability-mix') && (
       <DashSection title="Capability & workload mix" subtitle={`Service lines and complexity ${pCfg.label} (${pCfg.sub})`}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14 }}>
-          <Card padded={false}>
-            <div style={{ padding: '14px 16px 4px' }}>
-              <CardTitle sub="Hours by service · capability level">Workload by service line</CardTitle>
-            </div>
-            {/* #63 — rows get more vertical padding so each bar has
-                breathing space; label row sits ~6px above the bar. */}
-            <div style={{ padding: '4px 16px 14px', display: 'grid', gap: 18 }}>
-              {(() => {
-                // Normalise bars against the largest service-line so the
-                // heaviest line fills the row and the rest scale relative
-                // to it — the comparison the user actually wants to make.
-                const maxLine = serviceMix.reduce((m, s) => Math.max(m, s.hours), 0) || 1;
-                return serviceMix.map((s, i) => (
-                  <div key={i}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 500 }}>
-                        <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />
-                        {s.line}
-                        <span style={{
-                          marginLeft: 4, padding: '1px 6px', borderRadius: 4,
-                          background: T.primarySoft, color: T.primary,
-                          fontSize: 10, fontWeight: 700,
-                        }}>{s.level}</span>
-                      </span>
-                      <span style={{ fontSize: 12.5, fontVariantNumeric: 'tabular-nums', color: T.textSoft }}>
-                        {s.hours}h <span style={{ color: T.muted, fontWeight: 500 }}>({Math.round((s.hours / capacity.allocated) * 100)}%)</span>
-                      </span>
-                    </div>
-                    <div style={{ height: 8, background: '#F3F4F6', borderRadius: 999, overflow: 'hidden' }}>
-                      <div style={{ width: `${(s.hours / maxLine) * 100}%`, height: '100%', background: s.color, borderRadius: 999 }} />
-                    </div>
-                  </div>
-                ));
-              })()}
-              <div style={{ marginTop: 6, paddingTop: 10, borderTop: `1px solid ${T.border}`, fontSize: 11, color: T.muted }}>
-                L1 Basic · L2 Intermediate · L3 Advanced · L4 Specialist · L5 Expert · bars scale to your heaviest line
-              </div>
-            </div>
-          </Card>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
           <Card padded={false}>
             <div style={{ padding: '14px 16px 4px' }}>
               <CardTitle sub="Routine · Standard · Complex · Strategic">Workload by complexity</CardTitle>
@@ -37330,24 +37029,6 @@ const ProjectTrackingPage = ({ fireToast }) => {
             <SpmKpi label="Over budget"  value={`${k.overBudget} projects`} hint="cost or hours breach" tone={k.overBudget > 0 ? 'red' : 'green'} />
             <SpmKpi label="Active filter" value={healthBand} hint="click a band to change" />
           </div>
-          <DashSection title="Budget health bands" subtitle="Click any band to filter the table below.">
-            <BandStrip />
-          </DashSection>
-          <DashSection title="Budget and hours pressure">
-            <Card>
-              <CardTitle sub="Grouped bars — each project's two pressures side-by-side, with the 100% reference line.">Budget used % and hours used %</CardTitle>
-              <SpmBars data={budgetUsedData} series={budgetUsedSeries} grouped target={100} wide height={280} />
-            </Card>
-          </DashSection>
-          <DashSection title="Budget WIP table">
-            <SpmTable
-              columns={projectColumns}
-              rows={projectRows}
-              onRowClick={(row) => setDrill(spmProjectPayload(row.raw))}
-              exportName="budget-wip"
-              onExport={handleExport}
-            />
-          </DashSection>
         </>
       )}
 
@@ -39505,28 +39186,6 @@ const DealsPage = ({ fireToast }) => {
         </Card>
 
         <Card style={cardStyle}>
-          <SectionTitle style={{ marginBottom: 10 }}>Open pipeline value by stage</SectionTitle>
-          {pipeSegments.length === 0 ? <Helper>No open pipeline.</Helper> : (
-            <Fragment>
-              <HoverStackedBar segments={pipeSegments} height={14} formatTip={(s) => `${s.label}: ${fmtDealMoney(s.value)}`} />
-              <div style={{ marginTop: 12 }}>
-                {pipeSegments.map(s => {
-                  const sel = stageFilter === s.id;
-                  return (
-                    <button key={s.label} onClick={s.onClick} title={sel ? 'Clear stage filter' : `Filter to ${s.label}`}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '4px 6px', border: `1px solid ${sel ? T.primary : 'transparent'}`, background: sel ? T.primarySofter : 'transparent', borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
-                      <span style={{ width: 9, height: 9, borderRadius: 3, background: s.dotColor, flexShrink: 0 }} />
-                      <span style={{ flex: 1, color: T.text }}>{s.label}</span>
-                      <span style={{ color: T.muted, fontWeight: 600 }}>{fmtDealMoney(s.value)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Fragment>
-          )}
-        </Card>
-
-        <Card style={cardStyle}>
           <SectionTitle style={{ marginBottom: 10 }}>Source performance</SectionTitle>
           {bySource.map(s => (
             <div key={s.src} style={{ marginBottom: 10 }}>
@@ -40045,34 +39704,6 @@ const MarginByPersonPage = ({ fireToast }) => {
             <CardTitle sub="Allocation share of project fees vs hours × hourly cost rate.">Revenue vs payroll cost</CardTitle>
             <SpmBars data={marginRevCostData} series={marginRevCostSeries} grouped />
           </Card>
-        </div>
-      </DashSection>
-
-      <DashSection title="Rate detail" subtitle="The inputs behind each person's margin — bill rate, cost rate and utilisation.">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-          {marginRows.map(x => (
-            <Card key={x.s.id} style={{ padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{
-                  width: 32, height: 32, borderRadius: 999,
-                  background: T.primarySoft, color: T.primary,
-                  display: 'grid', placeItems: 'center',
-                  fontSize: 11.5, fontWeight: 700,
-                }}>{x.s.initials}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{x.s.name}</div>
-                  <div style={{ fontSize: 11, color: T.muted }}>{x.s.role}</div>
-                </div>
-                <div style={{ marginLeft: 'auto', fontSize: 18, fontWeight: 700, color: x.m < 30 ? T.red : x.m < 45 ? T.amber : T.greenDark, fontVariantNumeric: 'tabular-nums' }}>{x.m}%</div>
-              </div>
-              <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: 11.5, color: T.textSoft }}>
-                <div>Bill rate <span style={{ fontWeight: 600, color: T.text }}>${x.s.rate}/h</span></div>
-                <div>Cost rate <span style={{ fontWeight: 600, color: T.text }}>${x.s.cost}/h</span></div>
-                <div>Utilisation <span style={{ fontWeight: 600, color: T.text }}>{x.util}%</span></div>
-                <div>Hours <span style={{ fontWeight: 600, color: T.text }}>{Math.round(x.allocHrs)}h</span></div>
-              </div>
-            </Card>
-          ))}
         </div>
       </DashSection>
 
