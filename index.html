@@ -39666,7 +39666,7 @@ const PayrollPage = ({
           fontSize: 11,
           color: T.muted
         }
-      }, (r.clientIds || []).length, " client", (r.clientIds || []).length === 1 ? '' : 's', " \xB7 Payroll Run")), /*#__PURE__*/React.createElement("div", {
+      }, "Payroll Run")), /*#__PURE__*/React.createElement("div", {
         style: {
           fontSize: 13,
           color: T.textSoft,
@@ -40927,10 +40927,9 @@ const PayrunLeftRail = ({
     style: {
       fontSize: 13,
       fontWeight: 700,
-      color: T.text,
-      fontVariantNumeric: 'tabular-nums'
+      color: T.text
     }
-  }, fmtDate(run.rangeStart), " \u2013 ", fmtDate(run.rangeEnd)), /*#__PURE__*/React.createElement(Btn, {
+  }, "Run details"), /*#__PURE__*/React.createElement(Btn, {
     variant: "iconOnly",
     size: "sm",
     title: "Hide details",
@@ -40975,7 +40974,7 @@ const PayrunLeftRail = ({
       fontSize: 11.5,
       marginBottom: 14
     }
-  }, computed.payslips.length, " payslip", computed.payslips.length === 1 ? '' : 's', " \xB7 Total ", fmtMoneyCompact(computed.totals.gross)), /*#__PURE__*/React.createElement("div", {
+  }, computed.payslips.length, " payslip", computed.payslips.length === 1 ? '' : 's'), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -41288,12 +41287,6 @@ const PayrunSummaryTab = ({
   }), /*#__PURE__*/React.createElement(KpiCard, {
     label: "Additional Hours",
     value: computed.totals.additional.toLocaleString('en-AU')
-  }), /*#__PURE__*/React.createElement(KpiCard, {
-    label: "Issues",
-    value: computed.totals.issuesCount,
-    sub: computed.totals.issuesCount === 0 ? 'Run is clean' : 'Click to review',
-    tone: computed.totals.issuesCount > 0 ? 'red' : null,
-    onClick: computed.totals.issuesCount > 0 ? onShowIssues : null
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       background: T.card,
@@ -41591,7 +41584,9 @@ const PayslipPanel = ({
   }, stateLabel), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: 80,
-      textAlign: 'right'
+      textAlign: 'right',
+      opacity: expanded ? 0.3 : 1,
+      transition: 'opacity 0.15s'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -41610,7 +41605,9 @@ const PayslipPanel = ({
   }, fmtMoneyCompact(payslip.gross))), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: 80,
-      textAlign: 'right'
+      textAlign: 'right',
+      opacity: expanded ? 0.3 : 1,
+      transition: 'opacity 0.15s'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -42135,29 +42132,7 @@ const PayslipEditor = ({
       fontWeight: 700,
       fontVariantNumeric: 'tabular-nums'
     }
-  }, fmtMoney(payslip.expenses.reduce((s, x) => s + x.total, 0)))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '6px 14px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      background: T.fieldBg,
-      borderTop: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 600,
-      color: T.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.6
-    }
-  }, "Gross Taxable"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      fontWeight: 600,
-      fontVariantNumeric: 'tabular-nums'
-    }
-  }, fmtMoney(payslip.gross)))), /*#__PURE__*/React.createElement("div", {
+  }, fmtMoney(payslip.expenses.reduce((s, x) => s + x.total, 0))))), /*#__PURE__*/React.createElement("div", {
     style: tableShell
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -42562,10 +42537,6 @@ const OverviewPage = ({
     label: "Payruns",
     value: totalRuns,
     sub: `${totalCompleted} completed`
-  }), /*#__PURE__*/React.createElement(Tile, {
-    label: "Avg per employer",
-    value: Math.round(totalActive / Math.max(1, rows.length)),
-    sub: "Active employees"
   })), /*#__PURE__*/React.createElement(Card, {
     padded: false,
     style: {
@@ -43488,16 +43459,6 @@ const PD_PIPELINE = [{
   count: 42
 }];
 const PD_ATTENTION = [{
-  id: 'overdue',
-  label: 'Jobs Overdue',
-  count: 12,
-  tone: 'red',
-  breakdown: ['5 — Waiting on client <3 days', '4 — Internal delay', '3 — In review'],
-  flag: {
-    tone: 'red',
-    text: '3 jobs >3 days overdue'
-  }
-}, {
   id: 'blocked',
   label: 'Blocked Jobs',
   count: 5,
@@ -45043,7 +45004,7 @@ const pdKpiDrill = id => {
         tone: 'positive'
       },
       blurb: '3 jobs are >3 days overdue. Click a reason to see the jobs that match.',
-      drivers: PD_ATTENTION[0].breakdown.map((b, i) => {
+      drivers: ['5 — Waiting on client <3 days', '4 — Internal delay', '3 — In review'].map((b, i) => {
         const count = parseInt(b.split(' — ')[0], 10) || 0;
         return {
           label: b.split(' — ')[1] || b,
@@ -46211,25 +46172,7 @@ const PracticeDashboardPage = ({
       height: 6,
       tooltip: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("b", null, a.label), " \xB7 ", records.length, " jobs \xB7 $", a.value.toLocaleString('en-AU'))
     }));
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 4,
-      padding: '8px 12px',
-      borderRadius: 8,
-      background: '#FFFBEB',
-      border: '1px solid #FDE68A',
-      color: '#92400E',
-      fontSize: 12,
-      fontWeight: 500,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "info",
-    size: 13,
-    color: "#B45309"
-  }), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "$16,000 WIP older than 60 days"), " \u2014 older WIP increases write-off likelihood."))))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1.6fr',
@@ -46245,7 +46188,7 @@ const PracticeDashboardPage = ({
       justifyContent: 'space-between'
     }
   }, /*#__PURE__*/React.createElement(CardTitle, {
-    sub: "$124,500 total \xB7 click a segment to drill in"
+    sub: "Recurring + one-off \xB7 click a segment to drill in"
   }, "Revenue split"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setDrill({
       title: 'Revenue split · This month',
@@ -46333,117 +46276,7 @@ const PracticeDashboardPage = ({
         next: 'Open: Engagements pipeline'
       })
     }]
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 10
-    }
-  }, [{
-    key: 'rec',
-    label: 'Recurring',
-    value: PD_REVENUE_SPLIT.recurring,
-    share: 63,
-    color: T.primary,
-    sub: '5 active retainers',
-    delta: '+6%',
-    onClick: () => setDrill({
-      title: 'Recurring revenue',
-      headline: '$78,200 / mo',
-      delta: {
-        value: '+6%',
-        dir: 'up',
-        tone: 'positive'
-      },
-      blurb: '5 active retainers contributing $78.2k of MRR this period.',
-      list: PD_RECURRING_CONTRACTS,
-      next: 'Open: Recurring revenue ledger'
-    })
-  }, {
-    key: 'one',
-    label: 'Non-recurring',
-    value: PD_REVENUE_SPLIT.oneoff,
-    share: 37,
-    color: '#A78BFA',
-    sub: '5 active scopes',
-    delta: '+22%',
-    onClick: () => setDrill({
-      title: 'Non-recurring engagements',
-      headline: '$46,300',
-      delta: {
-        value: '+22%',
-        dir: 'up',
-        tone: 'positive'
-      },
-      blurb: '5 fixed-fee scopes in flight.',
-      list: PD_ONEOFF_ENGAGEMENTS,
-      next: 'Open: Engagements pipeline'
-    })
-  }].map(seg => /*#__PURE__*/React.createElement("button", {
-    key: seg.key,
-    onClick: seg.onClick,
-    "data-hover": "tile",
-    title: `${seg.label} · $${seg.value.toLocaleString('en-AU')} (${seg.share}%)`,
-    style: {
-      textAlign: 'left',
-      padding: '10px 12px',
-      borderRadius: 10,
-      background: T.card,
-      border: `1px solid ${T.border}`,
-      cursor: 'pointer',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 4,
-      transition: 'border-color .12s ease, transform .12s ease'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 8,
-      height: 8,
-      background: seg.color,
-      borderRadius: 2
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11.5,
-      color: T.muted,
-      fontWeight: 500
-    }
-  }, seg.label)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'baseline',
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 18,
-      fontWeight: 700,
-      fontVariantNumeric: 'tabular-nums',
-      letterSpacing: -0.3
-    }
-  }, "$", (seg.value / 1000).toFixed(1), "k"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11.5,
-      color: T.muted,
-      fontWeight: 500
-    }
-  }, "(", seg.share, "%)"), /*#__PURE__*/React.createElement(Delta, {
-    value: seg.delta,
-    dir: "up",
-    tone: "positive"
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11.5,
-      color: T.muted
-    }
-  }, seg.sub)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 10.5,
       fontWeight: 700,
@@ -47110,60 +46943,6 @@ const PracticeDashboardPage = ({
     }
   }, /*#__PURE__*/React.createElement("button", {
     onClick: () => setDrill({
-      title: 'Realisation rate',
-      headline: '89%',
-      delta: {
-        value: '+4%',
-        dir: 'up',
-        tone: 'positive'
-      },
-      blurb: 'Billable time as a share of recorded time. Above the 85% target this month.',
-      drivers: [{
-        label: 'Billable',
-        value: '142h (89%)',
-        share: 89,
-        color: PD.good
-      }, {
-        label: 'Recorded',
-        value: '160h',
-        share: 100,
-        color: '#E5E7EB'
-      }],
-      list: PD_HOURS_DETAIL.billable,
-      next: 'Open: Realisation report'
-    }),
-    style: {
-      width: '100%',
-      background: 'transparent',
-      border: 'none',
-      padding: 0,
-      cursor: 'pointer',
-      textAlign: 'left'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginBottom: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12.5,
-      color: T.textSoft
-    }
-  }, "Realisation Rate"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      fontVariantNumeric: 'tabular-nums'
-    }
-  }, "89%")), /*#__PURE__*/React.createElement(HoverableProgressBar, {
-    pct: 89,
-    color: PD.good,
-    height: 12,
-    tooltip: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("b", null, "Realisation"), " \xB7 89% \xB7 142h billable of 160h recorded")
-  })), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setDrill({
       title: 'Billing efficiency',
       headline: '82%',
       delta: {
@@ -47191,8 +46970,7 @@ const PracticeDashboardPage = ({
       border: 'none',
       padding: 0,
       cursor: 'pointer',
-      textAlign: 'left',
-      marginTop: 14
+      textAlign: 'left'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -47402,24 +47180,6 @@ const PracticeDashboardPage = ({
     subtitle: "Team bandwidth and workload distribution"
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      marginBottom: PD.rowGap,
-      padding: '10px 14px',
-      borderRadius: 10,
-      background: '#FFFBEB',
-      border: '1px solid #FDE68A',
-      color: '#92400E',
-      fontSize: 12.5,
-      fontWeight: 500,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "info",
-    size: 13,
-    color: "#B45309"
-  }), utilBanner), /*#__PURE__*/React.createElement("div", {
-    style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
       gap: PD.rowGap,
@@ -47538,43 +47298,7 @@ const PracticeDashboardPage = ({
     color: T.primary,
     height: 12,
     tooltip: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("b", null, "69% allocated"), " \xB7 193h of 280h \xB7 87h remaining")
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: T.muted,
-      marginTop: 6
-    }
-  }, "69% allocated"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 'auto',
-      paddingTop: 14,
-      borderTop: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: T.muted,
-      marginBottom: 4,
-      fontWeight: 500
-    }
-  }, "Utilisation Rate"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'baseline',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 24,
-      fontWeight: 700,
-      fontVariantNumeric: 'tabular-nums',
-      letterSpacing: -0.4
-    }
-  }, "78%"), /*#__PURE__*/React.createElement(Delta, {
-    value: "+3%",
-    dir: "up",
-    tone: "positive"
-  })))))), /*#__PURE__*/React.createElement("button", {
+  })))), /*#__PURE__*/React.createElement("button", {
     onClick: () => setDrill({
       title: 'Hours · This week',
       headline: '218 hours',
@@ -47706,89 +47430,6 @@ const PracticeDashboardPage = ({
       }
     }]
   }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 10,
-      marginTop: 12
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 10,
-      borderRadius: 8,
-      background: T.fieldBg,
-      border: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 4
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 8,
-      height: 8,
-      background: T.primary,
-      borderRadius: 2
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11.5,
-      color: T.muted,
-      fontWeight: 500
-    }
-  }, "Billable")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 18,
-      fontWeight: 700,
-      fontVariantNumeric: 'tabular-nums'
-    }
-  }, "142 hrs"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: T.muted
-    }
-  }, "65%")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 10,
-      borderRadius: 8,
-      background: T.fieldBg,
-      border: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 4
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 8,
-      height: 8,
-      background: '#A78BFA',
-      borderRadius: 2
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11.5,
-      color: T.muted,
-      fontWeight: 500
-    }
-  }, "Non-billable")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 18,
-      fontWeight: 700,
-      fontVariantNumeric: 'tabular-nums'
-    }
-  }, "76 hrs"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: T.muted
-    }
-  }, "35%"))), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 'auto',
       paddingTop: 14,
@@ -48299,25 +47940,6 @@ const PracticeDashboardPage = ({
       fontVariantNumeric: 'tabular-nums'
     }
   }, "42 hours")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '4px 0',
-      borderTop: `1px dashed ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      color: T.textSoft
-    }
-  }, "Currently in queue"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      fontWeight: 600,
-      fontVariantNumeric: 'tabular-nums'
-    }
-  }, "18 jobs")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -49487,25 +49109,9 @@ const HV_INSIGHT_TONES = {
 
 // ---- mock data (matches V3 wireframe text verbatim) ----
 const HV_INSIGHTS = [{
-  id: 'i1',
-  tone: 'immediate',
-  body: '3 clients have multiple delayed services.'
-}, {
-  id: 'i2',
-  tone: 'risk',
-  body: '54% value at risk across 5 overdue jobs.'
-}, {
   id: 'i3',
   tone: 'suggest',
   body: 'Focus on Anderson Group and Fletcher Corp — high value + delay.'
-}, {
-  id: 'i4',
-  tone: 'capacity',
-  body: 'Sarah and Emma are forecast to exceed capacity next week.'
-}, {
-  id: 'i5',
-  tone: 'pipeline',
-  body: '5 proposals are overdue. $28k potential revenue needs follow-up.'
 }];
 
 // Today's Management Focus — top-5 ranked actions. `score` is out of
@@ -49668,9 +49274,6 @@ const HV_LIFECYCLE = [{
     label: '$124k',
     sub: 'pipeline'
   }, {
-    label: '5',
-    sub: 'proposals overdue'
-  }, {
     label: '43%',
     sub: 'conversion'
   }]
@@ -49700,11 +49303,11 @@ const HV_LIFECYCLE = [{
     label: '31',
     sub: 'active jobs'
   }, {
-    label: '7',
-    sub: 'at risk'
+    label: '4.2d',
+    sub: 'avg turnaround'
   }, {
-    label: '12',
-    sub: 'overdue'
+    label: '89%',
+    sub: 'on-time rate'
   }]
 }, {
   id: 'review',
@@ -49716,12 +49319,8 @@ const HV_LIFECYCLE = [{
     label: '18',
     sub: 'awaiting review'
   }, {
-    label: '6',
-    sub: 'overdue'
-  }, {
-    label: 'High',
-    sub: 'reviewer overload',
-    tone: 'red'
+    label: '3.2d',
+    sub: 'avg review time'
   }]
 }, {
   id: 'collect',
@@ -49733,8 +49332,8 @@ const HV_LIFECYCLE = [{
     label: '$21.4k',
     sub: 'overdue'
   }, {
-    label: '$18.6k',
-    sub: 'not billed'
+    label: '12d',
+    sub: 'avg days to invoice'
   }, {
     label: '82%',
     sub: 'payment rate'
@@ -49746,12 +49345,6 @@ const HV_LIFECYCLE = [{
   q: 'Is the team overloaded or underutilised?',
   health: 'critical',
   rows: [{
-    label: '78%',
-    sub: 'utilisation'
-  }, {
-    label: '2',
-    sub: 'overloaded'
-  }, {
     label: '87 hrs',
     sub: 'available'
   }]
@@ -53770,7 +53363,7 @@ const HelicopterViewPage = ({
       fontWeight: 600,
       color: T.primary
     }
-  }, "AI insight:"), " 5 clients have more than 2 delayed services."), /*#__PURE__*/React.createElement("button", {
+  }, "AI insight:"), " Multiple clients have clustered delays \u2014 review flagged work below."), /*#__PURE__*/React.createElement("button", {
     onClick: () => setDrill({
       title: 'Flagged clients',
       headline: `${issueClients.length} clients with active issues`,
@@ -59201,14 +58794,6 @@ const ISD_INBOX = [{
   tone: 'red',
   next: 'Open: Today\'s due list'
 }, {
-  id: 'dueWeek',
-  icon: 'calendar',
-  label: 'Due this week',
-  count: 11,
-  sub: '6 jobs · 3 reviews · 2 admin',
-  tone: 'amber',
-  next: 'Open: Week list'
-}, {
   id: 'waitingMe',
   icon: 'clock',
   label: 'Work waiting on me',
@@ -59219,17 +58804,17 @@ const ISD_INBOX = [{
 }, {
   id: 'waitingOthers',
   icon: 'users',
-  label: 'Work waiting on others',
-  count: 9,
-  sub: '5 client · 3 reviewer · 1 partner',
+  label: 'Waiting on client responses',
+  count: 5,
+  sub: '5 client items outstanding',
   tone: 'neutral',
-  next: 'Open: Waiting on others'
+  next: 'Open: Waiting on clients'
 }, {
   id: 'reviewComments',
   icon: 'info',
-  label: 'Review comments to clear',
+  label: 'Comments to address',
   count: 4,
-  sub: 'On 2 jobs · 1 high priority',
+  sub: 'Inline review comments on 2 jobs · 1 high priority',
   tone: 'amber',
   next: 'Open: Review feedback'
 }, {
@@ -59922,11 +59507,11 @@ const ISD_CURRENT_STAFF_ID = 'sm';
 const ISD_CHART_SECTIONS = [{
   id: 'kpi-strip',
   label: 'KPI strip',
-  desc: 'Top tiles — utilisation, hours free, reviews, awaiting others, overdue.'
+  desc: 'Top tiles — utilisation, hours free, reviews on me, overdue.'
 }, {
   id: 'workflow-snapshot',
   label: 'Workflow snapshot',
-  desc: 'Due this week · blocked · waiting on client · rework · reopen rate.'
+  desc: 'Due this week · blocked · waiting on client.'
 }, {
   id: 'quality',
   label: 'Quality & timeliness',
@@ -59947,10 +59532,6 @@ const ISD_CHART_SECTIONS = [{
   id: 'my-inbox',
   label: 'My inbox',
   desc: 'Signals demanding action — counts per category.'
-}, {
-  id: 'capability-mix',
-  label: 'Capability & workload mix',
-  desc: 'Workload by complexity (routine · standard · complex · strategic).'
 }];
 const ISD_HIDDEN_KEY = 'sole.isd.hiddenSections.v1';
 const loadIsdHidden = () => {
@@ -60275,26 +59856,7 @@ const IndividualStaffDashboardPage = ({
       letterSpacing: -0.3,
       color: T.text
     }
-  }, staff.name), /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      padding: '3px 10px',
-      borderRadius: 999,
-      background: capStatus.bg,
-      color: capStatus.fg,
-      fontSize: 11,
-      fontWeight: 700
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      background: capStatus.dot
-    }
-  }), capStatus.label)), /*#__PURE__*/React.createElement(Helper, {
+  }, staff.name)), /*#__PURE__*/React.createElement(Helper, {
     style: {
       marginTop: 4
     }
@@ -60338,7 +59900,7 @@ const IndividualStaffDashboardPage = ({
   }, hiddenSections.size, " hidden")))), isSectionVisible('kpi-strip') && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(5, 1fr)',
+      gridTemplateColumns: 'repeat(3, 1fr)',
       gap: 12,
       marginBottom: 14
     }
@@ -60346,26 +59908,14 @@ const IndividualStaffDashboardPage = ({
     id: 'util',
     label: 'Utilisation',
     value: `${capacity.util}%`,
-    sub: `${capacity.allocated}h of ${capacity.total}h · target 80–95%`,
+    sub: `${capacity.allocated}h of ${capacity.total}h · ${Math.max(0, capacity.available)}h free · target 80–95%`,
     tone: capacity.util > 100 ? 'negative' : capacity.util < 70 ? 'amber' : 'positive'
-  }, {
-    id: 'cap',
-    label: 'Hours free',
-    value: `${Math.max(0, capacity.available)}h`,
-    sub: capacity.available < 0 ? `over by ${Math.abs(capacity.available)}h` : 'remaining ' + pCfg.label,
-    tone: capacity.available < 0 ? 'negative' : capacity.available < 4 ? 'amber' : 'positive'
   }, {
     id: 'mine',
     label: 'Reviews on me',
     value: String(workflow.reviewQueue),
     sub: workflow.reviewAgeing === '—' ? 'nothing to review' : `oldest ${workflow.reviewAgeing}`,
     tone: workflow.reviewQueue > 4 ? 'amber' : 'positive'
-  }, {
-    id: 'theirs',
-    label: 'Awaiting others',
-    value: String(workflow.waitingReviewer),
-    sub: 'my submissions in their queue',
-    tone: workflow.waitingReviewer > 3 ? 'amber' : 'neutral'
   }, {
     id: 'over',
     label: 'Overdue',
@@ -60421,7 +59971,7 @@ const IndividualStaffDashboardPage = ({
   })), isSectionVisible('workflow-snapshot') && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(5, 1fr)',
+      gridTemplateColumns: 'repeat(3, 1fr)',
       gap: 10,
       marginBottom: 18
     }
@@ -60453,26 +60003,7 @@ const IndividualStaffDashboardPage = ({
         sub: ['signed engagement letter', 'bank statements', 'STP confirmation', 'clarifications', 'prior year working papers', 'Directors\' info'][i] || 'awaiting info',
         tag: ['2d', '1d', '6d', '3d', '2d', '8d'][i] || '1d',
         tone: 'amber'
-      })),
-      rwk: Array.from({
-        length: throughput.rework
-      }).map((_, i) => ({
-        name: ['MedCorp — Tax Return (rework)'][i] || `Reworked job ${i + 1}`,
-        sub: 'Reviewer requested changes · resubmit by Fri',
-        tag: 'Reworked',
-        tone: 'amber'
-      })),
-      rop: [{
-        name: 'Acme Co — BAS Q4 (FY24)',
-        sub: 'Reopened by client · 28 Apr',
-        tag: 'Reopened',
-        tone: 'amber'
-      }, {
-        name: 'Globex — Bookkeeping Mar',
-        sub: 'Lodgement adjustment · 1 May',
-        tag: 'Reopened',
-        tone: 'amber'
-      }]
+      }))
     };
     const tiles = [{
       id: 'due',
@@ -60495,20 +60026,6 @@ const IndividualStaffDashboardPage = ({
       tone: workflow.waitingClient > 4 ? 'amber' : 'neutral',
       sub: 'awaiting info',
       next: 'Open: Client follow-ups'
-    }, {
-      id: 'rwk',
-      label: 'Rework count',
-      value: throughput.rework,
-      tone: throughput.rework > 1 ? 'amber' : 'green',
-      sub: `${pCfg.label}`,
-      next: 'Open: Reworked jobs'
-    }, {
-      id: 'rop',
-      label: 'Reopen rate',
-      value: `${throughput.reopen}%`,
-      tone: throughput.reopen > 8 ? 'amber' : 'green',
-      sub: 'jobs reopened after close',
-      next: 'Open: Reopen detail'
     }];
     return tiles.map(t => {
       const valueColor = t.tone === 'red' ? T.red : t.tone === 'amber' ? T.amber : t.tone === 'green' ? T.greenDark : T.text;
@@ -61516,69 +61033,7 @@ const IndividualStaffDashboardPage = ({
       fontWeight: 600,
       cursor: 'pointer'
     }
-  }, "Fill timesheets \u2192")), isSectionVisible('capability-mix') && /*#__PURE__*/React.createElement(DashSection, {
-    title: "Capability & workload mix",
-    subtitle: `Service lines and complexity ${pCfg.label} (${pCfg.sub})`
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr',
-      gap: 14
-    }
-  }, /*#__PURE__*/React.createElement(Card, {
-    padded: false
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '14px 16px 4px'
-    }
-  }, /*#__PURE__*/React.createElement(CardTitle, {
-    sub: "Routine \xB7 Standard \xB7 Complex \xB7 Strategic"
-  }, "Workload by complexity")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '4px 16px 14px'
-    }
-  }, /*#__PURE__*/React.createElement(StackedBar, {
-    height: 12,
-    segments: complexity.map(c => ({
-      label: c.name,
-      value: c.pct,
-      color: c.color
-    }))
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 8,
-      marginTop: 14
-    }
-  }, complexity.map(c => /*#__PURE__*/React.createElement("div", {
-    key: c.name,
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 8,
-      height: 8,
-      background: c.color,
-      borderRadius: 2,
-      flexShrink: 0
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11.5,
-      color: T.textSoft
-    }
-  }, c.name), /*#__PURE__*/React.createElement("span", {
-    style: {
-      marginLeft: 'auto',
-      fontSize: 12.5,
-      fontWeight: 600,
-      fontVariantNumeric: 'tabular-nums'
-    }
-  }, c.pct, "%"))))))))), /*#__PURE__*/React.createElement(PdDrillSheet, {
+  }, "Fill timesheets \u2192"))), /*#__PURE__*/React.createElement(PdDrillSheet, {
     payload: drill,
     onClose: () => setDrill(null),
     fireToast: fireToast
@@ -65261,9 +64716,7 @@ const WorkloadPlannerPage = ({
         fontWeight: 600,
         color: T.textSoft
       }
-    }, "Unassigned"), /*#__PURE__*/React.createElement(Pill, {
-      color: "amber"
-    }, WP_UNASSIGNED.length))), unassignedCollapsed ? /*#__PURE__*/React.createElement("div", {
+    }, "Unassigned"))), unassignedCollapsed ? /*#__PURE__*/React.createElement("div", {
       style: {
         gridColumn: `2 / span ${WP_DAYS.length}`,
         display: 'flex',
@@ -65274,11 +64727,6 @@ const WorkloadPlannerPage = ({
         fontSize: 12
       }
     }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontWeight: 600,
-        color: T.textSoft
-      }
-    }, WP_UNASSIGNED.length, " task", WP_UNASSIGNED.length === 1 ? '' : 's'), /*#__PURE__*/React.createElement("span", {
       style: {
         marginLeft: 'auto',
         fontSize: 11,
@@ -66518,20 +65966,6 @@ const WorkManagementPage = ({
       }
     }, /*#__PURE__*/React.createElement(Btn, {
       variant: "ghost",
-      icon: "filter",
-      onClick: () => setOpenMenu(m => m === 'wmpFilter' ? null : 'wmpFilter')
-    }, "Filter", filterStatus !== 'all' && /*#__PURE__*/React.createElement("span", {
-      style: {
-        marginLeft: 6,
-        padding: '1px 7px',
-        borderRadius: 999,
-        background: T.primarySofter,
-        color: T.primary,
-        fontSize: 10.5,
-        fontWeight: 700
-      }
-    }, filterStatus)), /*#__PURE__*/React.createElement(Btn, {
-      variant: "ghost",
       icon: "sliders",
       onClick: () => setDrill({
         title: 'Customise columns',
@@ -66558,75 +65992,7 @@ const WorkManagementPage = ({
         ...d,
         open: !d.open
       }))
-    }, "New project"), openMenu === 'wmpFilter' && /*#__PURE__*/React.createElement("div", {
-      onClick: e => e.stopPropagation(),
-      style: {
-        position: 'absolute',
-        right: 0,
-        top: '100%',
-        marginTop: 8,
-        zIndex: 60,
-        background: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: 10,
-        boxShadow: '0 12px 32px rgba(15,17,23,.10)',
-        minWidth: 240,
-        padding: 10
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        fontWeight: 700,
-        color: T.muted,
-        letterSpacing: 0.6,
-        textTransform: 'uppercase',
-        marginBottom: 8
-      }
-    }, "Filter tasks"), [{
-      id: 'all',
-      label: 'All tasks',
-      n: allTasksWithProject.length
-    }, {
-      id: 'open',
-      label: 'Open only',
-      n: openTaskCount
-    }, {
-      id: 'overdue',
-      label: 'Overdue',
-      n: overdueCount
-    }, {
-      id: 'week',
-      label: 'Due this week',
-      n: dueThisWeekCount
-    }].map(opt => /*#__PURE__*/React.createElement("button", {
-      key: opt.id,
-      onClick: () => {
-        setFilterStatus(opt.id);
-        setOpenMenu(null);
-        fireToast(`Filtering to ${opt.label.toLowerCase()} · ${opt.n} task${opt.n === 1 ? '' : 's'}`);
-      },
-      style: {
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '7px 10px',
-        borderRadius: 6,
-        background: filterStatus === opt.id ? T.primarySofter : 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: 12.5,
-        color: filterStatus === opt.id ? T.primary : T.text,
-        fontWeight: filterStatus === opt.id ? 600 : 500,
-        textAlign: 'left'
-      }
-    }, /*#__PURE__*/React.createElement("span", null, opt.label), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 11,
-        color: T.muted,
-        fontVariantNumeric: 'tabular-nums'
-      }
-    }, opt.n)))), newProjectDraft.open && /*#__PURE__*/React.createElement("div", {
+    }, "New project"), newProjectDraft.open && /*#__PURE__*/React.createElement("div", {
       onClick: e => e.stopPropagation(),
       style: {
         position: 'absolute',
@@ -67245,14 +66611,7 @@ const WorkManagementPage = ({
           fontSize: 10.5,
           color: T.muted
         }
-      }, "open / ", stats.total), stats.overdue > 0 && /*#__PURE__*/React.createElement("span", {
-        style: {
-          marginLeft: 'auto',
-          fontSize: 10.5,
-          fontWeight: 700,
-          color: T.red
-        }
-      }, stats.overdue, " overdue")), /*#__PURE__*/React.createElement("div", {
+      }, "open / ", stats.total)), /*#__PURE__*/React.createElement("div", {
         style: {
           height: 4,
           borderRadius: 999,
@@ -67402,7 +66761,63 @@ const WorkManagementPage = ({
       fontSize: 10.5,
       color: T.muted
     }
-  }, opt.sub)))), activeProjectId && (() => {
+  }, opt.sub)))), openMenu === 'wmpFilter' && /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      position: 'absolute',
+      left: 80,
+      top: 50,
+      zIndex: 60,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      boxShadow: '0 12px 32px rgba(15,17,23,.10)',
+      minWidth: 240,
+      padding: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      marginBottom: 8
+    }
+  }, "Filter tasks"), [{
+    id: 'all',
+    label: 'All tasks'
+  }, {
+    id: 'open',
+    label: 'Open only'
+  }, {
+    id: 'overdue',
+    label: 'Overdue'
+  }, {
+    id: 'week',
+    label: 'Due this week'
+  }].map(opt => /*#__PURE__*/React.createElement("button", {
+    key: opt.id,
+    onClick: () => {
+      setFilterStatus(opt.id);
+      setOpenMenu(null);
+      fireToast(`Filtering to ${opt.label.toLowerCase()}`);
+    },
+    style: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      padding: '7px 10px',
+      borderRadius: 6,
+      background: filterStatus === opt.id ? T.primarySofter : 'transparent',
+      border: 'none',
+      cursor: 'pointer',
+      fontSize: 12.5,
+      color: filterStatus === opt.id ? T.primary : T.text,
+      fontWeight: filterStatus === opt.id ? 600 : 500,
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, opt.label)))), activeProjectId && (() => {
     const ap = projects.find(p => p.id === activeProjectId);
     if (!ap) return null;
     return /*#__PURE__*/React.createElement("span", {
@@ -67533,34 +66948,7 @@ const WorkManagementPage = ({
       name: project.icon,
       size: 11,
       color: "#fff"
-    })), /*#__PURE__*/React.createElement("span", null, project.name), /*#__PURE__*/React.createElement("span", {
-      style: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        padding: '1px 7px',
-        borderRadius: 999,
-        background: health.bg,
-        color: health.fg,
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: 0.3
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 5,
-        height: 5,
-        borderRadius: 999,
-        background: health.dot
-      }
-    }), health.label), /*#__PURE__*/React.createElement("span", {
-      style: {
-        marginLeft: 'auto',
-        fontSize: 11,
-        fontWeight: 500,
-        color: T.muted
-      }
-    }, openCount, " open \xB7 ", filtered.length, " total", filtered.length !== openCount && /*#__PURE__*/React.createElement("span", null, " \xB7 ", filtered.length - openCount, " done"))), isOpen && sortedTasks.map(t => {
+    })), /*#__PURE__*/React.createElement("span", null, project.name)), isOpen && sortedTasks.map(t => {
       const isActive = t.id === selectedId;
       const assignee = ISD_STAFF.find(s => s.id === t.assignee) || ISD_STAFF[0];
       const done = isCompleted(t.id);
@@ -70848,6 +70236,7 @@ const SpmForecastPage = ({
   const [scenario, setScenario] = useState('weighted');
   const [q, setQ] = useState('');
   const [drill, setDrill] = useState(null);
+  const [pipeView, setPipeView] = useState('board');
   // Local stage overrides keyed by deal id. Populated when a user drags
   // a deal card to a new column on `StageBoard`. Resets on page refresh
   // — there's no persistence layer in the prototype.
@@ -71307,6 +70696,8 @@ const SpmForecastPage = ({
   const totalCommittedPeriod = SPM_STAFF.reduce((a, s) => a + s.committed, 0) * SPM_WEEKS_PER_MONTH * months.length;
   const totalCapPeriod = SPM_STAFF.reduce((a, s) => a + s.std * s.target / 100, 0) * SPM_WEEKS_PER_MONTH * months.length;
   const utilPct = Math.round(totalCommittedPeriod / Math.max(1, totalCapPeriod) * 100);
+  const totalNonBillPeriod = SPM_STAFF.reduce((a, s) => a + s.nonbill, 0) * SPM_WEEKS_PER_MONTH * months.length;
+  const nonBillPct = Math.round(totalNonBillPeriod / Math.max(1, totalCapPeriod) * 100);
   // Compute pipeline overlay for BOTH scenarios so the paired tiles can
   // show committed vs uncommitted side-by-side without depending on the
   // top-bar scenario toggle (Johann's round-3 ask).
@@ -71600,18 +70991,26 @@ const SpmForecastPage = ({
       title: "Resource impact",
       subtitle: "Click any cell to see what the pipeline is doing to that person's month."
     }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(ResourceGrid, null))), /*#__PURE__*/React.createElement(DashSection, {
-      title: "Pipeline by stage",
-      subtitle: "Drag a deal card to a new stage to update its likelihood; click to drill."
-    }, /*#__PURE__*/React.createElement(Card, {
+      title: "Pipeline detail",
+      subtitle: pipeView === 'board' ? 'Drag a deal card to a new stage to update its likelihood; click to drill.' : 'Sortable + filterable.',
+      right: /*#__PURE__*/React.createElement(SegToggle, {
+        value: pipeView,
+        onChange: setPipeView,
+        options: [{
+          value: 'board',
+          label: 'Board'
+        }, {
+          value: 'list',
+          label: 'Table'
+        }]
+      })
+    }, pipeView === 'board' && /*#__PURE__*/React.createElement(Card, {
       padded: false
     }, /*#__PURE__*/React.createElement("div", {
       style: {
         padding: 14
       }
-    }, /*#__PURE__*/React.createElement(StageBoard, null)))), /*#__PURE__*/React.createElement(DashSection, {
-      title: "Pipeline table",
-      subtitle: "Sortable + filterable."
-    }, /*#__PURE__*/React.createElement(SpmTable, {
+    }, /*#__PURE__*/React.createElement(StageBoard, null))), pipeView === 'list' && /*#__PURE__*/React.createElement(SpmTable, {
       columns: dealColumns,
       rows: dealRows,
       onRowClick: row => setDrill(spmDealPayload(row.raw, deals, scenario)),
@@ -71626,11 +71025,11 @@ const SpmForecastPage = ({
     }
   }, /*#__PURE__*/React.createElement(SpmDonutPair, {
     title: "Current utilisation",
-    sub: "Committed billable load vs target capacity.",
+    sub: "Committed billable load vs non-billable allocation as % of target capacity.",
     leftPct: utilPct,
-    leftSub: "committed work",
-    rightPct: utilPct,
-    rightSub: "committed work"
+    leftSub: "billable committed",
+    rightPct: nonBillPct,
+    rightSub: "non-billable load"
   }), /*#__PURE__*/React.createElement(SpmDonutPair, {
     title: "Pipeline overlay",
     sub: "Forecast pipeline as % of target capacity.",
@@ -71793,10 +71192,10 @@ const ProjectTrackingPage = ({
     time: p.wipTime,
     expenses: p.wipExpenses
   }));
+  const wipColumns = ['Project', 'Service', 'WIP Time', 'WIP Expenses', 'WIP Total', 'Age', 'Billing Status'];
   const wipProjectRows = wipProjects.map(p => {
-    const b = (p.actualCost + p.expenses) / p.budgetFee * 100;
-    const h = p.actualHrs / p.budgetHrs * 100;
-    const st = spmProjectStatus(p);
+    const st = p.billing || 'In progress';
+    const stColor = st === 'Ready to bill' ? 'green' : st === 'Blocked' ? 'red' : 'accent';
     return {
       key: p.id,
       raw: p,
@@ -71809,8 +71208,8 @@ const ProjectTrackingPage = ({
         }
       }, p.client)), /*#__PURE__*/React.createElement(Pill, {
         color: "accent"
-      }, p.service), fmtMoney(p.budgetFee), `${p.budgetHrs}h`, `${p.actualHrs}h`, `${Math.round(b)}%`, `${Math.round(h)}%`, fmtMoney(spmWipTotal(p)), p.age, /*#__PURE__*/React.createElement(Pill, {
-        color: spmStatusColor(st)
+      }, p.service), fmtMoney(p.wipTime), fmtMoney(p.wipExpenses), fmtMoney(spmWipTotal(p)), p.age, /*#__PURE__*/React.createElement(Pill, {
+        color: stColor
       }, st)]
     };
   });
@@ -71999,7 +71398,7 @@ const ProjectTrackingPage = ({
     });
   });
   const handleExport = (name, rows) => {
-    const cols = name === 'resourcing' ? resourcingColumns : projectColumns;
+    const cols = name === 'resourcing' ? resourcingColumns : name === 'wip' ? wipColumns : projectColumns;
     spmExportCsv(name, cols, rows, r => r.cells);
     fireToast && fireToast(`Exported ${rows.length} rows to CSV`);
   };
@@ -72122,25 +71521,13 @@ const ProjectTrackingPage = ({
   }), tab === 'financials' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(SpmKpi, {
     label: "Active budgets",
     value: fmtMoney(k.activeBudget),
     hint: "project budget fees"
-  }), /*#__PURE__*/React.createElement(SpmKpi, {
-    label: "Budget hours",
-    value: `${k.budgetHrs}h`,
-    hint: "delivery budget"
-  }), /*#__PURE__*/React.createElement(SpmKpi, {
-    label: "Actual hours",
-    value: `${k.actualHrs}h`,
-    hint: "time recorded"
-  }), /*#__PURE__*/React.createElement(SpmKpi, {
-    label: "WIP",
-    value: fmtMoney(k.totalWip),
-    hint: "unbilled work"
   }), /*#__PURE__*/React.createElement(SpmKpi, {
     label: "High risk",
     value: k.highRisk,
@@ -72239,7 +71626,7 @@ const ProjectTrackingPage = ({
     })))), /*#__PURE__*/React.createElement(DashSection, {
       title: "Project WIP table"
     }, /*#__PURE__*/React.createElement(SpmTable, {
-      columns: projectColumns,
+      columns: wipColumns,
       rows: wipProjectRows,
       onRowClick: row => setDrill(spmProjectPayload(row.raw)),
       exportName: "wip",
@@ -72248,28 +71635,26 @@ const ProjectTrackingPage = ({
   })(), tab === 'budget-wip' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gridTemplateColumns: 'repeat(1, minmax(0, 1fr))',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(SpmKpi, {
-    label: "Total WIP",
-    value: fmtMoney(k.totalWip),
-    hint: "time + expenses"
-  }), /*#__PURE__*/React.createElement(SpmKpi, {
-    label: "Aged > 60d",
-    value: fmtMoney(k.agedWip),
-    hint: "write-off risk",
-    tone: k.agedWip > 0 ? 'red' : 'green'
-  }), /*#__PURE__*/React.createElement(SpmKpi, {
-    label: "Over budget",
-    value: `${k.overBudget} projects`,
-    hint: "cost or hours breach",
-    tone: k.overBudget > 0 ? 'red' : 'green'
-  }), /*#__PURE__*/React.createElement(SpmKpi, {
     label: "Active filter",
     value: healthBand,
     hint: "click a band to change"
-  }))), tab === 'resourcing' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement(DashSection, {
+    title: "Budget health bands",
+    subtitle: "Click a band to filter, then switch to the Financials tab for the full table."
+  }, /*#__PURE__*/React.createElement(BandStrip, null)), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 16,
+      padding: '14px 16px',
+      background: T.primarySofter,
+      borderRadius: 10,
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, "Budget health detail is shown on the Financials tab \u2014 use the band filter above to narrow by health status.")), tab === 'resourcing' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
@@ -78068,13 +77453,7 @@ const DealsPage = ({
       fontWeight: 500,
       color: T.muted
     }
-  }, "Open pipeline by stage"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      fontWeight: 700,
-      color: T.text
-    }
-  }, fmtDealMoney(openValue))), /*#__PURE__*/React.createElement(HoverStackedBar, {
+  }, "Open pipeline by stage")), /*#__PURE__*/React.createElement(HoverStackedBar, {
     segments: pipeSegments,
     height: 14,
     formatTip: s => `${s.label}: ${fmtDealMoney(s.value)}`
@@ -78111,12 +77490,7 @@ const DealsPage = ({
         background: s.dotColor,
         flexShrink: 0
       }
-    }), s.label, /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: T.text,
-        fontWeight: 600
-      }
-    }, fmtDealMoney(s.value)));
+    }), s.label);
   }))));
   const board = /*#__PURE__*/React.createElement("div", {
     style: {
@@ -78186,9 +77560,12 @@ const DealsPage = ({
     }, colDeals.length)), (() => {
       // Forecast roll-up (computed) with an optional manual TARGET override (B). Targets only
       // apply when grouping by stage (g.key is then a stage id); owner/priority cols never show one.
+      // Per-column computed forecast is omitted when no manual target is set — the KPI strip
+      // ("Likely to win") and the pipeline bar already show aggregate + per-stage values.
       const canTarget = FORECAST_TARGETS_ENABLED && groupBy === 'stage';
       const tgt = canTarget ? stageTargets[g.key] : undefined;
       const hasTgt = tgt != null;
+      if (!hasTgt && !canTarget) return null;
       return /*#__PURE__*/React.createElement("div", {
         style: {
           marginTop: 3,
@@ -78200,7 +77577,7 @@ const DealsPage = ({
           alignItems: 'center',
           gap: 6
         }
-      }, hasTgt ? /*#__PURE__*/React.createElement("span", {
+      }, hasTgt && /*#__PURE__*/React.createElement("span", {
         title: `Manual target · computed roll-up ${fmtDealMoney(forecast)}`,
         style: {
           display: 'inline-flex',
@@ -78214,13 +77591,7 @@ const DealsPage = ({
         name: "target",
         size: 12,
         color: T.amber
-      }), " Target ", fmtDealMoney(tgt)) : /*#__PURE__*/React.createElement("span", {
-        title: `Pipeline value ${fmtDealMoney(total)}`,
-        style: {
-          fontSize: 11.5,
-          color: T.muted
-        }
-      }, "Forecast ", fmtDealMoney(forecast)), canTarget && /*#__PURE__*/React.createElement("button", {
+      }), " Target ", fmtDealMoney(tgt)), canTarget && /*#__PURE__*/React.createElement("button", {
         onClick: () => {
           const open = targetEditKey === g.key;
           setTargetEditKey(open ? null : g.key);
@@ -78240,19 +77611,13 @@ const DealsPage = ({
         name: hasTgt ? 'edit' : 'plus',
         size: 11,
         color: T.mutedSoft
-      }))), hasTgt ? /*#__PURE__*/React.createElement("div", {
+      }))), hasTgt && /*#__PURE__*/React.createElement("div", {
         style: {
           fontSize: 10.5,
           color: T.mutedSoft,
           marginTop: 1
         }
-      }, "computed ", fmtDealMoney(forecast)) : /*#__PURE__*/React.createElement("div", {
-        style: {
-          fontSize: 10,
-          color: T.mutedSoft,
-          marginTop: 1
-        }
-      }, "at standard likelihood"), canTarget && targetEditKey === g.key && /*#__PURE__*/React.createElement(Popover, {
+      }, "computed ", fmtDealMoney(forecast)), canTarget && targetEditKey === g.key && /*#__PURE__*/React.createElement(Popover, {
         open: true,
         onClose: () => setTargetEditKey(null),
         anchorAlign: "left",
@@ -79948,10 +79313,9 @@ const MarginByPersonPage = ({
   }];
 
   // Table — same shape as the SPM capacity table but with margin focus.
-  const cols = ['Person', 'Service line', 'Bill rate', 'Cost rate', 'Utilisation', 'Revenue', 'Payroll cost', 'Margin %', 'Status'];
+  const cols = ['Person', 'Service line', 'Bill rate', 'Cost rate', 'Utilisation', 'Revenue', 'Payroll cost', 'Margin %'];
   const rows = marginRows.map(x => {
-    const status = x.m < 30 ? 'At risk' : x.m < 45 ? 'Watch' : 'Healthy';
-    const tone = x.m < 30 ? 'red' : x.m < 45 ? 'amber' : 'green';
+    const marginColor = x.m < 30 ? T.red : x.m < 45 ? T.amber : T.green;
     return {
       key: x.s.id,
       raw: x,
@@ -79962,9 +79326,12 @@ const MarginByPersonPage = ({
         }
       }, x.s.role)), /*#__PURE__*/React.createElement(Pill, {
         color: "accent"
-      }, x.s.line), `$${x.s.rate}/h`, `$${x.s.cost}/h`, `${x.util}%`, fmtMoney(Math.round(x.rev)), fmtMoney(Math.round(x.cost)), `${x.m}%`, /*#__PURE__*/React.createElement(Pill, {
-        color: tone
-      }, status)]
+      }, x.s.line), `$${x.s.rate}/h`, `$${x.s.cost}/h`, `${x.util}%`, fmtMoney(Math.round(x.rev)), fmtMoney(Math.round(x.cost)), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontWeight: 600,
+          color: marginColor
+        }
+      }, x.m, "%")]
     };
   });
   const openMarginLogic = () => setDrill({
@@ -80119,27 +79486,6 @@ const MarginByPersonPage = ({
     value: `${costRecovery}%`,
     hint: `Total payroll ${fmtMoney(totalPayroll)}`
   })), /*#__PURE__*/React.createElement(DashSection, {
-    title: "Margin distribution",
-    subtitle: "Each person's true margin vs the 30% practice minimum."
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: PD.rowGap
-    }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
-    sub: "Dashed line marks the 30% margin floor."
-  }, "Margin %"), /*#__PURE__*/React.createElement(SpmBars, {
-    data: marginPctData,
-    series: marginPctSeries,
-    target: 30
-  })), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
-    sub: "Allocation share of project fees vs hours \xD7 hourly cost rate."
-  }, "Revenue vs payroll cost"), /*#__PURE__*/React.createElement(SpmBars, {
-    data: marginRevCostData,
-    series: marginRevCostSeries,
-    grouped: true
-  })))), /*#__PURE__*/React.createElement(DashSection, {
     title: "Margin table"
   }, /*#__PURE__*/React.createElement(SpmTable, {
     columns: cols,
@@ -80183,7 +79529,7 @@ const MarginByPersonPage = ({
 const ReportsPage = ({
   fireToast
 }) => {
-  const [report, setReport] = useState('Pipeline conversion report');
+  const [report, setReport] = useState('Unallocated work report');
   const [q, setQ] = useState('');
   // Column sort — { idx, dir }. idx -1 = unsorted. Mirrors SpmTable's
   // sort pattern (numeric-aware localeCompare). Johann's transcript ask:
@@ -80197,30 +79543,6 @@ const ReportsPage = ({
   // filter change just re-runs the builder without re-rendering the
   // whole list.
   const REPORTS = useMemo(() => [{
-    name: 'Pipeline conversion report',
-    group: 'Pipeline',
-    source: 'deals',
-    cols: ['Client', 'Service', 'Stage', 'Likelihood', 'Value', 'Hours', 'Start', 'Status'],
-    rows: () => SPM_DEALS.map(d => [d.client, d.service, d.stage, `${d.prob}%`, fmtMoney(d.value), `${d.hours}h`, d.start, d.won ? 'Signed' : 'Open'])
-  }, {
-    name: 'Forecast by service line',
-    group: 'Pipeline',
-    source: 'deals',
-    cols: ['Service line', 'Open deals', 'Total value', 'Total hours', 'Weighted value'],
-    rows: () => SPM_SERVICES.filter(s => s !== 'All').map(svc => {
-      const slice = SPM_DEALS.filter(d => d.service === svc);
-      const tv = slice.reduce((a, d) => a + d.value, 0);
-      const th = slice.reduce((a, d) => a + d.hours, 0);
-      const wv = slice.reduce((a, d) => a + d.value * (d.override != null ? d.override : d.prob) / 100, 0);
-      return [svc, slice.length, fmtMoney(tv), `${th}h`, fmtMoney(Math.round(wv))];
-    })
-  }, {
-    name: 'Forecast by staff capacity',
-    group: 'Pipeline',
-    source: 'staff',
-    cols: ['Person', 'Role', 'Service line', 'Std hrs/wk', 'Target %', 'Committed/wk', 'Cost rate', 'Bill rate'],
-    rows: () => SPM_STAFF.map(s => [s.name, s.role, s.line, `${s.std}h`, `${s.target}%`, `${s.committed}h`, `$${s.cost}/h`, `$${s.rate}/h`])
-  }, {
     name: 'Unallocated work report',
     group: 'Pipeline',
     source: 'deals',
@@ -80230,90 +79552,9 @@ const ReportsPage = ({
       const un = spmUnalloc(d);
       return [d.client, d.service, `${d.hours}h`, `${alloc}h`, `${un}h`, `${d.prob}%`];
     }).filter(r => Number(String(r[4]).replace('h', '')) > 0)
-  }, {
-    name: 'Margin by person',
-    group: 'Staffing',
-    source: 'staff',
-    cols: ['Person', 'Service line', 'Bill rate', 'Cost rate', 'Revenue', 'Payroll cost', 'Margin %'],
-    rows: () => SPM_STAFF.map(s => {
-      let rev = 0,
-        cost = 0;
-      SPM_PROJECTS.forEach(p => {
-        p.alloc.forEach(a => {
-          if (a[0] === s.id) {
-            rev += p.budgetFee * (a[3] / Math.max(1, p.actualHrs));
-            cost += a[3] * s.cost;
-          }
-        });
-      });
-      const m = rev ? Math.round((rev - cost) / rev * 100) : 0;
-      return [s.name, s.line, `$${s.rate}/h`, `$${s.cost}/h`, fmtMoney(Math.round(rev)), fmtMoney(Math.round(cost)), `${m}%`];
-    })
-  }, {
-    name: 'Utilisation target report',
-    group: 'Staffing',
-    source: 'staff',
-    cols: ['Person', 'Std hrs/wk', 'Target %', 'Committed/wk', 'Non-billable/wk', 'Variance'],
-    rows: () => SPM_STAFF.map(s => {
-      const targetHrs = Math.round(s.std * s.target / 100);
-      const variance = s.committed - targetHrs;
-      return [s.name, `${s.std}h`, `${s.target}%`, `${s.committed}h`, `${s.nonbill}h`, `${variance >= 0 ? '+' : ''}${variance}h`];
-    })
-  }, {
-    name: 'Project financials',
-    group: 'Projects',
-    source: 'projects',
-    cols: ['Project', 'Client', 'Service', 'Budget fee', 'Actual cost', 'Forecast cost', 'Margin'],
-    rows: () => SPM_PROJECTS.map(p => {
-      const margin = p.budgetFee ? Math.round((p.budgetFee - p.forecastCost) / p.budgetFee * 100) : 0;
-      return [p.name, p.client, p.service, fmtMoney(p.budgetFee), fmtMoney(p.actualCost), fmtMoney(p.forecastCost), `${margin}%`];
-    })
-  }, {
-    name: 'Budget versus actual',
-    group: 'Projects',
-    source: 'projects',
-    cols: ['Project', 'Budget hrs', 'Actual hrs', 'Hours used %', 'Budget fee', 'Forecast cost', 'Variance'],
-    rows: () => SPM_PROJECTS.map(p => {
-      const variance = p.budgetFee - p.forecastCost;
-      return [p.name, `${p.budgetHrs}h`, `${p.actualHrs}h`, `${Math.round(p.actualHrs / Math.max(1, p.budgetHrs) * 100)}%`, fmtMoney(p.budgetFee), fmtMoney(p.forecastCost), `${variance >= 0 ? '+' : ''}${fmtMoney(variance)}`];
-    })
-  }, {
-    name: 'Project WIP ageing',
-    group: 'Projects',
-    source: 'projects',
-    cols: ['Project', 'Client', 'WIP time', 'WIP expenses', 'WIP total', 'Age', 'Billing status'],
-    rows: () => SPM_PROJECTS.map(p => [p.name, p.client, fmtMoney(p.wipTime), fmtMoney(p.wipExpenses), fmtMoney(p.wipTime + p.wipExpenses), p.age, p.billing])
-  }, {
-    name: 'Project resourcing',
-    group: 'Projects',
-    source: 'projects',
-    cols: ['Project', 'Person', 'Role', 'Budgeted hrs', 'Actual hrs', 'Used %'],
-    rows: () => SPM_PROJECTS.flatMap(p => p.alloc.map(a => {
-      const staff = SPM_STAFF.find(s => s.id === a[0]);
-      return [p.name, staff && staff.name || a[0], a[1], `${a[2]}h`, `${a[3]}h`, `${Math.round(a[3] / Math.max(1, a[2]) * 100)}%`];
-    }))
-  }, {
-    name: 'Budget WIP',
-    group: 'Projects',
-    source: 'projects',
-    cols: ['Project', 'Budget used %', 'Hours used %', 'WIP total', 'Status'],
-    rows: () => SPM_PROJECTS.map(p => {
-      const band = spmBandFor(p);
-      return [p.name, `${Math.round((p.actualCost + p.expenses) / Math.max(1, p.budgetFee) * 100)}%`, `${Math.round(p.actualHrs / Math.max(1, p.budgetHrs) * 100)}%`, fmtMoney(p.wipTime + p.wipExpenses), band];
-    })
   },
   // --- Practice management reports (round 4) ---
   {
-    name: 'Time entries',
-    group: 'Practice',
-    source: 'projects',
-    cols: ['Staff', 'Role', 'Project', 'Client', 'Budget hrs', 'Actual hrs', 'Used %'],
-    rows: () => SPM_PROJECTS.flatMap(p => p.alloc.map(a => {
-      const staff = SPM_STAFF.find(s => s.id === a[0]);
-      const used = Math.round(a[3] / Math.max(1, a[2]) * 100);
-      return [staff && staff.name || a[0], a[1], p.name, p.client, `${a[2]}h`, `${a[3]}h`, `${used}%`];
-    }))
-  }, {
     name: 'Practice profitability',
     group: 'Practice',
     source: 'projects',
@@ -80349,21 +79590,6 @@ const ReportsPage = ({
   },
   // --- Payroll reports (round 4, modelled on MicroKeeper standard set) ---
   {
-    name: 'Payroll employee',
-    group: 'Payroll',
-    source: 'payroll',
-    cols: ['Employee', 'Employer', 'Type', 'Ord hrs/wk', 'Email', 'Status'],
-    rows: () => PRACTICE_EMPLOYEES.map(e => {
-      const client = PRACTICE_CLIENTS.find(c => c.id === e.clientId);
-      return [e.name, client && client.name || '—', e.empType || '—', `${e.ordHours || 38}h`, e.email || '—', e.active ? 'Active' : 'Inactive'];
-    })
-  }, {
-    name: 'Payroll summary by run',
-    group: 'Payroll',
-    source: 'payroll',
-    cols: ['Run #', 'Period', 'Pay date', 'Employees', 'Payments', 'Expenses', 'Deductions', 'Status'],
-    rows: () => PRACTICE_PAYRUNS.map(r => [`#${r.runNumber}`, r.period, fmtDate ? fmtDate(r.paymentDate) : r.paymentDate.toLocaleDateString('en-AU'), r.employees, fmtMoney(r.paymentTotal), fmtMoney(r.expenseTotal), fmtMoney(r.deductionTotal), PAYRUN_STATUS[r.status] && PAYRUN_STATUS[r.status].label || r.status])
-  }, {
     name: 'Payslip register',
     group: 'Payroll',
     source: 'payroll',
@@ -80582,7 +79808,7 @@ const ReportsPage = ({
       color: T.muted
     }
   }, rows.length, " of ", rawRows.length, " rows")), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(CardTitle, {
-    sub: `Source: ${active.source}. ${rows.length} rows. Download via Export CSV above.`
+    sub: `Source: ${active.source}. Download via Export CSV above.`
   }, active.name), /*#__PURE__*/React.createElement("div", {
     style: {
       overflowX: 'auto',
@@ -86937,19 +86163,11 @@ const WfReadinessPanel = ({
 }) => {
   if (!open) return null;
   const errors = issues.filter(i => i.severity === 'error');
-  const groups = [{
-    key: 'error',
-    label: 'Must fix',
-    items: errors
-  }, {
-    key: 'warn',
-    label: 'Recommended',
-    items: issues.filter(i => i.severity === 'warn')
-  }, {
-    key: 'ok',
-    label: 'Looks good',
-    items: issues.filter(i => i.severity === 'ok')
-  }];
+  const warnings = issues.filter(i => i.severity === 'warn');
+  const summaryParts = [];
+  if (errors.length) summaryParts.push(`${errors.length} error${errors.length === 1 ? '' : 's'}`);
+  if (warnings.length) summaryParts.push(`${warnings.length} warning${warnings.length === 1 ? '' : 's'}`);
+  const summaryText = summaryParts.length ? summaryParts.join(', ') : 'All checks pass';
   return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
     onClick: onClose,
     style: {
@@ -86968,8 +86186,7 @@ const WfReadinessPanel = ({
       border: `1px solid ${T.border}`,
       borderRadius: 12,
       boxShadow: '0 12px 32px rgba(15,17,23,0.16)',
-      width: 380,
-      maxHeight: 520,
+      width: 320,
       overflow: 'hidden',
       animation: 'expand 0.14s ease',
       display: 'flex',
@@ -86977,14 +86194,14 @@ const WfReadinessPanel = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: '12px 16px',
-      borderBottom: `1px solid ${T.border}`
+      padding: '14px 16px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 8
+      gap: 8,
+      marginBottom: 10
     }
   }, /*#__PURE__*/React.createElement(SectionTitle, {
     style: {
@@ -87003,127 +86220,34 @@ const WfReadinessPanel = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "close",
     size: 14
-  }))), /*#__PURE__*/React.createElement(Helper, {
+  }))), /*#__PURE__*/React.createElement("div", {
     style: {
-      marginTop: 4
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      fontSize: 13,
+      fontWeight: 600,
+      color: errors.length ? T.red : warnings.length ? T.amber : T.greenDark
     }
-  }, errors.length ? `${errors.length} item${errors.length === 1 ? '' : 's'} must be fixed before publishing.` : 'All checks pass — ready to publish.')), /*#__PURE__*/React.createElement("div", {
-    className: "scroll-area",
-    style: {
-      overflowY: 'auto',
-      padding: '6px 0',
-      flex: 1
-    }
-  }, groups.map(group => group.items.length === 0 ? null : /*#__PURE__*/React.createElement("div", {
-    key: group.key,
-    style: {
-      padding: '6px 0'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '6px 16px',
-      fontSize: 10,
-      fontWeight: 700,
-      color: T.muted,
-      letterSpacing: 0.6,
-      textTransform: 'uppercase'
-    }
-  }, group.label, " \xB7 ", group.items.length), group.items.map(it => {
-    const p = it.severity === 'error' ? {
-      bg: T.redSoft,
-      fg: T.red,
-      bd: '#FECACA',
-      icon: 'close'
-    } : it.severity === 'warn' ? {
-      bg: T.amberSoft,
-      fg: T.amber,
-      bd: '#FCD34D',
-      icon: 'info'
-    } : {
-      bg: T.greenSoft,
-      fg: T.greenDark,
-      bd: '#A7F3D0',
-      icon: 'check'
-    };
-    const clickable = it.severity !== 'ok';
-    return /*#__PURE__*/React.createElement("button", {
-      key: it.id,
-      "data-hover": "row",
-      disabled: !clickable,
-      onClick: () => {
-        if (clickable) {
-          onClose();
-          onJump(it.section);
-        }
-      },
-      style: {
-        width: '100%',
-        padding: '10px 16px',
-        border: 'none',
-        background: 'transparent',
-        textAlign: 'left',
-        cursor: clickable ? 'pointer' : 'default',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 10
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 22,
-        height: 22,
-        borderRadius: '50%',
-        background: p.bg,
-        color: p.fg,
-        border: `1px solid ${p.bd}`,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        marginTop: 1
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: p.icon,
-      size: 11,
-      color: p.fg,
-      strokeWidth: 2.5
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1,
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 13,
-        fontWeight: 600,
-        color: T.text
-      }
-    }, it.label), /*#__PURE__*/React.createElement(Helper, {
-      style: {
-        fontSize: 11,
-        marginTop: 2
-      }
-    }, it.detail)), clickable && /*#__PURE__*/React.createElement(Icon, {
-      name: "arrow",
-      size: 12,
-      color: T.muted
-    }));
-  })))), canPublish && /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 12,
-      borderTop: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    variant: errors.length ? 'soft' : 'primary',
-    size: "md",
-    icon: "check",
-    disabled: errors.length > 0,
-    onClick: onPublish,
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: errors.length ? 'close' : warnings.length ? 'info' : 'check',
+    size: 14,
+    color: errors.length ? T.red : warnings.length ? T.amber : T.greenDark,
+    strokeWidth: 2.5
+  }), summaryText), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "play",
+    onClick: () => {
+      onClose();
+      onJump('__tab_testpublish__');
+    },
     style: {
       width: '100%',
-      justifyContent: 'center'
-    },
-    title: errors.length ? errors.map(e => '• ' + e.label).join('\n') : undefined
-  }, errors.length ? errors.length + ' blocker' + (errors.length > 1 ? 's' : '') + ' — ' + errors[0].label : 'Publish workflow'))));
+      justifyContent: 'center',
+      marginTop: 12
+    }
+  }, "Open Test & Publish"))));
 };
 
 // ---- builder tabs ----
@@ -87258,9 +86382,6 @@ const WfSettingsTab = ({
   const level = WF_LEVELS.find(l => l.value === wf.level) || WF_LEVELS[1];
   const [compareOpen, setCompareOpen] = useState(false);
   const missingGates = wfStepsNeedingGate(wf).length;
-  const root = wf.root ? wf.nodes[wf.root] : null;
-  const trigSummary = root ? wfNodeSummary(root) : '';
-  const startWhen = root ? root.label + (trigSummary && trigSummary !== 'Not configured' ? ' (' + trigSummary + ')' : '') : 'No trigger set yet';
   return /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: 680,
@@ -87513,30 +86634,6 @@ const WfSettingsTab = ({
       marginBottom: 12
     }
   }, "When and how often a client enters this workflow."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '10px 12px',
-      background: T.primarySofter,
-      border: `1px solid ${T.border}`,
-      borderRadius: 8,
-      fontSize: 12.5,
-      color: T.text,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "bolt",
-    size: 14,
-    color: T.primary
-  }), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", {
-    style: {
-      fontWeight: 600
-    }
-  }, "Starts when:"), " ", startWhen)), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      marginTop: 6
-    }
-  }, "Change the trigger on the Builder tab."), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 14
     }
@@ -89151,9 +88248,7 @@ const WfTestPublishTab = ({
     style: {
       marginTop: 2
     }
-  }, "Every check should pass before this workflow goes live.")), /*#__PURE__*/React.createElement(Pill, {
-    color: errors.length ? 'red' : 'green'
-  }, errors.length ? errors.length + ' to fix' : okCount + '/' + checks.length + ' passing')), /*#__PURE__*/React.createElement("div", null, checks.map((c, i) => {
+  }, "Every check should pass before this workflow goes live."))), /*#__PURE__*/React.createElement("div", null, checks.map((c, i) => {
     const blocked = c.critical && c.state !== 'ok'; // a failing critical check is a hard blocker → red
     const p = c.state === 'ok' ? {
       fg: T.greenDark,
@@ -90030,7 +89125,6 @@ const WfBuilderRail = ({
     const gates = wfLockedGateCount(wf);
     const hrs = wfBudgetHours(wf);
     const risk = wfHighRiskCount(wf);
-    const open = issues.filter(i => i.severity !== 'ok');
     return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
       style: {
         padding: '14px 16px',
@@ -90042,153 +89136,6 @@ const WfBuilderRail = ({
         borderBottom: `1px solid ${T.border}`
       }
     }, sectionTitle('Activity summary'), kv('Total steps', steps), kv('Client touchpoints', touch, touch ? T.blue : undefined), kv('Locked gates', gates, gates ? T.amber : undefined), kv('Budget hours', hrs ? hrs.toFixed(1).replace(/\.0$/, '') + ' hrs' : '—'), kv('High-risk steps', risk, risk ? T.red : undefined)), /*#__PURE__*/React.createElement("div", {
-      style: {
-        padding: '14px 16px',
-        borderBottom: `1px solid ${T.border}`
-      }
-    }, sectionTitle('Publish readiness', /*#__PURE__*/React.createElement("span", {
-      style: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        height: 22,
-        padding: '0 9px',
-        borderRadius: 999,
-        border: `1px solid ${readyTone.bd}`,
-        background: readyTone.bg,
-        color: readyTone.fg,
-        fontSize: 11,
-        fontWeight: 700
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 6,
-        height: 6,
-        borderRadius: '50%',
-        background: readyTone.fg
-      }
-    }), readyLabel)), open.length === 0 ? /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 12.5,
-        color: T.greenDark,
-        fontWeight: 600
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: "check",
-      size: 13,
-      color: T.greenDark,
-      strokeWidth: 2.5
-    }), "All checks pass \u2014 ready to publish.") : /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2
-      }
-    }, open.map(it => {
-      const p = it.severity === 'error' ? {
-        fg: T.red,
-        bg: T.redSoft,
-        bd: '#FECACA',
-        icon: 'close'
-      } : {
-        fg: T.amber,
-        bg: T.amberSoft,
-        bd: '#FCD34D',
-        icon: 'info'
-      };
-      return /*#__PURE__*/React.createElement("button", {
-        key: it.id,
-        "data-hover": "row",
-        onClick: () => {
-          if (it.section) onSelectNode(it.section);
-        },
-        disabled: !it.section,
-        style: {
-          width: '100%',
-          textAlign: 'left',
-          border: 'none',
-          background: 'transparent',
-          cursor: it.section ? 'pointer' : 'default',
-          padding: '7px 6px',
-          margin: '0 -6px',
-          borderRadius: 8,
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 8
-        }
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          width: 18,
-          height: 18,
-          borderRadius: '50%',
-          background: p.bg,
-          color: p.fg,
-          border: `1px solid ${p.bd}`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          marginTop: 1
-        }
-      }, /*#__PURE__*/React.createElement(Icon, {
-        name: p.icon,
-        size: 9,
-        color: p.fg,
-        strokeWidth: 2.5
-      })), /*#__PURE__*/React.createElement("span", {
-        style: {
-          flex: 1,
-          minWidth: 0
-        }
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          display: 'block',
-          fontSize: 12,
-          fontWeight: 600,
-          color: T.text
-        }
-      }, it.label), /*#__PURE__*/React.createElement("span", {
-        style: {
-          display: 'block',
-          fontSize: 11,
-          color: T.muted,
-          marginTop: 1
-        }
-      }, it.detail)), it.section && /*#__PURE__*/React.createElement(Icon, {
-        name: "arrow",
-        size: 11,
-        color: T.muted
-      }));
-    })), /*#__PURE__*/React.createElement(Btn, {
-      variant: "soft",
-      size: "sm",
-      icon: "play",
-      onClick: onTest,
-      style: {
-        width: '100%',
-        justifyContent: 'center',
-        marginTop: 10
-      }
-    }, "Run test simulation")), /*#__PURE__*/React.createElement("div", {
-      style: {
-        padding: '14px 16px',
-        borderBottom: `1px solid ${T.border}`
-      }
-    }, sectionTitle('What this workflow does'), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12.5,
-        color: T.textSoft,
-        lineHeight: 1.5
-      }
-    }, wf.outcome || 'No outcome described yet — add one in Settings.'), /*#__PURE__*/React.createElement(Helper, {
-      style: {
-        fontSize: 11,
-        marginTop: 6
-      }
-    }, steps, " step", steps === 1 ? '' : 's', " \xB7 ", touch, " client contact", touch === 1 ? '' : 's', hrs ? ' · ' + hrs.toFixed(1).replace(/\.0$/, '') + ' hrs budgeted' : '', ".")), /*#__PURE__*/React.createElement("div", {
       style: {
         padding: '14px 16px'
       }
@@ -91367,8 +90314,7 @@ const WorkflowBuilderPage = ({
   };
   const tabs = [{
     id: 'builder',
-    label: 'Builder',
-    count: Object.keys(wf.nodes).length
+    label: 'Builder'
   }, {
     id: 'activation',
     label: 'Activation'
@@ -91522,8 +90468,12 @@ const WorkflowBuilderPage = ({
     issues: issues,
     canPublish: wf.status !== 'Active',
     onJump: nodeId => {
-      setTab('builder');
-      if (nodeId) setSelectedNodeId(nodeId);
+      if (nodeId === '__tab_testpublish__') {
+        setTab('testpublish');
+      } else {
+        setTab('builder');
+        if (nodeId) setSelectedNodeId(nodeId);
+      }
     },
     onPublish: doPublish
   }))), loadedBaseline && /*#__PURE__*/React.createElement("div", {
@@ -94307,7 +93257,7 @@ const NotificationsPage = ({
   // The old sidebar, now horizontal tabs: state group · divider · category group.
   const tabs = [{
     id: 'inbox',
-    label: 'Inbox',
+    label: 'All',
     icon: 'inbox'
   }, {
     id: 'action',
@@ -94518,7 +93468,7 @@ const NotificationsPage = ({
     icon: "bell",
     title: "Notifications",
     updatedLabel: "",
-    subtitle: actionCount > 0 ? `${actionCount} need your action · ${unread} unread` : unread > 0 ? `${unread} unread` : 'All caught up',
+    subtitle: unread > 0 ? 'Unread notifications' : 'All caught up',
     actions: /*#__PURE__*/React.createElement(Btn, {
       variant: "ghost",
       icon: "check",
