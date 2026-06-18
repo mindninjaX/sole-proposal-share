@@ -26331,6 +26331,113 @@ const App = () => {
 const PRACTICE_EMP_FIRST = ['Abhishek', 'Haran', 'Narayan', 'Arjun', 'Arvind', 'Deepinder', 'Karan', 'Nitin', 'Sneha', 'Amit', 'Priya', 'Rohit', 'Tanvi', 'Vikram', 'Anjali', 'Manish', 'Pooja', 'Suresh', 'Kavya', 'Rahul', 'Neha', 'Aditya', 'Shreya', 'Akash', 'Ria', 'Sandeep', 'Meera', 'Yash', 'Divya', 'Karthik', 'Lakshmi', 'Naveen', 'Aarti', 'Varun', 'Nisha', 'Gaurav', 'Swati', 'Hardik', 'Ishaan', 'Mansi', 'Devika', 'Raj', 'Simran', 'Ankur', 'Nandini', 'Bhavna', 'Tarun', 'Mohan', 'Sanya', 'Pranav', 'Komal', 'Vivek', 'Aisha', 'Krish', 'Ridhi', 'Rakesh', 'Sara', 'Dhruv', 'Ananya', 'Imran'];
 const PRACTICE_EMP_LAST = ['Sharma', 'Murthy', 'Mehta', 'Goyal', 'Malhotra', 'Reddy', 'Kainturah', 'Verma', 'Iyer', 'Patel', 'Singh', 'Gupta', 'Rao', 'Joshi', 'Shah', 'Khan', 'Das', 'Nair', 'Pillai', 'Pandey', 'Kapoor', 'Bose', 'Chopra', 'Saxena', 'Bhat', 'Menon', 'Sinha', 'Trivedi', 'Pawar', 'Kulkarni'];
 const PRACTICE_EMP_TYPES = ['Full Time', 'Part Time', 'Casual'];
+
+// --- offices (Jun-18 JO ask: firms run multiple offices) ---
+// A firm-level location dimension. Staff (SPM_STAFF + PRACTICE_EMPLOYEES) and clients
+// (PRACTICE_CLIENTS) each carry an `officeId`. The sidebar office switcher scopes the
+// app to one office (or "All"); OfficeChip is the canonical visual marker. `short` is
+// the 2–3 letter code shown on chips; `color` reuses the T-palette tints.
+const PRACTICE_OFFICES = [{
+  id: 'off-syd',
+  name: 'Sydney',
+  short: 'SYD',
+  color: 'accent',
+  hq: true
+}, {
+  id: 'off-gc',
+  name: 'Gold Coast',
+  short: 'GC',
+  color: 'green'
+}, {
+  id: 'off-mel',
+  name: 'Melbourne',
+  short: 'MEL',
+  color: 'blue'
+}];
+const officeById = id => PRACTICE_OFFICES.find(o => o.id === id) || null;
+
+// Active office scope — module-level so it survives route changes (mirrors the notifications
+// store / spm:notify pattern). 'all' = no filter. Components read officeScopeGet() and subscribe
+// to the 'spm:office' window event to re-render; setOfficeScope() updates the scope + emits.
+let OFFICE_SCOPE = 'all';
+const officeScopeGet = () => OFFICE_SCOPE;
+const setOfficeScope = id => {
+  OFFICE_SCOPE = id || 'all';
+  try {
+    window.dispatchEvent(new CustomEvent('spm:office'));
+  } catch (e) {}
+};
+// True when the current scope admits an entity's officeId. Scope 'all' admits everything; an
+// un-tagged entity (no officeId) is never hidden, so demo rows without an office still show.
+const inOfficeScope = officeId => OFFICE_SCOPE === 'all' || !officeId || officeId === OFFICE_SCOPE;
+// Hook: re-render the calling component whenever the office scope changes; returns current scope id.
+const useOfficeScope = () => {
+  const [, force] = useState(0);
+  useEffect(() => {
+    const h = () => force(n => n + 1);
+    window.addEventListener('spm:office', h);
+    return () => window.removeEventListener('spm:office', h);
+  }, []);
+  return officeScopeGet();
+};
+const OFFICE_PALETTE = {
+  accent: {
+    bg: '#EEF0FE',
+    fg: '#4F46E5'
+  },
+  blue: {
+    bg: '#DBEAFE',
+    fg: '#1D4ED8'
+  },
+  green: {
+    bg: '#D1FAE5',
+    fg: '#047857'
+  },
+  amber: {
+    bg: '#FEF3C7',
+    fg: '#92400E'
+  },
+  red: {
+    bg: '#FEE2E2',
+    fg: '#991B1B'
+  },
+  neutral: {
+    bg: T.fieldBg,
+    fg: T.muted
+  }
+};
+// OfficeChip — canonical office marker (tinted short-code pill with a building glyph). Use wherever
+// staff or clients list so the office dimension is always legible. `showName` swaps SHORT → full name.
+const OfficeChip = ({
+  officeId,
+  showName = false,
+  style,
+  title
+}) => {
+  const o = officeById(officeId);
+  if (!o) return null;
+  const pal = OFFICE_PALETTE[o.color] || OFFICE_PALETTE.neutral;
+  return /*#__PURE__*/React.createElement("span", {
+    title: title || `${o.name} office`,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      padding: '2px 7px',
+      borderRadius: 999,
+      background: pal.bg,
+      color: pal.fg,
+      fontSize: 11,
+      fontWeight: 600,
+      lineHeight: 1.4,
+      whiteSpace: 'nowrap',
+      ...style
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "building",
+    size: 11
+  }), showName ? o.name : o.short);
+};
 const PRACTICE_EMPLOYEES = (() => {
   let s = 91;
   const rnd = () => {
@@ -26359,6 +26466,8 @@ const PRACTICE_EMPLOYEES = (() => {
     if (!hasSuper) missing.push('Super fund');
     if (!hasTfn) missing.push('TFN');
     if (!hasBank) missing.push('Bank details');
+    // officeId drawn LAST so the prior deterministic draws (name/type/hours/missing) are unchanged.
+    const officeId = PRACTICE_OFFICES[Math.floor(rnd() * PRACTICE_OFFICES.length)].id;
     list.push({
       id: `e-${String(i + 1).padStart(3, '0')}`,
       name,
@@ -26368,7 +26477,8 @@ const PRACTICE_EMPLOYEES = (() => {
       empType,
       ordHours,
       active,
-      missing
+      missing,
+      officeId
     });
   }
   return list;
@@ -26387,6 +26497,149 @@ const EMP_TYPE_COLOR = {
 // to stay 100% untouched). Adds the "Payroll Management" expandable
 // item with sub-routes.
 // =================================================================
+// OfficeSwitcher — global office scope control at the top of the sidebar (PracticeApp has no top
+// bar). Sets the module-level OFFICE_SCOPE; every office-aware surface re-filters via useOfficeScope.
+const OfficeSwitcher = () => {
+  const scope = useOfficeScope();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  const cur = scope === 'all' ? null : officeById(scope);
+  const clientCount = oid => PRACTICE_CLIENTS.filter(c => oid === 'all' || c.officeId === oid).length;
+  const opts = [{
+    id: 'all',
+    name: 'All offices'
+  }, ...PRACTICE_OFFICES];
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    style: {
+      position: 'relative',
+      padding: '0 6px'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    "data-hover": "row",
+    onClick: () => setOpen(o => !o),
+    title: "Switch office scope",
+    style: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '7px 10px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.fieldBg,
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "building",
+    size: 15,
+    color: cur ? T.primary : T.muted
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase'
+    }
+  }, "Office"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, cur ? cur.name : 'All offices')), /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronDown",
+    size: 14,
+    color: T.muted
+  })), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: '100%',
+      left: 6,
+      right: 6,
+      marginTop: 4,
+      zIndex: 50,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+      padding: 4
+    }
+  }, opts.map(o => {
+    const active = scope === o.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.id,
+      "data-hover": "row",
+      onClick: () => {
+        setOfficeScope(o.id);
+        setOpen(false);
+      },
+      style: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '7px 9px',
+        border: 'none',
+        borderRadius: 7,
+        background: active ? T.primarySoft : 'transparent',
+        cursor: 'pointer',
+        textAlign: 'left'
+      }
+    }, o.id === 'all' ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 22,
+        height: 22,
+        borderRadius: 5,
+        background: T.fieldBg,
+        color: T.muted,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "building",
+      size: 12
+    })) : /*#__PURE__*/React.createElement(OfficeChip, {
+      officeId: o.id
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        fontSize: 12.5,
+        fontWeight: active ? 600 : 500,
+        color: active ? T.primary : T.text
+      }
+    }, o.name), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.muted
+      }
+    }, clientCount(o.id)), active && /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 14,
+      color: T.primary
+    }));
+  })));
+};
 const AppSidebar = ({
   activeSubId
 }) => {
@@ -26436,7 +26689,12 @@ const AppSidebar = ({
   const dealsSubs = [{
     id: 'spm-forecast',
     label: 'Pipeline'
-  } // relabelled from "SPM Forecast"
+  },
+  // relabelled from "SPM Forecast"
+  {
+    id: 'deals',
+    label: 'Deals'
+  } // the Deals board — an explicit sub so it has a clear entry point
   ];
   const deliverSubs = [{
     id: 'job-management',
@@ -26536,7 +26794,7 @@ const AppSidebar = ({
     active: dealsActive,
     sub: dealsSubs.map(s => s.label),
     subIds: dealsSubs.map(s => s.id),
-    activeSub: activeSubId === 'spm-forecast' ? 'Pipeline' : null,
+    activeSub: activeSubId === 'spm-forecast' ? 'Pipeline' : activeSubId === 'deals' ? 'Deals' : null,
     onClick: () => goPractice('deals')
   }, {
     id: 'proposal',
@@ -26649,7 +26907,7 @@ const AppSidebar = ({
       fontWeight: 600,
       marginLeft: 2
     }
-  }, "(Practice)")), /*#__PURE__*/React.createElement("div", {
+  }, "(Practice)")), /*#__PURE__*/React.createElement(OfficeSwitcher, null), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 4
     }
@@ -31436,6 +31694,8 @@ const EmployeesPage = ({
   // Read-only details drawer — opened by clicking a row. Edit hands off
   // from there to the existing edit drawer so the editing UX is unchanged.
   const [viewing, setViewing] = useState(null);
+  const office = useOfficeScope(); // re-render + re-filter when the global office scope changes
+
   const initialPrefs = loadEmployeePrefs();
   const [visible, setVisible] = useState(initialPrefs.visible);
   const [pageSize, setPageSize] = useState(initialPrefs.pageSize);
@@ -31509,7 +31769,7 @@ const EmployeesPage = ({
     const matchTab = tab === 'all' || tab === 'active' && e.active || tab === 'inactive' && !e.active || tab === 'incomplete' && e.missing.length > 0 || tab === 'fulltime' && e.empType === 'Full Time' || tab === 'parttime' && e.empType === 'Part Time' || tab === 'casual' && e.empType === 'Casual';
     const q = search.trim().toLowerCase();
     const matchSearch = !q || e.name.toLowerCase().includes(q) || e.handle.toLowerCase().includes(q) || e.email.toLowerCase().includes(q) || e.phone.includes(q);
-    return matchTab && matchSearch;
+    return matchTab && matchSearch && inOfficeScope(e.officeId); // global office scope
   }).slice().sort((a, b) => {
     const va = a[sort.field],
       vb = b[sort.field];
@@ -31521,7 +31781,7 @@ const EmployeesPage = ({
   // doesn't land on a now-empty page they can't see).
   useEffect(() => {
     setPage(0);
-  }, [tab, search, effectivePageSize, sort, activeFilters]);
+  }, [tab, search, effectivePageSize, sort, activeFilters, office]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / effectivePageSize));
   const safePage = Math.min(page, totalPages - 1);
   const pageStart = safePage * effectivePageSize;
@@ -31993,6 +32253,13 @@ const EmployeesPage = ({
           whiteSpace: 'nowrap'
         }
       }, e.name), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
         title: `@${e.handle}`,
         style: {
           fontSize: 11,
@@ -32003,7 +32270,14 @@ const EmployeesPage = ({
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap'
         }
-      }, "@", e.handle))), visibleCols.map(c => {
+      }, "@", e.handle), e.officeId && /*#__PURE__*/React.createElement(OfficeChip, {
+        officeId: e.officeId,
+        style: {
+          fontSize: 9.5,
+          padding: '1px 6px',
+          flexShrink: 0
+        }
+      })))), visibleCols.map(c => {
         if (c.id === 'email') return /*#__PURE__*/React.createElement("div", {
           key: c.id,
           style: {
@@ -32896,6 +33170,7 @@ const PRACTICE_CLIENTS = [{
   abn: '12 345 678 901',
   industry: 'SaaS',
   color: 'accent',
+  officeId: 'off-syd',
   domain: 'solepay.com'
 }, {
   id: 'c-northcoast',
@@ -32903,6 +33178,7 @@ const PRACTICE_CLIENTS = [{
   abn: '88 192 045 332',
   industry: 'Advisory',
   color: 'blue',
+  officeId: 'off-gc',
   domain: 'northcoastpartners.com.au'
 }, {
   id: 'c-bondi',
@@ -32910,6 +33186,7 @@ const PRACTICE_CLIENTS = [{
   abn: '54 218 902 117',
   industry: 'Trades',
   color: 'green',
+  officeId: 'off-gc',
   domain: 'bondimowing.com.au'
 }, {
   id: 'c-greenleaf',
@@ -32917,6 +33194,7 @@ const PRACTICE_CLIENTS = [{
   abn: '21 003 882 715',
   industry: 'Trust',
   color: 'amber',
+  officeId: 'off-syd',
   domain: 'greenleafholdings.com.au'
 }, {
   id: 'c-marlow',
@@ -32924,6 +33202,7 @@ const PRACTICE_CLIENTS = [{
   abn: '17 802 651 904',
   industry: 'Construction',
   color: 'red',
+  officeId: 'off-mel',
   domain: 'marlowandsons.com.au'
 }, {
   id: 'c-acme',
@@ -32931,13 +33210,15 @@ const PRACTICE_CLIENTS = [{
   abn: '92 511 408 226',
   industry: 'SMSF',
   color: 'neutral',
+  officeId: 'off-syd',
   domain: 'acmesuper.com.au'
 }, {
   id: 'c-kim',
   name: 'Kim Tran (Sole Trader)',
   abn: '78 992 113 005',
   industry: 'Consulting',
-  color: 'blue'
+  color: 'blue',
+  officeId: 'off-mel'
 }];
 const clientById = id => PRACTICE_CLIENTS.find(c => c.id === id);
 
@@ -50555,6 +50836,7 @@ const HelicopterViewPage = ({
   const [lastUpdated, setLastUpdated] = useState('9:15 am');
   const [refreshing, setRefreshing] = useState(false);
   const [hvFilterMenu, setHvFilterMenu] = useState(false);
+  const office = useOfficeScope(); // re-render + re-filter when the global office scope changes
   const doRefresh = () => {
     if (refreshing) return;
     setRefreshing(true);
@@ -50583,6 +50865,9 @@ const HelicopterViewPage = ({
   // carry the metadata. Same id always maps to the same team / partner.
   const TEAM_OF = id => ['tax', 'book', 'adv'][id.charCodeAt(id.length - 1) % 3];
   const PARTNER_OF = id => ['js', 'lc', 'sa'][id.charCodeAt(0) % 3];
+  // Deterministic office assignment per client.id (HV_CLIENTS predate the office dimension), so the
+  // global office switcher filters the matrix without editing every client mock.
+  const HV_OFFICE_OF = id => ['off-syd', 'off-gc', 'off-mel'][id.charCodeAt(id.length - 1) % 3];
   // Service filter — re-mapped to the new 6-line service set. Empty filter
   // shows every column.
   const SERVICE_MATCH = {
@@ -50598,6 +50883,7 @@ const HelicopterViewPage = ({
 
   // Apply row-level filters: team + partner.
   const filteredClients = HV_CLIENTS.filter(cl => {
+    if (!inOfficeScope(HV_OFFICE_OF(cl.id))) return false; // global office scope
     if (team !== 'all' && TEAM_OF(cl.id) !== team) return false;
     if (partner !== 'all' && PARTNER_OF(cl.id) !== partner) return false;
     return true;
@@ -52987,6 +53273,13 @@ const HelicopterViewPage = ({
       style: {
         minWidth: 0
       }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        flexWrap: 'wrap'
+      }
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => openClientRow(client),
       style: {
@@ -52999,7 +53292,9 @@ const HelicopterViewPage = ({
         color: T.text,
         textAlign: 'left'
       }
-    }, client.name), client.flag && /*#__PURE__*/React.createElement("div", {
+    }, client.name), /*#__PURE__*/React.createElement(OfficeChip, {
+      officeId: HV_OFFICE_OF(client.id)
+    })), client.flag && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 3
       }
@@ -68870,6 +69165,7 @@ const SPM_STAFF = [{
   nonbill: 7,
   cost: 150,
   rate: 245,
+  officeId: 'off-syd',
   photo: 'https://i.pravatar.cc/120?img=47'
 }, {
   id: 's2',
@@ -68883,6 +69179,7 @@ const SPM_STAFF = [{
   nonbill: 8,
   cost: 95,
   rate: 165,
+  officeId: 'off-gc',
   photo: 'https://i.pravatar.cc/120?img=12'
 }, {
   id: 's3',
@@ -68896,6 +69193,7 @@ const SPM_STAFF = [{
   nonbill: 5,
   cost: 145,
   rate: 235,
+  officeId: 'off-syd',
   photo: 'https://i.pravatar.cc/120?img=33'
 }, {
   id: 's4',
@@ -68909,6 +69207,7 @@ const SPM_STAFF = [{
   nonbill: 6,
   cost: 110,
   rate: 185,
+  officeId: 'off-mel',
   photo: 'https://i.pravatar.cc/120?img=15'
 }, {
   id: 's5',
@@ -68922,6 +69221,7 @@ const SPM_STAFF = [{
   nonbill: 9,
   cost: 180,
   rate: 310,
+  officeId: 'off-gc',
   photo: 'https://i.pravatar.cc/120?img=68'
 }, {
   id: 's6',
@@ -68935,9 +69235,15 @@ const SPM_STAFF = [{
   nonbill: 7,
   cost: 125,
   rate: 205,
+  officeId: 'off-syd',
   photo: 'https://i.pravatar.cc/120?img=44'
 }];
 const spmStaffBy = id => SPM_STAFF.find(s => s.id === id);
+
+// Cross-route hand-off for the Projects → Deals "Create renewal deal" link (Jun-18 JO ask). The
+// Projects page unshifts a recurring deal into PIPELINE_DEALS, sets DEALS_BOOT, and navigates to the
+// Deals route; DealsPage reads DEALS_BOOT on mount to open on the recurring board + focus the deal.
+let DEALS_BOOT = null; // { pipelineType, focusId } or null
 
 // Sole Link booking handles. In production the Sole Link is a calendar booking link placed on the
 // practice's website; a booking auto-creates an inquiry in the pipeline. There are two kinds of link:
@@ -70968,7 +71274,67 @@ const SpmForecastPage = ({
       value: `${deals.length} deals`,
       hint: "dated pipeline",
       spark: sparkStarts
-    })), /*#__PURE__*/React.createElement(DashSection, {
+    })), (() => {
+      const recOpen = (typeof PIPELINE_DEALS !== 'undefined' ? PIPELINE_DEALS : []).filter(d => d.pipelineType === 'recurring' && !TERMINAL_STAGES.has(d.stage));
+      if (!recOpen.length) return null;
+      const today2 = new Date();
+      const recValue = recOpen.reduce((a, d) => a + (d.value || 0), 0);
+      const due90 = recOpen.filter(d => d.renewalDate && (new Date(d.renewalDate) - today2) / 86400000 <= 90).length;
+      const atRisk = recOpen.filter(d => d.churnRisk === 'high').length;
+      const go = () => {
+        DEALS_BOOT = {
+          pipelineType: 'recurring'
+        };
+        window.location.hash = '#/practice/deals';
+      };
+      return /*#__PURE__*/React.createElement(DashSection, {
+        title: "Recurring renewals",
+        subtitle: "Existing-client renewals from the Deals module \u2014 surfaced here so the forecast covers renewal revenue, not just new business.",
+        accent: /*#__PURE__*/React.createElement("span", {
+          style: {
+            width: 24,
+            height: 24,
+            borderRadius: 7,
+            background: T.primarySoft,
+            color: T.primary,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }
+        }, /*#__PURE__*/React.createElement(Icon, {
+          name: "repeat",
+          size: 13,
+          color: T.primary
+        })),
+        right: /*#__PURE__*/React.createElement(Btn, {
+          variant: "ghost",
+          size: "sm",
+          icon: "arrow",
+          iconRight: true,
+          onClick: go
+        }, "View recurring pipeline")
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 12
+        }
+      }, /*#__PURE__*/React.createElement(SpmKpi, {
+        label: "Open renewal value",
+        value: fmtMoneyCompact(recValue),
+        hint: `${recOpen.length} renewal${recOpen.length === 1 ? '' : 's'} open`
+      }), /*#__PURE__*/React.createElement(SpmKpi, {
+        label: "Renewals due",
+        value: String(due90),
+        hint: "next 90 days",
+        tone: due90 > 0 ? 'amber' : null
+      }), /*#__PURE__*/React.createElement(SpmKpi, {
+        label: "At high churn risk",
+        value: String(atRisk),
+        hint: atRisk > 0 ? 'needs attention' : 'all healthy',
+        tone: atRisk > 0 ? 'red' : 'green'
+      })));
+    })(), /*#__PURE__*/React.createElement(DashSection, {
       title: "Pipeline forecast",
       subtitle: "Monthly revenue and delivery load \u2014 committed vs uncommitted."
     }, /*#__PURE__*/React.createElement("div", {
@@ -71118,6 +71484,116 @@ const ProjectTrackingPage = ({
   const [healthBand, setHealthBand] = useState('All');
   const [q, setQ] = useState('');
   const [drill, setDrill] = useState(null);
+
+  // Projects → Deals (Jun-18 JO ask): spin a recurring renewal deal out of a delivered project, then
+  // jump to the Recurring pipeline with it focused. Work we already deliver becomes next year's pipeline.
+  const createRenewalDeal = p => {
+    const existing = PIPELINE_DEALS.find(d => d.sourceProjectId === p.id && dealIsOpen(d));
+    if (existing) {
+      DEALS_BOOT = {
+        pipelineType: 'recurring',
+        focusId: existing.id
+      };
+      fireToast && fireToast('Renewal already in the pipeline — opening it');
+      window.location.hash = '#/practice/deals';
+      return;
+    }
+    const client = (typeof PRACTICE_CLIENTS !== 'undefined' ? PRACTICE_CLIENTS : []).find(c => c.name === p.client);
+    const owner = SPM_STAFF.find(s => s.name === p.partner);
+    const maxN = PIPELINE_DEALS.reduce((m, d) => Math.max(m, parseInt((d.id.match(/\d+/) || ['0'])[0], 10) || 0), 0);
+    const id = 'dl-' + String(maxN + 1).padStart(3, '0');
+    const today = new Date();
+    const renewal = new Date(today);
+    renewal.setMonth(renewal.getMonth() + 11);
+    const renewalDate = renewal.toISOString().slice(0, 10);
+    const followUp = new Date(today);
+    followUp.setDate(followUp.getDate() + 7);
+    const followUpStr = followUp.toISOString().slice(0, 10);
+    const nowIso = today.toISOString();
+    const deal = {
+      id,
+      pipelineType: 'recurring',
+      title: `${p.service} renewal — ${p.client}`,
+      orgId: client ? client.id : null,
+      contact: client ? null : {
+        name: p.partner,
+        role: 'Account partner',
+        company: p.client,
+        email: '',
+        phone: ''
+      },
+      contacts: client ? [] : [{
+        id: `${id}-ct0`,
+        name: p.partner,
+        role: 'Account partner',
+        company: p.client,
+        email: '',
+        phone: '',
+        primary: true
+      }],
+      ownerId: owner ? owner.id : 's6',
+      service: p.service,
+      value: p.budgetFee,
+      annualFee: p.budgetFee,
+      renewalDate,
+      lastReviewed: nowIso.slice(0, 10),
+      churnRisk: 'low',
+      sourceProjectId: p.id,
+      stage: 'due-for-review',
+      priority: 'medium',
+      expectedClose: renewalDate,
+      createdAt: nowIso.slice(0, 10),
+      source: 'Referral',
+      estHours: 0,
+      nextActivity: {
+        type: 'call',
+        label: 'Renewal review call',
+        due: followUpStr
+      },
+      tasks: [{
+        id: `${id}-t0`,
+        label: 'Renewal review call',
+        type: 'call',
+        assigneeId: owner ? owner.id : 's6',
+        priority: 'medium',
+        due: followUpStr,
+        done: false
+      }],
+      checklist: [],
+      meetings: [],
+      proposals: [],
+      docs: [],
+      notes: `Auto-created from project "${p.name}".`,
+      notesFeed: [{
+        id: `n-${id}-0`,
+        author: 'You',
+        at: nowIso,
+        text: `Auto-created from project "${p.name}".`
+      }],
+      activities: [{
+        id: 'a-' + id + '-0',
+        type: 'created',
+        body: `Renewal opened from project "${p.name}"`,
+        who: 'You',
+        at: nowIso
+      }]
+    };
+    PIPELINE_DEALS.unshift(deal);
+    DEALS_BOOT = {
+      pipelineType: 'recurring',
+      focusId: id
+    };
+    fireToast && fireToast({
+      message: 'Renewal deal created → Recurring pipeline',
+      action: {
+        label: 'View',
+        onClick: () => {
+          window.location.hash = '#/practice/deals';
+        }
+      }
+    });
+    window.location.hash = '#/practice/deals';
+  };
   const baseProjects = useMemo(() => SPM_PROJECTS.filter(p => {
     if (service !== 'All' && p.service !== service) return false;
     if (q && JSON.stringify(p).toLowerCase().indexOf(q.toLowerCase()) < 0) return false;
@@ -71261,7 +71737,7 @@ const ProjectTrackingPage = ({
   }));
 
   // Project table
-  const projectColumns = ['Project', 'Service', 'Budget fee', 'Budget hrs', 'Actual hrs', 'Budget used', 'Hours used', 'WIP', 'Age', 'Status'];
+  const projectColumns = ['Project', 'Service', 'Budget fee', 'Budget hrs', 'Actual hrs', 'Budget used', 'Hours used', 'WIP', 'Age', 'Status', 'Renewal'];
   const projectRows = projects.map(p => {
     const b = (p.actualCost + p.expenses) / p.budgetFee * 100;
     const h = p.actualHrs / p.budgetHrs * 100;
@@ -71320,7 +71796,54 @@ const ProjectTrackingPage = ({
         }
       }, Math.round(h), "%")), fmtMoney(spmWipTotal(p)), p.age, /*#__PURE__*/React.createElement(Pill, {
         color: spmStatusColor(st)
-      }, st)]
+      }, st),
+      // Visible Projects → Deals link (Jun-18): build pipeline straight from delivered work. Shows the
+      // existing renewal if one's already in the pipeline, else a create button. stopPropagation so it
+      // doesn't also trigger the row drill.
+      (() => {
+        const existing = (typeof PIPELINE_DEALS !== 'undefined' ? PIPELINE_DEALS : []).find(d => d.sourceProjectId === p.id);
+        if (existing) {
+          return /*#__PURE__*/React.createElement("button", {
+            onClick: e => {
+              e.stopPropagation();
+              DEALS_BOOT = {
+                pipelineType: 'recurring',
+                focusId: existing.id
+              };
+              window.location.hash = '#/practice/deals';
+            },
+            title: "A renewal deal from this project is already in the pipeline \u2014 open it",
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '3px 8px',
+              borderRadius: 999,
+              border: '1px solid #BFDBFE',
+              background: T.blueSoft,
+              color: T.blue,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }
+          }, /*#__PURE__*/React.createElement(Icon, {
+            name: "repeat",
+            size: 11,
+            color: T.blue
+          }), "In pipeline");
+        }
+        return /*#__PURE__*/React.createElement(Btn, {
+          size: "sm",
+          variant: "ghost",
+          icon: "plus",
+          onClick: e => {
+            e.stopPropagation();
+            createRenewalDeal(p);
+          },
+          title: "Create a renewal deal in the Deals pipeline from this project"
+        }, "Renewal deal");
+      })()]
     };
   });
 
@@ -71563,7 +72086,16 @@ const ProjectTrackingPage = ({
   }, /*#__PURE__*/React.createElement(SpmTable, {
     columns: projectColumns,
     rows: projectRows,
-    onRowClick: row => setDrill(spmProjectPayload(row.raw)),
+    onRowClick: row => setDrill({
+      ...spmProjectPayload(row.raw),
+      actions: [{
+        label: 'Create renewal deal',
+        icon: 'plus',
+        primary: true,
+        closeAfter: false,
+        onClick: () => createRenewalDeal(row.raw)
+      }]
+    }),
     exportName: "projects",
     onExport: handleExport
   }))), tab === 'wip' && (() => {
@@ -71628,7 +72160,16 @@ const ProjectTrackingPage = ({
     }, /*#__PURE__*/React.createElement(SpmTable, {
       columns: wipColumns,
       rows: wipProjectRows,
-      onRowClick: row => setDrill(spmProjectPayload(row.raw)),
+      onRowClick: row => setDrill({
+        ...spmProjectPayload(row.raw),
+        actions: [{
+          label: 'Create renewal deal',
+          icon: 'plus',
+          primary: true,
+          closeAfter: false,
+          onClick: () => createRenewalDeal(row.raw)
+        }]
+      }),
       exportName: "wip",
       onExport: handleExport
     })));
@@ -71683,7 +72224,16 @@ const ProjectTrackingPage = ({
   }, /*#__PURE__*/React.createElement(SpmTable, {
     columns: resourcingColumns,
     rows: resourcingRows,
-    onRowClick: row => setDrill(spmProjectPayload(row.raw)),
+    onRowClick: row => setDrill({
+      ...spmProjectPayload(row.raw),
+      actions: [{
+        label: 'Create renewal deal',
+        icon: 'plus',
+        primary: true,
+        closeAfter: false,
+        onClick: () => createRenewalDeal(row.raw)
+      }]
+    }),
     exportName: "resourcing",
     onExport: handleExport
   }))), /*#__PURE__*/React.createElement(PdDrillSheet, {
@@ -71750,6 +72300,51 @@ const DEAL_STAGES = [{
   color: 'red',
   prob: 0
 }];
+// Recurring-work pipeline (Jun-18, JO ask): a SECOND board for existing clients —
+// renewals, repricing and scope reviews — toggled by a switch in DealsPage. Stage
+// ids are DISTINCT from DEAL_STAGES so a single lookup can resolve either pipeline.
+// Terminal stages here are `renewed` (the won-equivalent) and `churned` (lost).
+const RECURRING_STAGES = [{
+  id: 'due-for-review',
+  label: 'Due for review',
+  color: 'neutral',
+  prob: 30
+}, {
+  id: 'reviewing',
+  label: 'Reviewing',
+  color: 'blue',
+  prob: 50
+}, {
+  id: 'repricing',
+  label: 'Repricing',
+  color: 'accent',
+  prob: 65
+}, {
+  id: 'renewal-sent',
+  label: 'Proposal sent',
+  color: 'amber',
+  prob: 80
+}, {
+  id: 'renewed',
+  label: 'Renewed',
+  color: 'green',
+  prob: 100
+}, {
+  id: 'churned',
+  label: 'Churned',
+  color: 'red',
+  prob: 0
+}];
+const ALL_STAGES = DEAL_STAGES.concat(RECURRING_STAGES);
+const stagesForPipeline = pt => pt === 'recurring' ? RECURRING_STAGES : DEAL_STAGES;
+// Which stage list owns this id — lets the id-only helpers below resolve a deal's
+// stage regardless of pipeline, so existing call sites need no `pipelineType` arg.
+const stageListForId = id => RECURRING_STAGES.some(s => s.id === id) ? RECURRING_STAGES : DEAL_STAGES;
+// Won-/lost-equivalent + terminal sets, spanning both pipelines (recurring's
+// `renewed`/`churned` mirror new-business `won`/`lost`). dealIsOpen keys off these.
+const WON_STAGES = new Set(['won', 'renewed']);
+const LOST_STAGES = new Set(['lost', 'churned']);
+const TERMINAL_STAGES = new Set(['won', 'lost', 'renewed', 'churned']);
 // Pre-rename stage ids → new ids, so any lingering seed value / saved deal still
 // resolves to the right column. Seed deals are normalised once in the enrichment loop.
 const STAGE_MIGRATION = {
@@ -71758,29 +72353,37 @@ const STAGE_MIGRATION = {
   negotiating: 'proposal-accepted'
 };
 const migrateStage = id => STAGE_MIGRATION[id] || id;
-const dealStageMeta = id => DEAL_STAGES.find(s => s.id === migrateStage(id)) || DEAL_STAGES[0];
-const dealStageIndex = id => Math.max(0, DEAL_STAGES.findIndex(s => s.id === migrateStage(id)));
+const dealStageMeta = id => {
+  const L = stageListForId(migrateStage(id));
+  return L.find(s => s.id === migrateStage(id)) || DEAL_STAGES[0];
+};
+const dealStageIndex = id => {
+  const L = stageListForId(migrateStage(id));
+  return Math.max(0, L.findIndex(s => s.id === migrateStage(id)));
+};
 // Mutable per-stage standard win % — the default likelihood a deal inherits at each stage. Seeded from
 // DEAL_STAGES[].prob, editable in the deal Settings modal. The live forecast and every "inherited" card
 // (deal.likelihood == null) read through this, so editing a standard updates them in place. A deal with
 // its own numeric `likelihood` overrides the standard; setting it back to null re-inherits.
 const STAGE_STANDARDS = {};
-DEAL_STAGES.forEach(s => {
+ALL_STAGES.forEach(s => {
   STAGE_STANDARDS[s.id] = s.prob;
 });
 const dealStageProb = id => {
   const s = dealStageMeta(id);
   return STAGE_STANDARDS[s.id] != null ? STAGE_STANDARDS[s.id] : s.prob;
 };
-const dealIsOpen = d => d.stage !== 'won' && d.stage !== 'lost';
-// Next pipeline stage for the "Move to next stage" ⋯ action (F): advances one step, lands on Won after
-// Proposal Accepted, and returns null on terminal stages (so the action hides). Lost is never "next".
+const dealIsOpen = d => !TERMINAL_STAGES.has(migrateStage(d.stage));
+// Next pipeline stage for the "Move to next stage" ⋯ action (F): advances one step within the deal's
+// own pipeline, lands on the won-equivalent after the last working stage, and returns null on terminal
+// stages (so the action hides). The lost-equivalent (Lost / Churned) is never offered as "next".
 const nextStageOf = id => {
+  const L = stageListForId(migrateStage(id));
   const i = dealStageIndex(id);
-  const cur = DEAL_STAGES[i];
-  if (!cur || cur.id === 'won' || cur.id === 'lost') return null;
-  const nx = DEAL_STAGES[i + 1];
-  return nx && nx.id !== 'lost' ? nx.id : null;
+  const cur = L[i];
+  if (!cur || TERMINAL_STAGES.has(cur.id)) return null;
+  const nx = L[i + 1];
+  return nx && !LOST_STAGES.has(nx.id) ? nx.id : null;
 };
 const stageBarColor = color => ({
   neutral: T.mutedSoft,
@@ -72466,6 +73069,296 @@ const PIPELINE_DEALS = [{
     who: 'You',
     at: '2026-02-20T10:00:00'
   }]
+},
+// --- Recurring-work pipeline (existing-client renewals) — Jun-18 JO ask. pipelineType:'recurring',
+// recurring stages, and renewal fields (annualFee / renewalDate / lastReviewed / churnRisk). value
+// mirrors annualFee so the existing $-roll-ups work unchanged. source pinned so the enrichment loop
+// doesn't inject a Sole-Link discovery meeting (those are new-business only).
+{
+  id: 'dl-r01',
+  pipelineType: 'recurring',
+  title: 'Tax & advisory retainer renewal',
+  orgId: 'c-solepay',
+  contact: {
+    name: 'Shravya Rao',
+    role: 'Finance Lead',
+    email: 'shravya@solepay.com',
+    phone: '+61 478 901 234'
+  },
+  ownerId: 's5',
+  service: 'Advisory',
+  value: 42000,
+  annualFee: 42000,
+  renewalDate: '2026-07-31',
+  lastReviewed: '2025-07-20',
+  churnRisk: 'low',
+  sourceProjectId: null,
+  stage: 'due-for-review',
+  priority: 'medium',
+  expectedClose: '2026-07-31',
+  createdAt: '2026-05-22',
+  source: 'Referral',
+  nextActivity: {
+    type: 'call',
+    label: 'Renewal review call',
+    due: '2026-06-25'
+  },
+  proposals: [],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-r01-0',
+    type: 'created',
+    body: 'Renewal opened — engagement up for review',
+    who: 'System',
+    at: '2026-05-22T09:00:00'
+  }]
+}, {
+  id: 'dl-r02',
+  pipelineType: 'recurring',
+  title: 'Monthly bookkeeping renewal',
+  orgId: 'c-northcoast',
+  contact: {
+    name: 'Priya Menon',
+    role: 'Managing Partner',
+    email: 'priya@northcoast.au',
+    phone: '+61 489 012 345'
+  },
+  ownerId: 's2',
+  service: 'Bookkeeping',
+  value: 36000,
+  annualFee: 36000,
+  renewalDate: '2026-08-15',
+  lastReviewed: '2025-08-10',
+  churnRisk: 'medium',
+  sourceProjectId: null,
+  stage: 'reviewing',
+  priority: 'high',
+  expectedClose: '2026-08-15',
+  createdAt: '2026-05-12',
+  source: 'Inbound',
+  nextActivity: {
+    type: 'review',
+    label: 'Review FY27 scope & hours',
+    due: '2026-06-20'
+  },
+  proposals: [],
+  docs: [],
+  notes: 'Volume up ~15% YoY — likely repricing.',
+  activities: [{
+    id: 'a-dl-r02-0',
+    type: 'created',
+    body: 'Renewal opened',
+    who: 'System',
+    at: '2026-05-12T09:00:00'
+  }]
+}, {
+  id: 'dl-r03',
+  pipelineType: 'recurring',
+  title: 'Payroll managed service renewal',
+  orgId: 'c-bondi',
+  contact: {
+    name: 'Pete Bondi',
+    role: 'Owner',
+    email: 'pete@bondimowing.au',
+    phone: '+61 467 890 123'
+  },
+  ownerId: 's4',
+  service: 'Payroll',
+  value: 18000,
+  annualFee: 18000,
+  renewalDate: '2026-07-10',
+  lastReviewed: '2025-07-05',
+  churnRisk: 'low',
+  sourceProjectId: null,
+  stage: 'repricing',
+  priority: 'medium',
+  expectedClose: '2026-07-10',
+  createdAt: '2026-05-02',
+  source: 'Referral',
+  nextActivity: {
+    type: 'send-document',
+    label: 'Send updated fee schedule',
+    due: '2026-06-22'
+  },
+  proposals: [],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-r03-0',
+    type: 'created',
+    body: 'Renewal opened',
+    who: 'System',
+    at: '2026-05-02T09:00:00'
+  }]
+}, {
+  id: 'dl-r04',
+  pipelineType: 'recurring',
+  title: 'Trust compliance renewal',
+  orgId: 'c-greenleaf',
+  contact: {
+    name: 'Daniel Greenleaf',
+    role: 'Trustee',
+    email: 'trust@greenleaf.au',
+    phone: '+61 412 556 778'
+  },
+  ownerId: 's1',
+  service: 'Tax compliance',
+  value: 24500,
+  annualFee: 24500,
+  renewalDate: '2026-06-30',
+  lastReviewed: '2025-06-25',
+  churnRisk: 'medium',
+  sourceProjectId: null,
+  stage: 'renewal-sent',
+  priority: 'medium',
+  expectedClose: '2026-06-30',
+  createdAt: '2026-04-28',
+  source: 'Inbound',
+  nextActivity: {
+    type: 'call',
+    label: 'Chase renewal sign-off',
+    due: '2026-06-19'
+  },
+  proposals: [{
+    id: 'p-dl-r04-0',
+    title: 'Annual Compliance Package — FY27',
+    status: 'Sent'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-r04-0',
+    type: 'created',
+    body: 'Renewal opened',
+    who: 'System',
+    at: '2026-04-28T09:00:00'
+  }]
+}, {
+  id: 'dl-r05',
+  pipelineType: 'recurring',
+  title: 'FY27 company tax renewal',
+  orgId: 'c-marlow',
+  contact: {
+    name: 'Amit Sharma',
+    role: 'Director',
+    email: 'amit@marlowsons.au',
+    phone: '+61 401 234 567'
+  },
+  ownerId: 's3',
+  service: 'Tax compliance',
+  value: 28000,
+  annualFee: 28000,
+  renewalDate: '2026-06-05',
+  lastReviewed: '2026-05-28',
+  churnRisk: 'low',
+  sourceProjectId: null,
+  stage: 'renewed',
+  priority: 'low',
+  expectedClose: '2026-06-05',
+  createdAt: '2026-04-10',
+  source: 'Referral',
+  nextActivity: null,
+  proposals: [{
+    id: 'p-dl-r05-0',
+    title: 'Annual Compliance Package — FY27',
+    status: 'Accepted'
+  }],
+  docs: [],
+  notes: '',
+  activities: [{
+    id: 'a-dl-r05-1',
+    type: 'stage',
+    body: 'Renewal signed',
+    who: 'Jordan',
+    at: '2026-06-05T11:00:00'
+  }, {
+    id: 'a-dl-r05-0',
+    type: 'created',
+    body: 'Renewal opened',
+    who: 'System',
+    at: '2026-04-10T09:00:00'
+  }]
+}, {
+  id: 'dl-r06',
+  pipelineType: 'recurring',
+  title: 'SMSF annual renewal',
+  orgId: 'c-acme',
+  contact: {
+    name: 'Helen Park',
+    role: 'Fund Administrator',
+    email: 'admin@acmesuper.au',
+    phone: '+61 423 778 110'
+  },
+  ownerId: 's1',
+  service: 'Tax compliance',
+  value: 16500,
+  annualFee: 16500,
+  renewalDate: '2026-05-25',
+  lastReviewed: '2025-05-20',
+  churnRisk: 'high',
+  sourceProjectId: null,
+  stage: 'churned',
+  priority: 'low',
+  expectedClose: '2026-05-25',
+  createdAt: '2026-04-01',
+  source: 'Inbound',
+  nextActivity: null,
+  proposals: [],
+  docs: [],
+  notes: 'Moved SMSF admin in-house.',
+  activities: [{
+    id: 'a-dl-r06-1',
+    type: 'stage',
+    body: 'Renewal lost — moved in-house',
+    who: 'Sarah',
+    at: '2026-05-25T14:00:00'
+  }, {
+    id: 'a-dl-r06-0',
+    type: 'created',
+    body: 'Renewal opened',
+    who: 'System',
+    at: '2026-04-01T09:00:00'
+  }]
+}, {
+  id: 'dl-r07',
+  pipelineType: 'recurring',
+  title: 'Quarterly BAS renewal',
+  orgId: 'c-kim',
+  contact: {
+    name: 'Kim Tran',
+    role: 'Principal',
+    email: 'kim@example.com',
+    phone: '+61 456 789 012'
+  },
+  ownerId: 's3',
+  service: 'BAS/GST',
+  value: 8000,
+  annualFee: 8000,
+  renewalDate: '2026-06-22',
+  lastReviewed: '2025-06-18',
+  churnRisk: 'high',
+  sourceProjectId: null,
+  stage: 'due-for-review',
+  priority: 'high',
+  expectedClose: '2026-06-22',
+  createdAt: '2026-05-18',
+  source: 'Inbound',
+  nextActivity: {
+    type: 'call',
+    label: 'Re-engage — price sensitivity',
+    due: '2026-06-16'
+  },
+  proposals: [],
+  docs: [],
+  notes: 'Flagged fee concerns last cycle.',
+  activities: [{
+    id: 'a-dl-r07-0',
+    type: 'created',
+    body: 'Renewal opened',
+    who: 'System',
+    at: '2026-05-18T09:00:00'
+  }]
 }];
 
 // Funnel-planning vocab (from the partner's brief): a prospect's lead source,
@@ -72580,6 +73473,62 @@ const SOLE_LINK_PROSPECTS = [{
 // in-app deals pick these up from the modal / sensible defaults.
 PIPELINE_DEALS.forEach((d, i) => {
   d.stage = migrateStage(d.stage); // normalise pre-rename ids (F-05)
+  if (!d.pipelineType) d.pipelineType = 'new-business'; // default un-tagged seeds (back-compat)
+  if (d.pipelineType === 'recurring') {
+    // Recurring renewals skip the new-business funnel enrichment (Sole-Link discovery meetings,
+    // "Send proposal" checklist). Give them renewal-appropriate defaults instead.
+    if (!d.checklist) {
+      const si = dealStageIndex(d.stage);
+      d.checklist = [{
+        id: `${d.id}-c0`,
+        text: 'Confirm engagement still active',
+        done: true
+      }, {
+        id: `${d.id}-c1`,
+        text: 'Review scope & hours vs last cycle',
+        done: si >= 1
+      }, {
+        id: `${d.id}-c2`,
+        text: 'Reprice if needed',
+        done: si >= 2
+      }, {
+        id: `${d.id}-c3`,
+        text: 'Send renewal proposal',
+        done: si >= 3
+      }, {
+        id: `${d.id}-c4`,
+        text: 'Confirm renewal',
+        done: si >= 4
+      }];
+    }
+    if (!d.tasks) d.tasks = d.nextActivity ? [{
+      id: `${d.id}-t0`,
+      label: d.nextActivity.label,
+      due: d.nextActivity.due,
+      type: d.nextActivity.type,
+      assigneeId: d.ownerId,
+      priority: d.priority || 'medium',
+      done: false
+    }] : [];
+    if (!d.notesFeed) d.notesFeed = d.notes ? [{
+      id: `n-${d.id}-0`,
+      author: 'You',
+      at: `${d.createdAt}T09:00:00`,
+      text: d.notes
+    }] : [];
+    if (!d.contacts) d.contacts = d.contact ? [{
+      id: `${d.id}-ct0`,
+      name: d.contact.name,
+      role: d.contact.role || '',
+      company: d.contact.company || '',
+      email: d.contact.email || '',
+      phone: d.contact.phone || '',
+      primary: true
+    }] : [];
+    if (!d.meetings) d.meetings = [];
+    if (d.estHours == null) d.estHours = 0;
+    return;
+  }
   // Likelihood: leave null = "inherit the stage standard" (auto-follows the stage when the card moves).
   // A handful of seed deals get an explicit override that differs from their stage standard, so the
   // "custom" badge demos out of the box; everything else inherits.
@@ -73308,8 +74257,9 @@ const DealCard = ({
   const owner = dealOwner(deal);
   const org = dealOrg(deal);
   const mark = dealOrgMark(deal);
-  const lost = deal.stage === 'lost';
-  const won = deal.stage === 'won';
+  const lost = LOST_STAGES.has(deal.stage);
+  const won = WON_STAGES.has(deal.stage);
+  const isRec = deal.pipelineType === 'recurring';
   const props = deal.proposals || [];
   const cl = checklistDone(deal);
   const nextTask = dealNextTask(deal);
@@ -73460,7 +74410,7 @@ const DealCard = ({
       lineHeight: 1.3,
       textDecoration: lost ? 'line-through' : 'none'
     }
-  }, deal.title), won && (!deal.onboarding || deal.onboarding.status !== 'started') && /*#__PURE__*/React.createElement("span", {
+  }, deal.title), won && !isRec && (!deal.onboarding || deal.onboarding.status !== 'started') && /*#__PURE__*/React.createElement("span", {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -73522,13 +74472,84 @@ const DealCard = ({
       fontWeight: 700,
       color: T.text
     }
-  }, fmtDealMoney(deal.value)), /*#__PURE__*/React.createElement("span", {
+  }, fmtDealMoney(deal.value)), isRec && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      color: T.mutedSoft
+    }
+  }, "/yr"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
       color: T.mutedSoft,
       marginLeft: 'auto'
     }
-  }, daysAgo(deal.createdAt))), !lost && /*#__PURE__*/React.createElement("div", {
+  }, daysAgo(deal.createdAt))), isRec && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, deal.renewalDate && /*#__PURE__*/React.createElement(CardMeta, {
+    icon: "calendar",
+    text: `Renews ${fmtDate(new Date(deal.renewalDate))}`
+  }), deal.churnRisk && (() => {
+    const cr = {
+      high: {
+        c: T.red,
+        b: '#FECACA',
+        s: T.redSoft,
+        l: 'High churn risk'
+      },
+      medium: {
+        c: T.amber,
+        b: '#FCD34D',
+        s: T.amberSoft,
+        l: 'Medium churn risk'
+      },
+      low: {
+        c: T.greenDark,
+        b: '#A7F3D0',
+        s: T.greenSoft,
+        l: 'Low churn risk'
+      }
+    }[deal.churnRisk];
+    return cr ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 10.5,
+        fontWeight: 600,
+        padding: '2px 7px',
+        borderRadius: 999,
+        background: cr.s,
+        color: cr.c,
+        border: `1px solid ${cr.b}`
+      }
+    }, cr.l) : null;
+  })(), deal.sourceProjectId && (() => {
+    const p = (typeof SPM_PROJECTS !== 'undefined' ? SPM_PROJECTS : []).find(x => x.id === deal.sourceProjectId);
+    return /*#__PURE__*/React.createElement("span", {
+      title: p ? `From project: ${p.name}` : 'From a delivered project',
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 10.5,
+        fontWeight: 500,
+        padding: '2px 7px',
+        borderRadius: 6,
+        background: T.blueSoft,
+        color: T.blue,
+        border: '1px solid #BFDBFE'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "briefcase",
+      size: 10,
+      color: T.blue
+    }), "From project");
+  })()), !lost && /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'relative'
     }
@@ -73641,17 +74662,27 @@ const DealCard = ({
       gap: 6,
       minWidth: 0
     }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      minWidth: 0
+    }
   }, /*#__PURE__*/React.createElement(CompanyChip, {
     client: mark,
     onOpen: org ? onOpenCompany : undefined,
     style: {
-      minWidth: 0
+      minWidth: 0,
+      flex: 1
     }
-  }), owner && /*#__PURE__*/React.createElement(OwnerChip, {
+  }), org && org.officeId && /*#__PURE__*/React.createElement(OfficeChip, {
+    officeId: org.officeId
+  })), owner && /*#__PURE__*/React.createElement(OwnerChip, {
     staff: owner,
     onOpen: onOpenOwner,
     size: 20
-  })), /*#__PURE__*/React.createElement("div", {
+  })), !isRec && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -74536,8 +75567,10 @@ const DealDrawer = ({
   const owner = dealOwner(deal);
   const org = dealOrg(deal);
   const closed = !dealIsOpen(deal);
-  const lost = deal.stage === 'lost';
-  const won = deal.stage === 'won';
+  const lost = LOST_STAGES.has(deal.stage);
+  const won = WON_STAGES.has(deal.stage);
+  const isRec = deal.pipelineType === 'recurring';
+  const DSTAGES = stagesForPipeline(deal.pipelineType || 'new-business');
   const curIdx = dealStageIndex(deal.stage);
   const props = deal.proposals || [];
   const docs = deal.docs || [];
@@ -74633,6 +75666,8 @@ const DealDrawer = ({
   }, /*#__PURE__*/React.createElement(CompanyChip, {
     client: dealOrgMark(deal),
     onOpen: org ? onOpenCompany : undefined
+  }), org && org.officeId && /*#__PURE__*/React.createElement(OfficeChip, {
+    officeId: org.officeId
   }), /*#__PURE__*/React.createElement(OwnerChip, {
     staff: owner,
     onOpen: onOpenOwner
@@ -74642,10 +75677,57 @@ const DealDrawer = ({
       fontWeight: 700,
       color: T.text
     }
-  }, fmtDealMoney(deal.value)), /*#__PURE__*/React.createElement(LikelihoodBar, {
+  }, fmtDealMoney(deal.value), isRec && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 500,
+      color: T.mutedSoft
+    }
+  }, "/yr")), /*#__PURE__*/React.createElement(LikelihoodBar, {
     pct: pct,
     width: 56
-  }))), /*#__PURE__*/React.createElement(Btn, {
+  })), isRec && (deal.renewalDate || deal.sourceProjectId) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 8,
+      flexWrap: 'wrap'
+    }
+  }, deal.renewalDate && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "calendar",
+    size: 12,
+    color: T.muted
+  }), "Renews ", fmtDate(new Date(deal.renewalDate))), deal.sourceProjectId && (() => {
+    const p = (typeof SPM_PROJECTS !== 'undefined' ? SPM_PROJECTS : []).find(x => x.id === deal.sourceProjectId);
+    return /*#__PURE__*/React.createElement("span", {
+      title: p ? `Created from project "${p.name}"` : 'Created from a delivered project',
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: 11.5,
+        fontWeight: 500,
+        padding: '2px 8px',
+        borderRadius: 999,
+        background: T.blueSoft,
+        color: T.blue,
+        border: '1px solid #BFDBFE'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "briefcase",
+      size: 11,
+      color: T.blue
+    }), "From project", p ? `: ${p.name}` : '');
+  })())), /*#__PURE__*/React.createElement(Btn, {
     variant: "iconOnly",
     size: "sm",
     onClick: onClose,
@@ -74662,7 +75744,7 @@ const DealDrawer = ({
       display: 'flex',
       gap: 3
     }
-  }, DEAL_STAGES.map((s, i) => {
+  }, DSTAGES.map((s, i) => {
     const done = i <= curIdx && !lost;
     const isCur = i === curIdx;
     const bar = stageBarColor(s.color);
@@ -74703,7 +75785,7 @@ const DealDrawer = ({
     }
   }, "Status"), /*#__PURE__*/React.createElement(Pill, {
     color: dealStageMeta(deal.stage).color
-  }, dealStageMeta(deal.stage).label), won && (!deal.onboarding || deal.onboarding.status !== 'started') && /*#__PURE__*/React.createElement(Pill, {
+  }, dealStageMeta(deal.stage).label), won && !isRec && (!deal.onboarding || deal.onboarding.status !== 'started') && /*#__PURE__*/React.createElement(Pill, {
     color: "amber"
   }, "Pending onboarding"), lost && deal.lostReason && /*#__PURE__*/React.createElement(Pill, {
     color: "red"
@@ -74717,7 +75799,7 @@ const DealDrawer = ({
     variant: "ghost",
     size: "sm",
     icon: "undo",
-    onClick: () => onMoveStage('proposal-required')
+    onClick: () => onMoveStage(isRec ? 'repricing' : 'proposal-required')
   }, "Reopen") : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Btn, {
     variant: "primary",
     size: "sm",
@@ -74726,12 +75808,12 @@ const DealDrawer = ({
       background: T.green,
       borderColor: T.green
     },
-    onClick: () => onMoveStage('won')
-  }, "Won"), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => onMoveStage(isRec ? 'renewed' : 'won')
+  }, isRec ? 'Renewed' : 'Won'), /*#__PURE__*/React.createElement(Btn, {
     variant: "dangerOutline",
     size: "sm",
-    onClick: () => onMoveStage('lost')
-  }, "Lost")), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => onMoveStage(isRec ? 'churned' : 'lost')
+  }, isRec ? 'Churned' : 'Lost')), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
     icon: "edit",
@@ -74981,17 +76063,23 @@ const DealDrawer = ({
       marginBottom: 2
     }
   }, "Commercials"), /*#__PURE__*/React.createElement(PropRow, {
-    label: "Value"
+    label: isRec ? 'Annual fee' : 'Value'
   }, /*#__PURE__*/React.createElement(Input, {
     prefix: "$",
     value: deal.value ? deal.value.toLocaleString('en-AU') : '',
-    onChange: e => upd({
-      value: Number(e.target.value.replace(/[^0-9]/g, '')) || 0
-    }),
+    onChange: e => {
+      const n = Number(e.target.value.replace(/[^0-9]/g, '')) || 0;
+      upd(isRec ? {
+        value: n,
+        annualFee: n
+      } : {
+        value: n
+      });
+    },
     style: {
       padding: '6px 10px'
     }
-  })), /*#__PURE__*/React.createElement(PropRow, {
+  })), !isRec && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(PropRow, {
     label: "Est. hours"
   }, /*#__PURE__*/React.createElement(Input, {
     type: "number",
@@ -75016,7 +76104,7 @@ const DealDrawer = ({
   }, workWindowOpts.map(w => /*#__PURE__*/React.createElement("option", {
     key: w,
     value: w
-  }, w)))), /*#__PURE__*/React.createElement("div", {
+  }, w))))), isRec && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 10.5,
       fontWeight: 700,
@@ -75026,7 +76114,54 @@ const DealDrawer = ({
       marginTop: 14,
       marginBottom: 2
     }
-  }, "Classification"), /*#__PURE__*/React.createElement(PropRow, {
+  }, "Renewal"), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Renewal date"
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: deal.renewalDate || '',
+    onChange: e => upd({
+      renewalDate: e.target.value,
+      expectedClose: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  })), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Last reviewed"
+  }, /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: deal.lastReviewed || '',
+    onChange: e => upd({
+      lastReviewed: e.target.value
+    }),
+    style: {
+      padding: '6px 10px'
+    }
+  })), /*#__PURE__*/React.createElement(PropRow, {
+    label: "Churn risk"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6
+    }
+  }, [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']].map(([id, lbl]) => /*#__PURE__*/React.createElement(Chip, {
+    key: id,
+    size: "sm",
+    selected: (deal.churnRisk || 'low') === id,
+    onClick: () => upd({
+      churnRisk: id
+    })
+  }, lbl))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginTop: 14,
+      marginBottom: 2
+    }
+  }, "Classification"), !isRec && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(PropRow, {
     label: "Company size"
   }, /*#__PURE__*/React.createElement(Select, {
     value: deal.firmSize,
@@ -75052,7 +76187,7 @@ const DealDrawer = ({
   }, DEAL_SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
     key: s,
     value: s
-  }, s)))), /*#__PURE__*/React.createElement(PropRow, {
+  }, s))))), /*#__PURE__*/React.createElement(PropRow, {
     label: "Service"
   }, /*#__PURE__*/React.createElement(Select, {
     value: deal.service,
@@ -75065,7 +76200,7 @@ const DealDrawer = ({
   }, SPM_SERVICES.filter(s => s !== 'All').map(s => /*#__PURE__*/React.createElement("option", {
     key: s,
     value: s
-  }, s)))), /*#__PURE__*/React.createElement("div", {
+  }, s)))), !isRec && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 10.5,
       fontWeight: 700,
@@ -75086,7 +76221,7 @@ const DealDrawer = ({
     style: {
       padding: '6px 10px'
     }
-  }))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '14px 20px'
     }
@@ -76592,6 +77727,13 @@ const DealsPage = ({
   fireToast
 }) => {
   const [deals, setDeals] = useState(PIPELINE_DEALS);
+  // Pipeline-type switch (Jun-18 JO ask): 'new-business' (new leads → won) vs 'recurring'
+  // (existing-client renewals). Swaps the active stage set + filters the board to that type.
+  // DEALS_BOOT (set by the Projects → Deals link) opens us on the recurring board.
+  const [pipelineType, setPipelineType] = useState(() => DEALS_BOOT && DEALS_BOOT.pipelineType || 'new-business');
+  const STAGES = stagesForPipeline(pipelineType);
+  const isRecurring = pipelineType === 'recurring';
+  const office = useOfficeScope(); // re-render + re-filter when the global office scope changes
   const [view, setView] = useState('board');
   const [groupBy, setGroupBy] = useState('stage');
   const [search, setSearch] = useState('');
@@ -76604,9 +77746,13 @@ const DealsPage = ({
   const [sort, setSort] = useState('recent');
   const [dragId, setDragId] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
-  const [openId, setOpenId] = useState(null);
+  const [openId, setOpenId] = useState(() => DEALS_BOOT && DEALS_BOOT.focusId || null);
   const [addOpen, setAddOpen] = useState(false);
   const [editDeal, setEditDeal] = useState(null);
+  // Consume the Projects → Deals hand-off once (so a later manual nav doesn't re-trigger it).
+  useEffect(() => {
+    DEALS_BOOT = null;
+  }, []);
   // Linked-entity surfaces (stack over the deal drawer).
   const [openCompanyId, setOpenCompanyId] = useState(null);
   const [openStaffId, setOpenStaffId] = useState(null);
@@ -76664,8 +77810,10 @@ const DealsPage = ({
     const cur = deals.find(d => d.id === dealId);
     if (!cur || cur.stage === stage) return;
     const toLabel = dealStageMeta(stage).label;
-    const actType = stage === 'won' ? 'won' : stage === 'lost' ? 'lost' : 'stage';
-    const body = stage === 'won' ? 'Deal marked won' : stage === 'lost' ? `Deal marked lost${extra && extra.lostReason ? ' — ' + extra.lostReason.label : ''}` : `Moved from ${dealStageMeta(cur.stage).label} to ${toLabel}`;
+    const isWon = WON_STAGES.has(stage),
+      isLost = LOST_STAGES.has(stage);
+    const actType = isWon ? 'won' : isLost ? 'lost' : 'stage';
+    const body = isWon ? stage === 'renewed' ? 'Renewal signed' : 'Deal marked won' : isLost ? `${stage === 'churned' ? 'Renewal lost' : 'Deal marked lost'}${extra && extra.lostReason ? ' — ' + extra.lostReason.label : ''}` : `Moved from ${dealStageMeta(cur.stage).label} to ${toLabel}`;
     const act = {
       id: 'a-' + dealId + '-' + Date.now(),
       type: actType,
@@ -76673,7 +77821,7 @@ const DealsPage = ({
       who: 'You',
       at: new Date().toISOString()
     };
-    const msg = stage === 'won' ? 'Deal won 🎉' : stage === 'lost' ? 'Deal marked lost' : `Moved to ${toLabel}`;
+    const msg = isWon ? stage === 'renewed' ? 'Renewal confirmed 🎉' : 'Deal won 🎉' : isLost ? stage === 'churned' ? 'Marked churned' : 'Deal marked lost' : `Moved to ${toLabel}`;
     withUndo(msg, dealId, d => ({
       ...d,
       stage,
@@ -77263,6 +78411,15 @@ const DealsPage = ({
     const deal = {
       id,
       ...form,
+      // A deal created on the recurring board joins that pipeline at its first stage + gets renewal fields.
+      pipelineType,
+      stage: isRecurring && !RECURRING_STAGES.some(s => s.id === form.stage) ? 'due-for-review' : form.stage,
+      ...(isRecurring ? {
+        annualFee: form.value,
+        renewalDate: form.expectedClose || null,
+        churnRisk: 'low',
+        sourceProjectId: null
+      } : {}),
       contacts,
       title: form.title.trim(),
       createdAt: nowIso.slice(0, 10),
@@ -77277,13 +78434,13 @@ const DealsPage = ({
       activities: [{
         id: 'a-' + id + '-0',
         type: 'created',
-        body: 'Deal created',
+        body: isRecurring ? 'Renewal opened' : 'Deal created',
         who: 'You',
         at: nowIso
       }]
     };
     setDeals(prev => [deal, ...prev]);
-    fireToast('Deal created');
+    fireToast(isRecurring ? 'Renewal created' : 'Deal created');
     setOpenId(id);
   };
   const sortDeals = arr => {
@@ -77300,12 +78457,14 @@ const DealsPage = ({
   // pipeline-bar stage filter. The bar reads from this so it always shows the full open
   // breakdown; the views below (board/list/reports + KPIs) narrow further when a segment is clicked.
   const baseVisibleDeals = deals.filter(d => {
+    if ((d.pipelineType || 'new-business') !== pipelineType) return false; // pipeline-type switch
+    if (!inOfficeScope((dealOrg(d) || {}).officeId)) return false; // global office scope
     if (ownerFilter !== 'all' && d.ownerId !== ownerFilter) return false;
     if (priorityFilter !== 'all' && d.priority !== priorityFilter) return false;
     if (sourceFilter !== 'all' && d.source !== sourceFilter) return false;
     if (statusFilter === 'open' && !dealIsOpen(d)) return false;
-    if (statusFilter === 'won' && d.stage !== 'won') return false;
-    if (statusFilter === 'lost' && d.stage !== 'lost') return false;
+    if (statusFilter === 'won' && !WON_STAGES.has(d.stage)) return false;
+    if (statusFilter === 'lost' && !LOST_STAGES.has(d.stage)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
       const hay = [d.title, dealCompany(d), ...dealContacts(d).map(c => c.name), d.service].filter(Boolean).join(' ').toLowerCase();
@@ -77325,7 +78484,35 @@ const DealsPage = ({
     return !nt || taskOverdue(nt);
   }).reduce((a, d) => a + d.value, 0);
   const avgValue = visibleDeals.length ? Math.round(visibleDeals.reduce((a, d) => a + d.value, 0) / visibleDeals.length) : 0;
-  const KPIS = [{
+  // Recurring-specific roll-ups: renewals falling due in the next 90 days, and at-risk = high
+  // churn risk OR a stalled/overdue next action (a renewal slipping through the cracks).
+  const renewalsDueCount = openDeals.filter(d => {
+    if (!d.renewalDate) return false;
+    const diff = (new Date(d.renewalDate) - DEALS_TODAY) / 86400000;
+    return diff >= 0 && diff <= 90;
+  }).length;
+  const recurringAtRisk = openDeals.filter(d => {
+    const nt = dealNextTask(d);
+    return d.churnRisk === 'high' || !nt || taskOverdue(nt);
+  }).reduce((a, d) => a + d.value, 0);
+  const KPIS = isRecurring ? [{
+    label: 'Up for renewal',
+    value: fmtDealMoney(openValue),
+    hint: `${openDeals.length} open`
+  }, {
+    label: 'Likely to renew',
+    value: fmtDealMoney(likelyValue),
+    hint: 'Probability-weighted'
+  }, {
+    label: 'At risk',
+    value: fmtDealMoney(recurringAtRisk),
+    hint: 'High churn risk or overdue',
+    tone: recurringAtRisk > 0 ? 'red' : null
+  }, {
+    label: 'Renewals due',
+    value: String(renewalsDueCount),
+    hint: 'Next 90 days'
+  }] : [{
     label: 'Open',
     value: fmtDealMoney(openValue),
     hint: `${openDeals.length} open`
@@ -77345,7 +78532,7 @@ const DealsPage = ({
   }];
   // Clicking a segment toggles stageFilter (filters every view). Non-active segments dim to
   // borderStrong so the selected stage pops; `dotColor` keeps legends true-coloured regardless.
-  const pipeSegments = DEAL_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => {
+  const pipeSegments = STAGES.filter(s => !TERMINAL_STAGES.has(s.id)).map(s => {
     const v = baseOpenDeals.filter(d => d.stage === s.id).reduce((a, d) => a + d.value, 0);
     const active = !stageFilter || stageFilter === s.id;
     return {
@@ -77393,7 +78580,7 @@ const DealsPage = ({
       });
       fireToast(`Priority → ${p.label}`);
     }
-  })) : DEAL_STAGES.map(s => ({
+  })) : STAGES.map(s => ({
     key: s.id,
     label: s.label,
     color: s.color,
@@ -77909,12 +79096,14 @@ const DealsPage = ({
 
   // Reporting / conversion analytics (F-13) — all computed live from `deals`.
   const reports = (() => {
-    const funnelStages = DEAL_STAGES.filter(s => s.id !== 'lost');
-    const nonLost = deals.filter(d => d.stage !== 'lost');
+    // Reports are scoped to the active pipeline + office so New business and Recurring read separately.
+    const scoped = deals.filter(d => (d.pipelineType || 'new-business') === pipelineType && inOfficeScope((dealOrg(d) || {}).officeId));
+    const funnelStages = STAGES.filter(s => !LOST_STAGES.has(s.id));
+    const nonLost = scoped.filter(d => !LOST_STAGES.has(d.stage));
     const reached = funnelStages.map(s => nonLost.filter(d => dealStageIndex(d.stage) >= dealStageIndex(s.id)).length);
     const maxReached = Math.max(1, reached[0] || 1);
     const stageAges = funnelStages.map(s => {
-      const inStage = deals.filter(d => d.stage === s.id);
+      const inStage = scoped.filter(d => d.stage === s.id);
       if (!inStage.length) return {
         label: s.label,
         avg: 0,
@@ -77933,9 +79122,9 @@ const DealsPage = ({
     });
     const maxAge = Math.max(1, ...stageAges.map(s => s.avg));
     const bySource = DEAL_SOURCES.map(src => {
-      const ds = deals.filter(d => d.source === src);
-      const won = ds.filter(d => d.stage === 'won').length;
-      const lost = ds.filter(d => d.stage === 'lost').length;
+      const ds = scoped.filter(d => d.source === src);
+      const won = ds.filter(d => WON_STAGES.has(d.stage)).length;
+      const lost = ds.filter(d => LOST_STAGES.has(d.stage)).length;
       return {
         src,
         count: ds.length,
@@ -77945,9 +79134,9 @@ const DealsPage = ({
     }).filter(x => x.count > 0).sort((a, b) => b.value - a.value);
     const maxSourceVal = Math.max(1, ...bySource.map(s => s.value));
     const byOwner = SPM_STAFF.map(s => {
-      const ds = deals.filter(d => d.ownerId === s.id);
-      const won = ds.filter(d => d.stage === 'won');
-      const lost = ds.filter(d => d.stage === 'lost').length;
+      const ds = scoped.filter(d => d.ownerId === s.id);
+      const won = ds.filter(d => WON_STAGES.has(d.stage));
+      const lost = ds.filter(d => LOST_STAGES.has(d.stage)).length;
       return {
         staff: s,
         count: ds.length,
@@ -77956,7 +79145,7 @@ const DealsPage = ({
         winRate: won.length + lost ? Math.round(won.length / (won.length + lost) * 100) : null
       };
     }).filter(x => x.count > 0).sort((a, b) => b.wonValue - a.wonValue);
-    const stale = deals.filter(d => {
+    const stale = scoped.filter(d => {
       if (!dealIsOpen(d)) return false;
       const nt = dealNextTask(d);
       if (nt && taskOverdue(nt)) return true;
@@ -77964,7 +79153,7 @@ const DealsPage = ({
       const at = last ? new Date(last.at) : new Date(d.createdAt);
       return (DEALS_TODAY - at) / 86400000 > 21;
     });
-    const lostDeals = deals.filter(d => d.stage === 'lost');
+    const lostDeals = scoped.filter(d => LOST_STAGES.has(d.stage));
     const cardStyle = {
       padding: 16
     };
@@ -78354,14 +79543,9 @@ const DealsPage = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 16,
-      flexWrap: 'wrap',
       marginBottom: 14
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 22,
       fontWeight: 700,
@@ -78371,7 +79555,30 @@ const DealsPage = ({
     style: {
       marginTop: 2
     }
-  }, "Track, manage, and convert your proposals into active clients.")), /*#__PURE__*/React.createElement("div", {
+  }, isRecurring ? 'Renewals, repricing and scope reviews for existing clients — build pipeline from work you already deliver.' : 'Track, manage, and convert your proposals into active clients.'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    value: pipelineType,
+    onChange: v => {
+      setPipelineType(v);
+      setStageFilter(null);
+      setGroupBy('stage');
+    },
+    options: [{
+      value: 'new-business',
+      label: 'New business'
+    }, {
+      value: 'recurring',
+      label: 'Recurring & renewals'
+    }]
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -78397,7 +79604,7 @@ const DealsPage = ({
       setEditDeal(null);
       setAddOpen(true);
     }
-  }, "New deal"))), (() => {
+  }, isRecurring ? 'New renewal' : 'New deal')))), !isRecurring && (() => {
     const slDeals = deals.filter(d => d.source === 'Sole link');
     const thisMonth = slDeals.filter(d => {
       const diff = (DEALS_TODAY - new Date(d.createdAt)) / 86400000;
@@ -79241,6 +80448,8 @@ const MarginByPersonPage = ({
   const [period, setPeriod] = useState('6m');
   const [q, setQ] = useState('');
   const [drill, setDrill] = useState(null);
+  const office = useOfficeScope(); // re-render + re-filter when the global office scope changes
+
   const months = period === 'm' ? SPM_MONTHS.slice(0, 1) : period === 'q' ? SPM_MONTHS.slice(0, 3) : SPM_MONTHS;
 
   // Per-person revenue (allocation share of project fee) and payroll cost
@@ -79275,6 +80484,7 @@ const MarginByPersonPage = ({
   });
   const marginRows = allRows.filter(x => {
     if (service !== 'All' && x.s.line !== service) return false;
+    if (!inOfficeScope(x.s.officeId)) return false; // global office scope
     if (q && JSON.stringify(x.s).toLowerCase().indexOf(q.toLowerCase()) < 0) return false;
     return true;
   });
@@ -79319,12 +80529,20 @@ const MarginByPersonPage = ({
     return {
       key: x.s.id,
       raw: x,
-      cells: [/*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, x.s.name), /*#__PURE__*/React.createElement("div", {
+      cells: [/*#__PURE__*/React.createElement("span", {
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, x.s.name), /*#__PURE__*/React.createElement("div", {
         style: {
           fontSize: 11,
           color: T.muted
         }
-      }, x.s.role)), /*#__PURE__*/React.createElement(Pill, {
+      }, x.s.role)), x.s.officeId && /*#__PURE__*/React.createElement(OfficeChip, {
+        officeId: x.s.officeId
+      })), /*#__PURE__*/React.createElement(Pill, {
         color: "accent"
       }, x.s.line), `$${x.s.rate}/h`, `$${x.s.cost}/h`, `${x.util}%`, fmtMoney(Math.round(x.rev)), fmtMoney(Math.round(x.cost)), /*#__PURE__*/React.createElement("span", {
         style: {
@@ -81044,6 +82262,16 @@ const WF_TRIGGERS = [{
     label: 'Job marked ready to bill',
     icon: 'bell'
   }, {
+    id: 'project.renewal_due',
+    label: 'Project nearing renewal',
+    icon: 'repeat',
+    note: 'When a recurring engagement approaches its renewal date — feeds the pipeline',
+    fields: [{
+      key: 'lead',
+      label: 'Days before renewal',
+      type: 'number'
+    }]
+  }, {
     id: 'task.overdue',
     label: 'Task becomes overdue',
     icon: 'alertTriangle'
@@ -81414,6 +82642,22 @@ const WF_ACTIONS = [{
       label: 'Reason',
       type: 'select',
       options: ['Price', 'Chose competitor', 'No budget', 'Not ready', 'Unresponsive']
+    }]
+  }, {
+    id: 'deal.create_renewal',
+    type: 'action',
+    label: 'Create renewal deal in pipeline',
+    icon: 'repeat',
+    fields: [{
+      key: 'owner',
+      label: 'Deal owner',
+      type: 'select',
+      options: WF_STAFF_NAMES
+    }, {
+      key: 'stage',
+      label: 'Start stage',
+      type: 'select',
+      options: ['Due for review', 'Reviewing', 'Repricing']
     }]
   }]
 }, {
@@ -83106,6 +84350,113 @@ const WORKFLOW_LIBRARY = [{
       tone: 'ok'
     }]
   }]
+}, {
+  // Projects → Deals automation (Jun-18 JO ask, "a workflow link between projects to Deals … build their
+  // pipeline"): when a recurring engagement nears its renewal date, auto-open a renewal deal in the
+  // pipeline + schedule the review. The hands-off version of the Project Dashboard's "Renewal deal" button.
+  id: 'wf-project-renewal',
+  baseId: 'project-renewal',
+  name: 'Project nearing renewal → build pipeline',
+  module: 'projects',
+  outcome: 'Turn a maturing engagement into a renewal deal so the pipeline keeps building from existing clients',
+  level: 'Standard',
+  status: 'Active',
+  version: 1,
+  ownerRole: 'Client manager',
+  isBaseline: true,
+  runCount: 7,
+  lastRun: '2026-06-12',
+  successRate: 100,
+  _tested: true,
+  sla: '2 business days',
+  enrollment: {
+    reentry: 'every'
+  },
+  root: 'pr1',
+  activation: {
+    mode: 'automatic',
+    conditions: [],
+    attachPoints: [{
+      id: 'ap1',
+      kind: 'project',
+      label: 'Projects · 60 days before renewal'
+    }],
+    assignments: []
+  },
+  nodes: {
+    pr1: {
+      id: 'pr1',
+      type: 'trigger',
+      ref: 'project.renewal_due',
+      label: 'Project nearing renewal',
+      config: {
+        lead: 60
+      },
+      next: 'pr2'
+    },
+    pr2: {
+      id: 'pr2',
+      type: 'action',
+      ref: 'deal.create_renewal',
+      label: 'Create renewal deal in pipeline',
+      config: {
+        owner: 'Priya Nair',
+        stage: 'Due for review'
+      },
+      next: 'pr3'
+    },
+    pr3: {
+      id: 'pr3',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Schedule renewal review call',
+      config: {
+        assignee: 'Priya Nair',
+        due: 7
+      },
+      next: 'pr4'
+    },
+    pr4: {
+      id: 'pr4',
+      type: 'action',
+      ref: 'notify.internal',
+      label: 'Notify the client manager',
+      config: {
+        who: 'Priya Nair'
+      },
+      next: null
+    }
+  },
+  enrollments: [{
+    client: 'c-solepay',
+    startedAt: '2026-06-12',
+    step: 'Schedule renewal review call',
+    status: 'running'
+  }, {
+    client: 'c-marlow',
+    startedAt: '2026-06-01',
+    step: 'Completed',
+    status: 'completed'
+  }],
+  runs: [{
+    id: 'r1',
+    at: '2026-06-12',
+    trigger: 'Project nearing renewal',
+    status: 'success',
+    steps: [{
+      label: 'Create renewal deal in pipeline',
+      outcome: 'Renewal deal added to the Recurring pipeline',
+      tone: 'ok'
+    }, {
+      label: 'Schedule renewal review call',
+      outcome: 'Task assigned to Priya Nair',
+      tone: 'ok'
+    }, {
+      label: 'Notify the client manager',
+      outcome: 'Notified Priya Nair',
+      tone: 'ok'
+    }]
+  }]
 }];
 const workflowById = id => WORKFLOW_LIBRARY.find(w => w.id === id);
 
@@ -84065,6 +85416,59 @@ const WF_RECIPES = [{
       next: null
     }
   }
+}, {
+  id: 'rcp-project-renewal',
+  module: 'projects',
+  name: 'Project nearing renewal → build pipeline',
+  level: 'Standard',
+  outcome: 'Turn a maturing engagement into a renewal deal',
+  blurb: 'When a recurring project approaches its renewal date, open a renewal deal in the pipeline and schedule the review — so delivery work feeds the pipeline.',
+  tags: ['Project renewal', 'Create deal', 'Review call', 'Notify'],
+  root: 'r1',
+  nodes: {
+    r1: {
+      id: 'r1',
+      type: 'trigger',
+      ref: 'project.renewal_due',
+      label: 'Project nearing renewal',
+      config: {
+        lead: 60
+      },
+      next: 'r2'
+    },
+    r2: {
+      id: 'r2',
+      type: 'action',
+      ref: 'deal.create_renewal',
+      label: 'Create renewal deal in pipeline',
+      config: {
+        owner: 'Priya Nair',
+        stage: 'Due for review'
+      },
+      next: 'r3'
+    },
+    r3: {
+      id: 'r3',
+      type: 'action',
+      ref: 'task.create',
+      label: 'Schedule renewal review call',
+      config: {
+        assignee: 'Priya Nair',
+        due: 7
+      },
+      next: 'r4'
+    },
+    r4: {
+      id: 'r4',
+      type: 'action',
+      ref: 'notify.internal',
+      label: 'Notify the client manager',
+      config: {
+        who: 'Priya Nair'
+      },
+      next: null
+    }
+  }
 }];
 // ---- recipe library: global catalog vs the firm's own, core defaults, favourites (Johann feedback) ----
 // WF_RECIPES is Sole's shared/global catalog. Tag each as 'global' and mark one flagship "core" recipe per
@@ -84073,7 +85477,7 @@ const WF_RECIPES = [{
 WF_RECIPES.forEach(r => {
   r.source = 'global';
 });
-const WF_CORE_RECIPE_IDS = ['rcp-deal-lifecycle', 'rcp-onboard-company', 'rcp-proposal-chase', 'rcp-bas-lodge', 'rcp-payrun-finalised', 'rcp-invoice-overdue', 'rcp-payment-received', 'rcp-reply-triage'];
+const WF_CORE_RECIPE_IDS = ['rcp-deal-lifecycle', 'rcp-onboard-company', 'rcp-proposal-chase', 'rcp-bas-lodge', 'rcp-payrun-finalised', 'rcp-invoice-overdue', 'rcp-payment-received', 'rcp-reply-triage', 'rcp-project-renewal'];
 WF_CORE_RECIPE_IDS.forEach(id => {
   const r = WF_RECIPES.find(x => x.id === id);
   if (r) r.core = true;
