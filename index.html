@@ -95083,6 +95083,220 @@ const NotificationsPage = ({
 //     live object is derived each render. Never store an object snapshot.
 // ============================================================================
 
+// Real recognizable brands so the constellation shows REAL company logos (favicons),
+// not initials. Each business is mapped to one of these (see crmApplyBrands); the
+// orb renders crmLogo(domain) clipped to a circle, falling back to the colour+monogram
+// while it loads / if a request is blocked. Curated demo keeps its compliance narrative —
+// only the name+domain (the visual identity) is swapped onto a real brand.
+const CRM_BRANDS = [{
+  name: 'Stripe',
+  domain: 'stripe.com'
+}, {
+  name: 'Canva',
+  domain: 'canva.com'
+}, {
+  name: 'Xero',
+  domain: 'xero.com'
+}, {
+  name: 'MYOB',
+  domain: 'myob.com'
+}, {
+  name: 'Atlassian',
+  domain: 'atlassian.com'
+}, {
+  name: 'Notion',
+  domain: 'notion.so'
+}, {
+  name: 'Figma',
+  domain: 'figma.com'
+}, {
+  name: 'Shopify',
+  domain: 'shopify.com'
+}, {
+  name: 'Square',
+  domain: 'squareup.com'
+}, {
+  name: 'Slack',
+  domain: 'slack.com'
+}, {
+  name: 'Spotify',
+  domain: 'spotify.com'
+}, {
+  name: 'Airbnb',
+  domain: 'airbnb.com'
+}, {
+  name: 'Dropbox',
+  domain: 'dropbox.com'
+}, {
+  name: 'Asana',
+  domain: 'asana.com'
+}, {
+  name: 'Twilio',
+  domain: 'twilio.com'
+}, {
+  name: 'Deputy',
+  domain: 'deputy.com'
+}, {
+  name: 'SafetyCulture',
+  domain: 'safetyculture.com'
+}, {
+  name: 'Afterpay',
+  domain: 'afterpay.com'
+}, {
+  name: 'SEEK',
+  domain: 'seek.com.au'
+}, {
+  name: 'Telstra',
+  domain: 'telstra.com.au'
+}, {
+  name: 'Qantas',
+  domain: 'qantas.com'
+}, {
+  name: 'Woolworths',
+  domain: 'woolworths.com.au'
+}, {
+  name: 'Coles',
+  domain: 'coles.com.au'
+}, {
+  name: 'CommBank',
+  domain: 'commbank.com.au'
+}, {
+  name: 'Adobe',
+  domain: 'adobe.com'
+}, {
+  name: 'Salesforce',
+  domain: 'salesforce.com'
+}, {
+  name: 'Zoom',
+  domain: 'zoom.us'
+}, {
+  name: 'Uber',
+  domain: 'uber.com'
+}, {
+  name: 'Netflix',
+  domain: 'netflix.com'
+}, {
+  name: 'Amazon',
+  domain: 'amazon.com'
+}, {
+  name: 'Google',
+  domain: 'google.com'
+}, {
+  name: 'Microsoft',
+  domain: 'microsoft.com'
+}, {
+  name: 'Apple',
+  domain: 'apple.com'
+}, {
+  name: 'GitHub',
+  domain: 'github.com'
+}, {
+  name: 'LinkedIn',
+  domain: 'linkedin.com'
+}, {
+  name: 'Linear',
+  domain: 'linear.app'
+}, {
+  name: 'Vercel',
+  domain: 'vercel.com'
+}, {
+  name: 'Cloudflare',
+  domain: 'cloudflare.com'
+}, {
+  name: 'HubSpot',
+  domain: 'hubspot.com'
+}, {
+  name: 'Mailchimp',
+  domain: 'mailchimp.com'
+}, {
+  name: 'Zendesk',
+  domain: 'zendesk.com'
+}, {
+  name: 'Intercom',
+  domain: 'intercom.com'
+}, {
+  name: 'Miro',
+  domain: 'miro.com'
+}, {
+  name: 'Loom',
+  domain: 'loom.com'
+}, {
+  name: 'Calendly',
+  domain: 'calendly.com'
+}, {
+  name: 'Airtable',
+  domain: 'airtable.com'
+}, {
+  name: 'monday.com',
+  domain: 'monday.com'
+}, {
+  name: 'Webflow',
+  domain: 'webflow.com'
+}, {
+  name: 'Framer',
+  domain: 'framer.com'
+}, {
+  name: 'Grammarly',
+  domain: 'grammarly.com'
+}, {
+  name: 'Reddit',
+  domain: 'reddit.com'
+}, {
+  name: 'Pinterest',
+  domain: 'pinterest.com'
+}, {
+  name: 'PayPal',
+  domain: 'paypal.com'
+}, {
+  name: 'Wise',
+  domain: 'wise.com'
+}, {
+  name: 'Revolut',
+  domain: 'revolut.com'
+}, {
+  name: 'Klarna',
+  domain: 'klarna.com'
+}, {
+  name: 'Coinbase',
+  domain: 'coinbase.com'
+}, {
+  name: 'Datadog',
+  domain: 'datadoghq.com'
+}, {
+  name: 'Snowflake',
+  domain: 'snowflake.com'
+}, {
+  name: 'Twitch',
+  domain: 'twitch.tv'
+}];
+// Favicon → real logo. Google's service is bulletproof and returns a crisp 128px icon.
+const crmLogo = domain => domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
+// Cheap deterministic hash → stable jitter (NO Math.random — the prototype forbids it).
+const crmHash = s => {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+const crmJit = s => crmHash(s) / 0x100000000 * 2 - 1; // stable −1..1 from an id
+// Map every business onto a real brand (name + domain + matching contact emails),
+// keeping all compliance/status/revenue fields. Deterministic by running index.
+const crmApplyBrands = groups => {
+  let bi = 0;
+  for (const g of groups) for (const e of g.entities) {
+    const brand = CRM_BRANDS[bi % CRM_BRANDS.length];
+    bi++;
+    e.name = brand.name;
+    e.domain = brand.domain;
+    for (const c of e.contacts) {
+      const handle = (c.name || 'contact').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/(^\.|\.$)/g, '');
+      c.email = `${handle}@${brand.domain}`;
+    }
+  }
+  return groups;
+};
 const RELATIONSHIP_GROUPS = [{
   id: 'g-smith',
   name: 'Smith family group',
@@ -95869,6 +96083,119 @@ const RELATIONSHIP_GROUPS = [{
   }]
 }];
 
+// ============================================================================
+// SCALE GENERATOR — opt-in via ?crmScale=N (hash OR query) or localStorage
+// ('sole.crmScale'). Produces groups → businesses → contacts with the EXACT
+// field shape of RELATIONSHIP_GROUPS, so every crm* helper, filter, colour,
+// search and the inspector keep working unchanged. 0/unset → the curated
+// 7-group demo (the default share). Deterministic (fixed LCG seed) so the same
+// N always renders the same map. Pools are inlined to avoid any forward-ref.
+// ============================================================================
+const CRM_SCALE_N = (() => {
+  try {
+    const src = typeof location !== 'undefined' ? location.hash + ' ' + location.search : '';
+    const m = src.match(/crmScale=(\d+)/);
+    if (m) return Math.min(parseInt(m[1], 10) || 0, 12000);
+    const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('sole.crmScale') : null;
+    if (ls) return Math.min(parseInt(ls, 10) || 0, 12000);
+  } catch (_) {}
+  return 0;
+})();
+const makeScaleGroups = n => {
+  let s = 0x5b3a17 >>> 0; // fixed seed → repeatable
+  const rnd = () => {
+    s = s * 1664525 + 1013904223 >>> 0;
+    return s / 0x100000000;
+  };
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const FIRST = ['John', 'Sarah', 'Will', 'Anne', 'Paul', 'Anika', 'Nina', 'Matt', 'Lisa', 'Megan', 'Harry', 'Josh', 'Amy', 'Sam', 'Jess', 'Mona', 'Adam', 'Jade', 'Olivia', 'Nathan', 'Priya', 'Mia', 'Emma', 'Jacob', 'Liam', 'Noah', 'Ava', 'Mila', 'Ethan', 'Zoe', 'Lucas', 'Grace', 'Ruby', 'Leo', 'Ivy', 'Max', 'Chloe', 'Eli', 'Hana', 'Omar'];
+  const LAST = ['Smith', 'Williams', 'Nguyen', 'Patel', 'Brown', 'Taylor', 'Lee', 'Chen', 'Khan', 'Wilson', 'Ryan', 'Walker', 'Hughes', 'Murphy', 'Reed', 'Cole', 'Bell', 'Shah', 'Park', 'Singh', 'Ross', 'Frost', 'Lane', 'Hart', 'Wade', 'Boyd', 'Nash', 'Pope', 'Dale', 'Webb', 'Ford', 'Knox', 'Tran', 'Vu', 'Ali', 'Day', 'Fox', 'Gill', 'Mann', 'Rose'];
+  const BIZ = ['Plumbing', 'Electrical', 'Construction', 'Holdings', 'Property Co', 'Investments', 'Studio', 'Catering', 'Cafe', 'Medical', 'Locum Services', 'Rentals', 'Developments', 'Plant Hire', 'Logistics', 'Consulting', 'Joinery', 'Roofing', 'Freight', 'Dental', 'Physio', 'Bakery', 'Brewing', 'Fitness', 'Tiling', 'Concreting', 'Landscaping', 'IT Services', 'Marketing', 'Transport'];
+  const ENTSUFFIX = ['Pty Ltd', 'Group', 'Co', 'Services', 'Partners', '& Co'];
+  const TYPES = ['Company', 'Trust', 'Sole trader', 'SMSF', 'Partnership'];
+  const ROLES = ['Director', 'Bookkeeper', 'Payroll contact', 'Office manager', 'Owner', 'Operations', 'Practice manager', 'Finance contact', 'Trustee contact', 'Producer', 'Fleet admin', 'Family contact'];
+  const AUTHS = ['Approver', 'Billing contact', 'Document uploader', 'View only'];
+  const STAGES = ['Waiting on client', 'In progress', 'Manager review', 'Staff review', 'Ready to bill', 'Job blocked', 'Scheduled', 'Onboarding'];
+  const SEEN = ['Today', 'Yesterday', '2 days ago', '4 days ago', '6 days ago', '9 days ago', '12 days ago', '3 weeks ago'];
+  const STATUSES = ['active', 'active', 'active', 'active', 'onboarding', 'attention', 'attention', 'risk', 'dormant'];
+  const OWNERS = ['Emma Roberts', 'Priya Shah', 'Nathan Lee', 'Mia Chen', 'Olivia King', 'Jacob Miles', 'Daniel Wu', 'Hannah Cole', 'Marcus Reid', 'Sofia Diaz'];
+  const groups = [];
+  let made = 0,
+    gi = 0;
+  while (made < n) {
+    const surname = pick(LAST),
+      owner = pick(OWNERS);
+    const size = Math.min(n - made, 1 + Math.floor(rnd() * 6)); // 1–6 businesses per group
+    const entities = [];
+    for (let e = 0; e < size; e++, made++) {
+      const status = pick(STATUSES);
+      const risk = status === 'risk' ? 'high' : status === 'attention' ? 'medium' : 'low';
+      const ato = pick(['Authorised', 'Authorised', 'Authorised', 'Pending', 'Not started']);
+      const aml = status === 'risk' && rnd() < 0.7 ? 'Incomplete' : rnd() < 0.1 ? 'Incomplete' : 'Complete';
+      const bank = status === 'risk' || rnd() < 0.16 ? 'Disconnected' : 'Connected';
+      const bas = pick(['Current', 'Current', 'Due soon', 'Overdue', 'Not applicable']);
+      const flags = [];
+      if (aml === 'Incomplete') flags.push('AML incomplete');
+      if (/overdue/i.test(bas)) flags.push('BAS overdue');else if (/due/i.test(bas)) flags.push('BAS due soon');
+      if (bank === 'Disconnected') flags.push('Bank feed disconnected');
+      if (ato === 'Pending') flags.push('ATO authority pending');else if (ato === 'Not started') flags.push('ATO authority not started');
+      if (status === 'dormant') flags.push('Dormant entity');
+      if (!flags.length) flags.push('Clean');
+      const revenue = 800 + Math.floor(rnd() * 8200);
+      const nC = 1 + Math.floor(rnd() * 3);
+      const contacts = [];
+      for (let ci = 0; ci < nC; ci++) {
+        const fn = pick(FIRST);
+        contacts.push({
+          id: `u-${gi}-${e}-${ci}`,
+          name: `${fn} ${surname}`,
+          role: pick(ROLES),
+          auth: ci === 0 ? 'Approver' : pick(AUTHS),
+          email: `${fn.toLowerCase()}@${surname.toLowerCase()}${e}.com.au`,
+          last: pick(SEEN),
+          primary: ci === 0
+        });
+      }
+      entities.push({
+        id: `c-${gi}-${e}`,
+        name: `${surname} ${pick(BIZ)} ${pick(ENTSUFFIX)}`,
+        type: pick(TYPES),
+        abn: `${10 + Math.floor(rnd() * 89)} ${100 + Math.floor(rnd() * 899)} ${100 + Math.floor(rnd() * 899)} ${100 + Math.floor(rnd() * 899)}`,
+        gst: rnd() < 0.6 ? 'Registered' : 'Not registered',
+        ato,
+        aml,
+        bank,
+        bas,
+        status,
+        risk,
+        relX: 0,
+        relY: 0,
+        revenue,
+        openJobs: Math.floor(rnd() * 7),
+        stage: pick(STAGES),
+        staff: owner,
+        wip: Math.floor(rnd() * 3000),
+        ar: rnd() < 0.4 ? Math.floor(rnd() * 2200) : 0,
+        next: 'Review outstanding items and confirm the next step with the client.',
+        flags,
+        contacts
+      });
+    }
+    groups.push({
+      id: `g-scale-${gi}`,
+      name: `${surname} group ${gi + 1}`,
+      owner,
+      revenue: entities.reduce((a, e2) => a + e2.revenue, 0),
+      entities
+    });
+    gi++;
+  }
+  return groups;
+};
+// The single source the map reads. Curated seed by default; generated at scale.
+// Branded so every business carries a real company identity + logo.
+const CRM_GROUPS = crmApplyBrands(CRM_SCALE_N ? makeScaleGroups(CRM_SCALE_N) : RELATIONSHIP_GROUPS);
+
 // status palette mapped onto the T tokens (NOT the reference's bespoke hexes).
 const CRM_STATUS_META = {
   active: {
@@ -95958,15 +96285,15 @@ const CRM_NOISE_FLAGS = ['Clean', 'ATO details verified'];
 const crmInitials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase();
 const crmClamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const crmUnique = arr => [...new Set(arr)].sort((a, b) => a.localeCompare(b));
-const crmGetGroup = id => RELATIONSHIP_GROUPS.find(g => g.id === id);
+const crmGetGroup = id => CRM_GROUPS.find(g => g.id === id);
 const crmGetEntity = (gid, eid) => (crmGetGroup(gid) || {}).entities && crmGetGroup(gid).entities.find(e => e.id === eid);
-const crmAllEntities = () => RELATIONSHIP_GROUPS.flatMap(g => g.entities.map(e => ({
+const crmAllEntities = () => CRM_GROUPS.flatMap(g => g.entities.map(e => ({
   ...e,
   group: g
 })));
 const crmPrimaryContact = e => e.contacts.find(c => c.primary) || e.contacts[0];
 const crmBaseRel = eid => {
-  for (const g of RELATIONSHIP_GROUPS) {
+  for (const g of CRM_GROUPS) {
     const e = g.entities.find(x => x.id === eid);
     if (e) return {
       relX: e.relX,
@@ -96007,116 +96334,231 @@ const CRM_CONTACT_X = 606,
   CRM_CONTACT_PITCH = 56;
 const CRM_BAND_VPAD = 26,
   CRM_GROUP_GAP = 18;
+const CRM_FOP = 16; // foreignObject padding (card drop-shadows aren't clipped)
+// Semantic-zoom thresholds: full HTML card ≥0.85 · light glyph 0.5–0.85 · plain dot <0.5.
+const CRM_LOD_CARD = 0.95,
+  CRM_LOD_GLYPH = 0.5;
+// Culling: only build the index / window the DOM once a dataset is genuinely large;
+// the curated demo stays render-all so nothing about it changes. Margin (content px)
+// pre-renders ~one screenful past the viewport so panning never shows pop-in.
+const CRM_CULL_MIN = 400,
+  CRM_CULL_MARGIN = 360;
+// Multi-column packing — above CRM_MULTICOL_MIN groups the tree tiles into columns
+// so a big practice reads as a 2D map (a calm galaxy of small trees), not one
+// endless strip. CRM_BUCKET = cull grid cell size (content px).
+const CRM_COL_GAP = 72,
+  CRM_MULTICOL_MIN = 14,
+  CRM_BUCKET = 700;
+// --- constellation graph geometry (Round 2: replaces the tree) ---
+const CRM_GOLDEN = Math.PI * (3 - Math.sqrt(5)); // 137.5° — phyllotaxis (sunflower) spread
+const CRM_HUB_SPACING = 140; // r = SPACING·√i between group hubs
+const CRM_BIZ_ORBIT = 112,
+  CRM_BIZ_ORBIT_K = 14; // business orbit radius (grows for big groups)
+const CRM_CON_ORBIT = 44; // contact orbit around a business
+const CRM_JIT = 0.34; // ± fraction of angular pitch (deterministic jitter)
+const CRM_HUB_R = 24,
+  CRM_BIZ_R = 17,
+  CRM_CON_R = 8; // orb radii
+const CRM_HUB_BOX = 112,
+  CRM_BIZ_BOX = 86,
+  CRM_CON_BOX = 52; // hit/bucket box (incl. label space)
+const CRM_DENSITY_2 = 0.6,
+  CRM_DENSITY_3 = 1.05; // committed-scale → density thresholds (zoom reveals more)
+const CRM_GRAPH_SMALL = 60; // ≤ this many visible groups → open zoomed-in (logos); else an overview
 // Lit-token helpers (hover/selection connected-set).
 const crmTok = {
   g: id => 'g:' + id,
   b: id => 'b:' + id,
   c: (eid, cid) => 'c:' + eid + ':' + cid
 };
-// Single deterministic layout for the whole graph at a given detail level.
-// 1 = groups only · 2 = groups + businesses (default) · 3 = + all contacts.
-const crmLayout = (level, visible) => {
+// ── Constellation layout (Round 2: replaces the tree) ───────────────────────
+// Group hubs are spread by a phyllotaxis (golden-angle) spiral — an even, organic,
+// overlap-free fill for ANY count. Each group's businesses orbit its hub; each
+// business's contacts orbit it (fanned outward). Positions depend only on the group's
+// index + a stable id-hash, so raising `densityLevel` only ADDS nodes around fixed
+// hubs (zoom-in increases density, never reflows). Straight links. Returns the SAME
+// shape (incl. the `buckets` cull index) as the old layout, so culling/fit/windowed
+// are untouched. Nodes store CENTRE (x,y) — the orb node draws centred on it.
+const crmGraphLayout = (visible, densityLevel, collapsed) => {
   const groups = [],
     businesses = [],
     contacts = [],
     links = [];
-  let y = CRM_TOP;
-  if (level === 1) {
-    visible.forEach(({
-      group,
-      entities
-    }) => {
-      groups.push({
-        group,
-        entities,
-        x: CRM_GROUP_X,
-        y,
-        cy: y + CRM_GROUP_H / 2
-      });
-      y += CRM_GROUP_H + CRM_GROUP_GAP;
-    });
-    return {
-      groups,
-      businesses,
-      contacts,
-      links,
-      contentW: CRM_GROUP_X + CRM_GROUP_W + CRM_PAD,
-      contentH: y + CRM_TOP
-    };
-  }
+  const showBiz = densityLevel >= 2,
+    showCon = densityLevel >= 3;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  const bound = (x, y, r) => {
+    if (x - r < minX) minX = x - r;
+    if (y - r < minY) minY = y - r;
+    if (x + r > maxX) maxX = x + r;
+    if (y + r > maxY) maxY = y + r;
+  };
+
+  // Positions for ALL nodes are computed every time (so the bounding box / contentW-H
+  // is STABLE across density levels — otherwise zooming-in to bloom businesses would
+  // grow the content, re-fit the camera back out, drop density … an oscillation).
+  // Only nodes at/below the current density are EMITTED into the render arrays.
   visible.forEach(({
     group,
     entities
-  }) => {
-    const slotH = entities.map(e => level === 3 ? Math.max(CRM_BIZ_PITCH, e.contacts.length * CRM_CONTACT_PITCH + 14) : CRM_BIZ_PITCH);
-    const bandH = slotH.reduce((s, h) => s + h, 0);
-    const bandTop = y;
-    const gcy = bandTop + bandH / 2;
+  }, gi) => {
+    const R = CRM_HUB_SPACING * Math.sqrt(gi),
+      A = gi * CRM_GOLDEN;
+    const hx = Math.cos(A) * R,
+      hy = Math.sin(A) * R;
     groups.push({
       group,
       entities,
-      x: CRM_GROUP_X,
-      y: gcy - CRM_GROUP_H / 2,
-      cy: gcy
+      x: hx,
+      y: hy,
+      cx: hx,
+      cy: hy
     });
-    let by = bandTop;
+    bound(hx, hy, CRM_HUB_R);
+    const collapsedG = collapsed && collapsed.has(group.id);
+    const emitBiz = showBiz && !collapsedG;
+    const n = entities.length;
+    const orbit = CRM_BIZ_ORBIT + CRM_BIZ_ORBIT_K * Math.max(0, n - 4);
+    const pitch = Math.PI * 2 / n;
+    const ringRot = crmJit(group.id) * Math.PI; // stable per-group ring rotation (variety)
     entities.forEach((e, i) => {
-      const h = slotH[i];
-      const bcy = by + h / 2;
-      businesses.push({
-        entity: e,
-        group,
-        x: CRM_BIZ_X,
-        y: bcy - CRM_BIZ_H / 2,
-        cy: bcy
-      });
-      links.push({
-        key: crmTok.g(group.id) + '|' + crmTok.b(e.id),
-        x1: CRM_GROUP_X + CRM_GROUP_W,
-        y1: gcy,
-        x2: CRM_BIZ_X,
-        y2: bcy
-      });
-      if (level === 3) {
-        const n = e.contacts.length;
-        e.contacts.forEach((c, ci) => {
-          const ccy = bcy + (ci - (n - 1) / 2) * CRM_CONTACT_PITCH;
+      const ang = ringRot + i * pitch + crmJit(e.id) * pitch * CRM_JIT;
+      const bx = hx + Math.cos(ang) * orbit,
+        by = hy + Math.sin(ang) * orbit;
+      bound(bx, by, CRM_BIZ_R);
+      if (emitBiz) {
+        const bIdx = businesses.length;
+        businesses.push({
+          entity: e,
+          group,
+          x: bx,
+          y: by,
+          cx: bx,
+          cy: by
+        });
+        links.push({
+          key: crmTok.g(group.id) + '|' + crmTok.b(e.id),
+          x1: hx,
+          y1: hy,
+          x2: bx,
+          y2: by,
+          b: bIdx
+        });
+      }
+      const m = e.contacts.length;
+      e.contacts.forEach((c, ci) => {
+        const ca = ang + (ci - (m - 1) / 2) * 0.55 + crmJit(e.id + c.id) * 0.22; // fan AWAY from the hub
+        const cx = bx + Math.cos(ca) * CRM_CON_ORBIT,
+          cy = by + Math.sin(ca) * CRM_CON_ORBIT;
+        bound(cx, cy, CRM_CON_R);
+        if (showCon && emitBiz) {
+          const cIdx = contacts.length;
           contacts.push({
             contact: c,
             entity: e,
             group,
-            x: CRM_CONTACT_X,
-            y: ccy - CRM_CONTACT_H / 2,
-            cy: ccy
+            x: cx,
+            y: cy,
+            cx,
+            cy
           });
           links.push({
             key: crmTok.b(e.id) + '|' + crmTok.c(e.id, c.id),
-            x1: CRM_BIZ_X + CRM_BIZ_W,
-            y1: bcy,
-            x2: CRM_CONTACT_X,
-            y2: ccy
+            x1: bx,
+            y1: by,
+            x2: cx,
+            y2: cy,
+            c: cIdx
           });
-        });
-      }
-      by += h;
+        }
+      });
     });
-    y = bandTop + bandH + CRM_BAND_VPAD;
   });
-  const contentW = (level === 3 ? CRM_CONTACT_X + CRM_CONTACT_W : CRM_BIZ_X + CRM_BIZ_W) + CRM_PAD;
+
+  // shift to a positive origin (buckets + camera assume content ≥ 0)
+  const PAD = 110;
+  if (!isFinite(minX)) {
+    minX = minY = 0;
+    maxX = maxY = 0;
+  }
+  const offX = PAD - minX,
+    offY = PAD - minY;
+  const shift = a => {
+    for (const nd of a) {
+      nd.x += offX;
+      nd.y += offY;
+      nd.cx += offX;
+      nd.cy += offY;
+    }
+  };
+  shift(groups);
+  shift(businesses);
+  shift(contacts);
+  for (const l of links) {
+    l.x1 += offX;
+    l.y1 += offY;
+    l.x2 += offX;
+    l.y2 += offY;
+  }
+  const contentW = maxX - minX + PAD * 2,
+    contentH = maxY - minY + PAD * 2;
+
+  // bucket index — orbs are centre-anchored, so bucket a centred box
+  const buckets = new Map();
+  const place = (kind, arr, box) => {
+    for (let i = 0; i < arr.length; i++) {
+      const nd = arr[i];
+      const cx0 = Math.floor((nd.x - box / 2) / CRM_BUCKET),
+        cx1 = Math.floor((nd.x + box / 2) / CRM_BUCKET);
+      const cy0 = Math.floor((nd.y - box / 2) / CRM_BUCKET),
+        cy1 = Math.floor((nd.y + box / 2) / CRM_BUCKET);
+      for (let cx = cx0; cx <= cx1; cx++) for (let cy = cy0; cy <= cy1; cy++) {
+        const k = cx + ',' + cy;
+        let bk = buckets.get(k);
+        if (!bk) {
+          bk = {
+            g: [],
+            b: [],
+            c: []
+          };
+          buckets.set(k, bk);
+        }
+        bk[kind].push(i);
+      }
+    }
+  };
+  place('g', groups, CRM_HUB_BOX);
+  place('b', businesses, CRM_BIZ_BOX);
+  place('c', contacts, CRM_CON_BOX);
   return {
     groups,
     businesses,
     contacts,
     links,
+    buckets,
+    cols: 1,
     contentW,
-    contentH: y + CRM_TOP
+    contentH
   };
 };
+// Viewport rect in CONTENT space (inverse of the <g> translate/scale camera).
+const crmViewport = (cam, rect, margin) => ({
+  x0: -cam.tx / cam.scale - margin,
+  y0: -cam.ty / cam.scale - margin,
+  x1: (rect.width - cam.tx) / cam.scale + margin,
+  y1: (rect.height - cam.ty) / cam.scale + margin
+});
+const crmClip = (t, max) => t && t.length > max ? t.slice(0, max - 1) + '…' : t || '';
 // Smooth horizontal S-curve connector between two points.
 const crmLink = (x1, y1, x2, y2) => {
   const mx = (x1 + x2) / 2;
   return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
 };
+// Straight thin connector (the constellation graph uses this — matches the Obsidian look).
+const crmLine = (x1, y1, x2, y2) => `M ${x1} ${y1} L ${x2} ${y2}`;
 // Connected-set for hover/selection highlight: the node + its ancestor chain +
 // descendants + connecting links, as a Set of lit tokens (or null = all lit).
 const crmConnected = (focus, visible, level) => {
@@ -96496,6 +96938,440 @@ const CrmBadge = ({
     }
   }, glyph);
 };
+
+// ============================================================================
+// Memoised graph nodes. React.memo + stable callbacks (hover is imperative, see
+// applyLit) means hovering / panning / committing the camera re-renders NO node
+// whose data didn't change — essential once thousands are on screen. Hover dim
+// is applied straight to the DOM via [data-tok]/[data-link], like the camera
+// transform, so it never round-trips through React. `selected` is the only
+// frequently-changing prop and flips for at most two nodes per click.
+// ============================================================================
+const CrmGroupNode = React.memo(({
+  group,
+  entities,
+  x,
+  y,
+  selected,
+  collapsed,
+  onHover,
+  onLeave,
+  onSelect,
+  onToggle
+}) => {
+  const gWarn = entities.some(e => e.risk === 'high' || e.flags.some(f => /incomplete|overdue|disconnected|unsigned|blocked|not started/i.test(f)));
+  const gRev = entities.reduce((s, e) => s + e.revenue, 0);
+  return /*#__PURE__*/React.createElement("foreignObject", {
+    "data-tok": crmTok.g(group.id),
+    x: x - CRM_FOP,
+    y: y - CRM_FOP,
+    width: CRM_GROUP_W + CRM_FOP * 2,
+    height: CRM_GROUP_H + CRM_FOP * 2,
+    style: {
+      overflow: 'visible',
+      transition: 'opacity 140ms'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onMouseEnter: ev => onHover({
+      type: 'group',
+      id: group.id
+    }, ev.clientX, ev.clientY),
+    onMouseLeave: onLeave,
+    onPointerDown: ev => ev.stopPropagation(),
+    onClick: () => onSelect({
+      type: 'group',
+      id: group.id
+    }),
+    style: {
+      width: '100%',
+      height: '100%',
+      padding: CRM_FOP,
+      boxSizing: 'border-box',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    "data-crm-card": true,
+    style: {
+      width: '100%',
+      height: '100%',
+      boxSizing: 'border-box',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '0 12px',
+      background: T.primarySoft,
+      border: `1px solid ${selected ? T.primary : '#D7D6FB'}`,
+      borderRadius: 13,
+      position: 'relative',
+      boxShadow: selected ? '0 12px 24px rgba(91,91,246,.20)' : '0 6px 16px rgba(91,91,246,.10)',
+      transition: 'box-shadow 140ms, border-color 140ms'
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: group.name,
+    size: 34,
+    style: {
+      borderRadius: 10
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.text,
+      lineHeight: 1.2,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, group.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      marginTop: 2
+    }
+  }, entities.length, " ", entities.length === 1 ? 'business' : 'businesses', " \xB7 ", fmtMoneyCompact(gRev), "/mo")), onToggle && /*#__PURE__*/React.createElement("button", {
+    onClick: ev => {
+      ev.stopPropagation();
+      onToggle(group.id);
+    },
+    onPointerDown: ev => ev.stopPropagation(),
+    title: collapsed ? 'Expand businesses' : 'Collapse',
+    style: {
+      flexShrink: 0,
+      width: 24,
+      height: 24,
+      borderRadius: 7,
+      border: `1px solid ${T.border}`,
+      background: '#fff',
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'grid',
+      placeItems: 'center',
+      fontSize: 13,
+      lineHeight: 1,
+      padding: 0
+    }
+  }, collapsed ? '+' : '–'), gWarn && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      top: 9,
+      right: onToggle ? 40 : 11,
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+      background: T.amber,
+      boxShadow: `0 0 0 2px ${T.primarySoft}`
+    }
+  }))));
+});
+const CrmBizNode = React.memo(({
+  entity,
+  group,
+  x,
+  y,
+  selected,
+  mode,
+  onHover,
+  onLeave,
+  onSelect
+}) => {
+  const colour = crmStatusColour(entity, mode);
+  const warn = entity.risk === 'high' || entity.flags.some(f => /incomplete|overdue|disconnected|unsigned|blocked|not started/i.test(f));
+  const highValue = entity.revenue > 5000;
+  return /*#__PURE__*/React.createElement("foreignObject", {
+    "data-tok": crmTok.b(entity.id),
+    x: x - CRM_FOP,
+    y: y - CRM_FOP,
+    width: CRM_BIZ_W + CRM_FOP * 2,
+    height: CRM_BIZ_H + CRM_FOP * 2,
+    style: {
+      overflow: 'visible',
+      transition: 'opacity 140ms'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onMouseEnter: ev => onHover({
+      type: 'entity',
+      id: entity.id,
+      groupId: group.id
+    }, ev.clientX, ev.clientY),
+    onMouseLeave: onLeave,
+    onPointerDown: ev => ev.stopPropagation(),
+    onClick: () => onSelect({
+      type: 'entity',
+      id: entity.id,
+      groupId: group.id
+    }),
+    style: {
+      width: '100%',
+      height: '100%',
+      padding: CRM_FOP,
+      boxSizing: 'border-box',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    "data-crm-card": true,
+    style: {
+      width: '100%',
+      height: '100%',
+      boxSizing: 'border-box',
+      position: 'relative',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: 4,
+      padding: '8px 12px',
+      background: `linear-gradient(160deg, #fff, ${T.primarySofter})`,
+      border: `1px solid ${selected ? T.primary : T.border}`,
+      borderRadius: 13,
+      boxShadow: selected ? '0 12px 22px rgba(91,91,246,.18)' : '0 6px 14px rgba(17,17,23,.07)',
+      transition: 'box-shadow 140ms, border-color 140ms'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 9,
+      height: 9,
+      borderRadius: '50%',
+      background: colour,
+      flexShrink: 0,
+      boxShadow: '0 0 0 2px #fff'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: T.text,
+      lineHeight: 1.25,
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      display: '-webkit-box',
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: 'vertical'
+    }
+  }, entity.name)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      color: T.muted,
+      paddingLeft: 17,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, entity.type, " \xB7 ", crmStatusText(entity, mode)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      display: 'flex',
+      gap: 4
+    }
+  }, highValue && /*#__PURE__*/React.createElement(CrmBadge, {
+    tone: "accent",
+    glyph: "$",
+    size: 18
+  }), warn && /*#__PURE__*/React.createElement(CrmBadge, {
+    tone: entity.risk === 'high' ? 'red' : 'amber',
+    glyph: "!",
+    size: 18
+  })))));
+});
+const CrmContactNode = React.memo(({
+  contact,
+  entity,
+  group,
+  x,
+  y,
+  selected,
+  onHover,
+  onLeave,
+  onSelect
+}) => /*#__PURE__*/React.createElement("foreignObject", {
+  "data-tok": crmTok.c(entity.id, contact.id),
+  x: x - CRM_FOP,
+  y: y - CRM_FOP,
+  width: CRM_CONTACT_W + CRM_FOP * 2,
+  height: CRM_CONTACT_H + CRM_FOP * 2,
+  style: {
+    overflow: 'visible',
+    transition: 'opacity 140ms'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  onMouseEnter: ev => onHover({
+    type: 'contact',
+    id: contact.id,
+    groupId: group.id,
+    entityId: entity.id
+  }, ev.clientX, ev.clientY),
+  onMouseLeave: onLeave,
+  onPointerDown: ev => ev.stopPropagation(),
+  onClick: () => onSelect({
+    type: 'contact',
+    id: contact.id,
+    groupId: group.id,
+    entityId: entity.id
+  }),
+  style: {
+    width: '100%',
+    height: '100%',
+    padding: CRM_FOP,
+    boxSizing: 'border-box',
+    cursor: 'pointer'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  "data-crm-card": true,
+  style: {
+    width: '100%',
+    height: '100%',
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '0 10px',
+    background: T.card,
+    border: `1px solid ${selected ? T.primary : T.border}`,
+    borderRadius: 11,
+    boxShadow: selected ? '0 8px 16px rgba(91,91,246,.16)' : '0 4px 9px rgba(17,17,23,.07)',
+    transition: 'box-shadow 140ms, border-color 140ms'
+  }
+}, /*#__PURE__*/React.createElement(Avatar, {
+  name: contact.name,
+  size: 26
+}), /*#__PURE__*/React.createElement("div", {
+  style: {
+    minWidth: 0,
+    flex: 1
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: T.text,
+    lineHeight: 1.2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, contact.name), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 9.8,
+    color: T.muted,
+    marginTop: 1,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, contact.auth)), contact.primary && /*#__PURE__*/React.createElement("span", {
+  title: "Primary contact",
+  style: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: T.primary,
+    flexShrink: 0
+  }
+})))));
+// Constellation orb — a circular "logo dot", pure SVG (no foreignObject → cheap at 10k),
+// centre-anchored at (x,y). Far/zoomed-out ('dot') it's a plain status-coloured circle;
+// zoomed in it shows the real company logo (a favicon <image> clipped to the circle) over
+// a colour+monogram fallback, ringed by status colour; a label appears at the tightest
+// zoom. Keeps data-tok + hover/select handlers so culling, applyLit, hover-card and the
+// drawer all work unchanged. Only business orbs carry a logo (hubs/contacts = monogram).
+const CrmOrbNode = React.memo(({
+  tok,
+  kind,
+  lod,
+  x,
+  y,
+  r,
+  box,
+  colour,
+  bg,
+  monoColor,
+  logo,
+  monogram,
+  selected,
+  label,
+  onHover,
+  onLeave,
+  onSelect,
+  hoverArg,
+  selectArg
+}) => /*#__PURE__*/React.createElement("g", {
+  "data-tok": tok,
+  transform: `translate(${x} ${y})`,
+  style: {
+    transition: 'opacity 140ms',
+    cursor: 'pointer'
+  },
+  onMouseEnter: ev => onHover(hoverArg, ev.clientX, ev.clientY),
+  onMouseLeave: onLeave,
+  onPointerDown: ev => ev.stopPropagation(),
+  onClick: () => onSelect(selectArg)
+}, /*#__PURE__*/React.createElement("rect", {
+  x: -box / 2,
+  y: -box / 2,
+  width: box,
+  height: box,
+  fill: "transparent"
+}), selected && /*#__PURE__*/React.createElement("circle", {
+  r: r + 4.5,
+  fill: "none",
+  stroke: T.primary,
+  strokeWidth: 2.4
+}), lod === 'dot' ? /*#__PURE__*/React.createElement("circle", {
+  r: r,
+  fill: colour,
+  stroke: "#fff",
+  strokeWidth: 1.4
+}) : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("circle", {
+  r: r,
+  fill: bg,
+  stroke: colour,
+  strokeWidth: kind === 'contact' ? 2 : 2.6
+}), monogram && /*#__PURE__*/React.createElement("text", {
+  textAnchor: "middle",
+  dominantBaseline: "central",
+  fontSize: Math.round(r * 0.82),
+  fontWeight: 700,
+  fill: monoColor,
+  style: {
+    pointerEvents: 'none'
+  }
+}, monogram), logo && /*#__PURE__*/React.createElement("image", {
+  href: logo,
+  x: -r,
+  y: -r,
+  width: r * 2,
+  height: r * 2,
+  clipPath: "url(#crmOrbClip)",
+  preserveAspectRatio: "xMidYMid slice",
+  onError: e => {
+    e.currentTarget.style.display = 'none';
+  },
+  style: {
+    pointerEvents: 'none'
+  }
+})), lod === 'card' && label && kind !== 'contact' && /*#__PURE__*/React.createElement("text", {
+  textAnchor: "middle",
+  y: r + 15,
+  fontSize: 11.5,
+  fontWeight: kind === 'group' ? 700 : 600,
+  fill: T.text,
+  style: {
+    pointerEvents: 'none'
+  }
+}, crmClip(label, 22))));
 const ClientRelationshipMapPage = ({
   fireToast
 }) => {
@@ -96503,7 +97379,7 @@ const ClientRelationshipMapPage = ({
     isCompact
   } = useViewport();
   const [mode, setMode] = useState('status'); // colour by: status | risk | revenue | workflow
-  const [detailLevel, setDetailLevel] = useState(2); // 1 groups · 2 +businesses · 3 +people
+  const [collapsed, setCollapsed] = useState(() => new Set()); // (reserved) group ids individually collapsed
   const [quick, setQuick] = useState('all');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('all');
@@ -96513,13 +97389,15 @@ const ClientRelationshipMapPage = ({
   const [filterOpen, setFilterOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [selection, setSelection] = useState(null); // { type, id, groupId?, entityId? } — IDs only
-  const [hover, setHover] = useState(null); // same shape; drives the branch highlight
   const [camera, setCameraState] = useState({
     tx: 0,
     ty: 0,
     scale: 1
   });
   const [animated, setAnimated] = useState(false); // CSS transition on the content <g> (programmatic moves only)
+  const [cull, setCull] = useState(null); // windowed index slices into the layout (null = render all)
+  const [hoverCard, setHoverCard] = useState(null); // { arg, cx, cy } — floating quick-glance popover near the cursor
+  const [drawerOpen, setDrawerOpen] = useState(true); // the inspector is now a closable right drawer (full-width map when shut)
 
   const svgRef = useRef(null);
   const gRef = useRef(null);
@@ -96527,6 +97405,21 @@ const ClientRelationshipMapPage = ({
   const dragRef = useRef(null);
   const wheelCommit = useRef(0);
   const mountedRef = useRef(false);
+  // refs the imperative hover/cull paths read, so their (possibly stale) closures
+  // always see current values — same discipline as cameraRef.
+  const hoverRef = useRef(null);
+  const selectionRef = useRef(null);
+  const densityRef = useRef(1);
+  const visibleRef = useRef(null);
+  const layoutRef = useRef(null);
+  const totalNodesRef = useRef(0);
+  const litActiveRef = useRef(false);
+  const cullSigRef = useRef('__');
+  const litRaf = useRef(0);
+  const recullRaf = useRef(0);
+  const hideCardRef = useRef(0);
+  const applyLitRef = useRef(() => {});
+  const recullRef = useRef(() => {});
   const setCamera = c => {
     cameraRef.current = c;
     setCameraState(c);
@@ -96552,14 +97445,18 @@ const ClientRelationshipMapPage = ({
       if (!searchPass(g, e)) return false;
       return true;
     };
-    return RELATIONSHIP_GROUPS.map(g => ({
+    return CRM_GROUPS.map(g => ({
       group: g,
       entities: g.entities.filter(e => matchEntity(g, e))
     })).filter(x => x.entities.length > 0);
   }, [search, quick, groupFilter, ownerFilter, statusFilter, typeFilter]);
   const stats = useMemo(() => crmCalcStats(visible), [visible]);
-  const owners = useMemo(() => crmUnique(RELATIONSHIP_GROUPS.map(g => g.owner)), []);
-  const layout = useMemo(() => crmLayout(detailLevel, visible), [detailLevel, visible]);
+  const owners = useMemo(() => crmUnique(CRM_GROUPS.map(g => g.owner)), []);
+  // Semantic-zoom tier + DENSITY both from the COMMITTED scale (settle, never mid-gesture).
+  // density: 1 = group hubs only · 2 = +businesses bloom · 3 = +people. Zoom in → more.
+  const lod = camera.scale >= CRM_LOD_CARD ? 'card' : camera.scale >= CRM_LOD_GLYPH ? 'glyph' : 'dot';
+  const densityLevel = camera.scale >= CRM_DENSITY_3 ? 3 : camera.scale >= CRM_DENSITY_2 ? 2 : 1;
+  const layout = useMemo(() => crmGraphLayout(visible, densityLevel, collapsed), [visible, densityLevel, collapsed]);
   const {
     groups: lGroups,
     businesses: lBiz,
@@ -96568,21 +97465,150 @@ const ClientRelationshipMapPage = ({
     contentW,
     contentH
   } = layout;
-  const activeSet = useMemo(() => crmConnected(hover || selection, visible, detailLevel), [hover, selection, visible, detailLevel]);
 
-  // Frame the graph: fit to WIDTH at a readable scale, top-aligned. The tree is
-  // tall, so fitting both dims would shrink cards to mush — instead everything
-  // fits horizontally and you pan down (or zoom out with −) to roam. If the whole
-  // graph happens to fit vertically too, centre it.
+  // keep imperative-path refs current (cheap, every render)
+  selectionRef.current = selection;
+  visibleRef.current = visible;
+  densityRef.current = densityLevel;
+  layoutRef.current = layout;
+  totalNodesRef.current = lGroups.length + lBiz.length + lContacts.length;
+
+  // Branch highlight, applied straight to the DOM (no React render) — mirrors applyCam.
+  const applyLit = () => {
+    const g = gRef.current;
+    if (!g) return;
+    const focus = hoverRef.current || selectionRef.current;
+    if (!focus && !litActiveRef.current) return; // nothing lit and nothing was → no-op
+    litActiveRef.current = !!focus;
+    const set = crmConnected(focus, visibleRef.current, densityRef.current);
+    const nodes = g.querySelectorAll('[data-tok]');
+    for (let i = 0; i < nodes.length; i++) {
+      const tk = nodes[i].getAttribute('data-tok');
+      nodes[i].style.opacity = set == null || set.has(tk) ? '1' : '0.5';
+    }
+    const links = g.querySelectorAll('[data-link]');
+    for (let i = 0; i < links.length; i++) {
+      const k = links[i].getAttribute('data-link'),
+        on = set == null || set.has(k);
+      links[i].style.opacity = set == null ? '0.5' : on ? '0.95' : '0.22';
+      links[i].setAttribute('stroke', set != null && on ? T.primary : T.borderStrong);
+      links[i].setAttribute('stroke-width', set != null && on ? '2' : '1.4');
+    }
+  };
+  applyLitRef.current = applyLit;
+  const scheduleLit = () => {
+    if (litRaf.current) return;
+    litRaf.current = requestAnimationFrame(() => {
+      litRaf.current = 0;
+      applyLitRef.current();
+    });
+  };
+
+  // Viewport culling — window the DOM to the on-screen bands; skip the re-render
+  // when the visible band signature is unchanged. Gated off for small datasets.
+  const recull = () => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    if (totalNodesRef.current < CRM_CULL_MIN) {
+      if (cullSigRef.current !== 'all') {
+        cullSigRef.current = 'all';
+        setCull(null);
+      }
+      return;
+    }
+    const rect = svg.getBoundingClientRect();
+    if (!rect.width) return;
+    const vp = crmViewport(cameraRef.current, rect, CRM_CULL_MARGIN);
+    const cx0 = Math.floor(vp.x0 / CRM_BUCKET),
+      cx1 = Math.floor(vp.x1 / CRM_BUCKET);
+    const cy0 = Math.floor(vp.y0 / CRM_BUCKET),
+      cy1 = Math.floor(vp.y1 / CRM_BUCKET);
+    const sig = cx0 + ',' + cy0 + ':' + cx1 + ',' + cy1;
+    if (sig === cullSigRef.current) return;
+    cullSigRef.current = sig;
+    setCull({
+      cx0,
+      cy0,
+      cx1,
+      cy1
+    });
+  };
+  recullRef.current = recull;
+  const scheduleRecull = () => {
+    if (recullRaf.current) return;
+    recullRaf.current = requestAnimationFrame(() => {
+      recullRaf.current = 0;
+      recullRef.current();
+    });
+  };
+
+  // stable callbacks → memoised nodes never re-render on hover. Branch highlight is
+  // imperative (applyLit); the floating hover card is light page state (nodes stay memoised).
+  const hideCard = () => {
+    hoverRef.current = null;
+    scheduleLit();
+    setHoverCard(null);
+  };
+  const hideCardRefFn = useRef(hideCard);
+  hideCardRefFn.current = hideCard;
+  const hoverNode = React.useCallback((h, cx, cy) => {
+    if (dragRef.current) return;
+    clearTimeout(hideCardRef.current);
+    hoverRef.current = h;
+    scheduleLit();
+    setHoverCard({
+      arg: h,
+      cx,
+      cy
+    });
+  }, []);
+  const leaveNode = React.useCallback(() => {
+    clearTimeout(hideCardRef.current);
+    hideCardRef.current = setTimeout(() => hideCardRefFn.current(), 180);
+  }, []);
+  const keepCard = React.useCallback(() => clearTimeout(hideCardRef.current), []);
+  const selectNode = React.useCallback(sel => {
+    setSelection(sel);
+    setDrawerOpen(true);
+    clearTimeout(hideCardRef.current);
+    hoverRef.current = null;
+    setHoverCard(null);
+  }, []);
+  const toggleGroup = React.useCallback(gid => setCollapsed(prev => {
+    const n = new Set(prev);
+    n.has(gid) ? n.delete(gid) : n.add(gid);
+    return n;
+  }), []);
+
+  // re-apply dim after any commit (cull brings new nodes in, selection flips); cheap, no-ops when nothing lit
+  useEffect(() => {
+    applyLitRef.current();
+  });
+  // recompute the window when the camera commits (pan-end, zoom, buttons, fit)…
+  useEffect(() => {
+    scheduleRecull(); /* eslint-disable-next-line */
+  }, [camera]);
+  // …and immediately when the data/detail changes the layout
+  useEffect(() => {
+    cullSigRef.current = '__';
+    recullRef.current(); /* eslint-disable-next-line */
+  }, [layout]);
+
+  // Frame the constellation, centred. Size-aware: a SMALL practice opens zoomed-in
+  // enough to read the logos (density 2); a big one opens as a calm hub overview
+  // (density 1). Because contentW/H is stable across density (all positions are always
+  // measured), this never re-fires when zooming blooms more nodes — no oscillation.
   const fitToContent = animate => {
     const svg = svgRef.current;
     if (!svg) return;
     const r = svg.getBoundingClientRect();
     if (!r.width) return;
-    const pad = 28;
-    const scale = crmClamp((r.width - 2 * pad) / contentW, 0.5, 1.35);
+    const pad = 40;
+    const raw = Math.min((r.width - 2 * pad) / contentW, (r.height - 2 * pad) / contentH);
+    const small = visible.length <= CRM_GRAPH_SMALL;
+    const scale = crmClamp(raw, small ? 0.66 : 0.16, small ? 1.25 : 0.58);
     const tx = (r.width - contentW * scale) / 2;
-    const ty = contentH * scale <= r.height - 2 * pad ? (r.height - contentH * scale) / 2 : pad;
+    const ty = (r.height - contentH * scale) / 2;
     if (animate) setAnimated(true);
     setCamera({
       tx,
@@ -96595,7 +97621,7 @@ const ClientRelationshipMapPage = ({
       r = svgRef.current.getBoundingClientRect();
     const px = r.width / 2,
       py = r.height / 2;
-    const next = crmClamp(c.scale * mult, 0.4, 2.4),
+    const next = crmClamp(c.scale * mult, 0.08, 3.0),
       k = next / c.scale;
     setAnimated(true);
     setCamera({
@@ -96605,11 +97631,12 @@ const ClientRelationshipMapPage = ({
     });
   };
 
-  // Re-fit on mount (no animation) and whenever the framing changes (detail / filtered size).
+  // Re-fit on mount (no animation) and whenever the FILTERED size changes (contentW/H).
+  // NOT on density — density-driven node changes keep contentW/H stable on purpose.
   useEffect(() => {
     fitToContent(mountedRef.current);
     mountedRef.current = true; /* eslint-disable-next-line */
-  }, [detailLevel, contentW, contentH]);
+  }, [contentW, contentH]);
 
   // Wheel zoom — NON-PASSIVE listener so preventDefault() works (React onWheel is
   // passive → it would scroll the card instead of zooming). Reads cameraRef → [] deps.
@@ -96622,7 +97649,7 @@ const ClientRelationshipMapPage = ({
         r = svg.getBoundingClientRect();
       const px = e.clientX - r.left,
         py = e.clientY - r.top;
-      const next = crmClamp(c.scale * Math.exp(-e.deltaY * 0.0015), 0.4, 2.4),
+      const next = crmClamp(c.scale * Math.exp(-e.deltaY * 0.0015), 0.08, 3.0),
         k = next / c.scale;
       const cam = {
         tx: px - k * (px - c.tx),
@@ -96632,6 +97659,7 @@ const ClientRelationshipMapPage = ({
       cameraRef.current = cam;
       setAnimated(false);
       applyCam(cam);
+      scheduleRecull();
       clearTimeout(wheelCommit.current);
       wheelCommit.current = setTimeout(() => setCameraState(cam), 140);
     };
@@ -96670,6 +97698,7 @@ const ClientRelationshipMapPage = ({
     };
     cameraRef.current = cam;
     applyCam(cam);
+    scheduleRecull();
   };
   const onSvgPointerUp = e => {
     const d = dragRef.current;
@@ -96684,10 +97713,6 @@ const ClientRelationshipMapPage = ({
     setCameraState(cameraRef.current);
     if (!d.moved) setSelection(null); // a click on empty canvas clears selection
   };
-  const onNodeHover = h => {
-    if (!dragRef.current) setHover(h);
-  };
-  const litOpacity = token => activeSet == null || activeSet.has(token) ? 1 : 0.5;
   const activeFilterCount = [groupFilter, ownerFilter, statusFilter, typeFilter].filter(v => v !== 'all').length + (quick !== 'all' ? 1 : 0);
   const clearFilters = () => {
     setSearch('');
@@ -96991,8 +98016,45 @@ const ClientRelationshipMapPage = ({
       }
     }, "Export filtered entities")));
   };
-  const mapBodyH = isCompact ? 520 : 600;
-  const FOP = 16; // foreignObject padding so node card drop-shadows aren't clipped
+  const mapBodyH = isCompact ? 560 : 680;
+  // Windowed slices — for a large dataset, only the nodes whose band overlaps the
+  // viewport; derived from the CURRENT layout so indices are always valid. Small
+  // datasets (cull === null) render in full, so the curated demo is unchanged.
+  const windowed = useMemo(() => {
+    if (!cull) return {
+      g: lGroups,
+      b: lBiz,
+      c: lContacts,
+      li: lLinks
+    };
+    const buckets = layout.buckets,
+      gS = new Set(),
+      bS = new Set(),
+      cS = new Set();
+    for (let cx = cull.cx0; cx <= cull.cx1; cx++) for (let cy = cull.cy0; cy <= cull.cy1; cy++) {
+      const bk = buckets.get(cx + ',' + cy);
+      if (!bk) continue;
+      for (let i = 0; i < bk.g.length; i++) gS.add(bk.g[i]);
+      for (let i = 0; i < bk.b.length; i++) bS.add(bk.b[i]);
+      for (let i = 0; i < bk.c.length; i++) cS.add(bk.c[i]);
+    }
+    const g = [...gS].map(i => lGroups[i]),
+      b = [...bS].map(i => lBiz[i]),
+      c = [...cS].map(i => lContacts[i]);
+    const li = lLinks.filter(l => l.b != null && bS.has(l.b) || l.c != null && cS.has(l.c));
+    return {
+      g,
+      b,
+      c,
+      li
+    };
+  }, [cull, layout]);
+  const {
+    g: vGroups,
+    b: vBiz,
+    c: vContacts,
+    li: vLinks
+  } = windowed;
   const legendItems = mode === 'risk' ? [['Low risk', T.green], ['Medium', T.amber], ['High risk', T.red]] : mode === 'revenue' ? [['Higher fees', T.primary], ['Mid', T.blue], ['Lower', T.green]] : mode === 'workflow' ? [['Waiting / blocked', T.amber], ['Ready to bill', T.primary], ['In progress', T.blue]] : [['Active', T.green], ['Onboarding', T.blue], ['Needs action', T.amber], ['At risk', T.red], ['Dormant', T.mutedSoft]];
   return /*#__PURE__*/React.createElement("main", {
     style: {
@@ -97015,7 +98077,7 @@ const ClientRelationshipMapPage = ({
     style: {
       marginTop: 4
     }
-  }, "Each box is a client group; the cards inside are the businesses you act for. Click any business to see its people and what needs attention.")), /*#__PURE__*/React.createElement("div", {
+  }, "Each dot is a client group. Zoom in and the businesses inside it bloom \u2014 zoom further for their people. Colour shows status; click anything for its details.")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 9,
@@ -97041,20 +98103,21 @@ const ClientRelationshipMapPage = ({
     size: "sm",
     selected: quick === 'attention',
     onClick: () => setQuick(quick === 'attention' ? 'all' : 'attention')
-  }, "Needs attention"), /*#__PURE__*/React.createElement(SegToggle, {
-    value: detailLevel,
-    onChange: setDetailLevel,
-    options: [{
-      value: 1,
-      label: 'Groups'
-    }, {
-      value: 2,
-      label: 'Businesses'
-    }, {
-      value: 3,
-      label: 'People'
-    }]
-  }), /*#__PURE__*/React.createElement("div", {
+  }, "Needs attention"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '0 4px',
+      whiteSpace: 'nowrap'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "search",
+    size: 13,
+    color: T.muted
+  }), "Scroll to zoom \xB7 ", densityLevel === 1 ? 'showing groups' : densityLevel === 2 ? 'showing businesses' : 'showing people'), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -97122,7 +98185,7 @@ const ClientRelationshipMapPage = ({
       width: 270,
       padding: 14
     }
-  }, [['Group', groupFilter, setGroupFilter, [['all', 'All groups'], ...RELATIONSHIP_GROUPS.map(g => [g.id, g.name])]], ['Owner', ownerFilter, setOwnerFilter, [['all', 'All owners'], ...owners.map(o => [o, o])]], ['Status', statusFilter, setStatusFilter, [['all', 'All statuses'], ['active', 'Active'], ['onboarding', 'Onboarding'], ['attention', 'Needs action'], ['risk', 'At risk'], ['dormant', 'Dormant']]], ['Business type', typeFilter, setTypeFilter, [['all', 'All types'], ...CRM_ENTITY_TYPES.map(t => [t, t])]], ['Flagged for', quick, setQuick, CRM_QUICK.map(c => [c.id, c.id === 'all' ? 'Anything' : c.label])]].map(([label, val, setter, opts]) => /*#__PURE__*/React.createElement("div", {
+  }, [['Group', groupFilter, setGroupFilter, [['all', 'All groups'], ...(CRM_GROUPS.length <= 60 ? CRM_GROUPS.map(g => [g.id, g.name]) : [])]], ['Owner', ownerFilter, setOwnerFilter, [['all', 'All owners'], ...owners.map(o => [o, o])]], ['Status', statusFilter, setStatusFilter, [['all', 'All statuses'], ['active', 'Active'], ['onboarding', 'Onboarding'], ['attention', 'Needs action'], ['risk', 'At risk'], ['dormant', 'Dormant']]], ['Business type', typeFilter, setTypeFilter, [['all', 'All types'], ...CRM_ENTITY_TYPES.map(t => [t, t])]], ['Flagged for', quick, setQuick, CRM_QUICK.map(c => [c.id, c.id === 'all' ? 'Anything' : c.label])]].map(([label, val, setter, opts]) => /*#__PURE__*/React.createElement("div", {
     key: label,
     style: {
       marginBottom: 10
@@ -97244,331 +98307,122 @@ const ClientRelationshipMapPage = ({
       userSelect: 'none',
       touchAction: 'none'
     }
-  }, /*#__PURE__*/React.createElement("g", {
+  }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("clipPath", {
+    id: "crmOrbClip"
+  }, /*#__PURE__*/React.createElement("circle", {
+    r: CRM_BIZ_R
+  }))), /*#__PURE__*/React.createElement("g", {
     ref: gRef,
     transform: `translate(${camera.tx} ${camera.ty}) scale(${camera.scale})`,
     style: {
       transition: animated ? 'transform 320ms cubic-bezier(.22,.61,.36,1)' : 'none'
     }
-  }, lLinks.map(l => {
-    const f = activeSet != null,
-      lit = !f || activeSet.has(l.key);
-    return /*#__PURE__*/React.createElement("path", {
-      key: l.key,
-      d: crmLink(l.x1, l.y1, l.x2, l.y2),
-      fill: "none",
-      stroke: f && lit ? T.primary : T.borderStrong,
-      strokeWidth: f && lit ? 2 : 1.4,
-      opacity: f ? lit ? 0.95 : 0.22 : 0.5,
-      style: {
-        transition: 'opacity 140ms, stroke 140ms'
-      }
+  }, vLinks.map(l => /*#__PURE__*/React.createElement("path", {
+    key: l.key,
+    "data-link": l.key,
+    d: crmLine(l.x1, l.y1, l.x2, l.y2),
+    fill: "none",
+    stroke: T.borderStrong,
+    strokeWidth: 1.2,
+    opacity: 0.42,
+    style: {
+      transition: 'opacity 140ms, stroke 140ms'
+    }
+  })), vGroups.map(n => {
+    const sel = selection?.type === 'group' && selection.id === n.group.id;
+    const gColour = n.entities.some(e => e.risk === 'high' || e.status === 'risk') ? T.red : n.entities.some(e => e.status === 'attention' || e.risk === 'medium' || e.status === 'onboarding') ? T.amber : n.entities.every(e => e.status === 'dormant') ? T.mutedSoft : T.green;
+    return /*#__PURE__*/React.createElement(CrmOrbNode, {
+      key: n.group.id,
+      tok: crmTok.g(n.group.id),
+      kind: "group",
+      lod: lod,
+      x: n.x,
+      y: n.y,
+      r: CRM_HUB_R,
+      box: CRM_HUB_BOX,
+      colour: gColour,
+      bg: avatarColorOf(n.group.name),
+      monoColor: "#fff",
+      monogram: crmInitials(n.group.name),
+      selected: sel,
+      label: n.group.name,
+      hoverArg: {
+        type: 'group',
+        id: n.group.id
+      },
+      selectArg: {
+        type: 'group',
+        id: n.group.id
+      },
+      onHover: hoverNode,
+      onLeave: leaveNode,
+      onSelect: selectNode
     });
-  }), lGroups.map(({
-    group,
-    entities,
-    x,
-    y
-  }) => {
-    const tok = crmTok.g(group.id);
-    const gSel = selection?.type === 'group' && selection.id === group.id;
-    const gWarn = entities.some(e => e.risk === 'high' || e.flags.some(f => /incomplete|overdue|disconnected|unsigned|blocked|not started/i.test(f)));
-    const gRev = entities.reduce((s, e) => s + e.revenue, 0);
-    return /*#__PURE__*/React.createElement("foreignObject", {
-      key: group.id,
-      x: x - FOP,
-      y: y - FOP,
-      width: CRM_GROUP_W + FOP * 2,
-      height: CRM_GROUP_H + FOP * 2,
-      style: {
-        overflow: 'visible',
-        opacity: litOpacity(tok),
-        transition: 'opacity 140ms'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      onMouseEnter: () => onNodeHover({
-        type: 'group',
-        id: group.id
-      }),
-      onMouseLeave: () => setHover(null),
-      onPointerDown: ev => ev.stopPropagation(),
-      onClick: () => setSelection({
-        type: 'group',
-        id: group.id
-      }),
-      style: {
-        width: '100%',
-        height: '100%',
-        padding: FOP,
-        boxSizing: 'border-box',
-        cursor: 'pointer'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      "data-crm-card": true,
-      style: {
-        width: '100%',
-        height: '100%',
-        boxSizing: 'border-box',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '0 12px',
-        background: T.primarySoft,
-        border: `1px solid ${gSel ? T.primary : '#D7D6FB'}`,
-        borderRadius: 13,
-        position: 'relative',
-        boxShadow: gSel ? '0 12px 24px rgba(91,91,246,.20)' : '0 6px 16px rgba(91,91,246,.10)',
-        transition: 'box-shadow 140ms, border-color 140ms'
-      }
-    }, /*#__PURE__*/React.createElement(Avatar, {
-      name: group.name,
-      size: 34,
-      style: {
-        borderRadius: 10
-      }
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        minWidth: 0,
-        flex: 1
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 13,
-        fontWeight: 700,
-        color: T.text,
-        lineHeight: 1.2,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-      }
-    }, group.name), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11,
-        color: T.muted,
-        marginTop: 2
-      }
-    }, entities.length, " ", entities.length === 1 ? 'business' : 'businesses', " \xB7 ", fmtMoneyCompact(gRev), "/mo")), gWarn && /*#__PURE__*/React.createElement("span", {
-      style: {
-        position: 'absolute',
-        top: 9,
-        right: 11,
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        background: T.amber,
-        boxShadow: `0 0 0 2px ${T.primarySoft}`
-      }
-    }))));
-  }), lBiz.map(({
-    entity,
-    group,
-    x,
-    y
-  }) => {
-    const tok = crmTok.b(entity.id);
-    const selE = selection?.type === 'entity' && selection.id === entity.id;
-    const colour = crmStatusColour(entity, mode);
-    const warn = entity.risk === 'high' || entity.flags.some(f => /incomplete|overdue|disconnected|unsigned|blocked|not started/i.test(f));
-    const highValue = entity.revenue > 5000;
-    return /*#__PURE__*/React.createElement("foreignObject", {
-      key: entity.id,
-      x: x - FOP,
-      y: y - FOP,
-      width: CRM_BIZ_W + FOP * 2,
-      height: CRM_BIZ_H + FOP * 2,
-      style: {
-        overflow: 'visible',
-        opacity: litOpacity(tok),
-        transition: 'opacity 140ms'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      onMouseEnter: () => onNodeHover({
+  }), vBiz.map(n => {
+    const sel = selection?.type === 'entity' && selection.id === n.entity.id;
+    return /*#__PURE__*/React.createElement(CrmOrbNode, {
+      key: n.entity.id,
+      tok: crmTok.b(n.entity.id),
+      kind: "biz",
+      lod: lod,
+      x: n.x,
+      y: n.y,
+      r: CRM_BIZ_R,
+      box: CRM_BIZ_BOX,
+      colour: crmStatusColour(n.entity, mode),
+      bg: "#fff",
+      monoColor: avatarColorOf(n.entity.name),
+      monogram: crmInitials(n.entity.name),
+      logo: crmLogo(n.entity.domain),
+      selected: sel,
+      label: n.entity.name,
+      hoverArg: {
         type: 'entity',
-        id: entity.id,
-        groupId: group.id
-      }),
-      onMouseLeave: () => setHover(null),
-      onPointerDown: ev => ev.stopPropagation(),
-      onClick: () => setSelection({
+        id: n.entity.id,
+        groupId: n.group.id
+      },
+      selectArg: {
         type: 'entity',
-        id: entity.id,
-        groupId: group.id
-      }),
-      style: {
-        width: '100%',
-        height: '100%',
-        padding: FOP,
-        boxSizing: 'border-box',
-        cursor: 'pointer'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      "data-crm-card": true,
-      style: {
-        width: '100%',
-        height: '100%',
-        boxSizing: 'border-box',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        gap: 4,
-        padding: '8px 12px',
-        background: `linear-gradient(160deg, #fff, ${T.primarySofter})`,
-        border: `1px solid ${selE ? T.primary : T.border}`,
-        borderRadius: 13,
-        boxShadow: selE ? '0 12px 22px rgba(91,91,246,.18)' : '0 6px 14px rgba(17,17,23,.07)',
-        transition: 'box-shadow 140ms, border-color 140ms'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 9,
-        height: 9,
-        borderRadius: '50%',
-        background: colour,
-        flexShrink: 0,
-        boxShadow: '0 0 0 2px #fff'
-      }
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12.5,
-        fontWeight: 700,
-        color: T.text,
-        lineHeight: 1.25,
-        minWidth: 0,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        display: '-webkit-box',
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical'
-      }
-    }, entity.name)), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 10.5,
-        color: T.muted,
-        paddingLeft: 17,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-      }
-    }, entity.type, " \xB7 ", crmStatusText(entity, mode)), /*#__PURE__*/React.createElement("div", {
-      style: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        display: 'flex',
-        gap: 4
-      }
-    }, highValue && /*#__PURE__*/React.createElement(CrmBadge, {
-      tone: "accent",
-      glyph: "$",
-      size: 18
-    }), warn && /*#__PURE__*/React.createElement(CrmBadge, {
-      tone: entity.risk === 'high' ? 'red' : 'amber',
-      glyph: "!",
-      size: 18
-    })))));
-  }), lContacts.map(({
-    contact,
-    entity,
-    group,
-    x,
-    y
-  }) => {
-    const tok = crmTok.c(entity.id, contact.id);
-    const selC = selection?.type === 'contact' && selection.id === contact.id && selection.entityId === entity.id;
-    return /*#__PURE__*/React.createElement("foreignObject", {
-      key: entity.id + contact.id,
-      x: x - FOP,
-      y: y - FOP,
-      width: CRM_CONTACT_W + FOP * 2,
-      height: CRM_CONTACT_H + FOP * 2,
-      style: {
-        overflow: 'visible',
-        opacity: litOpacity(tok),
-        transition: 'opacity 140ms'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      onMouseEnter: () => onNodeHover({
+        id: n.entity.id,
+        groupId: n.group.id
+      },
+      onHover: hoverNode,
+      onLeave: leaveNode,
+      onSelect: selectNode
+    });
+  }), vContacts.map(n => {
+    const sel = selection?.type === 'contact' && selection.id === n.contact.id && selection.entityId === n.entity.id;
+    return /*#__PURE__*/React.createElement(CrmOrbNode, {
+      key: n.entity.id + n.contact.id,
+      tok: crmTok.c(n.entity.id, n.contact.id),
+      kind: "contact",
+      lod: lod,
+      x: n.x,
+      y: n.y,
+      r: CRM_CON_R,
+      box: CRM_CON_BOX,
+      colour: n.contact.primary ? T.primary : T.mutedSoft,
+      bg: avatarColorOf(n.contact.name),
+      monoColor: "#fff",
+      monogram: crmInitials(n.contact.name),
+      selected: sel,
+      label: n.contact.name,
+      hoverArg: {
         type: 'contact',
-        id: contact.id,
-        groupId: group.id,
-        entityId: entity.id
-      }),
-      onMouseLeave: () => setHover(null),
-      onPointerDown: ev => ev.stopPropagation(),
-      onClick: () => setSelection({
+        id: n.contact.id,
+        groupId: n.group.id,
+        entityId: n.entity.id
+      },
+      selectArg: {
         type: 'contact',
-        id: contact.id,
-        groupId: group.id,
-        entityId: entity.id
-      }),
-      style: {
-        width: '100%',
-        height: '100%',
-        padding: FOP,
-        boxSizing: 'border-box',
-        cursor: 'pointer'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      "data-crm-card": true,
-      style: {
-        width: '100%',
-        height: '100%',
-        boxSizing: 'border-box',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '0 10px',
-        background: T.card,
-        border: `1px solid ${selC ? T.primary : T.border}`,
-        borderRadius: 11,
-        boxShadow: selC ? '0 8px 16px rgba(91,91,246,.16)' : '0 4px 9px rgba(17,17,23,.07)',
-        transition: 'box-shadow 140ms, border-color 140ms'
-      }
-    }, /*#__PURE__*/React.createElement(Avatar, {
-      name: contact.name,
-      size: 26
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        minWidth: 0,
-        flex: 1
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11.5,
-        fontWeight: 700,
-        color: T.text,
-        lineHeight: 1.2,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-      }
-    }, contact.name), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 9.8,
-        color: T.muted,
-        marginTop: 1,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-      }
-    }, contact.auth)), contact.primary && /*#__PURE__*/React.createElement("span", {
-      title: "Primary contact",
-      style: {
-        width: 6,
-        height: 6,
-        borderRadius: '50%',
-        background: T.primary,
-        flexShrink: 0
-      }
-    }))));
+        id: n.contact.id,
+        groupId: n.group.id,
+        entityId: n.entity.id
+      },
+      onHover: hoverNode,
+      onLeave: leaveNode,
+      onSelect: selectNode
+    });
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
@@ -97705,11 +98559,217 @@ const ClientRelationshipMapPage = ({
       marginTop: 7,
       lineHeight: 1.35
     }
-  }, "Clear the search or filters to see more clients."))))), /*#__PURE__*/React.createElement("div", {
+  }, "Clear the search or filters to see more clients."))), !drawerOpen && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDrawerOpen(true),
+    style: {
+      position: 'absolute',
+      right: 12,
+      top: 12,
+      zIndex: 5,
+      height: 32,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '0 12px',
+      borderRadius: 999,
+      border: `1px solid ${T.border}`,
+      background: 'rgba(255,255,255,.94)',
+      backdropFilter: 'blur(6px)',
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.text,
+      cursor: 'pointer',
+      boxShadow: '0 4px 12px rgba(17,17,23,.08)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "layers",
+    size: 13,
+    color: T.primary
+  }), "Insights"), hoverCard && (() => {
+    const a = hoverCard.arg;
+    let av,
+      title,
+      sub,
+      chip,
+      chipColor = 'neutral',
+      metrics = [],
+      flags = [],
+      colour = T.primary;
+    if (a.type === 'entity') {
+      const e = crmGetEntity(a.groupId, a.id),
+        g = crmGetGroup(a.groupId);
+      if (!e) return null;
+      av = e.name;
+      title = e.name;
+      sub = `${g ? g.name : ''} · ${e.type}`;
+      chip = CRM_STATUS_META[e.status].label;
+      chipColor = CRM_STATUS_META[e.status].pill;
+      colour = crmStatusColour(e, mode);
+      metrics = [['Monthly', fmtMoneyCompact(e.revenue)], ['Open jobs', String(e.openJobs)]];
+      flags = e.flags.filter(f => !CRM_NOISE_FLAGS.includes(f)).slice(0, 2);
+    } else if (a.type === 'group') {
+      const g = crmGetGroup(a.id);
+      if (!g) return null;
+      av = g.name;
+      title = g.name;
+      sub = `${g.owner} · ${g.entities.length} ${g.entities.length === 1 ? 'business' : 'businesses'}`;
+      const fl = g.entities.reduce((s, e) => s + e.flags.filter(f => !CRM_NOISE_FLAGS.includes(f)).length, 0);
+      chip = fl ? `${fl} ${fl === 1 ? 'flag' : 'flags'}` : 'Healthy';
+      chipColor = fl ? 'amber' : 'green';
+      metrics = [['Monthly', fmtMoneyCompact(g.entities.reduce((s, e) => s + e.revenue, 0))], ['Businesses', String(g.entities.length)]];
+    } else {
+      const e = crmGetEntity(a.groupId, a.entityId),
+        c = e && e.contacts.find(x => x.id === a.id);
+      if (!c) return null;
+      av = c.name;
+      title = c.name;
+      sub = c.role;
+      chip = c.auth;
+      chipColor = c.primary ? 'accent' : 'neutral';
+      metrics = [['Last activity', c.last]];
+    }
+    const W = 252;
+    let left = hoverCard.cx + 18,
+      top = hoverCard.cy - 14;
+    if (left + W > window.innerWidth - 12) left = Math.max(12, hoverCard.cx - W - 18);
+    if (top + 230 > window.innerHeight) top = Math.max(12, window.innerHeight - 238);
+    return /*#__PURE__*/React.createElement("div", {
+      onMouseEnter: keepCard,
+      onMouseLeave: leaveNode,
+      style: {
+        position: 'fixed',
+        left,
+        top,
+        width: W,
+        zIndex: 80,
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderRadius: 13,
+        boxShadow: '0 18px 44px rgba(17,17,23,.18)',
+        padding: 14,
+        animation: 'fadein 120ms ease'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: av,
+      size: 32,
+      style: a.type === 'group' ? {
+        borderRadius: 9
+      } : undefined
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0,
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.text,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, title), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, sub))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("i", {
+      style: {
+        width: 9,
+        height: 9,
+        borderRadius: '50%',
+        background: colour,
+        flexShrink: 0
+      }
+    }), /*#__PURE__*/React.createElement(Pill, {
+      color: chipColor
+    }, chip)), metrics.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        marginBottom: flags.length ? 10 : 12
+      }
+    }, metrics.map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+      key: k,
+      style: {
+        flex: 1,
+        border: `1px solid ${T.border}`,
+        borderRadius: 9,
+        background: T.fieldBg,
+        padding: '6px 9px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: T.muted
+      }
+    }, k), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.text,
+        marginTop: 2,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, v)))), flags.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 12,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 5
+      }
+    }, flags.map(f => /*#__PURE__*/React.createElement("div", {
+      key: f,
+      style: {
+        fontSize: 11,
+        color: T.red,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 5,
+        height: 5,
+        borderRadius: '50%',
+        background: T.red,
+        flexShrink: 0
+      }
+    }), f))), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      onClick: () => selectNode(a),
+      style: {
+        width: '100%',
+        justifyContent: 'center'
+      }
+    }, "Open details"));
+  })())), drawerOpen && /*#__PURE__*/React.createElement("div", {
     style: {
       width: isCompact ? 'auto' : 340,
       flexShrink: 0,
-      display: 'flex'
+      display: 'flex',
+      animation: 'slidein 220ms ease'
     }
   }, /*#__PURE__*/React.createElement(Card, {
     padded: false,
@@ -97754,13 +98814,25 @@ const ClientRelationshipMapPage = ({
       lineHeight: 1.25,
       marginTop: 4
     }
-  }, panelSub)), selection && /*#__PURE__*/React.createElement(Btn, {
+  }, panelSub)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 0
+    }
+  }, selection && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => setSelection(null),
+    title: "Back to the practice overview"
+  }, "Overview"), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
     icon: "close",
-    onClick: () => setSelection(null),
-    title: "Clear selection"
-  })), /*#__PURE__*/React.createElement("div", {
+    onClick: () => setDrawerOpen(false),
+    title: "Close panel"
+  }))), /*#__PURE__*/React.createElement("div", {
     key: selection ? `${selection.type}:${selection.id}` : 'all',
     style: {
       flex: 1,
