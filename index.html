@@ -96371,21 +96371,18 @@ const crmTok = {
   b: id => 'b:' + id,
   c: (eid, cid) => 'c:' + eid + ':' + cid
 };
-// ── Constellation layout (Round 2: replaces the tree) ───────────────────────
-// Group hubs are spread by a phyllotaxis (golden-angle) spiral — an even, organic,
-// overlap-free fill for ANY count. Each group's businesses orbit its hub; each
-// business's contacts orbit it (fanned outward). Positions depend only on the group's
-// index + a stable id-hash, so raising `densityLevel` only ADDS nodes around fixed
-// hubs (zoom-in increases density, never reflows). Straight links. Returns the SAME
-// shape (incl. the `buckets` cull index) as the old layout, so culling/fit/windowed
-// are untouched. Nodes store CENTRE (x,y) — the orb node draws centred on it.
-const crmGraphLayout = (visible, densityLevel, collapsed) => {
-  const groups = [],
-    businesses = [],
-    contacts = [],
-    links = [];
-  const showBiz = densityLevel >= 2,
-    showCon = densityLevel >= 3;
+// ── Constellation layout (Round 3: click-to-expand + draggable) ─────────────
+// Group hubs are spread by a phyllotaxis (golden-angle) spiral — even, organic,
+// overlap-free for ANY count. A group's businesses are emitted ONLY when the group
+// is in `expanded`; a business's contacts only when IT is in `expanded` (click to
+// open). `override` ({tok → {x,y}}) pins a node a user dragged; children are placed
+// RELATIVE to their (possibly overridden) parent, so dragging a parent moves the whole
+// cluster with no snap on release. Bounding uses BASE positions of ALL nodes so
+// contentW/H is STABLE — expanding or dragging never triggers a re-fit (no jump).
+// Straight links. Same return shape (incl. `buckets` cull index) — culling/fit untouched.
+const crmGraphLayout = (visible, expanded, override) => {
+  const ov = override || {};
+  const isExp = id => expanded && expanded.has(id);
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
@@ -96397,11 +96394,8 @@ const crmGraphLayout = (visible, densityLevel, collapsed) => {
     if (y + r > maxY) maxY = y + r;
   };
 
-  // Positions for ALL nodes are computed every time (so the bounding box / contentW-H
-  // is STABLE across density levels — otherwise zooming-in to bloom businesses would
-  // grow the content, re-fit the camera back out, drop density … an oscillation).
-  // Only nodes at/below the current density are EMITTED into the render arrays.
-  visible.forEach(({
+  // pass 1 — every node's BASE position (bounds all of them → stable contentW/H)
+  const base = visible.map(({
     group,
     entities
   }, gi) => {
@@ -96409,76 +96403,42 @@ const crmGraphLayout = (visible, densityLevel, collapsed) => {
       A = gi * CRM_GOLDEN;
     const hx = Math.cos(A) * R,
       hy = Math.sin(A) * R;
-    groups.push({
-      group,
-      entities,
-      x: hx,
-      y: hy,
-      cx: hx,
-      cy: hy
-    });
     bound(hx, hy, CRM_HUB_R);
-    const collapsedG = collapsed && collapsed.has(group.id);
-    const emitBiz = showBiz && !collapsedG;
-    const n = entities.length;
-    const orbit = CRM_BIZ_ORBIT + CRM_BIZ_ORBIT_K * Math.max(0, n - 4);
-    const pitch = Math.PI * 2 / n;
+    const orbit = CRM_BIZ_ORBIT + CRM_BIZ_ORBIT_K * Math.max(0, entities.length - 4);
+    const pitch = Math.PI * 2 / entities.length;
     const ringRot = crmJit(group.id) * Math.PI; // stable per-group ring rotation (variety)
-    entities.forEach((e, i) => {
+    const bz = entities.map((e, i) => {
       const ang = ringRot + i * pitch + crmJit(e.id) * pitch * CRM_JIT;
       const bx = hx + Math.cos(ang) * orbit,
         by = hy + Math.sin(ang) * orbit;
       bound(bx, by, CRM_BIZ_R);
-      if (emitBiz) {
-        const bIdx = businesses.length;
-        businesses.push({
-          entity: e,
-          group,
-          x: bx,
-          y: by,
-          cx: bx,
-          cy: by
-        });
-        links.push({
-          key: crmTok.g(group.id) + '|' + crmTok.b(e.id),
-          x1: hx,
-          y1: hy,
-          x2: bx,
-          y2: by,
-          b: bIdx
-        });
-      }
       const m = e.contacts.length;
-      e.contacts.forEach((c, ci) => {
+      const cs = e.contacts.map((c, ci) => {
         const ca = ang + (ci - (m - 1) / 2) * 0.55 + crmJit(e.id + c.id) * 0.22; // fan AWAY from the hub
         const cx = bx + Math.cos(ca) * CRM_CON_ORBIT,
           cy = by + Math.sin(ca) * CRM_CON_ORBIT;
         bound(cx, cy, CRM_CON_R);
-        if (showCon && emitBiz) {
-          const cIdx = contacts.length;
-          contacts.push({
-            contact: c,
-            entity: e,
-            group,
-            x: cx,
-            y: cy,
-            cx,
-            cy
-          });
-          links.push({
-            key: crmTok.b(e.id) + '|' + crmTok.c(e.id, c.id),
-            x1: bx,
-            y1: by,
-            x2: cx,
-            y2: cy,
-            c: cIdx
-          });
-        }
+        return {
+          c,
+          cx,
+          cy
+        };
       });
+      return {
+        e,
+        bx,
+        by,
+        cs
+      };
     });
+    return {
+      group,
+      entities,
+      hx,
+      hy,
+      bz
+    };
   });
-
-  // shift to a positive origin (buckets + camera assume content ≥ 0)
   const PAD = 110;
   if (!isFinite(minX)) {
     minX = minY = 0;
@@ -96486,27 +96446,91 @@ const crmGraphLayout = (visible, densityLevel, collapsed) => {
   }
   const offX = PAD - minX,
     offY = PAD - minY;
-  const shift = a => {
-    for (const nd of a) {
-      nd.x += offX;
-      nd.y += offY;
-      nd.cx += offX;
-      nd.cy += offY;
-    }
-  };
-  shift(groups);
-  shift(businesses);
-  shift(contacts);
-  for (const l of links) {
-    l.x1 += offX;
-    l.y1 += offY;
-    l.x2 += offX;
-    l.y2 += offY;
-  }
   const contentW = maxX - minX + PAD * 2,
     contentH = maxY - minY + PAD * 2;
 
-  // bucket index — orbs are centre-anchored, so bucket a centred box
+  // pass 2 — emit ONLY expanded branches at their EFFECTIVE (override-cascaded) positions
+  const groups = [],
+    businesses = [],
+    contacts = [],
+    links = [];
+  base.forEach(({
+    group,
+    entities,
+    hx,
+    hy,
+    bz
+  }) => {
+    const og = ov[crmTok.g(group.id)];
+    const ehx = og ? og.x : hx + offX,
+      ehy = og ? og.y : hy + offY;
+    groups.push({
+      group,
+      entities,
+      x: ehx,
+      y: ehy,
+      cx: ehx,
+      cy: ehy
+    });
+    if (!isExp(group.id)) return;
+    bz.forEach(({
+      e,
+      bx,
+      by,
+      cs
+    }) => {
+      const obz = ov[crmTok.b(e.id)];
+      const ebx = obz ? obz.x : ehx + (bx - hx),
+        eby = obz ? obz.y : ehy + (by - hy);
+      const bIdx = businesses.length;
+      businesses.push({
+        entity: e,
+        group,
+        x: ebx,
+        y: eby,
+        cx: ebx,
+        cy: eby
+      });
+      links.push({
+        key: crmTok.g(group.id) + '|' + crmTok.b(e.id),
+        x1: ehx,
+        y1: ehy,
+        x2: ebx,
+        y2: eby,
+        b: bIdx
+      });
+      if (!isExp(e.id)) return;
+      cs.forEach(({
+        c,
+        cx,
+        cy
+      }) => {
+        const oc = ov[crmTok.c(e.id, c.id)];
+        const ecx = oc ? oc.x : ebx + (cx - bx),
+          ecy = oc ? oc.y : eby + (cy - by);
+        const cIdx = contacts.length;
+        contacts.push({
+          contact: c,
+          entity: e,
+          group,
+          x: ecx,
+          y: ecy,
+          cx: ecx,
+          cy: ecy
+        });
+        links.push({
+          key: crmTok.b(e.id) + '|' + crmTok.c(e.id, c.id),
+          x1: ebx,
+          y1: eby,
+          x2: ecx,
+          y2: ecy,
+          c: cIdx
+        });
+      });
+    });
+  });
+
+  // bucket index — orbs are centre-anchored, so bucket a centred box (effective positions)
   const buckets = new Map();
   const place = (kind, arr, box) => {
     for (let i = 0; i < arr.length; i++) {
@@ -97304,7 +97328,7 @@ const CrmOrbNode = React.memo(({
   label,
   onHover,
   onLeave,
-  onSelect,
+  onPointerDown,
   hoverArg,
   selectArg
 }) => /*#__PURE__*/React.createElement("g", {
@@ -97312,12 +97336,11 @@ const CrmOrbNode = React.memo(({
   transform: `translate(${x} ${y})`,
   style: {
     transition: 'opacity 140ms',
-    cursor: 'pointer'
+    cursor: 'grab'
   },
   onMouseEnter: ev => onHover(hoverArg, ev.clientX, ev.clientY),
   onMouseLeave: onLeave,
-  onPointerDown: ev => ev.stopPropagation(),
-  onClick: () => onSelect(selectArg)
+  onPointerDown: ev => onPointerDown(selectArg, x, y, ev)
 }, /*#__PURE__*/React.createElement("rect", {
   x: -box / 2,
   y: -box / 2,
@@ -97379,7 +97402,8 @@ const ClientRelationshipMapPage = ({
     isCompact
   } = useViewport();
   const [mode, setMode] = useState('status'); // colour by: status | risk | revenue | workflow
-  const [collapsed, setCollapsed] = useState(() => new Set()); // (reserved) group ids individually collapsed
+  const [expanded, setExpanded] = useState(() => new Set()); // node ids (group + business) whose children are revealed (click to open)
+  const [override, setOverride] = useState(() => ({})); // tok → {x,y}: user-dragged node positions (cluster cascades)
   const [quick, setQuick] = useState('all');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('all');
@@ -97409,7 +97433,9 @@ const ClientRelationshipMapPage = ({
   // always see current values — same discipline as cameraRef.
   const hoverRef = useRef(null);
   const selectionRef = useRef(null);
-  const densityRef = useRef(1);
+  const expandedRef = useRef(null);
+  const overrideRef = useRef(null);
+  const nodeDragRef = useRef(null); // active single-node drag (vs dragRef = background pan)
   const visibleRef = useRef(null);
   const layoutRef = useRef(null);
   const totalNodesRef = useRef(0);
@@ -97420,6 +97446,8 @@ const ClientRelationshipMapPage = ({
   const hideCardRef = useRef(0);
   const applyLitRef = useRef(() => {});
   const recullRef = useRef(() => {});
+  const expandAnimTarget = useRef(null); // group id to pan-fit to after layout updates
+
   const setCamera = c => {
     cameraRef.current = c;
     setCameraState(c);
@@ -97454,9 +97482,11 @@ const ClientRelationshipMapPage = ({
   const owners = useMemo(() => crmUnique(CRM_GROUPS.map(g => g.owner)), []);
   // Semantic-zoom tier + DENSITY both from the COMMITTED scale (settle, never mid-gesture).
   // density: 1 = group hubs only · 2 = +businesses bloom · 3 = +people. Zoom in → more.
+  // Visual detail tier from the COMMITTED scale (settle, never mid-gesture). Which
+  // nodes EXIST is now click-driven (expanded), not zoom-driven — only the per-orb
+  // detail (dot → logo → label) follows zoom.
   const lod = camera.scale >= CRM_LOD_CARD ? 'card' : camera.scale >= CRM_LOD_GLYPH ? 'glyph' : 'dot';
-  const densityLevel = camera.scale >= CRM_DENSITY_3 ? 3 : camera.scale >= CRM_DENSITY_2 ? 2 : 1;
-  const layout = useMemo(() => crmGraphLayout(visible, densityLevel, collapsed), [visible, densityLevel, collapsed]);
+  const layout = useMemo(() => crmGraphLayout(visible, expanded, override), [visible, expanded, override]);
   const {
     groups: lGroups,
     businesses: lBiz,
@@ -97469,7 +97499,8 @@ const ClientRelationshipMapPage = ({
   // keep imperative-path refs current (cheap, every render)
   selectionRef.current = selection;
   visibleRef.current = visible;
-  densityRef.current = densityLevel;
+  expandedRef.current = expanded;
+  overrideRef.current = override;
   layoutRef.current = layout;
   totalNodesRef.current = lGroups.length + lBiz.length + lContacts.length;
 
@@ -97480,7 +97511,7 @@ const ClientRelationshipMapPage = ({
     const focus = hoverRef.current || selectionRef.current;
     if (!focus && !litActiveRef.current) return; // nothing lit and nothing was → no-op
     litActiveRef.current = !!focus;
-    const set = crmConnected(focus, visibleRef.current, densityRef.current);
+    const set = crmConnected(focus, visibleRef.current, 3); // light the whole chain; tokens for unrendered nodes simply don't match
     const nodes = g.querySelectorAll('[data-tok]');
     for (let i = 0; i < nodes.length; i++) {
       const tk = nodes[i].getAttribute('data-tok');
@@ -97552,7 +97583,7 @@ const ClientRelationshipMapPage = ({
   const hideCardRefFn = useRef(hideCard);
   hideCardRefFn.current = hideCard;
   const hoverNode = React.useCallback((h, cx, cy) => {
-    if (dragRef.current) return;
+    if (dragRef.current || nodeDragRef.current) return;
     clearTimeout(hideCardRef.current);
     hoverRef.current = h;
     scheduleLit();
@@ -97574,11 +97605,135 @@ const ClientRelationshipMapPage = ({
     hoverRef.current = null;
     setHoverCard(null);
   }, []);
-  const toggleGroup = React.useCallback(gid => setCollapsed(prev => {
+
+  // Click a node → reveal/hide its children. Accordion: opening a group collapses all others;
+  // opening a business collapses other businesses in the same group.
+  const toggleExpand = React.useCallback(arg => setExpanded(prev => {
     const n = new Set(prev);
-    n.has(gid) ? n.delete(gid) : n.add(gid);
+    if (arg.type === 'group') {
+      if (n.has(arg.id)) {
+        // collapse this group and its businesses
+        n.delete(arg.id);
+        const g = crmGetGroup(arg.id);
+        if (g) g.entities.forEach(e => n.delete(e.id));
+      } else {
+        // accordion: collapse every other currently-expanded group (and its businesses) first
+        CRM_GROUPS.forEach(g => {
+          if (n.has(g.id)) {
+            n.delete(g.id);
+            g.entities.forEach(e => n.delete(e.id));
+          }
+        });
+        n.add(arg.id);
+      }
+    } else if (arg.type === 'entity') {
+      if (n.has(arg.id)) {
+        n.delete(arg.id);
+      } else {
+        // accordion within the group: collapse other businesses first
+        const g = crmGetGroup(arg.groupId);
+        if (g) g.entities.forEach(e => {
+          if (e.id !== arg.id) n.delete(e.id);
+        });
+        n.add(arg.id);
+      }
+    }
     return n;
   }), []);
+
+  // Read a node's CONTENT position from its rendered <g> transform (camera-space children).
+  const crmReadPos = tok => {
+    const el = gRef.current && gRef.current.querySelector(`[data-tok="${tok}"]`);
+    const m = el && (el.getAttribute('transform') || '').match(/translate\(([-\d.]+)\s+([-\d.]+)\)/);
+    return m ? {
+      x: +m[1],
+      y: +m[2]
+    } : null;
+  };
+  // The dragged node + its rendered descendants (move together) + the links among them
+  // (internal: both ends move → translate) + the single boundary link (one end moves → restretch).
+  const collectSubtree = arg => {
+    const exp = expandedRef.current || new Set();
+    const moveToks = [],
+      internal = [];
+    let boundary = null,
+      boundaryParent = null;
+    if (arg.type === 'group') {
+      const tg = crmTok.g(arg.id);
+      moveToks.push(tg);
+      const g = crmGetGroup(arg.id);
+      if (g && exp.has(arg.id)) g.entities.forEach(e => {
+        const tb = crmTok.b(e.id);
+        moveToks.push(tb);
+        internal.push(tg + '|' + tb);
+        if (exp.has(e.id)) e.contacts.forEach(c => {
+          const tc = crmTok.c(e.id, c.id);
+          moveToks.push(tc);
+          internal.push(tb + '|' + tc);
+        });
+      });
+    } else if (arg.type === 'entity') {
+      const tb = crmTok.b(arg.id);
+      moveToks.push(tb);
+      const e = crmGetEntity(arg.groupId, arg.id);
+      if (e && exp.has(arg.id)) e.contacts.forEach(c => {
+        const tc = crmTok.c(e.id, c.id);
+        moveToks.push(tc);
+        internal.push(tb + '|' + tc);
+      });
+      boundary = crmTok.g(arg.groupId) + '|' + tb;
+      boundaryParent = crmReadPos(crmTok.g(arg.groupId));
+    } else {
+      const tc = crmTok.c(arg.entityId, arg.id);
+      moveToks.push(tc);
+      boundary = crmTok.b(arg.entityId) + '|' + tc;
+      boundaryParent = crmReadPos(crmTok.b(arg.entityId));
+    }
+    return {
+      moveToks,
+      internal,
+      boundary,
+      boundaryParent
+    };
+  };
+  // Press on a node: start an imperative single-node drag (cluster moves together); a press
+  // that never moves is treated as a CLICK on pointer-up (toggle children + open the drawer).
+  const onNodePointerDown = React.useCallback((arg, x, y, ev) => {
+    if (ev.button !== 0) return;
+    ev.stopPropagation(); // not a background pan
+    const sub = collectSubtree(arg);
+    const g = gRef.current;
+    const els = sub.moveToks.map(tok => {
+      const el = g && g.querySelector(`[data-tok="${tok}"]`);
+      const m = el && (el.getAttribute('transform') || '').match(/translate\(([-\d.]+)\s+([-\d.]+)\)/);
+      return m ? {
+        el,
+        bx: +m[1],
+        by: +m[2]
+      } : null;
+    }).filter(Boolean);
+    const linkEls = g ? sub.internal.map(k => g.querySelector(`[data-link="${k}"]`)).filter(Boolean) : [];
+    const bEl = g && sub.boundary ? g.querySelector(`[data-link="${sub.boundary}"]`) : null;
+    const selfTok = arg.type === 'group' ? crmTok.g(arg.id) : arg.type === 'entity' ? crmTok.b(arg.id) : crmTok.c(arg.entityId, arg.id);
+    nodeDragRef.current = {
+      arg,
+      selfTok,
+      selfBx: x,
+      selfBy: y,
+      sx: ev.clientX,
+      sy: ev.clientY,
+      moved: false,
+      els,
+      linkEls,
+      bEl,
+      boundaryParent: sub.boundaryParent
+    };
+    try {
+      svgRef.current.setPointerCapture(ev.pointerId);
+      svgRef.current.style.cursor = 'grabbing';
+    } catch (_) {}
+    setAnimated(false);
+  }, []);
 
   // re-apply dim after any commit (cull brings new nodes in, selection flips); cheap, no-ops when nothing lit
   useEffect(() => {
@@ -97592,6 +97747,45 @@ const ClientRelationshipMapPage = ({
   useEffect(() => {
     cullSigRef.current = '__';
     recullRef.current(); /* eslint-disable-next-line */
+  }, [layout]);
+  // After expanding a group, pan-fit the camera so the entire cluster (hub + businesses)
+  // is visible. expandAnimTarget is set on click-expand; cleared here after consuming.
+  useEffect(() => {
+    const gid = expandAnimTarget.current;
+    if (!gid) return;
+    expandAnimTarget.current = null;
+    const lo = layoutRef.current;
+    if (!lo) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const hub = lo.groups.find(g => g.group.id === gid);
+    if (!hub) return;
+    const bizNodes = lo.businesses.filter(b => b.group.id === gid);
+    const nodes = [hub, ...bizNodes];
+    const margin = 90;
+    let x0 = Infinity,
+      y0 = Infinity,
+      x1 = -Infinity,
+      y1 = -Infinity;
+    for (const n of nodes) {
+      x0 = Math.min(x0, n.x - margin);
+      y0 = Math.min(y0, n.y - margin);
+      x1 = Math.max(x1, n.x + margin);
+      y1 = Math.max(y1, n.y + margin);
+    }
+    if (!isFinite(x0)) return;
+    const r = svg.getBoundingClientRect();
+    if (!r.width) return;
+    const scale = crmClamp(Math.min(r.width / (x1 - x0), r.height / (y1 - y0)), 0.35, 1.4);
+    const cx = (x0 + x1) / 2,
+      cy = (y0 + y1) / 2;
+    setAnimated(true);
+    setCamera({
+      tx: r.width / 2 - cx * scale,
+      ty: r.height / 2 - cy * scale,
+      scale
+    });
+    /* eslint-disable-next-line */
   }, [layout]);
 
   // Frame the constellation, centred. Size-aware: a SMALL practice opens zoomed-in
@@ -97688,6 +97882,18 @@ const ClientRelationshipMapPage = ({
     svgRef.current.style.cursor = 'grabbing';
   };
   const onSvgPointerMove = e => {
+    const nd = nodeDragRef.current;
+    if (nd) {
+      // dragging a single node (cluster) — imperative, no re-render
+      const sc = cameraRef.current.scale || 1;
+      const dx = (e.clientX - nd.sx) / sc,
+        dy = (e.clientY - nd.sy) / sc;
+      if (!nd.moved && (Math.abs(e.clientX - nd.sx) > 3 || Math.abs(e.clientY - nd.sy) > 3)) nd.moved = true;
+      for (const it of nd.els) it.el.setAttribute('transform', `translate(${it.bx + dx} ${it.by + dy})`);
+      for (const le of nd.linkEls) le.setAttribute('transform', `translate(${dx} ${dy})`);
+      if (nd.bEl && nd.boundaryParent) nd.bEl.setAttribute('d', crmLine(nd.boundaryParent.x, nd.boundaryParent.y, nd.selfBx + dx, nd.selfBy + dy));
+      return;
+    }
     const d = dragRef.current;
     if (!d) return;
     if (Math.abs(e.clientX - d.x) > 2 || Math.abs(e.clientY - d.y) > 2) d.moved = true;
@@ -97701,6 +97907,41 @@ const ClientRelationshipMapPage = ({
     scheduleRecull();
   };
   const onSvgPointerUp = e => {
+    const nd = nodeDragRef.current;
+    if (nd) {
+      // end a node drag → commit override, or treat a no-move as a click
+      nodeDragRef.current = null;
+      if (svgRef.current) {
+        svgRef.current.style.cursor = 'grab';
+        try {
+          svgRef.current.releasePointerCapture(e.pointerId);
+        } catch (_) {}
+      }
+      if (nd.moved) {
+        const sc = cameraRef.current.scale || 1;
+        const dx = (e.clientX - nd.sx) / sc,
+          dy = (e.clientY - nd.sy) / sc;
+        // Links were moved with setAttribute('transform', translate(dx dy)). React doesn't
+        // manage that attribute (no transform prop in JSX) so it persists across re-renders,
+        // making edges appear disconnected from nodes. Remove it before committing so React's
+        // re-render sets the correct d values with no residual shift.
+        for (const le of nd.linkEls) le.removeAttribute('transform');
+        setOverride(prev => ({
+          ...prev,
+          [nd.selfTok]: {
+            x: nd.selfBx + dx,
+            y: nd.selfBy + dy
+          }
+        })); // children cascade off this → no snap
+      } else {
+        const wasExpanded = expandedRef.current && expandedRef.current.has(nd.arg.id);
+        toggleExpand(nd.arg);
+        selectNode(nd.arg); // a click: reveal children + open the drawer
+        // When opening (not closing) a group, pan-fit after layout updates so the cluster stays in view
+        if (!wasExpanded && nd.arg.type === 'group') expandAnimTarget.current = nd.arg.id;
+      }
+      return;
+    }
     const d = dragRef.current;
     if (!d) return;
     dragRef.current = null;
@@ -98077,7 +98318,7 @@ const ClientRelationshipMapPage = ({
     style: {
       marginTop: 4
     }
-  }, "Each dot is a client group. Zoom in and the businesses inside it bloom \u2014 zoom further for their people. Colour shows status; click anything for its details.")), /*#__PURE__*/React.createElement("div", {
+  }, "Each dot is a client group. Click one to reveal the businesses inside it; click a business for its people. Drag any node to rearrange. Colour shows status.")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 9,
@@ -98107,17 +98348,17 @@ const ClientRelationshipMapPage = ({
     style: {
       fontSize: 12,
       color: T.muted,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
       padding: '0 4px',
       whiteSpace: 'nowrap'
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "search",
-    size: 13,
-    color: T.muted
-  }), "Scroll to zoom \xB7 ", densityLevel === 1 ? 'showing groups' : densityLevel === 2 ? 'showing businesses' : 'showing people'), /*#__PURE__*/React.createElement("div", {
+  }, "Click a group to open it \xB7 drag to arrange"), (expanded.size > 0 || Object.keys(override).length > 0) && /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    onClick: () => {
+      setExpanded(new Set());
+      setOverride({});
+      setSelection(null);
+    }
+  }, "Reset"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -98261,7 +98502,7 @@ const ClientRelationshipMapPage = ({
       background: T.card,
       flexWrap: 'wrap'
     }
-  }, /*#__PURE__*/React.createElement(Helper, null, "Click a business for its people & details \xB7 click a group name to summarise it."), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(Helper, null, "Click a group to open its businesses \xB7 click a business for its people \xB7 drag to rearrange."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 12,
@@ -98356,7 +98597,7 @@ const ClientRelationshipMapPage = ({
       },
       onHover: hoverNode,
       onLeave: leaveNode,
-      onSelect: selectNode
+      onPointerDown: onNodePointerDown
     });
   }), vBiz.map(n => {
     const sel = selection?.type === 'entity' && selection.id === n.entity.id;
@@ -98388,7 +98629,7 @@ const ClientRelationshipMapPage = ({
       },
       onHover: hoverNode,
       onLeave: leaveNode,
-      onSelect: selectNode
+      onPointerDown: onNodePointerDown
     });
   }), vContacts.map(n => {
     const sel = selection?.type === 'contact' && selection.id === n.contact.id && selection.entityId === n.entity.id;
@@ -98421,7 +98662,7 @@ const ClientRelationshipMapPage = ({
       },
       onHover: hoverNode,
       onLeave: leaveNode,
-      onSelect: selectNode
+      onPointerDown: onNodePointerDown
     });
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
