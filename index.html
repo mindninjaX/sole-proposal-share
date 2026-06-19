@@ -353,6 +353,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
      a Btn-atom variant (e.g. table row actions, kebab triggers, list rows). */
   [data-hover="row"]:not(:disabled)                     { transition: background 0.1s; }
   [data-hover="row"]:not(:disabled):hover               { background: #F9FAFB; }
+  /* Relationship-map node cards: gentle lift on hover (the branch-highlight is JS-driven). */
+  [data-crm-card]:hover { box-shadow: 0 12px 26px rgba(17,17,23,.16) !important; }
   /* Notification rows: quick-action strip stays hidden until the row is hovered,
      keeping the list calm at scale (reveal-on-hover, like an email client). */
   [data-ntf-row] .ntf-actions                           { opacity: 0; transition: opacity 0.12s; }
@@ -26747,6 +26749,16 @@ const AppSidebar = ({
     id: 'notifications',
     label: 'Notifications'
   }];
+  // Client hub — the Clients Management surface plus the relationship map. The
+  // parent click lands on Clients Management (the first sub); the map is the
+  // built surface beneath it.
+  const clientHubSubs = [{
+    id: 'clients-management',
+    label: 'Clients Management'
+  }, {
+    id: 'client-relationship-map',
+    label: 'Relationship Map'
+  }];
   const goPractice = subId => {
     window.location.hash = `#/practice/${subId}`;
   };
@@ -26762,6 +26774,7 @@ const AppSidebar = ({
   const payrollActiveLabel = subLabel(payrollSubs);
   const personalizationActive = subLabel(personalizationSubs);
   const myFocusActive = subLabel(myFocusSubs);
+  const clientHubActiveLabel = subLabel(clientHubSubs);
   // Deals group: header opens the Deals board; the "Pipeline" sub opens the forecast.
   const dealsActive = activeSubId === 'deals' || activeSubId === 'spm-forecast';
 
@@ -26809,14 +26822,12 @@ const AppSidebar = ({
   }, {
     id: 'clients-management',
     i: 'user',
-    l: 'Clients',
-    active: activeSubId === 'clients-management',
-    // "Onboard New Client" as a plain sub-item. Onboarding flow isn't built
-    // in this build, so it opens the Clients area.
-    sub: ['Onboard New Client'],
-    subIds: ['clients-management'],
-    activeSub: null,
-    onClick: () => goPractice('clients-management')
+    l: 'Clients Management',
+    active: !!clientHubActiveLabel,
+    sub: clientHubSubs.map(s => s.label),
+    subIds: clientHubSubs.map(s => s.id),
+    activeSub: clientHubActiveLabel,
+    onClick: () => goPractice(clientHubSubs[0].id)
   }, {
     id: 'deliver',
     i: 'briefcase',
@@ -95042,6 +95053,2727 @@ const NotificationsPage = ({
     fireToast: fireToast
   }))));
 };
+
+// ============================================================================
+// --- client relationship map ---
+// A smooth, Obsidian-style relationship graph of the practice's client base:
+// GROUP nodes → BUSINESS nodes → CONTACT nodes, joined by curved links. Calm by
+// default, scalable to full complexity via the detail dial. Built on React + the
+// T design system (ported & evolved from the supplied vanilla-JS reference).
+//
+// Architecture notes (next-session landmines — see docs/MEMORY.md too):
+//   • Nodes are HTML cards in <foreignObject> (so they reuse Avatar/Pill + real
+//     flexbox + crisp text); links are SVG <path>; ALL of it lives in ONE
+//     transformed <g> driven by a camera {tx,ty,scale}. Chrome rasterises FO
+//     crisply under scale(); FOs are padded (FOP) so card shadows aren't clipped.
+//   • Pan = drag empty svg → mutate the <g> transform IMPERATIVELY via gRef per
+//     pointermove (NO per-frame React re-render — ~50 cards would jank), commit
+//     to camera state on pointerup. cameraRef mirrors camera for the math.
+//   • Wheel-zoom MUST be a non-passive listener in a useEffect
+//     (svg.addEventListener('wheel', fn, {passive:false})) — React's onWheel is
+//     passive so preventDefault() no-ops and the card scrolls instead of zooming.
+//   • NO manual node-dragging (auto-layout via crmLayout(detailLevel, visible)).
+//     Detail dial: 1 groups · 2 +businesses · 3 +people. crmLayout is the single
+//     source of node positions + links + contentW/H; fit-to-content reframes on
+//     change.
+//   • Hover/selection highlight: crmConnected() returns a Set of lit tokens
+//     (node + ancestors + descendants + links); out-of-set dims to 0.5 (NOT a
+//     ghostly 0.3). hover state via onMouseEnter/Leave (cheap), ignored mid-drag.
+//   • selection & hover are stored as IDs only ({type,id,groupId,entityId}); the
+//     live object is derived each render. Never store an object snapshot.
+// ============================================================================
+
+const RELATIONSHIP_GROUPS = [{
+  id: 'g-smith',
+  name: 'Smith family group',
+  owner: 'Emma Roberts',
+  revenue: 13240,
+  entities: [{
+    id: 'c-smith-plumbing',
+    name: 'Smith Plumbing Pty Ltd',
+    type: 'Company',
+    abn: '72 455 100 812',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Incomplete',
+    bank: 'Disconnected',
+    bas: 'Overdue',
+    status: 'risk',
+    risk: 'high',
+    relX: 86,
+    relY: 95,
+    revenue: 6200,
+    openJobs: 6,
+    stage: 'Waiting on client',
+    staff: 'Emma Roberts',
+    wip: 2850,
+    ar: 1920,
+    next: 'Request AML pack and BAS source documents.',
+    flags: ['AML incomplete', 'BAS overdue', 'Bank feed disconnected'],
+    contacts: [{
+      id: 'u-john-smith',
+      name: 'John Smith',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'john@smithplumbing.com.au',
+      last: '2 days ago',
+      primary: true
+    }, {
+      id: 'u-sarah-smith',
+      name: 'Sarah Smith',
+      role: 'Bookkeeper',
+      auth: 'Billing contact',
+      email: 'sarah@smithplumbing.com.au',
+      last: 'Today'
+    }, {
+      id: 'u-jade-brown',
+      name: 'Jade Brown',
+      role: 'Payroll contact',
+      auth: 'Document uploader',
+      email: 'payroll@smithplumbing.com.au',
+      last: '9 days ago'
+    }]
+  }, {
+    id: 'c-smith-holdings',
+    name: 'Smith Holdings Trust',
+    type: 'Trust',
+    abn: '32 411 299 744',
+    gst: 'Not registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'active',
+    risk: 'low',
+    relX: 214,
+    relY: 86,
+    revenue: 3100,
+    openJobs: 2,
+    stage: 'In progress',
+    staff: 'Emma Roberts',
+    wip: 870,
+    ar: 0,
+    next: 'Review trust distribution minutes.',
+    flags: ['ATO details verified'],
+    contacts: [{
+      id: 'u-john-smith',
+      name: 'John Smith',
+      role: 'Trustee contact',
+      auth: 'Approver',
+      email: 'john@smithplumbing.com.au',
+      last: '2 days ago',
+      primary: true
+    }]
+  }, {
+    id: 'c-smith-property',
+    name: 'Smith Property Co',
+    type: 'Company',
+    abn: '88 110 543 211',
+    gst: 'Registered',
+    ato: 'Pending',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'attention',
+    risk: 'medium',
+    relX: 158,
+    relY: 170,
+    revenue: 3940,
+    openJobs: 3,
+    stage: 'Manager review',
+    staff: 'Emma Roberts',
+    wip: 640,
+    ar: 600,
+    next: 'Confirm ATO authority and finalise property schedule.',
+    flags: ['ATO authority pending'],
+    contacts: [{
+      id: 'u-sarah-smith',
+      name: 'Sarah Smith',
+      role: 'Finance contact',
+      auth: 'Billing contact',
+      email: 'sarah@smithplumbing.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-adam-bell',
+      name: 'Adam Bell',
+      role: 'Property manager',
+      auth: 'View only',
+      email: 'adam@propertyco.com.au',
+      last: '12 days ago'
+    }]
+  }]
+}, {
+  id: 'g-williams',
+  name: 'Williams group',
+  owner: 'Priya Shah',
+  revenue: 11150,
+  entities: [{
+    id: 'c-williams-construction',
+    name: 'Williams Construction',
+    type: 'Company',
+    abn: '25 778 419 335',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'attention',
+    risk: 'medium',
+    relX: 105,
+    relY: 93,
+    revenue: 4700,
+    openJobs: 4,
+    stage: 'Staff review',
+    staff: 'Priya Shah',
+    wip: 1120,
+    ar: 860,
+    next: 'Resolve job costing queries before BAS review.',
+    flags: ['Payroll setup incomplete'],
+    contacts: [{
+      id: 'u-will-williams',
+      name: 'Will Williams',
+      role: 'Managing director',
+      auth: 'Approver',
+      email: 'will@williamsconstruction.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-jess-downs',
+      name: 'Jess Downs',
+      role: 'Office manager',
+      auth: 'Document uploader',
+      email: 'accounts@williamsconstruction.com.au',
+      last: 'Yesterday'
+    }]
+  }, {
+    id: 'c-williams-holdings',
+    name: 'Williams Holdings',
+    type: 'Trust',
+    abn: '14 222 846 120',
+    gst: 'Not registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'active',
+    risk: 'low',
+    relX: 235,
+    relY: 121,
+    revenue: 2950,
+    openJobs: 1,
+    stage: 'Ready to bill',
+    staff: 'Priya Shah',
+    wip: 0,
+    ar: 0,
+    next: 'Issue management fee invoice.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-will-williams',
+      name: 'Will Williams',
+      role: 'Trustee contact',
+      auth: 'Approver',
+      email: 'will@williamsconstruction.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-mona-williams',
+      name: 'Mona Williams',
+      role: 'Family contact',
+      auth: 'View only',
+      email: 'mona@williamsfamily.com.au',
+      last: '21 days ago'
+    }]
+  }, {
+    id: 'c-williams-plant',
+    name: 'Williams Plant Hire',
+    type: 'Company',
+    abn: '80 445 091 912',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'active',
+    risk: 'low',
+    relX: 164,
+    relY: 177,
+    revenue: 3500,
+    openJobs: 2,
+    stage: 'In progress',
+    staff: 'Priya Shah',
+    wip: 680,
+    ar: 410,
+    next: 'Complete depreciation schedule review.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-will-williams',
+      name: 'Will Williams',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'will@williamsconstruction.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-sam-lee',
+      name: 'Sam Lee',
+      role: 'Fleet admin',
+      auth: 'Document uploader',
+      email: 'fleet@williamsplant.com.au',
+      last: '6 days ago'
+    }]
+  }]
+}, {
+  id: 'g-nguyen',
+  name: 'Nguyen hospitality group',
+  owner: 'Nathan Lee',
+  revenue: 9650,
+  entities: [{
+    id: 'c-nguyen-cafe',
+    name: 'Nguyen Cafe Pty Ltd',
+    type: 'Company',
+    abn: '47 622 941 000',
+    gst: 'Registered',
+    ato: 'Pending',
+    aml: 'Complete',
+    bank: 'Disconnected',
+    bas: 'Due soon',
+    status: 'attention',
+    risk: 'medium',
+    relX: 96,
+    relY: 100,
+    revenue: 3900,
+    openJobs: 4,
+    stage: 'Waiting on client',
+    staff: 'Nathan Lee',
+    wip: 1280,
+    ar: 880,
+    next: 'Reconnect bank feed and upload POS export.',
+    flags: ['Bank feed disconnected', 'Cash sales reconciliation'],
+    contacts: [{
+      id: 'u-anne-nguyen',
+      name: 'Anne Nguyen',
+      role: 'Owner',
+      auth: 'Approver',
+      email: 'anne@nguyencafe.com.au',
+      last: '4 days ago',
+      primary: true
+    }, {
+      id: 'u-paul-nguyen',
+      name: 'Paul Nguyen',
+      role: 'Operations',
+      auth: 'Document uploader',
+      email: 'paul@nguyencafe.com.au',
+      last: '8 days ago'
+    }]
+  }, {
+    id: 'c-nguyen-catering',
+    name: 'Nguyen Catering',
+    type: 'Partnership',
+    abn: '11 400 892 331',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'active',
+    risk: 'low',
+    relX: 225,
+    relY: 91,
+    revenue: 2850,
+    openJobs: 2,
+    stage: 'In progress',
+    staff: 'Nathan Lee',
+    wip: 520,
+    ar: 0,
+    next: 'Confirm June event invoices.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-anne-nguyen',
+      name: 'Anne Nguyen',
+      role: 'Partner',
+      auth: 'Approver',
+      email: 'anne@nguyencafe.com.au',
+      last: '4 days ago',
+      primary: true
+    }, {
+      id: 'u-paul-nguyen',
+      name: 'Paul Nguyen',
+      role: 'Partner',
+      auth: 'Approver',
+      email: 'paul@nguyencafe.com.au',
+      last: '8 days ago'
+    }]
+  }, {
+    id: 'c-nguyen-smsf',
+    name: 'Nguyen Family SMSF',
+    type: 'SMSF',
+    abn: '83 901 544 020',
+    gst: 'Not registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'active',
+    risk: 'low',
+    relX: 157,
+    relY: 174,
+    revenue: 2900,
+    openJobs: 1,
+    stage: 'Scheduled',
+    staff: 'Nathan Lee',
+    wip: 0,
+    ar: 0,
+    next: 'Prepare annual SMSF review.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-anne-nguyen',
+      name: 'Anne Nguyen',
+      role: 'Member trustee',
+      auth: 'Approver',
+      email: 'anne@nguyencafe.com.au',
+      last: '4 days ago',
+      primary: true
+    }]
+  }]
+}, {
+  id: 'g-patel',
+  name: 'Patel medical group',
+  owner: 'Mia Chen',
+  revenue: 15480,
+  entities: [{
+    id: 'c-patel-medical',
+    name: 'Patel Medical Pty Ltd',
+    type: 'Company',
+    abn: '90 233 410 884',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'active',
+    risk: 'low',
+    relX: 92,
+    relY: 91,
+    revenue: 7450,
+    openJobs: 5,
+    stage: 'In progress',
+    staff: 'Mia Chen',
+    wip: 1820,
+    ar: 0,
+    next: 'Complete payroll accrual review.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-dr-patel',
+      name: 'Dr Anika Patel',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'anika@patelmedical.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-nina-patel',
+      name: 'Nina Patel',
+      role: 'Practice manager',
+      auth: 'Billing contact',
+      email: 'nina@patelmedical.com.au',
+      last: 'Yesterday'
+    }]
+  }, {
+    id: 'c-patel-family-trust',
+    name: 'Patel Family Trust',
+    type: 'Trust',
+    abn: '53 803 781 120',
+    gst: 'Not registered',
+    ato: 'Pending',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'attention',
+    risk: 'medium',
+    relX: 222,
+    relY: 91,
+    revenue: 4050,
+    openJobs: 3,
+    stage: 'Waiting on client',
+    staff: 'Mia Chen',
+    wip: 360,
+    ar: 1200,
+    next: 'Finalise trustee resolution and ATO authority.',
+    flags: ['ATO authority pending', 'Engagement update required'],
+    contacts: [{
+      id: 'u-dr-patel',
+      name: 'Dr Anika Patel',
+      role: 'Trustee contact',
+      auth: 'Approver',
+      email: 'anika@patelmedical.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-nina-patel',
+      name: 'Nina Patel',
+      role: 'Office contact',
+      auth: 'Document uploader',
+      email: 'nina@patelmedical.com.au',
+      last: 'Yesterday'
+    }]
+  }, {
+    id: 'c-patel-locum',
+    name: 'Patel Locum Services',
+    type: 'Sole trader',
+    abn: '29 611 455 781',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'active',
+    risk: 'low',
+    relX: 158,
+    relY: 174,
+    revenue: 3980,
+    openJobs: 2,
+    stage: 'Ready to bill',
+    staff: 'Mia Chen',
+    wip: 0,
+    ar: 0,
+    next: 'Send quarterly advisory note.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-dr-patel',
+      name: 'Dr Anika Patel',
+      role: 'Owner',
+      auth: 'Approver',
+      email: 'anika@patelmedical.com.au',
+      last: 'Today',
+      primary: true
+    }]
+  }]
+}, {
+  id: 'g-brown',
+  name: 'Brown trades group',
+  owner: 'Emma Roberts',
+  revenue: 8750,
+  entities: [{
+    id: 'c-brown-electrical',
+    name: 'Brown Electrical Pty Ltd',
+    type: 'Company',
+    abn: '64 118 772 500',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Incomplete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'risk',
+    risk: 'high',
+    relX: 102,
+    relY: 102,
+    revenue: 4100,
+    openJobs: 6,
+    stage: 'Job blocked',
+    staff: 'Emma Roberts',
+    wip: 2160,
+    ar: 1750,
+    next: 'Complete AML and resolve missing supplier invoices.',
+    flags: ['AML incomplete', 'Missing supplier invoices'],
+    contacts: [{
+      id: 'u-matt-brown',
+      name: 'Matt Brown',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'matt@brownelectrical.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-lisa-brown',
+      name: 'Lisa Brown',
+      role: 'Bookkeeper',
+      auth: 'Billing contact',
+      email: 'lisa@brownelectrical.com.au',
+      last: '5 days ago'
+    }]
+  }, {
+    id: 'c-brown-family-trust',
+    name: 'Brown Family Trust',
+    type: 'Trust',
+    abn: '61 120 902 091',
+    gst: 'Not registered',
+    ato: 'Not started',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'attention',
+    risk: 'medium',
+    relX: 223,
+    relY: 106,
+    revenue: 2050,
+    openJobs: 2,
+    stage: 'Waiting on client',
+    staff: 'Emma Roberts',
+    wip: 400,
+    ar: 0,
+    next: 'Send authority and engagement pack.',
+    flags: ['ATO authority not started', 'Engagement unsigned'],
+    contacts: [{
+      id: 'u-matt-brown',
+      name: 'Matt Brown',
+      role: 'Trustee contact',
+      auth: 'Approver',
+      email: 'matt@brownelectrical.com.au',
+      last: 'Today',
+      primary: true
+    }]
+  }, {
+    id: 'c-brown-investments',
+    name: 'Brown Investments',
+    type: 'Company',
+    abn: '72 180 345 501',
+    gst: 'Not registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'dormant',
+    risk: 'low',
+    relX: 160,
+    relY: 174,
+    revenue: 2600,
+    openJobs: 1,
+    stage: 'Scheduled',
+    staff: 'Emma Roberts',
+    wip: 0,
+    ar: 0,
+    next: 'Annual review only.',
+    flags: ['Dormant entity'],
+    contacts: [{
+      id: 'u-lisa-brown',
+      name: 'Lisa Brown',
+      role: 'Family contact',
+      auth: 'View only',
+      email: 'lisa@brownelectrical.com.au',
+      last: '5 days ago',
+      primary: true
+    }]
+  }]
+}, {
+  id: 'g-taylor',
+  name: 'Taylor creative group',
+  owner: 'Olivia King',
+  revenue: 7120,
+  entities: [{
+    id: 'c-taylor-studio',
+    name: 'Taylor Studio Pty Ltd',
+    type: 'Company',
+    abn: '34 121 778 990',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Due soon',
+    status: 'active',
+    risk: 'low',
+    relX: 94,
+    relY: 99,
+    revenue: 3600,
+    openJobs: 3,
+    stage: 'In progress',
+    staff: 'Olivia King',
+    wip: 930,
+    ar: 0,
+    next: 'Review project revenue recognition.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-megan-taylor',
+      name: 'Megan Taylor',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'megan@taylorstudio.com.au',
+      last: 'Today',
+      primary: true
+    }, {
+      id: 'u-harry-cole',
+      name: 'Harry Cole',
+      role: 'Producer',
+      auth: 'Document uploader',
+      email: 'harry@taylorstudio.com.au',
+      last: '10 days ago'
+    }]
+  }, {
+    id: 'c-taylor-ip',
+    name: 'Taylor IP Holdings',
+    type: 'Company',
+    abn: '65 773 400 200',
+    gst: 'Not registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'active',
+    risk: 'low',
+    relX: 218,
+    relY: 110,
+    revenue: 2100,
+    openJobs: 1,
+    stage: 'Ready to bill',
+    staff: 'Olivia King',
+    wip: 0,
+    ar: 0,
+    next: 'Prepare royalty summary.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-megan-taylor',
+      name: 'Megan Taylor',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'megan@taylorstudio.com.au',
+      last: 'Today',
+      primary: true
+    }]
+  }, {
+    id: 'c-taylor-freelance',
+    name: 'M Taylor Freelance',
+    type: 'Sole trader',
+    abn: '49 122 543 733',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'onboarding',
+    risk: 'low',
+    relX: 155,
+    relY: 174,
+    revenue: 1420,
+    openJobs: 2,
+    stage: 'Onboarding',
+    staff: 'Olivia King',
+    wip: 260,
+    ar: 0,
+    next: 'Complete opening balance checklist.',
+    flags: ['Opening balances required'],
+    contacts: [{
+      id: 'u-megan-taylor',
+      name: 'Megan Taylor',
+      role: 'Owner',
+      auth: 'Approver',
+      email: 'megan@taylorstudio.com.au',
+      last: 'Today',
+      primary: true
+    }]
+  }]
+}, {
+  id: 'g-lee',
+  name: 'Lee property group',
+  owner: 'Jacob Miles',
+  revenue: 6420,
+  entities: [{
+    id: 'c-lee-rentals',
+    name: 'Lee Rentals Pty Ltd',
+    type: 'Company',
+    abn: '76 884 101 650',
+    gst: 'Registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Current',
+    status: 'active',
+    risk: 'low',
+    relX: 96,
+    relY: 101,
+    revenue: 2920,
+    openJobs: 2,
+    stage: 'In progress',
+    staff: 'Jacob Miles',
+    wip: 420,
+    ar: 0,
+    next: 'Review rental schedules.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-josh-lee',
+      name: 'Josh Lee',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'josh@leerentals.com.au',
+      last: '3 days ago',
+      primary: true
+    }]
+  }, {
+    id: 'c-lee-family-trust',
+    name: 'Lee Family Trust',
+    type: 'Trust',
+    abn: '13 312 007 410',
+    gst: 'Not registered',
+    ato: 'Authorised',
+    aml: 'Complete',
+    bank: 'Connected',
+    bas: 'Not applicable',
+    status: 'active',
+    risk: 'low',
+    relX: 218,
+    relY: 112,
+    revenue: 2100,
+    openJobs: 1,
+    stage: 'Scheduled',
+    staff: 'Jacob Miles',
+    wip: 0,
+    ar: 0,
+    next: 'Annual trust review.',
+    flags: ['Clean'],
+    contacts: [{
+      id: 'u-josh-lee',
+      name: 'Josh Lee',
+      role: 'Trustee contact',
+      auth: 'Approver',
+      email: 'josh@leerentals.com.au',
+      last: '3 days ago',
+      primary: true
+    }, {
+      id: 'u-amy-lee',
+      name: 'Amy Lee',
+      role: 'Family contact',
+      auth: 'View only',
+      email: 'amy@leefamily.com.au',
+      last: '18 days ago'
+    }]
+  }, {
+    id: 'c-lee-developments',
+    name: 'Lee Developments',
+    type: 'Company',
+    abn: '60 771 552 810',
+    gst: 'Registered',
+    ato: 'Pending',
+    aml: 'Complete',
+    bank: 'Disconnected',
+    bas: 'Due soon',
+    status: 'attention',
+    risk: 'medium',
+    relX: 155,
+    relY: 176,
+    revenue: 1400,
+    openJobs: 4,
+    stage: 'Waiting on client',
+    staff: 'Jacob Miles',
+    wip: 660,
+    ar: 950,
+    next: 'Reconnect bank feed and confirm GST treatment.',
+    flags: ['Bank feed disconnected', 'ATO authority pending'],
+    contacts: [{
+      id: 'u-josh-lee',
+      name: 'Josh Lee',
+      role: 'Director',
+      auth: 'Approver',
+      email: 'josh@leerentals.com.au',
+      last: '3 days ago',
+      primary: true
+    }]
+  }]
+}];
+
+// status palette mapped onto the T tokens (NOT the reference's bespoke hexes).
+const CRM_STATUS_META = {
+  active: {
+    label: 'Active',
+    colour: T.green,
+    pill: 'green'
+  },
+  onboarding: {
+    label: 'Onboarding',
+    colour: T.blue,
+    pill: 'blue'
+  },
+  attention: {
+    label: 'Needs action',
+    colour: T.amber,
+    pill: 'amber'
+  },
+  risk: {
+    label: 'At risk',
+    colour: T.red,
+    pill: 'red'
+  },
+  dormant: {
+    label: 'Dormant',
+    colour: T.mutedSoft,
+    pill: 'neutral'
+  }
+};
+const CRM_RISK_LABEL = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High'
+};
+const CRM_MODES = [{
+  id: 'structure',
+  label: 'Structure map',
+  icon: 'layers'
+}, {
+  id: 'risk',
+  label: 'Risk view',
+  icon: 'alertTriangle'
+}, {
+  id: 'workflow',
+  label: 'Workflow impact',
+  icon: 'flow'
+}, {
+  id: 'revenue',
+  label: 'Revenue view',
+  icon: 'dollar'
+}, {
+  id: 'contacts',
+  label: 'Contact control',
+  icon: 'users'
+}];
+const CRM_QUICK = [{
+  id: 'all',
+  label: 'All entities'
+}, {
+  id: 'attention',
+  label: 'Needs action'
+}, {
+  id: 'risk',
+  label: 'High risk'
+}, {
+  id: 'aml',
+  label: 'AML incomplete'
+}, {
+  id: 'bas',
+  label: 'BAS due'
+}, {
+  id: 'bank',
+  label: 'Bank feed issue'
+}, {
+  id: 'ato',
+  label: 'ATO authority'
+}, {
+  id: 'waiting',
+  label: 'Waiting on client'
+}, {
+  id: 'receivables',
+  label: 'Receivables'
+}];
+const CRM_ENTITY_TYPES = ['Company', 'Trust', 'Sole trader', 'SMSF', 'Partnership'];
+const CRM_NOISE_FLAGS = ['Clean', 'ATO details verified'];
+
+// --- pure helpers (module scope; safe to call before/after render) ---
+const crmInitials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase();
+const crmClamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const crmUnique = arr => [...new Set(arr)].sort((a, b) => a.localeCompare(b));
+const crmGetGroup = id => RELATIONSHIP_GROUPS.find(g => g.id === id);
+const crmGetEntity = (gid, eid) => (crmGetGroup(gid) || {}).entities && crmGetGroup(gid).entities.find(e => e.id === eid);
+const crmAllEntities = () => RELATIONSHIP_GROUPS.flatMap(g => g.entities.map(e => ({
+  ...e,
+  group: g
+})));
+const crmPrimaryContact = e => e.contacts.find(c => c.primary) || e.contacts[0];
+const crmBaseRel = eid => {
+  for (const g of RELATIONSHIP_GROUPS) {
+    const e = g.entities.find(x => x.id === eid);
+    if (e) return {
+      relX: e.relX,
+      relY: e.relY
+    };
+  }
+  return {
+    relX: 0,
+    relY: 0
+  };
+};
+const crmLabelLines = (text, max = 19) => {
+  const words = text.split(' ');
+  const lines = [''];
+  words.forEach(w => {
+    const next = (lines[lines.length - 1] + ' ' + w).trim();
+    if (next.length > max && lines[lines.length - 1]) lines.push(w);else lines[lines.length - 1] = next;
+  });
+  return lines.slice(0, 2);
+};
+// Layout — a left→right relationship TREE rendered into a smooth pan/zoom canvas
+// (Obsidian-style): GROUP nodes on the left, their BUSINESSES branching right,
+// and (at detail level 3) every business's CONTACTS branching further right.
+// Nodes are HTML cards in <foreignObject>; links are SVG <path>; everything sits
+// in ONE transformed <g> driven by a camera {tx,ty,scale}. No node-dragging.
+const CRM_PAD = 24;
+const CRM_TOP = 24;
+const CRM_GROUP_X = 26,
+  CRM_GROUP_W = 212,
+  CRM_GROUP_H = 64;
+const CRM_BIZ_X = 322,
+  CRM_BIZ_W = 216,
+  CRM_BIZ_H = 66,
+  CRM_BIZ_PITCH = 86;
+const CRM_CONTACT_X = 606,
+  CRM_CONTACT_W = 192,
+  CRM_CONTACT_H = 46,
+  CRM_CONTACT_PITCH = 56;
+const CRM_BAND_VPAD = 26,
+  CRM_GROUP_GAP = 18;
+// Lit-token helpers (hover/selection connected-set).
+const crmTok = {
+  g: id => 'g:' + id,
+  b: id => 'b:' + id,
+  c: (eid, cid) => 'c:' + eid + ':' + cid
+};
+// Single deterministic layout for the whole graph at a given detail level.
+// 1 = groups only · 2 = groups + businesses (default) · 3 = + all contacts.
+const crmLayout = (level, visible) => {
+  const groups = [],
+    businesses = [],
+    contacts = [],
+    links = [];
+  let y = CRM_TOP;
+  if (level === 1) {
+    visible.forEach(({
+      group,
+      entities
+    }) => {
+      groups.push({
+        group,
+        entities,
+        x: CRM_GROUP_X,
+        y,
+        cy: y + CRM_GROUP_H / 2
+      });
+      y += CRM_GROUP_H + CRM_GROUP_GAP;
+    });
+    return {
+      groups,
+      businesses,
+      contacts,
+      links,
+      contentW: CRM_GROUP_X + CRM_GROUP_W + CRM_PAD,
+      contentH: y + CRM_TOP
+    };
+  }
+  visible.forEach(({
+    group,
+    entities
+  }) => {
+    const slotH = entities.map(e => level === 3 ? Math.max(CRM_BIZ_PITCH, e.contacts.length * CRM_CONTACT_PITCH + 14) : CRM_BIZ_PITCH);
+    const bandH = slotH.reduce((s, h) => s + h, 0);
+    const bandTop = y;
+    const gcy = bandTop + bandH / 2;
+    groups.push({
+      group,
+      entities,
+      x: CRM_GROUP_X,
+      y: gcy - CRM_GROUP_H / 2,
+      cy: gcy
+    });
+    let by = bandTop;
+    entities.forEach((e, i) => {
+      const h = slotH[i];
+      const bcy = by + h / 2;
+      businesses.push({
+        entity: e,
+        group,
+        x: CRM_BIZ_X,
+        y: bcy - CRM_BIZ_H / 2,
+        cy: bcy
+      });
+      links.push({
+        key: crmTok.g(group.id) + '|' + crmTok.b(e.id),
+        x1: CRM_GROUP_X + CRM_GROUP_W,
+        y1: gcy,
+        x2: CRM_BIZ_X,
+        y2: bcy
+      });
+      if (level === 3) {
+        const n = e.contacts.length;
+        e.contacts.forEach((c, ci) => {
+          const ccy = bcy + (ci - (n - 1) / 2) * CRM_CONTACT_PITCH;
+          contacts.push({
+            contact: c,
+            entity: e,
+            group,
+            x: CRM_CONTACT_X,
+            y: ccy - CRM_CONTACT_H / 2,
+            cy: ccy
+          });
+          links.push({
+            key: crmTok.b(e.id) + '|' + crmTok.c(e.id, c.id),
+            x1: CRM_BIZ_X + CRM_BIZ_W,
+            y1: bcy,
+            x2: CRM_CONTACT_X,
+            y2: ccy
+          });
+        });
+      }
+      by += h;
+    });
+    y = bandTop + bandH + CRM_BAND_VPAD;
+  });
+  const contentW = (level === 3 ? CRM_CONTACT_X + CRM_CONTACT_W : CRM_BIZ_X + CRM_BIZ_W) + CRM_PAD;
+  return {
+    groups,
+    businesses,
+    contacts,
+    links,
+    contentW,
+    contentH: y + CRM_TOP
+  };
+};
+// Smooth horizontal S-curve connector between two points.
+const crmLink = (x1, y1, x2, y2) => {
+  const mx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+};
+// Connected-set for hover/selection highlight: the node + its ancestor chain +
+// descendants + connecting links, as a Set of lit tokens (or null = all lit).
+const crmConnected = (focus, visible, level) => {
+  if (!focus) return null;
+  const lit = new Set();
+  const addLink = (a, b) => lit.add(a + '|' + b);
+  if (focus.type === 'group') {
+    lit.add(crmTok.g(focus.id));
+    const vg = visible.find(x => x.group.id === focus.id);
+    (vg ? vg.entities : []).forEach(e => {
+      lit.add(crmTok.b(e.id));
+      addLink(crmTok.g(focus.id), crmTok.b(e.id));
+      if (level === 3) e.contacts.forEach(c => {
+        lit.add(crmTok.c(e.id, c.id));
+        addLink(crmTok.b(e.id), crmTok.c(e.id, c.id));
+      });
+    });
+  } else if (focus.type === 'entity') {
+    lit.add(crmTok.b(focus.id));
+    lit.add(crmTok.g(focus.groupId));
+    addLink(crmTok.g(focus.groupId), crmTok.b(focus.id));
+    const e = crmGetEntity(focus.groupId, focus.id);
+    if (e && level === 3) e.contacts.forEach(c => {
+      lit.add(crmTok.c(e.id, c.id));
+      addLink(crmTok.b(e.id), crmTok.c(e.id, c.id));
+    });
+  } else if (focus.type === 'contact') {
+    lit.add(crmTok.c(focus.entityId, focus.id));
+    lit.add(crmTok.b(focus.entityId));
+    lit.add(crmTok.g(focus.groupId));
+    addLink(crmTok.g(focus.groupId), crmTok.b(focus.entityId));
+    addLink(crmTok.b(focus.entityId), crmTok.c(focus.entityId, focus.id));
+  }
+  return lit;
+};
+const crmQuickPass = (e, quick) => {
+  if (quick === 'all') return true;
+  if (quick === 'attention') return e.status === 'attention' || e.status === 'risk' || e.flags.some(f => !CRM_NOISE_FLAGS.includes(f));
+  if (quick === 'risk') return e.risk === 'high';
+  if (quick === 'aml') return e.aml === 'Incomplete' || e.flags.some(f => /aml/i.test(f));
+  if (quick === 'bas') return /due|overdue/i.test(e.bas) || e.flags.some(f => /bas/i.test(f));
+  if (quick === 'bank') return /disconnect/i.test(e.bank) || e.flags.some(f => /bank feed/i.test(f));
+  if (quick === 'ato') return !/authorised/i.test(e.ato) || e.flags.some(f => /ato/i.test(f));
+  if (quick === 'waiting') return /waiting|blocked/i.test(e.stage);
+  if (quick === 'receivables') return e.ar > 0;
+  return true;
+};
+const crmStatusColour = (e, mode) => {
+  if (mode === 'risk') return e.risk === 'high' ? T.red : e.risk === 'medium' ? T.amber : T.green;
+  if (mode === 'workflow') return /waiting|blocked/i.test(e.stage) ? T.amber : /ready/i.test(e.stage) ? T.primary : T.blue;
+  if (mode === 'revenue') return e.revenue > 5000 ? T.primary : e.revenue > 3000 ? T.blue : T.green;
+  return CRM_STATUS_META[e.status].colour;
+};
+const crmStatusText = (e, mode) => {
+  if (mode === 'risk') return `${CRM_RISK_LABEL[e.risk]} risk`;
+  if (mode === 'workflow') return e.stage;
+  if (mode === 'revenue') return fmtMoneyCompact(e.revenue) + '/mo';
+  if (mode === 'contacts') return `${e.contacts.length} contacts`;
+  return CRM_STATUS_META[e.status].label;
+};
+const crmTerritoryTint = (entities, mode) => {
+  if (mode === 'risk') return entities.some(e => e.risk === 'high') ? T.redSoft : entities.some(e => e.risk === 'medium') ? T.amberSoft : T.greenSoft;
+  if (mode === 'workflow') return entities.some(e => /waiting|blocked/i.test(e.stage)) ? T.amberSoft : T.primarySofter;
+  if (mode === 'revenue') return entities.reduce((s, e) => s + e.revenue, 0) > 11000 ? T.primarySoft : T.primarySofter;
+  if (mode === 'contacts') return T.blueSoft;
+  return T.primarySofter;
+};
+const crmComplianceRows = e => [['ABN', e.abn, 'accent'], ['GST', e.gst, e.gst === 'Registered' ? 'green' : 'neutral'], ['ATO authority', e.ato, /authorised/i.test(e.ato) ? 'green' : /pending/i.test(e.ato) ? 'amber' : 'red'], ['AML', e.aml, e.aml === 'Complete' ? 'green' : 'red'], ['Bank feed', e.bank, /connected/i.test(e.bank) ? 'green' : 'amber'], ['BAS', e.bas, /overdue/i.test(e.bas) ? 'red' : /due/i.test(e.bas) ? 'amber' : 'green']];
+const crmCalcStats = visible => {
+  const entities = visible.flatMap(x => x.entities.map(e => ({
+    ...e,
+    group: x.group
+  })));
+  const contacts = new Set(entities.flatMap(e => e.contacts.map(c => c.id)));
+  const flags = entities.flatMap(e => e.flags.filter(f => !CRM_NOISE_FLAGS.includes(f)));
+  return {
+    groups: visible.length,
+    entities,
+    contactsCount: contacts.size,
+    revenue: entities.reduce((s, e) => s + e.revenue, 0),
+    jobs: entities.reduce((s, e) => s + e.openJobs, 0),
+    flags: flags.length,
+    high: entities.filter(e => e.risk === 'high').length,
+    ar: entities.reduce((s, e) => s + e.ar, 0),
+    wip: entities.reduce((s, e) => s + e.wip, 0)
+  };
+};
+
+// --- presentational atoms for the inspector rail (stateless, T-tokened) ---
+const CrmPanelCard = ({
+  title,
+  children
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    background: T.card,
+    border: `1px solid ${T.border}`,
+    borderRadius: 12,
+    padding: 14
+  }
+}, title && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: T.text,
+    marginBottom: 10,
+    letterSpacing: -0.1
+  }
+}, title), children);
+const CrmMetric = ({
+  label,
+  value,
+  sub,
+  valueSize = 17
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    border: `1px solid ${T.border}`,
+    borderRadius: 10,
+    background: T.fieldBg,
+    padding: '9px 10px'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 10.5,
+    color: T.muted
+  }
+}, label), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: valueSize,
+    fontWeight: 700,
+    letterSpacing: -0.3,
+    marginTop: 4,
+    color: T.text
+  }
+}, value), sub && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 10.5,
+    color: T.muted,
+    marginTop: 4
+  }
+}, sub));
+const CrmMetricGrid = ({
+  items
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8
+  }
+}, items.map((m, i) => /*#__PURE__*/React.createElement(CrmMetric, _extends({
+  key: i
+}, m))));
+const CrmList = ({
+  children
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8
+  }
+}, children);
+const CrmRow = ({
+  title,
+  sub,
+  badge,
+  badgeColor = 'neutral',
+  onClick
+}) => /*#__PURE__*/React.createElement("div", {
+  onClick: onClick,
+  "data-hover": onClick ? 'row' : undefined,
+  style: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 9,
+    border: `1px solid ${T.border}`,
+    background: T.card,
+    borderRadius: 10,
+    padding: '9px 10px',
+    cursor: onClick ? 'pointer' : 'default'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    minWidth: 0
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 12.3,
+    fontWeight: 600,
+    color: T.text,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, title), sub && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 10.8,
+    color: T.muted,
+    marginTop: 3,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, sub)), badge && /*#__PURE__*/React.createElement(Pill, {
+  color: badgeColor
+}, badge));
+const CrmAlert = ({
+  tone = 'accent',
+  glyph = '!',
+  title,
+  detail
+}) => {
+  const map = {
+    accent: T.primary,
+    blue: T.blue,
+    amber: T.amber,
+    red: T.red,
+    green: T.green
+  };
+  const c = map[tone] || T.primary;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: '10px 10px 10px 38px',
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      left: 10,
+      top: 11,
+      width: 18,
+      height: 18,
+      borderRadius: '50%',
+      background: c,
+      color: '#fff',
+      display: 'grid',
+      placeItems: 'center',
+      fontSize: 10,
+      fontWeight: 800
+    }
+  }, glyph), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.3,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, title), detail && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      marginTop: 3,
+      lineHeight: 1.35
+    }
+  }, detail));
+};
+const CrmContactCard = ({
+  contact,
+  onClick
+}) => /*#__PURE__*/React.createElement("div", {
+  onClick: onClick,
+  "data-hover": onClick ? 'row' : undefined,
+  style: {
+    display: 'grid',
+    gridTemplateColumns: '34px 1fr auto',
+    gap: 9,
+    alignItems: 'center',
+    border: `1px solid ${T.border}`,
+    borderRadius: 11,
+    padding: 9,
+    background: T.card,
+    cursor: onClick ? 'pointer' : 'default'
+  }
+}, /*#__PURE__*/React.createElement(Avatar, {
+  name: contact.name,
+  size: 34
+}), /*#__PURE__*/React.createElement("div", {
+  style: {
+    minWidth: 0
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: T.text
+  }
+}, contact.name), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 10.8,
+    color: T.muted,
+    marginTop: 2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, contact.role, " \xB7 ", contact.email)), /*#__PURE__*/React.createElement(Pill, {
+  color: contact.primary ? 'accent' : 'neutral'
+}, contact.auth));
+const CrmEmpty = ({
+  children
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    padding: 14,
+    border: `1px dashed ${T.borderStrong}`,
+    borderRadius: 11,
+    background: T.fieldBg,
+    textAlign: 'center',
+    color: T.muted,
+    fontSize: 12
+  }
+}, children);
+// Label→value row for TEXT fields (role, email, dates) — number-tiles (CrmMetric)
+// are only for short numerics. `mono` truncates long single-line values (email)
+// with an ellipsis + title tooltip instead of overflowing.
+const CrmKV = ({
+  label,
+  value,
+  mono,
+  title,
+  last
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 14,
+    padding: '8px 0',
+    borderBottom: last ? 'none' : `1px solid ${T.border}`
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 11,
+    color: T.muted,
+    flexShrink: 0
+  }
+}, label), /*#__PURE__*/React.createElement("span", {
+  title: title || (typeof value === 'string' ? value : undefined),
+  style: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: T.text,
+    textAlign: 'right',
+    minWidth: 0,
+    lineHeight: 1.35,
+    whiteSpace: mono ? 'nowrap' : 'normal',
+    overflow: mono ? 'hidden' : 'visible',
+    textOverflow: mono ? 'ellipsis' : 'clip',
+    fontVariantNumeric: mono ? 'tabular-nums' : 'normal'
+  }
+}, value));
+const CrmBadge = ({
+  tone = 'amber',
+  glyph,
+  size = 18
+}) => {
+  const map = {
+    accent: T.primary,
+    amber: T.amber,
+    red: T.red,
+    green: T.green,
+    blue: T.blue
+  };
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: size,
+      height: size,
+      borderRadius: '50%',
+      background: map[tone] || T.amber,
+      color: '#fff',
+      display: 'inline-grid',
+      placeItems: 'center',
+      fontSize: size * 0.6,
+      fontWeight: 800,
+      boxShadow: '0 0 0 1.5px #fff',
+      flexShrink: 0
+    }
+  }, glyph);
+};
+const ClientRelationshipMapPage = ({
+  fireToast
+}) => {
+  const {
+    isCompact
+  } = useViewport();
+  const [mode, setMode] = useState('status'); // colour by: status | risk | revenue | workflow
+  const [detailLevel, setDetailLevel] = useState(2); // 1 groups · 2 +businesses · 3 +people
+  const [quick, setQuick] = useState('all');
+  const [search, setSearch] = useState('');
+  const [groupFilter, setGroupFilter] = useState('all');
+  const [ownerFilter, setOwnerFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [selection, setSelection] = useState(null); // { type, id, groupId?, entityId? } — IDs only
+  const [hover, setHover] = useState(null); // same shape; drives the branch highlight
+  const [camera, setCameraState] = useState({
+    tx: 0,
+    ty: 0,
+    scale: 1
+  });
+  const [animated, setAnimated] = useState(false); // CSS transition on the content <g> (programmatic moves only)
+
+  const svgRef = useRef(null);
+  const gRef = useRef(null);
+  const cameraRef = useRef(camera);
+  const dragRef = useRef(null);
+  const wheelCommit = useRef(0);
+  const mountedRef = useRef(false);
+  const setCamera = c => {
+    cameraRef.current = c;
+    setCameraState(c);
+  };
+  const applyCam = c => {
+    if (gRef.current) gRef.current.setAttribute('transform', `translate(${c.tx} ${c.ty}) scale(${c.scale})`);
+  };
+
+  // Filtered model — recomputed only when a filter changes.
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const searchPass = (g, e) => {
+      if (!q) return true;
+      const hay = [g.name, g.owner, e.name, e.type, e.abn, e.gst, e.ato, e.aml, e.bank, e.bas, e.status, e.risk, e.stage, e.staff, e.next, ...e.flags, ...e.contacts.flatMap(c => [c.name, c.role, c.auth, c.email])].join(' ').toLowerCase();
+      return hay.includes(q);
+    };
+    const matchEntity = (g, e) => {
+      if (groupFilter !== 'all' && groupFilter !== g.id) return false;
+      if (ownerFilter !== 'all' && ownerFilter !== g.owner) return false;
+      if (statusFilter !== 'all' && statusFilter !== e.status) return false;
+      if (typeFilter !== 'all' && typeFilter !== e.type) return false;
+      if (!crmQuickPass(e, quick)) return false;
+      if (!searchPass(g, e)) return false;
+      return true;
+    };
+    return RELATIONSHIP_GROUPS.map(g => ({
+      group: g,
+      entities: g.entities.filter(e => matchEntity(g, e))
+    })).filter(x => x.entities.length > 0);
+  }, [search, quick, groupFilter, ownerFilter, statusFilter, typeFilter]);
+  const stats = useMemo(() => crmCalcStats(visible), [visible]);
+  const owners = useMemo(() => crmUnique(RELATIONSHIP_GROUPS.map(g => g.owner)), []);
+  const layout = useMemo(() => crmLayout(detailLevel, visible), [detailLevel, visible]);
+  const {
+    groups: lGroups,
+    businesses: lBiz,
+    contacts: lContacts,
+    links: lLinks,
+    contentW,
+    contentH
+  } = layout;
+  const activeSet = useMemo(() => crmConnected(hover || selection, visible, detailLevel), [hover, selection, visible, detailLevel]);
+
+  // Frame the graph: fit to WIDTH at a readable scale, top-aligned. The tree is
+  // tall, so fitting both dims would shrink cards to mush — instead everything
+  // fits horizontally and you pan down (or zoom out with −) to roam. If the whole
+  // graph happens to fit vertically too, centre it.
+  const fitToContent = animate => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    if (!r.width) return;
+    const pad = 28;
+    const scale = crmClamp((r.width - 2 * pad) / contentW, 0.5, 1.35);
+    const tx = (r.width - contentW * scale) / 2;
+    const ty = contentH * scale <= r.height - 2 * pad ? (r.height - contentH * scale) / 2 : pad;
+    if (animate) setAnimated(true);
+    setCamera({
+      tx,
+      ty,
+      scale
+    });
+  };
+  const zoomBy = mult => {
+    const c = cameraRef.current,
+      r = svgRef.current.getBoundingClientRect();
+    const px = r.width / 2,
+      py = r.height / 2;
+    const next = crmClamp(c.scale * mult, 0.4, 2.4),
+      k = next / c.scale;
+    setAnimated(true);
+    setCamera({
+      tx: px - k * (px - c.tx),
+      ty: py - k * (py - c.ty),
+      scale: next
+    });
+  };
+
+  // Re-fit on mount (no animation) and whenever the framing changes (detail / filtered size).
+  useEffect(() => {
+    fitToContent(mountedRef.current);
+    mountedRef.current = true; /* eslint-disable-next-line */
+  }, [detailLevel, contentW, contentH]);
+
+  // Wheel zoom — NON-PASSIVE listener so preventDefault() works (React onWheel is
+  // passive → it would scroll the card instead of zooming). Reads cameraRef → [] deps.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = e => {
+      e.preventDefault();
+      const c = cameraRef.current,
+        r = svg.getBoundingClientRect();
+      const px = e.clientX - r.left,
+        py = e.clientY - r.top;
+      const next = crmClamp(c.scale * Math.exp(-e.deltaY * 0.0015), 0.4, 2.4),
+        k = next / c.scale;
+      const cam = {
+        tx: px - k * (px - c.tx),
+        ty: py - k * (py - c.ty),
+        scale: next
+      };
+      cameraRef.current = cam;
+      setAnimated(false);
+      applyCam(cam);
+      clearTimeout(wheelCommit.current);
+      wheelCommit.current = setTimeout(() => setCameraState(cam), 140);
+    };
+    svg.addEventListener('wheel', onWheel, {
+      passive: false
+    });
+    return () => svg.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line
+  }, []);
+
+  // Background pan — imperative during the gesture (no per-frame React re-render), commit on up.
+  const onSvgPointerDown = e => {
+    if (e.button !== 0) return;
+    dragRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      cam: {
+        ...cameraRef.current
+      },
+      moved: false
+    };
+    try {
+      svgRef.current.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    setAnimated(false);
+    svgRef.current.style.cursor = 'grabbing';
+  };
+  const onSvgPointerMove = e => {
+    const d = dragRef.current;
+    if (!d) return;
+    if (Math.abs(e.clientX - d.x) > 2 || Math.abs(e.clientY - d.y) > 2) d.moved = true;
+    const cam = {
+      ...d.cam,
+      tx: d.cam.tx + (e.clientX - d.x),
+      ty: d.cam.ty + (e.clientY - d.y)
+    };
+    cameraRef.current = cam;
+    applyCam(cam);
+  };
+  const onSvgPointerUp = e => {
+    const d = dragRef.current;
+    if (!d) return;
+    dragRef.current = null;
+    if (svgRef.current) {
+      svgRef.current.style.cursor = 'grab';
+      try {
+        svgRef.current.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+    }
+    setCameraState(cameraRef.current);
+    if (!d.moved) setSelection(null); // a click on empty canvas clears selection
+  };
+  const onNodeHover = h => {
+    if (!dragRef.current) setHover(h);
+  };
+  const litOpacity = token => activeSet == null || activeSet.has(token) ? 1 : 0.5;
+  const activeFilterCount = [groupFilter, ownerFilter, statusFilter, typeFilter].filter(v => v !== 'all').length + (quick !== 'all' ? 1 : 0);
+  const clearFilters = () => {
+    setSearch('');
+    setGroupFilter('all');
+    setOwnerFilter('all');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setQuick('all');
+    setSelection(null);
+  };
+
+  // ---- inspector header (derived live from selection IDs) ----
+  let panelTitle = 'Filtered practice view';
+  let panelSub = `${stats.entities.length} client ${stats.entities.length === 1 ? 'entity' : 'entities'} across ${stats.groups} group ${stats.groups === 1 ? 'structure' : 'structures'}.`;
+  if (selection?.type === 'group') {
+    const g = crmGetGroup(selection.id);
+    if (g) {
+      const vg = visible.find(x => x.group.id === g.id);
+      const ents = vg ? vg.entities : g.entities;
+      panelTitle = g.name;
+      panelSub = `${g.owner} owns the relationship · ${ents.length} visible ${ents.length === 1 ? 'entity' : 'entities'}.`;
+    }
+  } else if (selection?.type === 'entity') {
+    const e = crmGetEntity(selection.groupId, selection.id),
+      g = crmGetGroup(selection.groupId);
+    if (e && g) {
+      panelTitle = e.name;
+      panelSub = `${g.name} · ${e.type} · ${e.staff}`;
+    }
+  } else if (selection?.type === 'contact') {
+    const e = crmGetEntity(selection.groupId, selection.entityId);
+    const c = e && e.contacts.find(x => x.id === selection.id);
+    if (c) {
+      const linked = crmAllEntities().filter(en => en.contacts.some(x => x.id === c.id));
+      panelTitle = c.name;
+      panelSub = `${c.role} · ${c.auth} · linked to ${linked.length} ${linked.length === 1 ? 'entity' : 'entities'}.`;
+    }
+  }
+  const renderPanelBody = () => {
+    // ENTITY
+    if (selection?.type === 'entity') {
+      const e = crmGetEntity(selection.groupId, selection.id),
+        g = crmGetGroup(selection.groupId);
+      if (!e || !g) return null;
+      const realFlags = e.flags.filter(f => !CRM_NOISE_FLAGS.includes(f));
+      return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Client entity summary"
+      }, /*#__PURE__*/React.createElement(CrmMetricGrid, {
+        items: [{
+          label: 'Monthly value',
+          value: fmtMoneyCompact(e.revenue)
+        }, {
+          label: 'Open jobs',
+          value: e.openJobs
+        }, {
+          label: 'WIP',
+          value: fmtMoneyCompact(e.wip)
+        }, {
+          label: 'Receivables',
+          value: fmtMoneyCompact(e.ar)
+        }]
+      })), /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Compliance and authority"
+      }, /*#__PURE__*/React.createElement(CrmList, null, crmComplianceRows(e).map(([k, v, c]) => /*#__PURE__*/React.createElement(CrmRow, {
+        key: k,
+        title: k,
+        sub: v,
+        badge: v,
+        badgeColor: c
+      })))), /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Workflow position"
+      }, /*#__PURE__*/React.createElement(CrmList, null, /*#__PURE__*/React.createElement(CrmAlert, {
+        tone: /blocked|waiting/i.test(e.stage) ? 'amber' : 'blue',
+        glyph: "\u2192",
+        title: e.stage,
+        detail: e.next
+      }), realFlags.map(f => /*#__PURE__*/React.createElement(CrmAlert, {
+        key: f,
+        tone: "red",
+        glyph: "!",
+        title: f,
+        detail: "Requires partner, staff or client follow-up."
+      })))), /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Contact people"
+      }, /*#__PURE__*/React.createElement(CrmList, null, e.contacts.map(c => /*#__PURE__*/React.createElement(CrmContactCard, {
+        key: c.id,
+        contact: c,
+        onClick: () => setSelection({
+          type: 'contact',
+          id: c.id,
+          groupId: g.id,
+          entityId: e.id
+        })
+      })))), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement(Btn, {
+        variant: "primary",
+        onClick: () => fireToast(`Opening ${e.name} workspace…`),
+        style: {
+          justifyContent: 'center'
+        }
+      }, "Open client workspace"), /*#__PURE__*/React.createElement(Btn, {
+        variant: "ghost",
+        onClick: () => fireToast('Drafting a missing-information request…'),
+        style: {
+          justifyContent: 'center'
+        }
+      }, "Request missing information"), /*#__PURE__*/React.createElement(Btn, {
+        variant: "ghost",
+        onClick: () => fireToast(`Messaging ${crmPrimaryContact(e).name}…`),
+        style: {
+          justifyContent: 'center'
+        }
+      }, "Message primary contact")));
+    }
+    // GROUP
+    if (selection?.type === 'group') {
+      const g = crmGetGroup(selection.id);
+      if (!g) return null;
+      const vg = visible.find(x => x.group.id === g.id);
+      const ents = vg ? vg.entities : g.entities;
+      const contacts = new Set(ents.flatMap(e => e.contacts.map(c => c.id)));
+      const revenue = ents.reduce((s, e) => s + e.revenue, 0);
+      const flags = ents.reduce((s, e) => s + e.flags.filter(f => !CRM_NOISE_FLAGS.includes(f)).length, 0);
+      const actions = ents.filter(e => e.risk !== 'low' || e.openJobs > 2 || e.ar > 0).slice(0, 4);
+      return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Group summary"
+      }, /*#__PURE__*/React.createElement(CrmMetricGrid, {
+        items: [{
+          label: 'Entities',
+          value: ents.length
+        }, {
+          label: 'Contact people',
+          value: contacts.size
+        }, {
+          label: 'Monthly value',
+          value: fmtMoneyCompact(revenue)
+        }, {
+          label: 'Action flags',
+          value: flags
+        }]
+      })), /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Client entities"
+      }, /*#__PURE__*/React.createElement(CrmList, null, ents.map(e => /*#__PURE__*/React.createElement(CrmRow, {
+        key: e.id,
+        title: e.name,
+        sub: `${e.type} · ${crmPrimaryContact(e).name} · ${e.openJobs} open jobs`,
+        badge: CRM_STATUS_META[e.status].label,
+        badgeColor: CRM_STATUS_META[e.status].pill,
+        onClick: () => setSelection({
+          type: 'entity',
+          id: e.id,
+          groupId: g.id
+        })
+      })))), /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Recommended next actions"
+      }, actions.length ? /*#__PURE__*/React.createElement(CrmList, null, actions.map(e => /*#__PURE__*/React.createElement(CrmAlert, {
+        key: e.id,
+        tone: e.risk === 'high' ? 'red' : 'amber',
+        glyph: "!",
+        title: e.name,
+        detail: e.next
+      }))) : /*#__PURE__*/React.createElement(CrmEmpty, null, "No material action required.")));
+    }
+    // CONTACT
+    if (selection?.type === 'contact') {
+      const e = crmGetEntity(selection.groupId, selection.entityId);
+      const c = e && e.contacts.find(x => x.id === selection.id);
+      if (!c) return null;
+      const linked = crmAllEntities().filter(en => en.contacts.some(x => x.id === c.id));
+      return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Contact authority"
+      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(CrmKV, {
+        label: "Role",
+        value: c.role
+      }), /*#__PURE__*/React.createElement(CrmKV, {
+        label: "Authority",
+        value: /*#__PURE__*/React.createElement(Pill, {
+          color: c.primary ? 'accent' : 'neutral'
+        }, c.auth)
+      }), /*#__PURE__*/React.createElement(CrmKV, {
+        label: "Email",
+        value: c.email,
+        mono: true,
+        title: c.email
+      }), /*#__PURE__*/React.createElement(CrmKV, {
+        label: "Last activity",
+        value: c.last,
+        mono: true,
+        last: true
+      }))), /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Linked client entities"
+      }, /*#__PURE__*/React.createElement(CrmList, null, linked.map(en => /*#__PURE__*/React.createElement(CrmRow, {
+        key: en.id,
+        title: en.name,
+        sub: `${en.group.name} · ${en.type} · ${en.openJobs} jobs`,
+        badge: CRM_STATUS_META[en.status].label,
+        badgeColor: CRM_STATUS_META[en.status].pill,
+        onClick: () => setSelection({
+          type: 'entity',
+          id: en.id,
+          groupId: en.group.id
+        })
+      })))), /*#__PURE__*/React.createElement(CrmPanelCard, {
+        title: "Next useful action"
+      }, /*#__PURE__*/React.createElement(CrmAlert, {
+        tone: "accent",
+        glyph: "\u2192",
+        title: "Use this contact for client-side follow-up",
+        detail: "Record who can approve, upload documents, pay invoices and answer compliance requests."
+      })), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement(Btn, {
+        variant: "primary",
+        onClick: () => fireToast(`Messaging ${c.name}…`),
+        style: {
+          justifyContent: 'center'
+        }
+      }, "Message contact"), /*#__PURE__*/React.createElement(Btn, {
+        variant: "ghost",
+        onClick: () => fireToast('Opening communication history…'),
+        style: {
+          justifyContent: 'center'
+        }
+      }, "View communication history")));
+    }
+    // ALL (default)
+    const priority = stats.entities.filter(e => e.risk === 'high' || e.status === 'attention' || /waiting|blocked/i.test(e.stage) || e.ar > 0).sort((a, b) => (b.risk === 'high') - (a.risk === 'high') || b.openJobs - a.openJobs).slice(0, 5);
+    return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(CrmPanelCard, {
+      title: "Practice summary"
+    }, /*#__PURE__*/React.createElement(CrmMetricGrid, {
+      items: [{
+        label: 'Groups visible',
+        value: stats.groups
+      }, {
+        label: 'Client entities',
+        value: stats.entities.length
+      }, {
+        label: 'Contact people',
+        value: stats.contactsCount
+      }, {
+        label: 'Monthly value',
+        value: fmtMoneyCompact(stats.revenue)
+      }, {
+        label: 'WIP',
+        value: fmtMoneyCompact(stats.wip)
+      }, {
+        label: 'Receivables',
+        value: fmtMoneyCompact(stats.ar)
+      }]
+    })), /*#__PURE__*/React.createElement(CrmPanelCard, {
+      title: "Priority operating view"
+    }, priority.length ? /*#__PURE__*/React.createElement(CrmList, null, priority.map(e => /*#__PURE__*/React.createElement(CrmRow, {
+      key: e.id,
+      title: e.name,
+      sub: `${e.group.name} · ${e.next}`,
+      badge: e.risk === 'high' ? 'High risk' : 'Action',
+      badgeColor: e.risk === 'high' ? 'red' : 'amber',
+      onClick: () => setSelection({
+        type: 'entity',
+        id: e.id,
+        groupId: e.group.id
+      })
+    }))) : /*#__PURE__*/React.createElement(CrmEmpty, null, "No action items in this filtered view.")), /*#__PURE__*/React.createElement(CrmPanelCard, {
+      title: "What this view is for"
+    }, /*#__PURE__*/React.createElement(CrmList, null, /*#__PURE__*/React.createElement(CrmAlert, {
+      tone: "accent",
+      glyph: "1",
+      title: "Relationship control",
+      detail: "Shows the real accounting structure \u2014 group \u2192 entity \u2192 contact \u2014 not a flat client list."
+    }), /*#__PURE__*/React.createElement(CrmAlert, {
+      tone: "blue",
+      glyph: "2",
+      title: "Operational triage",
+      detail: "Surfaces missing authority, AML, BAS, bank feeds, WIP and receivables at a glance."
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      onClick: () => fireToast('Generating relationship report…'),
+      style: {
+        justifyContent: 'center'
+      }
+    }, "Open relationship report"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      onClick: () => fireToast(`Exporting ${stats.entities.length} filtered entities…`),
+      style: {
+        justifyContent: 'center'
+      }
+    }, "Export filtered entities")));
+  };
+  const mapBodyH = isCompact ? 520 : 600;
+  const FOP = 16; // foreignObject padding so node card drop-shadows aren't clipped
+  const legendItems = mode === 'risk' ? [['Low risk', T.green], ['Medium', T.amber], ['High risk', T.red]] : mode === 'revenue' ? [['Higher fees', T.primary], ['Mid', T.blue], ['Lower', T.green]] : mode === 'workflow' ? [['Waiting / blocked', T.amber], ['Ready to bill', T.primary], ['In progress', T.blue]] : [['Active', T.green], ['Onboarding', T.blue], ['Needs action', T.amber], ['At risk', T.red], ['Dormant', T.mutedSoft]];
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 56px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.4
+    }
+  }, "Client relationship map"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "Each box is a client group; the cards inside are the businesses you act for. Click any business to see its people and what needs attention.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 9,
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 260px',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search a client, business or person",
+    prefix: /*#__PURE__*/React.createElement(Icon, {
+      name: "search",
+      size: 15,
+      color: T.muted
+    })
+  })), /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: quick === 'attention',
+    onClick: () => setQuick(quick === 'attention' ? 'all' : 'attention')
+  }, "Needs attention"), /*#__PURE__*/React.createElement(SegToggle, {
+    value: detailLevel,
+    onChange: setDetailLevel,
+    options: [{
+      value: 1,
+      label: 'Groups'
+    }, {
+      value: 2,
+      label: 'Businesses'
+    }, {
+      value: 3,
+      label: 'People'
+    }]
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+      paddingLeft: 10,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      height: 34
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted
+    }
+  }, "Colour by"), /*#__PURE__*/React.createElement("select", {
+    value: mode,
+    onChange: e => setMode(e.target.value),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.text,
+      fontSize: 12.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      outline: 'none',
+      padding: '0 6px',
+      height: '100%'
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "status"
+  }, "Status"), /*#__PURE__*/React.createElement("option", {
+    value: "risk"
+  }, "Risk"), /*#__PURE__*/React.createElement("option", {
+    value: "revenue"
+  }, "Revenue"), /*#__PURE__*/React.createElement("option", {
+    value: "workflow"
+  }, "Workflow"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: activeFilterCount ? 'primaryOutline' : 'ghost',
+    icon: "filter",
+    onClick: () => setFilterOpen(o => !o)
+  }, "Filters", activeFilterCount ? ` · ${activeFilterCount}` : ''), filterOpen && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setFilterOpen(false),
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 55
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      position: 'absolute',
+      right: 0,
+      top: '100%',
+      marginTop: 8,
+      zIndex: 60,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      boxShadow: '0 16px 40px rgba(17,17,23,.14)',
+      width: 270,
+      padding: 14
+    }
+  }, [['Group', groupFilter, setGroupFilter, [['all', 'All groups'], ...RELATIONSHIP_GROUPS.map(g => [g.id, g.name])]], ['Owner', ownerFilter, setOwnerFilter, [['all', 'All owners'], ...owners.map(o => [o, o])]], ['Status', statusFilter, setStatusFilter, [['all', 'All statuses'], ['active', 'Active'], ['onboarding', 'Onboarding'], ['attention', 'Needs action'], ['risk', 'At risk'], ['dormant', 'Dormant']]], ['Business type', typeFilter, setTypeFilter, [['all', 'All types'], ...CRM_ENTITY_TYPES.map(t => [t, t])]], ['Flagged for', quick, setQuick, CRM_QUICK.map(c => [c.id, c.id === 'all' ? 'Anything' : c.label])]].map(([label, val, setter, opts]) => /*#__PURE__*/React.createElement("div", {
+    key: label,
+    style: {
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      color: T.muted,
+      marginBottom: 4
+    }
+  }, label), /*#__PURE__*/React.createElement(Select, {
+    value: val,
+    onChange: e => setter(e.target.value),
+    style: {
+      width: '100%'
+    }
+  }, opts.map(([ov, ol]) => /*#__PURE__*/React.createElement("option", {
+    key: ov,
+    value: ov
+  }, ol))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: clearFilters,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: 'pointer'
+    }
+  }, "Clear all"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setFilterOpen(false),
+    style: {
+      border: 'none',
+      background: T.primary,
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: 'pointer',
+      borderRadius: 6,
+      padding: '6px 14px'
+    }
+  }, "Done")))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: isCompact ? 'column' : 'row',
+      gap: 16,
+      alignItems: 'stretch'
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    padded: false,
+    style: {
+      flex: isCompact ? 'none' : 1,
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '10px 16px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.card,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "Click a business for its people & details \xB7 click a group name to summarise it."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 12,
+      alignItems: 'center',
+      flexWrap: 'wrap'
+    }
+  }, legendItems.map(([ll, cc]) => /*#__PURE__*/React.createElement("span", {
+    key: ll,
+    style: {
+      fontSize: 10.5,
+      color: T.muted,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 5,
+      whiteSpace: 'nowrap'
+    }
+  }, /*#__PURE__*/React.createElement("i", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+      background: cc,
+      display: 'inline-block'
+    }
+  }), ll)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      height: mapBodyH,
+      overflow: 'hidden',
+      background: `radial-gradient(120% 120% at 28% 0%, ${T.primarySofter}, ${T.card} 70%)`
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    ref: svgRef,
+    width: "100%",
+    height: "100%",
+    onPointerDown: onSvgPointerDown,
+    onPointerMove: onSvgPointerMove,
+    onPointerUp: onSvgPointerUp,
+    onPointerLeave: onSvgPointerUp,
+    style: {
+      display: 'block',
+      cursor: 'grab',
+      userSelect: 'none',
+      touchAction: 'none'
+    }
+  }, /*#__PURE__*/React.createElement("g", {
+    ref: gRef,
+    transform: `translate(${camera.tx} ${camera.ty}) scale(${camera.scale})`,
+    style: {
+      transition: animated ? 'transform 320ms cubic-bezier(.22,.61,.36,1)' : 'none'
+    }
+  }, lLinks.map(l => {
+    const f = activeSet != null,
+      lit = !f || activeSet.has(l.key);
+    return /*#__PURE__*/React.createElement("path", {
+      key: l.key,
+      d: crmLink(l.x1, l.y1, l.x2, l.y2),
+      fill: "none",
+      stroke: f && lit ? T.primary : T.borderStrong,
+      strokeWidth: f && lit ? 2 : 1.4,
+      opacity: f ? lit ? 0.95 : 0.22 : 0.5,
+      style: {
+        transition: 'opacity 140ms, stroke 140ms'
+      }
+    });
+  }), lGroups.map(({
+    group,
+    entities,
+    x,
+    y
+  }) => {
+    const tok = crmTok.g(group.id);
+    const gSel = selection?.type === 'group' && selection.id === group.id;
+    const gWarn = entities.some(e => e.risk === 'high' || e.flags.some(f => /incomplete|overdue|disconnected|unsigned|blocked|not started/i.test(f)));
+    const gRev = entities.reduce((s, e) => s + e.revenue, 0);
+    return /*#__PURE__*/React.createElement("foreignObject", {
+      key: group.id,
+      x: x - FOP,
+      y: y - FOP,
+      width: CRM_GROUP_W + FOP * 2,
+      height: CRM_GROUP_H + FOP * 2,
+      style: {
+        overflow: 'visible',
+        opacity: litOpacity(tok),
+        transition: 'opacity 140ms'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      onMouseEnter: () => onNodeHover({
+        type: 'group',
+        id: group.id
+      }),
+      onMouseLeave: () => setHover(null),
+      onPointerDown: ev => ev.stopPropagation(),
+      onClick: () => setSelection({
+        type: 'group',
+        id: group.id
+      }),
+      style: {
+        width: '100%',
+        height: '100%',
+        padding: FOP,
+        boxSizing: 'border-box',
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      "data-crm-card": true,
+      style: {
+        width: '100%',
+        height: '100%',
+        boxSizing: 'border-box',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '0 12px',
+        background: T.primarySoft,
+        border: `1px solid ${gSel ? T.primary : '#D7D6FB'}`,
+        borderRadius: 13,
+        position: 'relative',
+        boxShadow: gSel ? '0 12px 24px rgba(91,91,246,.20)' : '0 6px 16px rgba(91,91,246,.10)',
+        transition: 'box-shadow 140ms, border-color 140ms'
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: group.name,
+      size: 34,
+      style: {
+        borderRadius: 10
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0,
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.text,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, group.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        marginTop: 2
+      }
+    }, entities.length, " ", entities.length === 1 ? 'business' : 'businesses', " \xB7 ", fmtMoneyCompact(gRev), "/mo")), gWarn && /*#__PURE__*/React.createElement("span", {
+      style: {
+        position: 'absolute',
+        top: 9,
+        right: 11,
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        background: T.amber,
+        boxShadow: `0 0 0 2px ${T.primarySoft}`
+      }
+    }))));
+  }), lBiz.map(({
+    entity,
+    group,
+    x,
+    y
+  }) => {
+    const tok = crmTok.b(entity.id);
+    const selE = selection?.type === 'entity' && selection.id === entity.id;
+    const colour = crmStatusColour(entity, mode);
+    const warn = entity.risk === 'high' || entity.flags.some(f => /incomplete|overdue|disconnected|unsigned|blocked|not started/i.test(f));
+    const highValue = entity.revenue > 5000;
+    return /*#__PURE__*/React.createElement("foreignObject", {
+      key: entity.id,
+      x: x - FOP,
+      y: y - FOP,
+      width: CRM_BIZ_W + FOP * 2,
+      height: CRM_BIZ_H + FOP * 2,
+      style: {
+        overflow: 'visible',
+        opacity: litOpacity(tok),
+        transition: 'opacity 140ms'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      onMouseEnter: () => onNodeHover({
+        type: 'entity',
+        id: entity.id,
+        groupId: group.id
+      }),
+      onMouseLeave: () => setHover(null),
+      onPointerDown: ev => ev.stopPropagation(),
+      onClick: () => setSelection({
+        type: 'entity',
+        id: entity.id,
+        groupId: group.id
+      }),
+      style: {
+        width: '100%',
+        height: '100%',
+        padding: FOP,
+        boxSizing: 'border-box',
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      "data-crm-card": true,
+      style: {
+        width: '100%',
+        height: '100%',
+        boxSizing: 'border-box',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: 4,
+        padding: '8px 12px',
+        background: `linear-gradient(160deg, #fff, ${T.primarySofter})`,
+        border: `1px solid ${selE ? T.primary : T.border}`,
+        borderRadius: 13,
+        boxShadow: selE ? '0 12px 22px rgba(91,91,246,.18)' : '0 6px 14px rgba(17,17,23,.07)',
+        transition: 'box-shadow 140ms, border-color 140ms'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 9,
+        height: 9,
+        borderRadius: '50%',
+        background: colour,
+        flexShrink: 0,
+        boxShadow: '0 0 0 2px #fff'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700,
+        color: T.text,
+        lineHeight: 1.25,
+        minWidth: 0,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical'
+      }
+    }, entity.name)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10.5,
+        color: T.muted,
+        paddingLeft: 17,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, entity.type, " \xB7 ", crmStatusText(entity, mode)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        display: 'flex',
+        gap: 4
+      }
+    }, highValue && /*#__PURE__*/React.createElement(CrmBadge, {
+      tone: "accent",
+      glyph: "$",
+      size: 18
+    }), warn && /*#__PURE__*/React.createElement(CrmBadge, {
+      tone: entity.risk === 'high' ? 'red' : 'amber',
+      glyph: "!",
+      size: 18
+    })))));
+  }), lContacts.map(({
+    contact,
+    entity,
+    group,
+    x,
+    y
+  }) => {
+    const tok = crmTok.c(entity.id, contact.id);
+    const selC = selection?.type === 'contact' && selection.id === contact.id && selection.entityId === entity.id;
+    return /*#__PURE__*/React.createElement("foreignObject", {
+      key: entity.id + contact.id,
+      x: x - FOP,
+      y: y - FOP,
+      width: CRM_CONTACT_W + FOP * 2,
+      height: CRM_CONTACT_H + FOP * 2,
+      style: {
+        overflow: 'visible',
+        opacity: litOpacity(tok),
+        transition: 'opacity 140ms'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      onMouseEnter: () => onNodeHover({
+        type: 'contact',
+        id: contact.id,
+        groupId: group.id,
+        entityId: entity.id
+      }),
+      onMouseLeave: () => setHover(null),
+      onPointerDown: ev => ev.stopPropagation(),
+      onClick: () => setSelection({
+        type: 'contact',
+        id: contact.id,
+        groupId: group.id,
+        entityId: entity.id
+      }),
+      style: {
+        width: '100%',
+        height: '100%',
+        padding: FOP,
+        boxSizing: 'border-box',
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      "data-crm-card": true,
+      style: {
+        width: '100%',
+        height: '100%',
+        boxSizing: 'border-box',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '0 10px',
+        background: T.card,
+        border: `1px solid ${selC ? T.primary : T.border}`,
+        borderRadius: 11,
+        boxShadow: selC ? '0 8px 16px rgba(91,91,246,.16)' : '0 4px 9px rgba(17,17,23,.07)',
+        transition: 'box-shadow 140ms, border-color 140ms'
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: contact.name,
+      size: 26
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0,
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        fontWeight: 700,
+        color: T.text,
+        lineHeight: 1.2,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, contact.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9.8,
+        color: T.muted,
+        marginTop: 1,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, contact.auth)), contact.primary && /*#__PURE__*/React.createElement("span", {
+      title: "Primary contact",
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: T.primary,
+        flexShrink: 0
+      }
+    }))));
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      left: 12,
+      top: 12,
+      zIndex: 4
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setStatsOpen(o => !o),
+    style: {
+      height: 30,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      padding: '0 11px',
+      borderRadius: 999,
+      border: `1px solid ${T.border}`,
+      background: 'rgba(255,255,255,.92)',
+      backdropFilter: 'blur(6px)',
+      fontSize: 11.5,
+      color: T.muted,
+      cursor: 'pointer',
+      boxShadow: '0 4px 12px rgba(17,17,23,.06)'
+    }
+  }, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: T.text,
+      fontWeight: 700
+    }
+  }, stats.groups), " groups", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.borderStrong
+    }
+  }, "\xB7"), /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: T.text,
+      fontWeight: 700
+    }
+  }, stats.entities.length), " businesses", stats.flags > 0 && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.borderStrong
+    }
+  }, "\xB7"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.amber,
+      fontWeight: 700
+    }
+  }, stats.flags, " flags")), /*#__PURE__*/React.createElement(Icon, {
+    name: statsOpen ? 'chevronUp' : 'chevronDown',
+    size: 13,
+    color: T.muted
+  })), statsOpen && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 8,
+      width: 214,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      boxShadow: '0 14px 34px rgba(17,17,23,.12)',
+      padding: '8px 12px'
+    }
+  }, [['Client groups', stats.groups], ['Businesses', stats.entities.length], ['Contact people', stats.contactsCount], ['Monthly value', fmtMoneyCompact(stats.revenue)], ['WIP', fmtMoneyCompact(stats.wip)], ['Receivables', fmtMoneyCompact(stats.ar)], ['Action flags', stats.flags]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+    key: k,
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      padding: '4px 0',
+      fontSize: 11.5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, k), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.text,
+      fontWeight: 700
+    }
+  }, v))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      right: 12,
+      bottom: 12,
+      zIndex: 4,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, [['+', 'Zoom in', () => zoomBy(1.25)], ['−', 'Zoom out', () => zoomBy(0.8)], ['⤢', 'Fit to view', () => fitToContent(true)]].map(([t, title, fn]) => /*#__PURE__*/React.createElement("button", {
+    key: title,
+    onClick: fn,
+    title: title,
+    style: {
+      width: 34,
+      height: 34,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      borderRadius: 9,
+      color: T.textSoft,
+      fontSize: t === '⤢' ? 15 : 18,
+      lineHeight: 1,
+      cursor: 'pointer',
+      boxShadow: '0 4px 10px rgba(17,17,23,.07)'
+    }
+  }, t))), !visible.length && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      pointerEvents: 'none'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 300,
+      padding: 20,
+      border: `1px dashed ${T.borderStrong}`,
+      background: T.card,
+      borderRadius: 14,
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Nothing matches those filters"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      marginTop: 7,
+      lineHeight: 1.35
+    }
+  }, "Clear the search or filters to see more clients."))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: isCompact ? 'auto' : 340,
+      flexShrink: 0,
+      display: 'flex'
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    padded: false,
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      width: '100%',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 10,
+      padding: '12px 14px',
+      borderBottom: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.primary,
+      marginBottom: 4
+    }
+  }, "Insights panel"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      letterSpacing: -0.3,
+      lineHeight: 1.15,
+      color: T.text
+    }
+  }, panelTitle), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      lineHeight: 1.25,
+      marginTop: 4
+    }
+  }, panelSub)), selection && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "close",
+    onClick: () => setSelection(null),
+    title: "Clear selection"
+  })), /*#__PURE__*/React.createElement("div", {
+    key: selection ? `${selection.type}:${selection.id}` : 'all',
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto',
+      padding: 14,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      animation: 'fadein 180ms ease'
+    }
+  }, renderPanelBody())))));
+};
 const parsePracticeHash = hash => {
   const m = (hash || '').match(/^#\/practice\/?([\w-]+)?(?:\/([\w-]+))?/);
   // Empty hash → Practice Dashboard (the firm-leader landing) rather than
@@ -95205,6 +97937,10 @@ const PracticeApp = () => {
         return /*#__PURE__*/React.createElement(StubPage, {
           title: "Clients Management",
           blurb: "Onboarding, KYC, document collection and engagement history \u2014 wireframe pending."
+        });
+      case 'client-relationship-map':
+        return /*#__PURE__*/React.createElement(ClientRelationshipMapPage, {
+          fireToast: fireToast
         });
       case 'team-management':
         return /*#__PURE__*/React.createElement(StubPage, {
