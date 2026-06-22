@@ -99526,7 +99526,9 @@ const seedPortal = () => ({
     tag: 'Reference',
     size: '96 KB'
   }],
-  forceOnboarded: false
+  forceOnboarded: false,
+  wizardSection: null,
+  wizardItem: null
 });
 
 // Fills one client's fields with valid mock data → instantly complete (the demo's
@@ -99623,6 +99625,66 @@ const GROUP_META = {
     icon: 'fileSignature',
     blurb: 'Authorise us to act for you.'
   }
+};
+
+// Wizard section map — 8 numbered entries (1=Welcome, 2-8=data groups).
+// `isWelcome` marks the intro screen (no items); `group` maps to ONBOARDING_GROUPS.
+const ONBOARDING_SECTIONS = [{
+  id: 'welcome',
+  num: 1,
+  title: 'Welcome',
+  icon: 'clipboardCheck',
+  isWelcome: true
+}, {
+  id: 'personal',
+  num: 2,
+  title: 'Personal details',
+  icon: 'user',
+  group: 'Personal details'
+}, {
+  id: 'residency',
+  num: 3,
+  title: 'Residency & tax',
+  icon: 'shield',
+  group: 'Residency & tax'
+}, {
+  id: 'contact',
+  num: 4,
+  title: 'Contact details',
+  icon: 'mail',
+  group: 'Contact details'
+}, {
+  id: 'software',
+  num: 5,
+  title: 'Accounting software',
+  icon: 'sliders',
+  group: 'Accounting software'
+}, {
+  id: 'handover',
+  num: 6,
+  title: 'Handover',
+  icon: 'briefcase',
+  group: 'Handover'
+}, {
+  id: 'documents',
+  num: 7,
+  title: 'Documents',
+  icon: 'fileText',
+  group: 'Documents'
+}, {
+  id: 'declaration',
+  num: 8,
+  title: 'Declaration',
+  icon: 'fileSignature',
+  group: 'Declaration'
+}];
+const sectionItems = (sec, client) => sec.isWelcome ? [] : computeClientActions(client).filter(i => i.group === sec.group);
+const sectionProgress = (sec, client) => {
+  const items = sectionItems(sec, client);
+  return {
+    total: items.length,
+    done: items.filter(i => i.done).length
+  };
 };
 const choiceLabel = (v, yes, no) => v === 'yes' ? yes : v === 'no' ? no : '';
 const PORTAL_CLIENT_KIND = {
@@ -100561,12 +100623,14 @@ const ActionStepEditor = ({
   portal,
   set,
   advance,
-  fireToast
+  fireToast,
+  hideSave
 }) => {
   // Values are written live as the client types, so "Save" just closes the
   // inline editor (the field row stays exactly where it is). It's never disabled
   // — closing a half-filled field simply leaves it marked "Required".
-  const saveBtn = /*#__PURE__*/React.createElement("div", {
+  // hideSave: when true, suppress the internal Save button (wizard panel renders its own).
+  const saveBtn = hideSave ? null : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'flex-end',
@@ -100578,16 +100642,26 @@ const ActionStepEditor = ({
     onClick: () => advance(item.done ? `${item.title} saved` : null)
   }, "Save"));
   if (item.id === 'dob') {
+    const today = new Date().toISOString().split('T')[0];
+    const dobIsInFuture = portal.dob && portal.dob > today;
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Date of birth"), /*#__PURE__*/React.createElement(Input, {
       type: "date",
       value: portal.dob,
+      max: today,
       onChange: e => set({
         dob: e.target.value
       }),
       style: {
-        maxWidth: 240
+        maxWidth: 240,
+        borderColor: dobIsInFuture ? T.amber : undefined
       }
-    }), saveBtn);
+    }), dobIsInFuture && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginTop: 5,
+        color: T.amber,
+        fontWeight: 600
+      }
+    }, "Date of birth cannot be in the future."), saveBtn);
   }
   // Simple single-line text fields
   const TEXT_FIELDS = {
@@ -101069,20 +101143,23 @@ const PortalRing = ({
   }, "%"))));
 };
 
-// --- onboarding progress header (the polished replacement for the amber banner)
-// Clean white card: engagement identity (left) + circular ring progress and a
-// "continue where you left off" CTA (right). No yellow, no dashed rules.
-const PortalProgressHeader = ({
+// --- unified group header — ONE block that answers: which group, overall
+// progress, AND who's done / who's left + lets you switch member. Replaces the
+// old separate progress banner + roster bar (they said the same thing twice).
+// onPickClient(clientId) switches the active member and jumps to their first
+// outstanding field. Scaleable: members collapse to a "+N more" toggle.
+const PortalGroupHeader = ({
   portal,
   onboarded,
-  onContinue
+  onPickClient
 }) => {
   const g = groupProgress(portal);
   const remaining = g.total - g.done;
-  const pct = g.pct;
-  // next incomplete required field across all clients (jump straight to it)
-  const nextEntry = g.per.find(x => !x.onboarded);
-  const nextField = nextEntry ? nextEntry.prog.items.find(i => !i.done) : null;
+  const clients = portal.clients || [];
+  const [expanded, setExpanded] = useState(false);
+  const SHOW = 6;
+  const visible = expanded ? clients : clients.slice(0, SHOW);
+  const hidden = clients.length - SHOW;
   return /*#__PURE__*/React.createElement(Card, {
     style: {
       padding: 0,
@@ -101092,21 +101169,13 @@ const PortalProgressHeader = ({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 18,
-      padding: '16px 18px'
+      gap: 16,
+      padding: '13px 16px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 42,
-      height: 42,
+      width: 40,
+      height: 40,
       borderRadius: 11,
       background: T.primarySoft,
       display: 'flex',
@@ -101116,10 +101185,11 @@ const PortalProgressHeader = ({
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "users",
-    size: 20,
+    size: 19,
     color: T.primary
   })), /*#__PURE__*/React.createElement("div", {
     style: {
+      flex: 1,
       minWidth: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -101144,86 +101214,120 @@ const PortalProgressHeader = ({
     }
   }, onboarded ? 'Onboarded' : 'Onboarding')), /*#__PURE__*/React.createElement(Helper, {
     style: {
-      fontSize: 12,
+      fontSize: 11.5,
       marginTop: 2
     }
-  }, portal.group.firm, " \xB7 ", portal.group.ref, " \xB7 ", g.clientsTotal, " client", g.clientsTotal === 1 ? '' : 's'))), /*#__PURE__*/React.createElement("div", {
+  }, portal.group.ref, " \xB7 ", g.clientsTotal, " member", g.clientsTotal === 1 ? '' : 's')), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 16,
-      flexShrink: 0
+      flexShrink: 0,
+      width: 200,
+      textAlign: 'right'
     }
-  }, /*#__PURE__*/React.createElement(PortalRing, {
-    pct: pct,
-    done: onboarded
-  }), /*#__PURE__*/React.createElement("div", {
+  }, onboarded ? /*#__PURE__*/React.createElement("div", {
     style: {
-      minWidth: 168
-    }
-  }, onboarded ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13.5,
+      fontSize: 13,
       fontWeight: 700,
       color: T.greenDark
     }
-  }, "All clients onboarded"), /*#__PURE__*/React.createElement(Helper, {
+  }, "All members complete") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11.5,
-      marginTop: 2
-    }
-  }, g.clientsComplete, " of ", g.clientsTotal, " client", g.clientsTotal === 1 ? '' : 's', " complete \xB7 portal unlocked")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13.5,
+      fontSize: 13,
       fontWeight: 700,
       color: T.text
     }
-  }, g.clientsComplete, " of ", g.clientsTotal, " clients done"), /*#__PURE__*/React.createElement(Helper, {
+  }, g.clientsComplete, " of ", g.clientsTotal, " members complete"), /*#__PURE__*/React.createElement(Helper, {
     style: {
-      fontSize: 11.5,
-      marginTop: 2
+      fontSize: 11,
+      marginTop: 1
     }
-  }, remaining, " required field", remaining === 1 ? '' : 's', " left across the group"), nextEntry && nextField && /*#__PURE__*/React.createElement("button", {
-    onClick: () => onContinue(nextEntry.client.id, nextField.id),
-    "data-hover": "row",
+  }, remaining, " required field", remaining === 1 ? '' : 's', " left")), /*#__PURE__*/React.createElement("div", {
     style: {
-      marginTop: 8,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      padding: '5px 10px',
-      background: T.primary,
-      color: '#fff',
-      border: 'none',
-      borderRadius: 8,
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: 'pointer',
-      maxWidth: 168
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
-    }
-  }, "Continue: ", nextEntry.client.name.split(' ')[0], " \xB7 ", nextField.title), /*#__PURE__*/React.createElement(Icon, {
-    name: "arrow",
-    size: 12,
-    color: "#fff"
-  })))))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      height: 4,
-      background: T.fieldBg
+      height: 5,
+      background: T.fieldBg,
+      borderRadius: 99,
+      marginTop: 7
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       height: '100%',
-      width: `${pct}%`,
+      width: `${g.pct}%`,
       background: onboarded ? T.green : T.primary,
-      transition: 'width 0.45s ease, background 0.3s'
+      borderRadius: 99,
+      transition: 'width 0.45s ease'
     }
-  })));
+  })))), clients.length > 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      padding: '0 16px 13px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginRight: 2
+    }
+  }, "Members"), visible.map(c => {
+    const cdone = isClientOnboarded(c);
+    const cactive = c.id === portal.activeClientId;
+    const cp = clientProgress(c);
+    const left = cp.total - cp.done;
+    return /*#__PURE__*/React.createElement("button", {
+      key: c.id,
+      onClick: () => onPickClient(c.id),
+      "data-hover": cactive ? undefined : 'row',
+      title: `Switch to ${c.name}`,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '4px 10px 4px 4px',
+        border: `1.5px solid ${cactive ? T.primary : cdone ? '#A7F3D0' : T.border}`,
+        borderRadius: 99,
+        background: cactive ? T.primarySofter : T.card,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: c.name,
+      size: 22
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 600,
+        color: cactive ? T.primary : T.text,
+        maxWidth: 120,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, c.name), cdone ? /*#__PURE__*/React.createElement(Pill, {
+      color: "green",
+      style: {
+        fontSize: 9
+      }
+    }, "Signed \u2713") : /*#__PURE__*/React.createElement(Pill, {
+      color: cactive ? 'accent' : 'neutral',
+      style: {
+        fontSize: 9
+      }
+    }, left, " left"));
+  }), hidden > 0 && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setExpanded(e => !e),
+    style: {
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.primary,
+      padding: '4px 6px'
+    }
+  }, expanded ? 'Show less' : `+${hidden} more`)));
 };
 
 // --- client selector — a compact, horizontally-scrollable chip rail -----------
@@ -101399,7 +101503,617 @@ const PortalClientSelector = ({
   }, "No clients match \u201C", q, "\u201D.")));
 };
 
-// --- Client Group page (onboarding home) — client selector + active client form
+// --- questionnaire-style wizard components ------------------------------------
+
+// Welcome card: firm branding, section overview, "Get started" CTA.
+const OnboardingWelcomeContent = ({
+  portal,
+  onStart
+}) => {
+  const activeClient = activeClientOf(portal);
+  const first = (activeClient?.name || '').split(' ')[0];
+  return /*#__PURE__*/React.createElement(Card, {
+    style: {
+      borderLeft: `4px solid ${T.primary}`,
+      padding: 32
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 16,
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
+      background: T.primarySoft,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clipboardCheck",
+    size: 28,
+    color: T.primary
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      color: T.text,
+      marginBottom: 3
+    }
+  }, "Welcome to ", portal.group.firm), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13.5
+    }
+  }, portal.group.ref, " \xB7 About 10 minutes"))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 14,
+      lineHeight: 1.65,
+      marginBottom: 20,
+      color: T.textSoft
+    }
+  }, "We just need a few details from each person in your group. Work through the checklist on the left", first ? ` — starting with ${first}'s` : '', " \u2014 you can save and come back anytime, and we'll always show what's still required."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: '12px 14px',
+      background: T.fieldBg,
+      borderRadius: 10,
+      marginBottom: 26
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 15,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      lineHeight: 1.5,
+      color: T.textSoft
+    }
+  }, "Have your TFN, contact details and last year's tax return handy \u2014 it'll make this quicker.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: onStart
+  }, "Get started"));
+};
+
+// Right-aligned status ring: empty circle → solid green check when complete.
+// (Matches the reference's at-a-glance "what's done / what's left" column.)
+const TreeStatusDot = ({
+  done,
+  active,
+  size = 18
+}) => /*#__PURE__*/React.createElement("span", {
+  style: {
+    width: size,
+    height: size,
+    borderRadius: '50%',
+    flexShrink: 0,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: done ? T.green : 'transparent',
+    border: `1.5px solid ${done ? T.green : active ? '#fff' : T.borderStrong}`
+  }
+}, done && /*#__PURE__*/React.createElement(Icon, {
+  name: "check",
+  size: Math.round(size * 0.55),
+  color: "#fff",
+  strokeWidth: 3
+}));
+
+// Smooth curved connector — a vertical drop with a rounded turn into the row,
+// plus an optional trunk continuation down to the next sibling. Solid, not
+// dashed; the rounded corner is what makes the line read as "curved".
+const TreeConnector = ({
+  continues
+}) => /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  style: {
+    position: 'absolute',
+    left: 9,
+    top: -1,
+    width: 11,
+    height: 16,
+    borderLeft: `1.5px solid ${T.borderStrong}`,
+    borderBottom: `1.5px solid ${T.borderStrong}`,
+    borderBottomLeftRadius: 9
+  }
+}), continues && /*#__PURE__*/React.createElement("div", {
+  style: {
+    position: 'absolute',
+    left: 9,
+    top: 15,
+    bottom: -2,
+    borderLeft: `1.5px solid ${T.borderStrong}`
+  }
+}));
+
+// Left-sidebar hierarchical section tree — solid purple active pill, inline
+// numbering, right-aligned status rings, smooth curved connectors into
+// sub-items. Modelled on the approved questionnaire reference.
+const OnboardingTreeSidebar = ({
+  sections,
+  activeClient,
+  activeSectionId,
+  activeItemId,
+  expandedSections,
+  onSelectSection,
+  onSelectItem,
+  onToggleSection
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2
+  }
+}, sections.map(sec => {
+  const items = sectionItems(sec, activeClient);
+  const prog = sectionProgress(sec, activeClient);
+  const sectionActive = activeSectionId === sec.id;
+  const isExpanded = expandedSections.has(sec.id);
+  const isDone = !sec.isWelcome && prog.total > 0 && prog.done === prog.total;
+  const hasItems = items.length > 0;
+  const pillActive = sectionActive && !activeItemId; // solid purple only when the section root itself is the focus
+  const showCount = !sec.isWelcome && prog.total > 0;
+  return /*#__PURE__*/React.createElement("div", {
+    key: sec.id
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => hasItems ? onToggleSection(sec.id) : onSelectSection(sec.id),
+    "data-hover": pillActive ? undefined : 'row',
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      width: '100%',
+      padding: '9px 11px',
+      background: pillActive ? T.primary : sectionActive ? T.primarySofter : 'transparent',
+      border: 'none',
+      borderRadius: 9,
+      cursor: 'pointer',
+      textAlign: 'left',
+      transition: 'background 0.12s'
+    }
+  }, hasItems ? /*#__PURE__*/React.createElement(Icon, {
+    name: isExpanded ? 'chevronDown' : 'chevronRight',
+    size: 13,
+    color: pillActive ? 'rgba(255,255,255,0.85)' : T.muted
+  }) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 13,
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 12.5,
+      fontWeight: 700,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      color: pillActive ? '#fff' : sectionActive ? T.primary : T.text
+    }
+  }, sec.num, ". ", sec.title), showCount && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      flexShrink: 0,
+      color: pillActive ? 'rgba(255,255,255,0.9)' : isDone ? T.greenDark : T.muted
+    }
+  }, prog.done, "/", prog.total), showCount && /*#__PURE__*/React.createElement(TreeStatusDot, {
+    done: isDone,
+    active: pillActive,
+    size: 18
+  })), isExpanded && hasItems && /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingTop: 2,
+      paddingBottom: 2
+    }
+  }, items.map((item, idx) => {
+    const itemActive = sectionActive && activeItemId === item.id;
+    return /*#__PURE__*/React.createElement("div", {
+      key: item.id,
+      style: {
+        position: 'relative',
+        paddingLeft: 26
+      }
+    }, /*#__PURE__*/React.createElement(TreeConnector, {
+      continues: idx < items.length - 1
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onSelectItem(sec.id, item.id),
+      "data-hover": itemActive ? undefined : 'row',
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        width: '100%',
+        minHeight: 30,
+        padding: '6px 9px',
+        background: itemActive ? T.primarySofter : 'transparent',
+        border: 'none',
+        borderRadius: 8,
+        cursor: 'pointer',
+        textAlign: 'left',
+        transition: 'background 0.12s'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        fontSize: 12,
+        fontWeight: itemActive ? 700 : 600,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        color: itemActive ? T.primary : item.done ? T.textSoft : T.text
+      }
+    }, item.title), item.required && !item.done && /*#__PURE__*/React.createElement("span", {
+      title: "Required",
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: T.amber,
+        flexShrink: 0
+      }
+    }), /*#__PURE__*/React.createElement(TreeStatusDot, {
+      done: item.done,
+      active: false,
+      size: 16
+    })));
+  })));
+}));
+
+// Right-side content panel: one question at a time with breadcrumb, prev/next nav, editor, action buttons.
+const OnboardingContentPanel = ({
+  section,
+  item,
+  activeClient,
+  setClient,
+  fireToast,
+  onNext,
+  onPrev,
+  prevLabel,
+  nextLabel,
+  allItems,
+  onboarded,
+  portal,
+  go,
+  youName,
+  clientDone,
+  selectClient
+}) => {
+  if (onboarded) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 400,
+        textAlign: 'center',
+        padding: '48px 32px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 68,
+        height: 68,
+        borderRadius: '50%',
+        background: T.green,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 34,
+      color: "#fff",
+      strokeWidth: 3
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 24,
+        fontWeight: 800,
+        color: T.greenDark,
+        marginBottom: 8
+      }
+    }, "You're all set", youName ? `, ${youName}` : '', "!"), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 14,
+        marginBottom: 28,
+        maxWidth: 360,
+        lineHeight: 1.6
+      }
+    }, "Every client is complete \u2014 your portal is now fully unlocked."), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      iconRight: "arrow",
+      onClick: () => go('dashboard')
+    }, "Explore portal"));
+  }
+  if (clientDone) {
+    const nextClient = portal.clients.find(c => !isClientOnboarded(c));
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 400,
+        textAlign: 'center',
+        padding: '48px 32px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 60,
+        height: 60,
+        borderRadius: '50%',
+        background: T.green,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 18
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "checkCircle",
+      size: 30,
+      color: "#fff"
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 20,
+        fontWeight: 700,
+        color: T.greenDark,
+        marginBottom: 6
+      }
+    }, activeClient.name.split(' ')[0], " is done!"), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 13.5,
+        marginBottom: 22,
+        lineHeight: 1.6
+      }
+    }, "Complete the remaining clients to unlock the portal."), nextClient && /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      iconRight: "arrow",
+      onClick: () => selectClient(nextClient.id)
+    }, "Continue with ", nextClient.name.split(' ')[0]));
+  }
+  if (section.isWelcome) return /*#__PURE__*/React.createElement(OnboardingWelcomeContent, {
+    portal: portal,
+    onStart: onNext
+  });
+  if (!item) {
+    const sp = sectionProgress(section, activeClient);
+    return /*#__PURE__*/React.createElement(Card, {
+      style: {
+        borderLeft: `4px solid ${T.primary}`,
+        padding: 32
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        fontWeight: 600,
+        marginBottom: 8,
+        letterSpacing: 0.3
+      }
+    }, "Section ", section.num), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 22,
+        fontWeight: 800,
+        color: T.text,
+        marginBottom: 6
+      }
+    }, section.title), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 13.5,
+        marginBottom: 22
+      }
+    }, GROUP_META[section.group]?.blurb || ''), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 24
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, sp.done, "/", sp.total, " complete"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        height: 5,
+        background: T.fieldBg,
+        borderRadius: 99
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${sp.total ? Math.round(sp.done / sp.total * 100) : 0}%`,
+        background: T.primary,
+        borderRadius: 99,
+        transition: 'width 0.3s'
+      }
+    }))), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      iconRight: "arrow",
+      onClick: onNext
+    }, "Start ", section.title.toLowerCase()));
+  }
+  const itemIdx = allItems.filter(e => e.type === 'item').findIndex(e => e.item.id === item.id) + 1;
+  const itemCount = allItems.filter(e => e.type === 'item').length;
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onPrev,
+    disabled: !prevLabel,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '7px 13px',
+      background: 'transparent',
+      border: `1px solid ${prevLabel ? T.border : 'transparent'}`,
+      borderRadius: 8,
+      cursor: prevLabel ? 'pointer' : 'default',
+      color: prevLabel ? T.textSoft : T.mutedSoft,
+      fontSize: 12.5,
+      fontWeight: 600,
+      opacity: prevLabel ? 1 : 0.35
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronLeft",
+    size: 14,
+    color: prevLabel ? T.textSoft : T.mutedSoft
+  }), prevLabel || 'Back'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.mutedSoft,
+      fontWeight: 500
+    }
+  }, itemIdx, " of ", itemCount), /*#__PURE__*/React.createElement("button", {
+    onClick: onNext,
+    disabled: !nextLabel,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '7px 13px',
+      background: 'transparent',
+      border: `1px solid ${nextLabel ? T.border : 'transparent'}`,
+      borderRadius: 8,
+      cursor: nextLabel ? 'pointer' : 'default',
+      color: nextLabel ? T.textSoft : T.mutedSoft,
+      fontSize: 12.5,
+      fontWeight: 600,
+      opacity: nextLabel ? 1 : 0.35
+    }
+  }, nextLabel || 'Done', /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 14,
+    color: nextLabel ? T.textSoft : T.mutedSoft
+  }))), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      borderLeft: `4px solid ${T.primary}`,
+      paddingLeft: 24,
+      paddingRight: 24,
+      paddingTop: 24,
+      paddingBottom: 28
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      fontWeight: 600,
+      marginBottom: 10,
+      letterSpacing: 0.3
+    }
+  }, "Section ", section.num, " \xB7 ", section.title, item.required && /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 10,
+      color: T.amber,
+      fontWeight: 700
+    }
+  }, "Required")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 21,
+      fontWeight: 800,
+      color: T.text,
+      marginBottom: 5
+    }
+  }, item.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13.5,
+      lineHeight: 1.6,
+      marginBottom: 22
+    }
+  }, item.detail), item.done && item.summary && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '9px 13px',
+      background: T.greenSoft,
+      border: '1px solid #A7F3D0',
+      borderRadius: 8,
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 14,
+    color: T.greenDark,
+    strokeWidth: 2.5
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.greenDark,
+      flex: 1,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, item.summary)), /*#__PURE__*/React.createElement(ActionStepEditor, {
+    item: item,
+    portal: activeClient,
+    set: setClient,
+    advance: () => {
+      fireToast?.({
+        message: `${item.title} saved`
+      });
+      onNext();
+    },
+    fireToast: fireToast,
+    hideSave: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      marginTop: 24,
+      paddingTop: 20,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: () => {
+      fireToast?.({
+        message: `${item.title} saved`
+      });
+      onNext();
+    }
+  }, "Save and continue"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => fireToast?.({
+      message: 'Draft saved'
+    }),
+    style: {
+      background: 'transparent',
+      border: 'none',
+      cursor: 'pointer',
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.textSoft,
+      padding: '8px 4px'
+    }
+  }, "Save draft"))));
+};
+
+// --- Client roster bar — full-width member status strip above the wizard ---
+// Scaleable to 100+ clients: shows 5 rows collapsed, expands on demand.
+// Lives OUTSIDE the sidebar so it doesn't compete with the checklist tree.
+// --- Client Group page — questionnaire-style wizard (tree sidebar + content panel)
 const PortalGetStarted = ({
   portal,
   setPortal,
@@ -101415,73 +102129,160 @@ const PortalGetStarted = ({
       ...patch
     } : c)
   }));
-  const selectClient = id => setPortal(p => ({
-    ...p,
-    activeClientId: id,
-    clients: p.clients.map(c => ({
-      ...c,
-      editingField: null
-    }))
-  }));
   const cprog = clientProgress(activeClient);
-  const {
-    allItems
-  } = cprog;
-  const requiredOpen = cprog.items.filter(i => !i.done);
   const clientDone = isClientOnboarded(activeClient);
   const youName = ((portal.clients.find(c => c.isYou) || {}).name || '').split(' ')[0];
-  const fieldRefs = useRef({});
-  const goToField = id => {
-    setClient({
-      editingField: id,
-      flashField: id
-    });
-    setTimeout(() => {
-      const el = fieldRefs.current[id];
-      if (el) el.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
+
+  // Wizard navigation state
+  const [activeSectionId, setActiveSectionId] = useState('welcome');
+  const [activeItemId, setActiveItemId] = useState(null);
+  const [expandedSections, setExpandedSections] = useState(() => new Set(['welcome']));
+
+  // Flat ordered list for linear prev/next navigation
+  const allItems = useMemo(() => {
+    const flat = [];
+    ONBOARDING_SECTIONS.forEach(sec => {
+      flat.push({
+        type: 'section',
+        sec
       });
-    }, 60);
-    setTimeout(() => setClient({
-      flashField: null
-    }), 1200);
+      sectionItems(sec, activeClient).forEach(item => flat.push({
+        type: 'item',
+        sec,
+        item
+      }));
+    });
+    return flat;
+  }, [activeClient, portal]);
+  const goToSection = id => {
+    setActiveSectionId(id);
+    const sec = ONBOARDING_SECTIONS.find(s => s.id === id);
+    if (sec && !sec.isWelcome) {
+      const items = sectionItems(sec, activeClient);
+      const first = items.find(i => !i.done) || items[0];
+      setActiveItemId(first ? first.id : null);
+    } else {
+      setActiveItemId(null);
+    }
+    setExpandedSections(prev => new Set([...prev, id]));
   };
+  const goToItem = (secId, itemId) => {
+    setActiveSectionId(secId);
+    setActiveItemId(itemId);
+    setExpandedSections(prev => new Set([...prev, secId]));
+  };
+  const selectClient = id => {
+    setPortal(p => ({
+      ...p,
+      activeClientId: id
+    }));
+    const c = portal.clients.find(cl => cl.id === id);
+    if (!c) return;
+    const firstReq = computeClientActions(c).find(i => i.required && !i.done);
+    if (firstReq) {
+      const sec = ONBOARDING_SECTIONS.find(s => s.group === firstReq.group);
+      if (sec) {
+        setActiveSectionId(sec.id);
+        setActiveItemId(firstReq.id);
+        setExpandedSections(prev => new Set([...prev, sec.id]));
+        return;
+      }
+    }
+    setActiveSectionId('welcome');
+    setActiveItemId(null);
+  };
+  const toggleSection = id => setExpandedSections(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);else next.add(id);
+    return next;
+  });
+  const currentIdx = activeItemId ? allItems.findIndex(e => e.type === 'item' && e.item.id === activeItemId) : allItems.findIndex(e => e.type === 'section' && e.sec.id === activeSectionId);
+  const goNext = () => {
+    for (let i = currentIdx + 1; i < allItems.length; i++) {
+      const e = allItems[i];
+      if (e.type === 'item') {
+        goToItem(e.sec.id, e.item.id);
+        return;
+      }
+      if (e.type === 'section') {
+        goToSection(e.sec.id);
+        return;
+      }
+    }
+  };
+  const goPrev = () => {
+    for (let i = currentIdx - 1; i >= 0; i--) {
+      const e = allItems[i];
+      if (e.type === 'item') {
+        goToItem(e.sec.id, e.item.id);
+        return;
+      }
+      if (e.type === 'section') {
+        goToSection(e.sec.id);
+        return;
+      }
+    }
+  };
+  const prevLabel = (() => {
+    for (let i = currentIdx - 1; i >= 0; i--) {
+      const e = allItems[i];
+      return e.type === 'item' ? e.item.title : e.sec.title;
+    }
+    return null;
+  })();
+  const nextLabel = (() => {
+    for (let i = currentIdx + 1; i < allItems.length; i++) {
+      const e = allItems[i];
+      return e.type === 'item' ? e.item.title : e.sec.title;
+    }
+    return null;
+  })();
+
+  // External navigation via wizardSection/wizardItem (set by the group header's member switcher)
+  useEffect(() => {
+    if (portal.wizardSection && portal.wizardItem) {
+      goToItem(portal.wizardSection, portal.wizardItem);
+      setPortal(p => ({
+        ...p,
+        wizardSection: null,
+        wizardItem: null
+      }));
+    }
+  }, [portal.wizardSection, portal.wizardItem]);
+  const activeSection = ONBOARDING_SECTIONS.find(s => s.id === activeSectionId) || ONBOARDING_SECTIONS[0];
+  const activeItem = activeItemId ? sectionItems(activeSection, activeClient).find(i => i.id === activeItemId) : null;
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 18
-    }
-  }, /*#__PURE__*/React.createElement(PortalClientSelector, {
-    portal: portal,
-    onSelect: selectClient
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
       display: 'grid',
-      gridTemplateColumns: '1fr 300px',
+      gridTemplateColumns: '272px 1fr',
       gap: 24,
       alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
+      position: 'sticky',
+      top: 20,
       display: 'flex',
       flexDirection: 'column',
-      gap: 16
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: 0,
+      overflow: 'hidden'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 12,
-      padding: '12px 16px',
-      borderRadius: 12,
-      background: clientDone ? T.greenSoft : T.primarySofter,
-      border: `1px solid ${clientDone ? '#A7F3D0' : '#C7C9FB'}`
+      gap: 9,
+      padding: '10px 13px',
+      background: clientDone ? T.greenSoft : T.fieldBg,
+      borderBottom: `1px solid ${T.border}`
     }
   }, /*#__PURE__*/React.createElement(Avatar, {
     name: activeClient.name,
-    size: 34
+    size: 26
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
@@ -101489,293 +102290,65 @@ const PortalGetStarted = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13.5,
-      fontWeight: 700,
-      color: T.text
-    }
-  }, activeClient.name, activeClient.isYou ? ' (You)' : ''), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5
-    }
-  }, activeClient.service, " \xB7 ", PORTAL_CLIENT_KIND[activeClient.kind] || 'Client')), clientDone ? /*#__PURE__*/React.createElement(Pill, {
-    color: "green",
-    style: {
-      fontSize: 10
-    }
-  }, "Complete") : /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      fontWeight: 700,
-      color: T.primary
-    }
-  }, cprog.done, "/", cprog.total, " required")), ONBOARDING_GROUPS.map(group => {
-    const groupItems = allItems.filter(i => i.group === group);
-    if (!groupItems.length) return null;
-    const gm = GROUP_META[group] || {};
-    const gDone = groupItems.filter(i => i.done).length;
-    const gReq = groupItems.filter(i => i.required);
-    const gReqDone = gReq.filter(i => i.done).length;
-    const sectionComplete = gReq.length ? gReqDone === gReq.length : gDone === groupItems.length;
-    return /*#__PURE__*/React.createElement(Card, {
-      key: group,
-      style: {
-        padding: 0,
-        overflow: 'hidden'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 11,
-        padding: '13px 16px',
-        borderBottom: `1px solid ${T.border}`,
-        background: T.fieldBg
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 32,
-        height: 32,
-        borderRadius: 9,
-        background: sectionComplete ? T.greenSoft : T.primarySoft,
-        color: sectionComplete ? T.greenDark : T.primary,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        border: `1px solid ${sectionComplete ? '#A7F3D0' : '#C7C9FB'}`
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: sectionComplete ? 'check' : gm.icon || 'clipboardCheck',
-      size: 16,
-      strokeWidth: sectionComplete ? 2.5 : 1.8
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1,
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 13.5,
-        fontWeight: 700,
-        color: T.text
-      }
-    }, group), /*#__PURE__*/React.createElement(Helper, {
-      style: {
-        fontSize: 11.5
-      }
-    }, gm.blurb)), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 11,
-        fontWeight: 700,
-        color: sectionComplete ? T.greenDark : T.muted
-      }
-    }, gDone, "/", groupItems.length)), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        padding: 14
-      }
-    }, groupItems.map(item => /*#__PURE__*/React.createElement(PortalFieldRow, {
-      key: item.id,
-      item: item,
-      portal: activeClient,
-      set: setClient,
-      fireToast: fireToast,
-      innerRef: el => {
-        fieldRefs.current[item.id] = el;
-      },
-      flashing: activeClient.flashField === item.id
-    }))));
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12,
-      position: 'sticky',
-      top: 20
-    }
-  }, !clientDone && /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 4
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 700,
-      color: T.text
-    }
-  }, "Required for ", activeClient.name.split(' ')[0]), /*#__PURE__*/React.createElement(Pill, {
-    color: "amber",
-    style: {
-      fontSize: 10
-    }
-  }, cprog.done, "/", cprog.total)), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11,
-      marginBottom: 8
-    }
-  }, "Finish every client to unlock the portal."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 2
-    }
-  }, cprog.items.map(item => /*#__PURE__*/React.createElement("button", {
-    key: item.id,
-    onClick: () => goToField(item.id),
-    "data-hover": "row",
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 9,
-      padding: '7px 8px',
-      background: 'transparent',
-      border: 'none',
-      cursor: 'pointer',
-      borderRadius: 7,
-      textAlign: 'left',
-      width: '100%'
+      gap: 6
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      width: 18,
-      height: 18,
-      borderRadius: '50%',
-      flexShrink: 0,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: item.done ? T.green : 'transparent',
-      border: `1.5px solid ${item.done ? T.green : T.borderStrong}`
-    }
-  }, item.done && /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
-    size: 11,
-    color: "#fff",
-    strokeWidth: 3
-  })), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
       fontSize: 12.5,
-      fontWeight: item.done ? 500 : 600,
-      color: item.done ? T.muted : T.text,
-      textDecoration: item.done ? 'line-through' : 'none'
+      fontWeight: 700,
+      color: T.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
     }
-  }, item.title), !item.done && /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 13,
-    color: T.mutedSoft
-  })))), requiredOpen.length > 0 && /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    size: "sm",
-    iconRight: "arrow",
-    onClick: () => goToField(requiredOpen[0].id),
+  }, activeClient.name.split(' ')[0], "'s checklist"), activeClient.isYou && /*#__PURE__*/React.createElement("span", {
     style: {
-      width: '100%',
-      justifyContent: 'center',
-      marginTop: 10
+      fontSize: 8.5,
+      fontWeight: 800,
+      color: T.primary,
+      background: T.primarySoft,
+      borderRadius: 4,
+      padding: '1px 4px',
+      letterSpacing: 0.4,
+      flexShrink: 0
     }
-  }, "Continue")), clientDone && !onboarded && /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 14,
-      background: T.greenSoft,
-      border: '1px solid #A7F3D0'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 6
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
+  }, "YOU"))), clientDone ? /*#__PURE__*/React.createElement(Icon, {
     name: "checkCircle",
-    size: 15,
+    size: 16,
     color: T.greenDark
-  }), /*#__PURE__*/React.createElement("div", {
+  }) : /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 12.5,
+      fontSize: 11,
       fontWeight: 700,
-      color: T.greenDark
+      color: T.primary,
+      flexShrink: 0
     }
-  }, activeClient.name.split(' ')[0], " is all done")), /*#__PURE__*/React.createElement(Helper, {
+  }, cprog.done, "/", cprog.total)), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 11.5,
-      color: T.greenDark,
-      marginBottom: 10
+      padding: '9px 8px 11px'
     }
-  }, "Complete the remaining client", groupProgress(portal).clientsTotal - groupProgress(portal).clientsComplete === 1 ? '' : 's', " to unlock the portal."), (() => {
-    const next = portal.clients.find(c => !isClientOnboarded(c));
-    return next ? /*#__PURE__*/React.createElement(Btn, {
-      variant: "primary",
-      size: "sm",
-      iconRight: "arrow",
-      onClick: () => selectClient(next.id),
-      style: {
-        width: '100%',
-        justifyContent: 'center'
-      }
-    }, "Next: ", next.name.split(' ')[0]) : null;
-  })()), onboarded && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(OnboardingTreeSidebar, {
+    sections: ONBOARDING_SECTIONS,
+    activeClient: activeClient,
+    activeSectionId: activeSectionId,
+    activeItemId: activeItemId,
+    expandedSections: expandedSections,
+    onSelectSection: goToSection,
+    onSelectItem: goToItem,
+    onToggleSection: toggleSection
+  }))), /*#__PURE__*/React.createElement(Card, {
     style: {
-      background: T.greenSoft,
-      border: `1px solid #A7F3D0`,
-      borderRadius: 12,
-      padding: 16,
-      textAlign: 'center'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 44,
-      height: 44,
-      borderRadius: '50%',
-      background: T.green,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
-    size: 22,
-    color: "#fff",
-    strokeWidth: 3
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: T.greenDark,
-      marginBottom: 4
-    }
-  }, "You're all set", youName ? `, ${youName}` : '', "!"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 12,
-      color: T.greenDark,
-      marginBottom: 14
-    }
-  }, "Every client is complete. Your portal is fully unlocked."), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    size: "sm",
-    iconRight: "arrow",
-    onClick: () => go('dashboard')
-  }, "Explore portal")), /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 14
+      padding: 0,
+      overflow: 'hidden'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 10
+      padding: '10px 13px 8px'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -101787,13 +102360,13 @@ const PortalGetStarted = ({
     onClick: () => fireToast({
       message: 'Document upload is mocked in this demo'
     }),
-    title: "Add document",
+    title: "Upload document",
     style: {
       width: 24,
       height: 24,
       borderRadius: 7,
       border: `1px solid ${T.border}`,
-      background: T.card,
+      background: T.fieldBg,
       color: T.muted,
       cursor: 'pointer',
       display: 'inline-flex',
@@ -101803,171 +102376,132 @@ const PortalGetStarted = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "plus",
     size: 13
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 8
-    }
-  }, portal.groupDocs.map(d => /*#__PURE__*/React.createElement("div", {
-    key: d.id,
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 9
-    }
-  }, /*#__PURE__*/React.createElement(PdfFileIcon, {
-    size: 26
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      fontWeight: 600,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
-    }
-  }, d.name), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 10.5
-    }
-  }, d.size)), /*#__PURE__*/React.createElement(Pill, {
-    color: "neutral",
-    style: {
-      fontSize: 9
-    }
-  }, d.tag))))), /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      fontWeight: 700,
-      color: T.text,
-      marginBottom: 3
-    }
-  }, onboarded ? 'Your portal' : 'What you\'ll unlock'), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11,
-      marginBottom: 10
-    }
-  }, onboarded ? 'All sections are now available' : 'Complete all clients to access these'), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 4
-    }
-  }, PORTAL_NAV.filter(t => !t.home).map(tab => /*#__PURE__*/React.createElement("button", {
-    key: tab.id,
-    "data-hover": "row",
-    onClick: () => go(tab.id),
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '8px 10px',
-      background: 'transparent',
-      border: `1px solid ${T.border}`,
-      borderRadius: 8,
-      cursor: 'pointer',
-      textAlign: 'left',
-      width: '100%',
-      transition: 'border-color 0.12s, background 0.12s'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 28,
-      height: 28,
-      borderRadius: 7,
-      flexShrink: 0,
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: onboarded ? T.primarySoft : T.fieldBg,
-      color: onboarded ? T.primary : T.mutedSoft
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: onboarded ? tab.icon : 'lock',
-    size: 13
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: onboarded ? T.text : T.textSoft
-    }
-  }, tab.label), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 10.5,
-      color: onboarded ? T.green : T.mutedSoft
-    }
-  }, onboarded ? '✓ Unlocked — click to view' : 'Unlocks after onboarding')), /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 11,
-    color: T.mutedSoft
-  }))))), /*#__PURE__*/React.createElement(Card, {
+  }))), /*#__PURE__*/React.createElement("div", null, portal.groupDocs.map((d, i) => {
+    const tagColor = d.tag === 'Signed' ? 'green' : d.tag === 'Reference' ? 'blue' : 'neutral';
+    return /*#__PURE__*/React.createElement("div", {
+      key: d.id,
+      "data-hover": "row",
+      onClick: () => fireToast({
+        message: `Opening ${d.name} (mocked)`
+      }),
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '8px 13px',
+        borderTop: i > 0 ? `1px solid ${T.border}` : undefined,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 32,
+        height: 38,
+        borderRadius: 5,
+        background: '#FEE2E2',
+        border: '1px solid #FECACA',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 8.5,
+        fontWeight: 800,
+        color: '#EF4444',
+        letterSpacing: 0.3
+      }
+    }, "PDF")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        fontWeight: 600,
+        color: T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      },
+      title: d.name
+    }, d.name), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 10,
+        marginTop: 1
+      }
+    }, d.size)), /*#__PURE__*/React.createElement(Pill, {
+      color: tagColor,
+      style: {
+        fontSize: 9.5,
+        flexShrink: 0
+      }
+    }, d.tag));
+  }))), /*#__PURE__*/React.createElement(Card, {
     style: {
       background: T.fieldBg,
-      padding: 14
+      padding: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12,
+      fontSize: 11.5,
       fontWeight: 600,
       color: T.text,
-      marginBottom: 10
+      marginBottom: 7
     }
   }, "Need help?"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 7
+      gap: 5
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 8,
-      fontSize: 12
+      gap: 7,
+      fontSize: 11.5,
+      color: T.textSoft
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "user",
-    size: 13,
+    size: 12,
     color: T.muted
-  }), /*#__PURE__*/React.createElement("span", {
+  }), /*#__PURE__*/React.createElement("span", null, PORTAL_CLIENT.advisor), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: T.textSoft
+      color: T.mutedSoft
     }
-  }, PORTAL_CLIENT.advisor), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: T.mutedSoft,
-      fontSize: 11
-    }
-  }, PORTAL_CLIENT.advisorTitle)), /*#__PURE__*/React.createElement("div", {
+  }, "\xB7 ", PORTAL_CLIENT.advisorTitle)), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 8,
-      fontSize: 12
+      gap: 7,
+      fontSize: 11.5,
+      color: T.textSoft
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "mail",
-    size: 13,
+    size: 12,
     color: T.muted
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      color: T.textSoft
-    }
-  }, "support@soleaccounting.com.au")))))));
+  }), /*#__PURE__*/React.createElement("span", null, "support@soleaccounting.com.au"))))), /*#__PURE__*/React.createElement(OnboardingContentPanel, {
+    section: activeSection,
+    item: activeItem,
+    activeClient: activeClient,
+    setClient: setClient,
+    fireToast: fireToast,
+    onNext: goNext,
+    onPrev: goPrev,
+    prevLabel: prevLabel,
+    nextLabel: nextLabel,
+    allItems: allItems,
+    onboarded: onboarded,
+    portal: portal,
+    go: go,
+    youName: youName,
+    clientDone: clientDone,
+    selectClient: selectClient
+  }));
 };
 
 // --- portal tab preview mocks (tab-specific realistic content) ----------------
@@ -103005,6 +103539,10 @@ const PortalSignModal = ({
 // Shows EVERY module. Until the group is onboarded, all non-home modules render
 // LOCKED (lock glyph + dimmed); clicking one still routes to its blurred teaser
 // so the client sees what's waiting. "Client Group" (home) is always live.
+// During onboarding the full labelled app nav (Dashboard…Payroll, all locked)
+// competes with the checklist as a second navigation. So while onboarding we
+// collapse it to a slim icon-only rail (padlocks + tooltips keep the "modules
+// unlock later" teaser); once onboarded it expands to the full labelled nav.
 const PortalSidebar = ({
   portal,
   onboarded,
@@ -103013,6 +103551,8 @@ const PortalSidebar = ({
   fireToast
 }) => {
   const g = groupProgress(portal);
+  const slim = !onboarded;
+  const remaining = g.clientsTotal - g.clientsComplete || 0;
   const NavRow = ({
     id,
     icon,
@@ -103072,9 +103612,77 @@ const PortalSidebar = ({
     size: 13,
     color: T.muted
   }));
+
+  // Slim icon-only button — tooltip carries the label; a small padlock badge marks locked modules.
+  const IconRow = ({
+    id,
+    icon,
+    label,
+    locked,
+    active,
+    badge,
+    dotColor,
+    onClick
+  }) => /*#__PURE__*/React.createElement("button", {
+    "data-hover": active ? undefined : 'row',
+    title: label,
+    onClick: onClick || (() => onNav(id)),
+    style: {
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 44,
+      height: 44,
+      borderRadius: 11,
+      margin: '0 auto 4px',
+      border: 'none',
+      cursor: 'pointer',
+      background: active ? T.primary : 'transparent',
+      transition: 'background 0.12s'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 18,
+    color: active ? '#fff' : locked ? T.mutedSoft : T.muted
+  }), locked && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      right: 4,
+      bottom: 4,
+      width: 13,
+      height: 13,
+      borderRadius: '50%',
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 7,
+    color: T.mutedSoft
+  })), badge != null && badge > 0 && !active && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      top: 2,
+      right: 2,
+      fontSize: 9,
+      fontWeight: 800,
+      color: '#fff',
+      background: dotColor || T.amber,
+      borderRadius: 999,
+      minWidth: 15,
+      height: 15,
+      lineHeight: '15px',
+      textAlign: 'center',
+      padding: '0 3px'
+    }
+  }, badge));
   return /*#__PURE__*/React.createElement("aside", {
     style: {
-      width: 248,
+      width: slim ? 68 : 248,
       background: T.card,
       borderRight: `1px solid ${T.border}`,
       display: 'flex',
@@ -103084,14 +103692,38 @@ const PortalSidebar = ({
       top: 0,
       alignSelf: 'flex-start',
       height: '100vh',
-      overflowY: 'auto'
+      overflowY: 'auto',
+      transition: 'width 0.2s'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: '18px 18px 14px',
-      borderBottom: `1px solid ${T.border}`
+      padding: slim ? '18px 0 14px' : '18px 18px 14px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      justifyContent: slim ? 'center' : 'flex-start'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, slim ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: 2
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 18,
+      fontWeight: 700,
+      letterSpacing: -0.5
+    }
+  }, "S"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-block',
+      width: 9,
+      height: 9,
+      borderRadius: '50%',
+      background: `radial-gradient(circle at 30% 30%, ${T.primary}, ${T.primaryDark})`,
+      transform: 'translateY(1px)'
+    }
+  })) : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'baseline',
@@ -103129,10 +103761,10 @@ const PortalSidebar = ({
     }
   }, "Portal"))), /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: '12px 12px',
+      padding: slim ? '12px 8px' : '12px 12px',
       flex: 1
     }
-  }, !onboarded && /*#__PURE__*/React.createElement("div", {
+  }, !onboarded && !slim && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -103156,22 +103788,49 @@ const PortalSidebar = ({
     }
   }, "Modules unlock once all clients are onboarded")), PORTAL_NAV.map(item => {
     const locked = !onboarded && !item.home;
-    return /*#__PURE__*/React.createElement(NavRow, {
+    const active = activeSection === item.id;
+    const badge = item.home && !onboarded ? remaining || null : null;
+    return slim ? /*#__PURE__*/React.createElement(IconRow, {
+      key: item.id,
+      id: item.id,
+      icon: item.icon,
+      label: locked ? `${item.label} — unlocks once onboarded` : item.label,
+      locked: locked,
+      active: active,
+      badge: badge,
+      dotColor: T.primary
+    }) : /*#__PURE__*/React.createElement(NavRow, {
       key: item.id,
       id: item.id,
       icon: item.icon,
       label: item.label,
       home: item.home,
       locked: locked,
-      active: activeSection === item.id,
-      badge: item.home && !onboarded ? g.clientsTotal - g.clientsComplete || null : null
+      active: active,
+      badge: badge
     });
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       borderTop: `1px solid ${T.border}`,
-      padding: '10px 12px'
+      padding: slim ? '10px 8px' : '10px 12px'
     }
-  }, /*#__PURE__*/React.createElement("button", {
+  }, slim ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(IconRow, {
+    icon: "bell",
+    label: onboarded ? 'Notifications' : 'Notifications — unlocks once onboarded',
+    locked: !onboarded,
+    badge: onboarded ? 3 : null,
+    dotColor: "#EF4444",
+    onClick: () => fireToast({
+      message: onboarded ? 'Notifications — mocked in this demo' : 'Notifications unlock after onboarding'
+    })
+  }), /*#__PURE__*/React.createElement(IconRow, {
+    icon: "sliders",
+    label: onboarded ? 'Settings' : 'Settings — unlocks once onboarded',
+    locked: !onboarded,
+    onClick: () => fireToast({
+      message: onboarded ? 'Settings — mocked in this demo' : 'Settings unlock after onboarding'
+    })
+  })) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     "data-hover": "row",
     onClick: () => fireToast({
       message: onboarded ? 'Notifications — mocked in this demo' : 'Notifications unlock after onboarding'
@@ -103245,18 +103904,19 @@ const PortalSidebar = ({
     name: "lock",
     size: 12,
     color: T.mutedSoft
-  }))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: {
       borderTop: `1px solid ${T.border}`,
-      padding: '12px 14px',
+      padding: slim ? '12px 0' : '12px 14px',
       display: 'flex',
       alignItems: 'center',
+      justifyContent: slim ? 'center' : 'flex-start',
       gap: 10
     }
   }, /*#__PURE__*/React.createElement(Avatar, {
     name: PORTAL_CLIENT.name,
     size: 28
-  }), /*#__PURE__*/React.createElement("div", {
+  }), !slim && /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: 0,
       flex: 1
@@ -103308,25 +103968,23 @@ const ClientPortalApp = () => {
     } : c)
   }));
 
-  // Continue from the group progress header: select that client + open that field.
+  // Continue from the group progress header: select that client + jump to that wizard item.
   const goToFieldFromHeader = (clientId, fieldId) => {
     if (route.section !== 'details') go('details');
+    const c = portal.clients.find(cl => cl.id === clientId);
+    const sec = c && fieldId ? ONBOARDING_SECTIONS.find(s => sectionItems(s, c).some(i => i.id === fieldId)) : null;
     setPortal(p => ({
       ...p,
       activeClientId: clientId,
-      clients: p.clients.map(c => c.id === clientId ? {
-        ...c,
-        editingField: fieldId,
-        flashField: fieldId
-      } : c)
+      wizardSection: sec ? sec.id : null,
+      wizardItem: fieldId
     }));
-    setTimeout(() => setPortal(p => ({
-      ...p,
-      clients: p.clients.map(c => c.id === clientId ? {
-        ...c,
-        flashField: null
-      } : c)
-    })), 1300);
+  };
+  // Pick a member from the header strip → switch to them + jump to their first outstanding field.
+  const pickClient = clientId => {
+    const c = portal.clients.find(cl => cl.id === clientId);
+    const firstField = c ? clientProgress(c).items.find(i => !i.done) : null;
+    goToFieldFromHeader(clientId, firstField ? firstField.id : null);
   };
   const isHome = route.section === 'details';
   const meta = PORTAL_TAB_META[route.section];
@@ -103380,15 +104038,15 @@ const ClientPortalApp = () => {
   }, subtitle)), /*#__PURE__*/React.createElement(PortalDemoControls, {
     setPortal: setPortal,
     fireToast: fireToast
-  })), /*#__PURE__*/React.createElement("div", {
+  })), isHome && /*#__PURE__*/React.createElement("div", {
     style: {
       marginInline: 28,
       marginBottom: 16
     }
-  }, /*#__PURE__*/React.createElement(PortalProgressHeader, {
+  }, /*#__PURE__*/React.createElement(PortalGroupHeader, {
     portal: portal,
     onboarded: onboarded,
-    onContinue: goToFieldFromHeader
+    onPickClient: pickClient
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
