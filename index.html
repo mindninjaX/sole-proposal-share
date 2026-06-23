@@ -26931,7 +26931,49 @@ const AppSidebar = ({
       textTransform: 'uppercase',
       padding: '0 8px 6px'
     }
-  }, "Menu"), items.map((m, i) => {
+  }, "Menu"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = '#/portal';
+    },
+    style: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '7px 10px',
+      border: `1px dashed ${T.border}`,
+      borderRadius: 8,
+      background: 'transparent',
+      color: T.muted,
+      fontSize: 12.5,
+      fontWeight: 500,
+      cursor: 'pointer',
+      textAlign: 'left',
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "link",
+    size: 13,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Client Portal"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: T.muted,
+      fontStyle: 'italic',
+      marginTop: 1,
+      lineHeight: 1.3
+    }
+  }, "Demo shortcut \u2014 not a real nav item"))), items.map((m, i) => {
     const hasSub = !!m.sub;
     // Default {} → all groups open. Active group force-expands so the
     // current page is always reachable even if the user tucked it away.
@@ -101514,7 +101556,6 @@ const OnboardingWelcomeContent = ({
   const first = (activeClient?.name || '').split(' ')[0];
   return /*#__PURE__*/React.createElement(Card, {
     style: {
-      borderLeft: `4px solid ${T.primary}`,
       padding: 32
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -101609,29 +101650,38 @@ const TreeStatusDot = ({
   strokeWidth: 3
 }));
 
-// Smooth curved connector — a vertical drop with a rounded turn into the row,
-// plus an optional trunk continuation down to the next sibling. Solid, not
-// dashed; the rounded corner is what makes the line read as "curved".
+// Connected tree connector — ONE continuous vertical trunk down the left edge,
+// with a small rounded elbow branching into each row at its vertical centre.
+// The trunk runs the full height between siblings (so adjacent rows visibly
+// share one line) and stops at the elbow on the last item. Earlier each row
+// drew its own big-radius "L" that swung away from the trunk, leaving a gap at
+// every row — which is why the lines read as disconnected.
 const TreeConnector = ({
   continues
 }) => /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  style: continues ? {
+    position: 'absolute',
+    left: 9,
+    top: -2,
+    bottom: 0,
+    borderLeft: `1.5px solid ${T.borderStrong}`
+  } : {
+    position: 'absolute',
+    left: 9,
+    top: -2,
+    height: 17,
+    borderLeft: `1.5px solid ${T.borderStrong}`
+  }
+}), /*#__PURE__*/React.createElement("div", {
   style: {
     position: 'absolute',
     left: 9,
-    top: -1,
-    width: 11,
-    height: 16,
+    top: 8,
+    width: 13,
+    height: 7,
     borderLeft: `1.5px solid ${T.borderStrong}`,
     borderBottom: `1.5px solid ${T.borderStrong}`,
-    borderBottomLeftRadius: 9
-  }
-}), continues && /*#__PURE__*/React.createElement("div", {
-  style: {
-    position: 'absolute',
-    left: 9,
-    top: 15,
-    bottom: -2,
-    borderLeft: `1.5px solid ${T.borderStrong}`
+    borderBottomLeftRadius: 7
   }
 }));
 
@@ -101889,7 +101939,6 @@ const OnboardingContentPanel = ({
     const sp = sectionProgress(section, activeClient);
     return /*#__PURE__*/React.createElement(Card, {
       style: {
-        borderLeft: `4px solid ${T.primary}`,
         padding: 32
       }
     }, /*#__PURE__*/React.createElement("div", {
@@ -102005,7 +102054,6 @@ const OnboardingContentPanel = ({
     color: nextLabel ? T.textSoft : T.mutedSoft
   }))), /*#__PURE__*/React.createElement(Card, {
     style: {
-      borderLeft: `4px solid ${T.primary}`,
       paddingLeft: 24,
       paddingRight: 24,
       paddingTop: 24,
@@ -103539,10 +103587,9 @@ const PortalSignModal = ({
 // Shows EVERY module. Until the group is onboarded, all non-home modules render
 // LOCKED (lock glyph + dimmed); clicking one still routes to its blurred teaser
 // so the client sees what's waiting. "Client Group" (home) is always live.
-// During onboarding the full labelled app nav (Dashboard…Payroll, all locked)
-// competes with the checklist as a second navigation. So while onboarding we
-// collapse it to a slim icon-only rail (padlocks + tooltips keep the "modules
-// unlock later" teaser); once onboarded it expands to the full labelled nav.
+// The full labelled nav stays visible during onboarding too — the locked rows
+// (label + padlock) plus the amber "modules unlock once onboarded" note are the
+// teaser, and a labelled sidebar reads far clearer than an icon-only rail.
 const PortalSidebar = ({
   portal,
   onboarded,
@@ -103551,7 +103598,7 @@ const PortalSidebar = ({
   fireToast
 }) => {
   const g = groupProgress(portal);
-  const slim = !onboarded;
+  const slim = false; // never collapse to the icon-only rail (was: !onboarded)
   const remaining = g.clientsTotal - g.clientsComplete || 0;
   const NavRow = ({
     id,
