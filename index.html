@@ -2332,6 +2332,76 @@ const Chip = ({
   }
 }, children);
 
+// Star rating — read-only display by default (no `onChange`); pass `onChange`
+// for an interactive 1–max picker (the client feedback flow uses this). Filled
+// stars use T.amber; empty stars are a T.borderStrong outline. No half-stars.
+// Renders its own <svg> (not <Icon>) so it can toggle `fill` per star — the
+// shared Icon atom hardcodes fill="none".
+const StarRating = ({
+  value = 0,
+  max = 5,
+  size = 16,
+  onChange,
+  onHoverChange,
+  gap = 2
+}) => {
+  const [hover, setHover] = useState(0);
+  const interactive = !!onChange;
+  const setH = n => {
+    setHover(n);
+    if (onHoverChange) onHoverChange(n);
+  };
+  const shown = interactive && hover ? hover : value;
+  const pts = '12 2 15 8.6 22 9.3 17 14.1 18.2 21 12 17.5 5.8 21 7 14.1 2 9.3 9 8.6 12 2';
+  const starSvg = filled => /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: filled ? T.amber : 'none',
+    stroke: filled ? T.amber : T.borderStrong,
+    strokeWidth: 1.4,
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("polygon", {
+    points: pts
+  }));
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      gap,
+      alignItems: 'center'
+    },
+    role: interactive ? 'radiogroup' : 'img',
+    "aria-label": interactive ? 'Rate your experience' : `${value} out of ${max} stars`
+  }, Array.from({
+    length: max
+  }, (_, i) => {
+    const n = i + 1;
+    const filled = n <= shown;
+    if (!interactive) return /*#__PURE__*/React.createElement("span", {
+      key: n,
+      style: {
+        display: 'inline-flex'
+      }
+    }, starSvg(filled));
+    return /*#__PURE__*/React.createElement("button", {
+      key: n,
+      type: "button",
+      onClick: () => onChange(n),
+      onMouseEnter: () => setH(n),
+      onMouseLeave: () => setH(0),
+      "aria-label": `${n} star${n > 1 ? 's' : ''}`,
+      style: {
+        border: 'none',
+        background: 'transparent',
+        padding: 0,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        lineHeight: 0
+      }
+    }, starSvg(filled));
+  }));
+};
+
 // Click-to-edit text used by the live preview for inline-editable page
 // headings + subtitles. Renders plain text in its caller's typography by
 // default; clicking switches to contentEditable for direct manipulation. On
@@ -26685,6 +26755,9 @@ const AppSidebar = ({
     id: 'helicopter-view',
     label: 'Helicopter view'
   }, {
+    id: 'reputation',
+    label: 'Reputation'
+  }, {
     id: 'reports',
     label: 'Reports'
   }];
@@ -33274,6 +33347,562 @@ const PRACTICE_CLIENTS = [{
   officeId: 'off-mel'
 }];
 const clientById = id => PRACTICE_CLIENTS.find(c => c.id === id);
+
+// =================================================================
+// --- reputation management & client experience (Module 13) ---
+// Two connected parts, both mocked in module state:
+//  1. Client experience score — an internal 0–100 score per completed job
+//     (on-time 30 · communication 20 · responsiveness 15 · review 15 · final
+//     rating 20). Deliberately NOT labelled "NPS" in-product (the dashboard
+//     keeps its own survey-style NPS card; these are different metrics).
+//  2. Reputation workflow — a post-job 1–5★ rating that routes 4–5★ to a
+//     public review (Google/Facebook) and 1–3★ to a private feedback form.
+// Feedback request fields live INLINE on each job (one request per job) so
+// there's no fragile two-array join — Requests/Feedback/Overview all read
+// REPUTATION_JOBS and filter by `status`.
+// =================================================================
+const REP_JOB_TYPES = ['BAS', 'Tax return', 'Bookkeeping', 'Advisory', 'Payroll', 'Onboarding', 'Annual accounts', 'Client review meeting'];
+
+// The 8 reasons offered on the private (1–3★) feedback form (spec §4).
+const REP_ISSUE_OPTIONS = ['The job took longer than expected', 'Communication was unclear', 'I was not sure what was happening', 'I did not understand what was completed', 'The outcome did not meet expectations', 'The cost or invoice was unclear', 'I had an issue using the portal', 'Other'];
+
+// The 4 client-facing updates a workflow is expected to send during a job —
+// used to score "Client communication". A job stores the subset actually sent.
+const REP_ALL_UPDATES = ['Job started', 'Information requested', 'Job in review', 'Job completed'];
+
+// Firm-level configuration (spec §5). Demo-seeded ENABLED so the surface shows
+// data on load (the spec's real default is Off). ReputationPage holds an
+// editable copy of this in component state; reloading resets it.
+const REPUTATION_SETTINGS_DEFAULT = {
+  enabled: true,
+  googleUrl: 'https://g.page/r/sole-practice/review',
+  facebookUrl: 'https://facebook.com/solepractice/reviews',
+  sendAfterCompletion: true,
+  delayHours: 24,
+  sendByEmail: true,
+  sendBySms: true,
+  showInPortal: true,
+  sendReminder: true,
+  reminderDelayDays: 3,
+  maxReminders: 1,
+  sendForAllJobTypes: true,
+  excludedJobTypes: [],
+  alert1Star: true,
+  alert2Star: true,
+  alert3Star: false,
+  createFollowupTask: true,
+  assignTo: 'job_owner',
+  // 'job_owner' | 'firm_admin'
+  reviewTargetDays: 2,
+  publicThreshold: 4,
+  // 4–5★ → public review prompt; 1–3★ → private form
+  feedbackTemplateId: 'feedback-request',
+  // existing WF_MESSAGE_TEMPLATES ids
+  googleTemplateId: 'google-review'
+};
+
+// Score → interpretation band (spec). First match wins (descending min).
+const REP_BANDS = [{
+  min: 85,
+  label: 'Excellent',
+  tone: 'green'
+}, {
+  min: 70,
+  label: 'Good',
+  tone: 'green'
+}, {
+  min: 50,
+  label: 'Needs attention',
+  tone: 'amber'
+}, {
+  min: 0,
+  label: 'Service risk',
+  tone: 'red'
+}];
+const repScoreBand = total => REP_BANDS.find(b => total >= b.min) || REP_BANDS[REP_BANDS.length - 1];
+const repStarPoints = s => ({
+  5: 20,
+  4: 15,
+  3: 10,
+  2: 5,
+  1: 0
+})[s] ?? 0;
+const repDaysBetween = (a, b) => Math.round((b - a) / 86400000);
+
+// Feedback-request status → Pill tone (spec status vocabulary §7).
+const REP_STATUS_META = {
+  'Not sent': {
+    tone: 'neutral'
+  },
+  'Scheduled': {
+    tone: 'neutral'
+  },
+  'Sent': {
+    tone: 'blue'
+  },
+  'Reminder sent': {
+    tone: 'blue'
+  },
+  'Rated': {
+    tone: 'accent'
+  },
+  'Feedback received': {
+    tone: 'amber'
+  },
+  'Google review clicked': {
+    tone: 'green'
+  },
+  'Follow up required': {
+    tone: 'red'
+  },
+  'Closed': {
+    tone: 'neutral'
+  }
+};
+
+// The single source of truth: turn a job's lifecycle into a 0–100 client
+// experience score with a per-component breakdown (so the UI can show WHY).
+// `settings.reviewTargetDays` tunes the internal-review component.
+const computeClientExperienceScore = (job, settings = REPUTATION_SETTINGS_DEFAULT) => {
+  const components = [];
+
+  // 1. Job completed on time (30). A "waiting on client" delay isn't the
+  // firm's fault, so client-caused lateness is not penalised.
+  let onTime, onTimeResult;
+  const late = repDaysBetween(job.dueDate, job.completedDate);
+  if (job.clientCausedDelay) {
+    onTime = 30;
+    onTimeResult = 'Delay caused by client — not penalised';
+  } else if (late <= 0) {
+    onTime = 30;
+    onTimeResult = 'On or before due date';
+  } else if (late <= 2) {
+    onTime = 20;
+    onTimeResult = `${late} day${late > 1 ? 's' : ''} late`;
+  } else if (late <= 5) {
+    onTime = 10;
+    onTimeResult = `${late} days late`;
+  } else {
+    onTime = 0;
+    onTimeResult = `${late} days late`;
+  }
+  components.push({
+    label: 'Job completed on time',
+    points: onTime,
+    max: 30,
+    result: onTimeResult
+  });
+
+  // 2. Client communication (20) — how many of the 4 expected updates went out.
+  const updates = (job.updatesSent || []).length;
+  const comm = updates >= 4 ? 20 : updates >= 1 ? 10 : 0;
+  components.push({
+    label: 'Client communication',
+    points: comm,
+    max: 20,
+    result: updates >= 4 ? 'All updates sent' : updates >= 1 ? `${updates} of 4 updates sent` : 'No updates sent'
+  });
+
+  // 3. Client responsiveness (15) — separates firm delays from client ones.
+  const respMap = {
+    on_time: [15, 'Responded within timeframe'],
+    late_ok: [10, 'Responded late, job progressed'],
+    late_impact: [5, 'Client delay impacted the job'],
+    no_response: [0, 'Client did not respond']
+  };
+  const [resp, respResult] = respMap[job.responsiveness] || [15, '—'];
+  components.push({
+    label: 'Client responsiveness',
+    points: resp,
+    max: 15,
+    result: respResult
+  });
+
+  // 4. Internal review on time (15) — did review/approval bottleneck the job?
+  let rev, revResult;
+  const target = settings.reviewTargetDays || 2;
+  if (job.reviewStart && job.reviewComplete) {
+    if (job.reviewComplete > job.dueDate) {
+      rev = 0;
+      revResult = 'Review caused missed deadline';
+    } else {
+      const rd = repDaysBetween(job.reviewStart, job.reviewComplete);
+      if (rd <= target) {
+        rev = 15;
+        revResult = `Reviewed in ${rd}d (target ${target}d)`;
+      } else if (rd <= target + 2) {
+        rev = 10;
+        revResult = `Review ${rd - target}d over target`;
+      } else {
+        rev = 5;
+        revResult = `Review ${rd - target}d over target`;
+      }
+    }
+  } else {
+    rev = 15;
+    revResult = 'No review required';
+  }
+  components.push({
+    label: 'Internal review on time',
+    points: rev,
+    max: 15,
+    result: revResult
+  });
+
+  // 5. Final client rating (20). No response → not penalised; the score is
+  // shown as operational-only.
+  const ratingMissing = job.rating == null;
+  const fr = ratingMissing ? 0 : repStarPoints(job.rating);
+  components.push({
+    label: 'Final client rating',
+    points: ratingMissing ? null : fr,
+    max: 20,
+    result: ratingMissing ? 'Not received' : `${job.rating} star${job.rating > 1 ? 's' : ''}`
+  });
+  const opSum = onTime + comm + resp + rev;
+  const total = ratingMissing ? opSum : opSum + fr;
+  return {
+    total,
+    ratingMissing,
+    band: repScoreBand(total),
+    components
+  };
+};
+
+// ~12 deterministic completed jobs with their feedback request/response inline.
+// Spread chosen so the surface shows every state: excellent + public-clicked,
+// good, neutral 3★, detractor 1–2★ with follow-up, and not-yet-responded.
+const _repFull = REP_ALL_UPDATES; // all 4 updates sent
+const _d = s => new Date(s + 'T00:00:00');
+const REPUTATION_JOBS = [{
+  id: 'rj-01',
+  clientId: 'c-solepay',
+  jobName: 'BAS — Q3 FY26',
+  jobType: 'BAS',
+  owner: 'Sarah Mitchell',
+  reviewer: 'Priya Nair',
+  dueDate: _d('2026-06-12'),
+  completedDate: _d('2026-06-11'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: _d('2026-06-09'),
+  reviewComplete: _d('2026-06-10'),
+  sentDate: _d('2026-06-12'),
+  reminderCount: 0,
+  status: 'Google review clicked',
+  rating: 5,
+  comment: 'Fast, clear and stress-free as always.',
+  category: null,
+  wantsContact: false,
+  routedPublic: true,
+  publicChannel: 'google',
+  googleReviewClicked: true
+}, {
+  id: 'rj-02',
+  clientId: 'c-northcoast',
+  jobName: 'Company tax return FY25',
+  jobType: 'Tax return',
+  owner: 'John O.',
+  reviewer: 'Lisa Carter',
+  dueDate: _d('2026-06-08'),
+  completedDate: _d('2026-06-09'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'late_ok',
+  reviewStart: _d('2026-06-05'),
+  reviewComplete: _d('2026-06-08'),
+  sentDate: _d('2026-06-10'),
+  reminderCount: 0,
+  status: 'Rated',
+  rating: 4,
+  comment: 'Happy with the outcome.',
+  category: null,
+  wantsContact: false,
+  routedPublic: true,
+  publicChannel: 'google',
+  googleReviewClicked: false
+}, {
+  id: 'rj-03',
+  clientId: 'c-bondi',
+  jobName: 'Bookkeeping — April',
+  jobType: 'Bookkeeping',
+  owner: 'Emma Roberts',
+  reviewer: 'Sarah Mitchell',
+  dueDate: _d('2026-06-05'),
+  completedDate: _d('2026-06-04'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: _d('2026-06-02'),
+  reviewComplete: _d('2026-06-03'),
+  sentDate: _d('2026-06-05'),
+  reminderCount: 0,
+  status: 'Google review clicked',
+  rating: 5,
+  comment: 'Brilliant work, thank you.',
+  category: null,
+  wantsContact: false,
+  routedPublic: true,
+  publicChannel: 'facebook',
+  googleReviewClicked: true
+}, {
+  id: 'rj-04',
+  clientId: 'c-greenleaf',
+  jobName: 'Advisory — cashflow plan',
+  jobType: 'Advisory',
+  owner: 'Michael Chen',
+  reviewer: 'Lisa Carter',
+  dueDate: _d('2026-06-01'),
+  completedDate: _d('2026-06-04'),
+  clientCausedDelay: false,
+  updatesSent: ['Job started', 'Job completed'],
+  responsiveness: 'late_impact',
+  reviewStart: _d('2026-05-29'),
+  reviewComplete: _d('2026-06-02'),
+  sentDate: _d('2026-06-05'),
+  reminderCount: 1,
+  status: 'Follow up required',
+  rating: 2,
+  comment: 'I wasn’t sure what was happening for a few weeks.',
+  category: 'I was not sure what was happening',
+  wantsContact: true,
+  routedPublic: false,
+  publicChannel: null,
+  googleReviewClicked: false
+}, {
+  id: 'rj-05',
+  clientId: 'c-marlow',
+  jobName: 'Annual accounts FY25',
+  jobType: 'Annual accounts',
+  owner: 'Sarah Mitchell',
+  reviewer: 'Priya Nair',
+  dueDate: _d('2026-05-30'),
+  completedDate: _d('2026-06-06'),
+  clientCausedDelay: true,
+  updatesSent: _repFull,
+  responsiveness: 'no_response',
+  reviewStart: _d('2026-05-27'),
+  reviewComplete: _d('2026-05-28'),
+  sentDate: _d('2026-06-07'),
+  reminderCount: 0,
+  status: 'Feedback received',
+  rating: 3,
+  comment: 'Outcome was fine, took a while to get going.',
+  category: 'The outcome did not meet expectations',
+  wantsContact: false,
+  routedPublic: false,
+  publicChannel: null,
+  googleReviewClicked: false
+}, {
+  id: 'rj-06',
+  clientId: 'c-acme',
+  jobName: 'SMSF annual return FY25',
+  jobType: 'Annual accounts',
+  owner: 'John O.',
+  reviewer: 'Lisa Carter',
+  dueDate: _d('2026-06-10'),
+  completedDate: _d('2026-06-10'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: _d('2026-06-07'),
+  reviewComplete: _d('2026-06-08'),
+  sentDate: _d('2026-06-11'),
+  reminderCount: 0,
+  status: 'Rated',
+  rating: 4,
+  comment: 'Smooth and professional.',
+  category: null,
+  wantsContact: false,
+  routedPublic: true,
+  publicChannel: 'google',
+  googleReviewClicked: false
+}, {
+  id: 'rj-07',
+  clientId: 'c-kim',
+  jobName: 'Payroll — May run',
+  jobType: 'Payroll',
+  owner: 'Emma Roberts',
+  reviewer: null,
+  dueDate: _d('2026-06-02'),
+  completedDate: _d('2026-06-02'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: null,
+  reviewComplete: null,
+  sentDate: _d('2026-06-03'),
+  reminderCount: 0,
+  status: 'Google review clicked',
+  rating: 5,
+  comment: 'Always on time, never an issue.',
+  category: null,
+  wantsContact: false,
+  routedPublic: true,
+  publicChannel: 'facebook',
+  googleReviewClicked: true
+}, {
+  id: 'rj-08',
+  clientId: 'c-solepay',
+  jobName: 'Payroll — March run',
+  jobType: 'Payroll',
+  owner: 'Emma Roberts',
+  reviewer: 'Sarah Mitchell',
+  dueDate: _d('2026-04-02'),
+  completedDate: _d('2026-04-02'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: _d('2026-03-31'),
+  reviewComplete: _d('2026-04-01'),
+  sentDate: _d('2026-04-03'),
+  reminderCount: 0,
+  status: 'Google review clicked',
+  rating: 5,
+  comment: 'Great service.',
+  category: null,
+  wantsContact: false,
+  routedPublic: true,
+  publicChannel: 'google',
+  googleReviewClicked: true
+}, {
+  id: 'rj-09',
+  clientId: 'c-northcoast',
+  jobName: 'Client review meeting',
+  jobType: 'Client review meeting',
+  owner: 'John O.',
+  reviewer: 'Lisa Carter',
+  dueDate: _d('2026-05-25'),
+  completedDate: _d('2026-06-02'),
+  clientCausedDelay: false,
+  updatesSent: ['Job started', 'Job completed'],
+  responsiveness: 'late_impact',
+  reviewStart: _d('2026-05-22'),
+  reviewComplete: _d('2026-05-28'),
+  sentDate: _d('2026-06-03'),
+  reminderCount: 1,
+  status: 'Follow up required',
+  rating: 1,
+  comment: 'The job took much longer than I expected and I had to chase for updates.',
+  category: 'The job took longer than expected',
+  wantsContact: true,
+  routedPublic: false,
+  publicChannel: null,
+  googleReviewClicked: false
+}, {
+  id: 'rj-10',
+  clientId: 'c-bondi',
+  jobName: 'Tax return FY25',
+  jobType: 'Tax return',
+  owner: 'Emma Roberts',
+  reviewer: 'Priya Nair',
+  dueDate: _d('2026-06-14'),
+  completedDate: _d('2026-06-15'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: _d('2026-06-12'),
+  reviewComplete: _d('2026-06-13'),
+  sentDate: _d('2026-06-16'),
+  reminderCount: 1,
+  status: 'Reminder sent',
+  rating: null,
+  comment: null,
+  category: null,
+  wantsContact: false,
+  routedPublic: false,
+  publicChannel: null,
+  googleReviewClicked: false
+}, {
+  id: 'rj-11',
+  clientId: 'c-greenleaf',
+  jobName: 'BAS — Q3 FY26',
+  jobType: 'BAS',
+  owner: 'Michael Chen',
+  reviewer: 'Sarah Mitchell',
+  dueDate: _d('2026-06-12'),
+  completedDate: _d('2026-06-12'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: _d('2026-06-09'),
+  reviewComplete: _d('2026-06-11'),
+  sentDate: _d('2026-06-13'),
+  reminderCount: 0,
+  status: 'Feedback received',
+  rating: 3,
+  comment: 'It was okay — communication could be clearer.',
+  category: 'Communication was unclear',
+  wantsContact: false,
+  routedPublic: false,
+  publicChannel: null,
+  googleReviewClicked: false
+}, {
+  id: 'rj-12',
+  clientId: 'c-marlow',
+  jobName: 'Bookkeeping — May',
+  jobType: 'Bookkeeping',
+  owner: 'Sarah Mitchell',
+  reviewer: 'Priya Nair',
+  dueDate: _d('2026-06-20'),
+  completedDate: _d('2026-06-19'),
+  clientCausedDelay: false,
+  updatesSent: _repFull,
+  responsiveness: 'on_time',
+  reviewStart: _d('2026-06-17'),
+  reviewComplete: _d('2026-06-18'),
+  sentDate: null,
+  reminderCount: 0,
+  status: 'Scheduled',
+  rating: null,
+  comment: null,
+  category: null,
+  wantsContact: false,
+  routedPublic: false,
+  publicChannel: null,
+  googleReviewClicked: false
+}];
+
+// ---- aggregate helpers for the Overview tab ----
+// A "response" = the client gave a star rating. A "request" = it was sent
+// (anything past Scheduled).
+const repIsSent = j => j.status !== 'Scheduled' && j.status !== 'Not sent';
+const repHasRating = j => j.rating != null;
+const repIsFollowup = j => j.status === 'Follow up required' || j.rating != null && j.rating <= 2;
+const repScoreOf = (j, settings) => computeClientExperienceScore(j, settings).total;
+const repAvgScore = (jobs, settings) => jobs.length ? Math.round(jobs.reduce((a, j) => a + repScoreOf(j, settings), 0) / jobs.length) : 0;
+const repRatedJobs = jobs => jobs.filter(repHasRating);
+const repAvgStars = jobs => {
+  const r = repRatedJobs(jobs);
+  return r.length ? r.reduce((a, j) => a + j.rating, 0) / r.length : 0;
+};
+const repResponseRate = jobs => {
+  const sent = jobs.filter(repIsSent);
+  return sent.length ? Math.round(repRatedJobs(sent).length / sent.length * 100) : 0;
+};
+// Public-review funnel: positive ratings → routed to a public channel → clicked through.
+const repFunnel = jobs => {
+  const positive = repRatedJobs(jobs).filter(j => j.routedPublic);
+  return {
+    positive: positive.length,
+    prompted: positive.length,
+    clicked: positive.filter(j => j.googleReviewClicked).length
+  };
+};
+const repStarCounts = jobs => {
+  const c = {
+    5: 0,
+    4: 0,
+    3: 0,
+    2: 0,
+    1: 0
+  };
+  repRatedJobs(jobs).forEach(j => {
+    c[j.rating]++;
+  });
+  return c;
+};
 
 // Distribute employees across clients deterministically. We mutate
 // the existing seed in place so all downstream code (Employees page,
@@ -51986,10 +52615,19 @@ const HelicopterViewPage = ({
       trendAxisFormat: fmtBy[k.id] || fmtNumber,
       trendLabel: '12-week trend',
       next: 'Open the full report for time-series + filters',
-      actions: [{
+      actions: [
+      // NPS drills into the reputation surface (client experience + reviews).
+      ...(k.id === 'nps' ? [{
+        label: 'Open Reputation',
+        icon: 'star',
+        primary: true,
+        onClick: () => {
+          window.location.hash = '#/practice/reputation';
+        }
+      }] : []), {
         label: 'Open report',
         icon: 'arrow',
-        primary: true,
+        primary: k.id !== 'nps',
         onClick: () => fireToast(`Opening ${k.label} report`)
       }, {
         label: 'Export CSV',
@@ -68990,7 +69628,93 @@ const WorkManagementPage = ({
     extras: selectedExtras,
     onPost: body => postComment(selected.id, body),
     fireToast: fireToast
-  }), /*#__PURE__*/React.createElement("div", {
+  }), (() => {
+    const repId = {
+      wm4: 'rj-03',
+      wm12: 'rj-02'
+    }[selected.id];
+    const repJob = repId ? REPUTATION_JOBS.find(j => j.id === repId) : null;
+    if (!isCompleted(selected.id) || !repJob) return null;
+    const sc = computeClientExperienceScore(repJob);
+    const cxRow = (label, node) => /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        fontSize: 12.5,
+        padding: '5px 0'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted
+      }
+    }, label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.text,
+        fontWeight: 500,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, node));
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 22
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        fontWeight: 700,
+        color: T.muted,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+        marginBottom: 8
+      }
+    }, "Client experience"), /*#__PURE__*/React.createElement(Card, {
+      padded: true
+    }, cxRow('Client experience score', /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("strong", null, sc.total, " / 100"), /*#__PURE__*/React.createElement(Pill, {
+      color: sc.band.tone
+    }, sc.band.label))), cxRow('Feedback request', /*#__PURE__*/React.createElement(Pill, {
+      color: (REP_STATUS_META[repJob.status] || {}).tone || 'neutral'
+    }, repJob.status)), cxRow('Client rating', repJob.rating != null ? /*#__PURE__*/React.createElement(StarRating, {
+      value: repJob.rating,
+      size: 14
+    }) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted
+      }
+    }, "Not received")), cxRow('Google review clicked', repJob.googleReviewClicked ? 'Yes' : 'No'), cxRow('Follow-up required', repJob.rating != null && repJob.rating <= 2 ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.red
+      }
+    }, "Yes") : 'No'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 8,
+        paddingTop: 8,
+        borderTop: `1px solid ${T.border}`
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        window.location.hash = '#/practice/reputation';
+      },
+      style: {
+        border: 'none',
+        background: 'none',
+        color: T.primary,
+        fontWeight: 600,
+        fontSize: 12,
+        cursor: 'pointer',
+        padding: 0
+      }
+    }, "Open in Reputation \u2192"))));
+  })(), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 22,
       paddingTop: 14,
@@ -74442,7 +75166,19 @@ const DealCard = ({
       setMenu(false);
       onQuick('reopen', deal);
     }
-  }, "Reopen"), /*#__PURE__*/React.createElement("div", {
+  }, "Reopen"), won && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 1,
+      background: T.border,
+      margin: '4px 0'
+    }
+  }), /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "star",
+    onClick: () => {
+      setMenu(false);
+      onQuick('requestReview', deal);
+    }
+  }, "Request review")), /*#__PURE__*/React.createElement("div", {
     style: {
       height: 1,
       background: T.border,
@@ -77815,6 +78551,7 @@ const DealsPage = ({
   const [wonModalDeal, setWonModalDeal] = useState(null); // F-03 onboarding handover
   const [soleLinkSeq, setSoleLinkSeq] = useState(0); // F-01 demo booking cursor
   const [dupModal, setDupModal] = useState(null); // F-07 duplicate-deal warning
+  const [reviewTarget, setReviewTarget] = useState(null); // reputation: "Request review" composer on won/renewed deals
   // Per-stage forecast TARGET override (B) — manual $ target per stage; computed roll-up stays default.
   const [stageTargets, setStageTargets] = useState({}); // { [stageId]: number }
   const [targetEditKey, setTargetEditKey] = useState(null); // stageId whose target popover is open
@@ -78367,7 +79104,16 @@ const DealsPage = ({
       const nx = nextStageOf(deal.stage);
       if (nx) requestStage(deal.id, nx);
     } // routes won/lost through their modals
-    else if (action === 'won') requestStage(deal.id, 'won');else if (action === 'lost') requestStage(deal.id, 'lost');else if (action === 'reopen') moveStage(deal.id, 'proposal-required');else if (action === 'delete') deleteDeal(deal);
+    else if (action === 'won') requestStage(deal.id, 'won');else if (action === 'lost') requestStage(deal.id, 'lost');else if (action === 'reopen') moveStage(deal.id, 'proposal-required');else if (action === 'delete') deleteDeal(deal);else if (action === 'requestReview') {
+      const cs = dealContacts(deal);
+      const c = cs.find(x => x.primary) || cs[0] || {};
+      setReviewTarget({
+        clientId: deal.orgId,
+        clientName: dealCompany(deal),
+        contactName: c.name,
+        jobName: deal.service || deal.title
+      });
+    }
   };
   const saveDeal = form => {
     if (!form.title.trim()) {
@@ -80478,6 +81224,12 @@ const DealsPage = ({
     onClose: () => setOpenProposal(null),
     fireToast: fireToast,
     zIndex: 250
+  }), /*#__PURE__*/React.createElement(ReviewRequestComposer, {
+    open: !!reviewTarget,
+    onClose: () => setReviewTarget(null),
+    target: reviewTarget,
+    settings: REPUTATION_SETTINGS_DEFAULT,
+    fireToast: fireToast
   }), openEmployee && /*#__PURE__*/React.createElement(EmployeeDetailsDrawer, {
     employee: openEmployee,
     onClose: () => setOpenEmployee(null),
@@ -99129,6 +99881,2172 @@ const ClientRelationshipMapPage = ({
     }
   }, renderPanelBody())))));
 };
+
+// Tone token → solid colour, for ProgressBar fills / accents on the
+// reputation surface (Pill takes the tone name directly; bars need a colour).
+const REP_TONE_COLOR = {
+  green: T.green,
+  amber: T.amber,
+  red: T.red,
+  blue: T.blue,
+  accent: T.primary,
+  neutral: T.muted
+};
+
+// ============================================================================
+// --- reputation management / client experience (UI) ---
+// One routed page (ReputationPage) under "Firm overview" with four tabs, plus
+// two shared modals: ReviewRequestComposer (manual send, reused by Deals) and
+// the client-facing ClientFeedbackFlow (reused by the customer portal AND the
+// practice "Preview client experience" launcher so the two never diverge).
+// ============================================================================
+
+// The CLIENT's 1–5★ rating + routing experience. Presentational + local step
+// state only; the caller wraps it (a Modal here, the portal's Modal there) and
+// handles onComplete(result). Routing respects settings.publicThreshold and the
+// presence of a Google/Facebook link (blank link → thank-you only, per spec).
+const REP_RATING_LABELS = {
+  5: 'Excellent',
+  4: 'Good',
+  3: 'Okay',
+  2: 'Not great',
+  1: 'Poor'
+};
+const ClientFeedbackFlow = ({
+  job,
+  settings,
+  firmName,
+  onComplete,
+  initialRating
+}) => {
+  const [step, setStep] = useState('rate');
+  const [rating, setRating] = useState(0);
+  const [hoverR, setHoverR] = useState(0);
+  const [route, setRoute] = useState(null); // 'public' | 'private'
+  const [category, setCategory] = useState('');
+  const [comment, setComment] = useState('');
+  const [wantsContact, setWantsContact] = useState(null);
+  const jobName = job && job.jobName || 'your recent job';
+  const hasPublicLink = !!(settings.googleUrl || settings.facebookUrl);
+  const finish = extra => {
+    if (onComplete) onComplete({
+      rating,
+      route,
+      category,
+      comment,
+      wantsContact,
+      ...extra
+    });
+  };
+  const pickRating = n => {
+    setRating(n);
+    const positive = n >= (settings.publicThreshold || 4);
+    if (positive && hasPublicLink) {
+      setRoute('public');
+      setStep('public');
+    } else if (positive) {
+      setRoute('public');
+      finish({
+        rating: n,
+        route: 'public',
+        googleClicked: false
+      });
+      setStep('done');
+    } else {
+      setRoute('private');
+      setStep('private');
+    }
+  };
+  // The email/SMS link can land with a rating already chosen (spec §3/§4).
+  useEffect(() => {
+    if (initialRating) pickRating(initialRating);
+  }, []);
+  const openPublic = channel => {
+    const url = channel === 'google' ? settings.googleUrl : settings.facebookUrl;
+    if (url && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
+    finish({
+      rating,
+      route: 'public',
+      publicChannel: channel,
+      googleClicked: true
+    });
+    setStep('done');
+  };
+  const wrap = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    textAlign: 'center',
+    gap: 14
+  };
+  const h = {
+    fontSize: 18,
+    fontWeight: 700,
+    color: T.text
+  };
+  const sub = {
+    fontSize: 13,
+    color: T.muted,
+    maxWidth: 420,
+    lineHeight: 1.5
+  };
+
+  // Branded header — gives every screen the firm's identity (the client should
+  // feel they're talking to their accountant, not a generic form).
+  const Brand = () => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: firmName,
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.textSoft
+    }
+  }, firmName));
+  let body;
+  if (step === 'rate') {
+    const lbl = REP_RATING_LABELS[hoverR || rating];
+    body = /*#__PURE__*/React.createElement("div", {
+      style: wrap
+    }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
+      style: h
+    }, "How was your experience with ", jobName, "?"), /*#__PURE__*/React.createElement("div", {
+      style: sub
+    }, "Your feedback helps ", firmName, " improve its service. It takes less than 10 seconds."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        margin: '10px 0 2px'
+      }
+    }, /*#__PURE__*/React.createElement(StarRating, {
+      value: rating,
+      onChange: pickRating,
+      onHoverChange: setHoverR,
+      size: 46,
+      gap: 8
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: lbl ? T.primary : T.mutedSoft,
+        minHeight: 20
+      }
+    }, lbl || 'Tap a star to rate'));
+  } else if (step === 'public') {
+    body = /*#__PURE__*/React.createElement("div", {
+      style: wrap
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 52,
+        height: 52,
+        borderRadius: '50%',
+        background: T.greenSoft,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "thumbsUp",
+      size: 26,
+      color: T.greenDark
+    })), /*#__PURE__*/React.createElement("div", {
+      style: h
+    }, "Thanks, we\u2019re glad you had a good experience."), /*#__PURE__*/React.createElement("div", {
+      style: sub
+    }, "Would you be willing to leave a quick review for ", firmName, "? It helps other businesses find the right accounting support."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        width: '100%',
+        maxWidth: 320,
+        marginTop: 4
+      }
+    }, settings.googleUrl && /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "lg",
+      icon: "star",
+      onClick: () => openPublic('google'),
+      style: {
+        justifyContent: 'center'
+      }
+    }, "Leave a Google review"), settings.facebookUrl && /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "lg",
+      icon: "thumbsUp",
+      onClick: () => openPublic('facebook'),
+      style: {
+        justifyContent: 'center'
+      }
+    }, "Leave a Facebook review"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "md",
+      onClick: () => {
+        finish({
+          rating,
+          route: 'public',
+          googleClicked: false
+        });
+        setStep('done');
+      },
+      style: {
+        justifyContent: 'center'
+      }
+    }, "No thanks")));
+  } else if (step === 'private') {
+    const canSubmit = !!category;
+    body = /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
+      style: h
+    }, "Thanks for your feedback."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...sub,
+        margin: '6px auto 0'
+      }
+    }, "We\u2019re sorry the experience wasn\u2019t as strong as it should have been. Please let us know what we could improve.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "What best describes the issue? ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.red
+      }
+    }, "*")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 6
+      }
+    }, REP_ISSUE_OPTIONS.map(o => /*#__PURE__*/React.createElement(Chip, {
+      key: o,
+      size: "sm",
+      selected: category === o,
+      onClick: () => setCategory(o)
+    }, o)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Tell us a little more ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.mutedSoft,
+        fontWeight: 400
+      }
+    }, "(optional)")), /*#__PURE__*/React.createElement("textarea", {
+      value: comment,
+      onChange: e => setComment(e.target.value),
+      rows: 3,
+      placeholder: "What happened?",
+      style: {
+        width: '100%',
+        padding: '9px 12px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        background: T.fieldBg,
+        color: T.text,
+        outline: 'none',
+        resize: 'vertical',
+        fontFamily: 'inherit',
+        fontSize: 13,
+        boxSizing: 'border-box'
+      }
+    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Would you like someone from the firm to contact you? ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.mutedSoft,
+        fontWeight: 400
+      }
+    }, "(optional)")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement(Chip, {
+      size: "sm",
+      selected: wantsContact === true,
+      onClick: () => setWantsContact(true)
+    }, "Yes, please contact me"), /*#__PURE__*/React.createElement(Chip, {
+      size: "sm",
+      selected: wantsContact === false,
+      onClick: () => setWantsContact(false)
+    }, "No, feedback only"))), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "lg",
+      disabled: !canSubmit,
+      onClick: () => {
+        finish({
+          rating,
+          route: 'private',
+          category,
+          comment,
+          wantsContact
+        });
+        setStep('done');
+      },
+      style: {
+        justifyContent: 'center'
+      }
+    }, "Submit feedback"));
+  } else {
+    body = /*#__PURE__*/React.createElement("div", {
+      style: wrap
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 52,
+        height: 52,
+        borderRadius: '50%',
+        background: T.greenSoft,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 28,
+      color: T.greenDark,
+      strokeWidth: 2.5
+    })), /*#__PURE__*/React.createElement("div", {
+      style: h
+    }, "Thank you", rating ? `, ${REP_RATING_LABELS[rating] ? REP_RATING_LABELS[rating].toLowerCase() : ''}` : '', "!"), /*#__PURE__*/React.createElement("div", {
+      style: sub
+    }, route === 'private' ? `Thanks for your feedback. Your response has been sent privately to ${firmName}.` : `Thanks — we really appreciate you taking the time.`));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '4px 4px'
+    }
+  }, body);
+};
+
+// Manual "send review request" composer. Mirrors the NotifyBody PATTERN
+// (channels + recipient + template + preview) but reads the existing
+// Reputation message templates. Used by the Requests tab and the Deals action.
+const ReviewRequestComposer = ({
+  open,
+  onClose,
+  target,
+  settings,
+  fireToast,
+  onSent
+}) => {
+  const repTemplates = wfTemplatesByGroup('external')['Reputation'] || [];
+  const [templateId, setTemplateId] = useState(settings.feedbackTemplateId || repTemplates[0] && repTemplates[0].id || '');
+  const [channels, setChannels] = useState({
+    email: settings.sendByEmail !== false,
+    sms: settings.sendBySms !== false
+  });
+  const [asClient, setAsClient] = useState(false);
+  const tpl = wfTemplateById(templateId) || repTemplates[0] || null;
+  const [subject, setSubject] = useState(tpl ? tpl.subject : '');
+  const [body, setBody] = useState(tpl ? tpl.body : '');
+  const [sms, setSms] = useState(tpl ? tpl.sms || '' : '');
+  // Re-seed copy when the template changes.
+  useEffect(() => {
+    const t = wfTemplateById(templateId);
+    if (t) {
+      setSubject(t.subject || '');
+      setBody(t.body || '');
+      setSms(t.sms || '');
+    }
+  }, [templateId]);
+  if (!open) return null;
+  const client = target ? clientById(target.clientId) : null;
+  const clientName = client && client.name || target && target.clientName || 'the client';
+  const firstName = target && target.contactName ? target.contactName.split(' ')[0] : clientName.split(' ')[0];
+  const firmName = typeof PORTAL_GROUP !== 'undefined' && PORTAL_GROUP.firm || WF_GLOBAL_SETTINGS && WF_GLOBAL_SETTINGS.fromName || 'Sole Practice';
+  const ctx = {
+    ...wfSampleCtx(),
+    '{clientName}': clientName,
+    '{clientFirstName}': firstName,
+    '{firmName}': firmName,
+    '{jobDescription}': target && target.jobName || 'your recent job',
+    '{jobName}': target && target.jobName || 'your recent job'
+  };
+  const show = s => asClient ? wfResolveTokens(s, ctx) : s;
+  const smsLen = show(sms).length;
+  const segs = Math.max(1, Math.ceil(smsLen / 160));
+  const send = () => {
+    const chans = [channels.email && 'email', channels.sms && 'SMS'].filter(Boolean).join(' + ');
+    if (onSent) onSent(target);
+    fireToast(`Review request sent to ${target && target.contactName ? target.contactName : clientName}${chans ? ` (${chans})` : ''}`);
+    onClose();
+  };
+  const chanChip = (key, label, icon) => /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: channels[key],
+    onClick: () => setChannels(c => ({
+      ...c,
+      [key]: !c[key]
+    }))
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 13
+  }), " ", label);
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: "Send review request",
+    subtitle: `To ${target && target.contactName ? target.contactName : clientName}${target && target.jobName ? ` · ${target.jobName}` : ''}`,
+    width: 620
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Send via"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6
+    }
+  }, chanChip('email', 'Email', 'mail'), chanChip('sms', 'SMS', 'messageSquare'))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Template"), /*#__PURE__*/React.createElement(Select, {
+    value: templateId,
+    onChange: e => setTemplateId(e.target.value)
+  }, repTemplates.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t.id,
+    value: t.id
+  }, t.label)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      marginBottom: 0
+    }
+  }, "Message"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setAsClient(a => !a),
+    style: {
+      border: `1px solid ${T.border}`,
+      background: asClient ? T.primarySoft : T.card,
+      color: asClient ? T.primary : T.muted,
+      fontSize: 10.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      padding: '2px 8px',
+      borderRadius: 999
+    }
+  }, asClient ? 'Previewing as client' : 'Preview as client')), channels.email && /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '8px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.fieldBg,
+      fontSize: 12.5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Subject: "), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 600
+    }
+  }, show(subject))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '10px 12px',
+      fontSize: 12.5,
+      whiteSpace: 'pre-wrap',
+      color: T.textSoft,
+      lineHeight: 1.5,
+      maxHeight: 180,
+      overflowY: 'auto'
+    }
+  }, show(body))), channels.sms && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "SMS"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      padding: '10px 12px',
+      fontSize: 12.5,
+      whiteSpace: 'pre-wrap',
+      color: T.textSoft,
+      lineHeight: 1.5,
+      background: T.fieldBg
+    }
+  }, show(sms) || '—'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, smsLen, " chars \xB7 ", segs, " segment", segs > 1 ? 's' : '')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      borderTop: `1px solid ${T.border}`,
+      paddingTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "send",
+    disabled: !channels.email && !channels.sms,
+    onClick: send
+  }, "Send request"))));
+};
+
+// Small read-only stat tile used across the Overview tab.
+const RepKpi = ({
+  label,
+  value,
+  sub,
+  pill,
+  accent
+}) => /*#__PURE__*/React.createElement(Card, {
+  style: {
+    padding: 16
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 12,
+    color: T.muted,
+    marginBottom: 6
+  }
+}, label), /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 8
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 26,
+    fontWeight: 700,
+    color: accent || T.text
+  }
+}, value), pill && /*#__PURE__*/React.createElement(Pill, {
+  color: pill.tone
+}, pill.text)), sub && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11.5,
+    color: T.mutedSoft,
+    marginTop: 4
+  }
+}, sub));
+
+// Browser-window chrome for the "web review page" preview — communicates that
+// the link opens a normal web page on any device.
+const BrowserFrame = ({
+  url,
+  children
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    border: `1px solid ${T.border}`,
+    borderRadius: 12,
+    overflow: 'hidden',
+    boxShadow: '0 8px 24px rgba(15,17,23,0.10)'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 12px',
+    background: T.fieldBg,
+    borderBottom: `1px solid ${T.border}`
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'flex',
+    gap: 5
+  }
+}, ['#FF5F57', '#FEBC2E', '#28C840'].map(c => /*#__PURE__*/React.createElement("span", {
+  key: c,
+  style: {
+    width: 10,
+    height: 10,
+    borderRadius: '50%',
+    background: c
+  }
+}))), /*#__PURE__*/React.createElement("div", {
+  style: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    background: T.card,
+    border: `1px solid ${T.border}`,
+    borderRadius: 7,
+    padding: '4px 10px',
+    fontSize: 11.5,
+    color: T.muted
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "lock",
+  size: 11,
+  color: T.muted
+}), url)), /*#__PURE__*/React.createElement("div", {
+  style: {
+    padding: '22px 18px',
+    background: T.bg,
+    display: 'flex',
+    justifyContent: 'center'
+  }
+}, children));
+
+// A compact client-portal chrome for the "in-app" preview.
+const AppFrame = ({
+  children
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    border: `1px solid ${T.border}`,
+    borderRadius: 16,
+    overflow: 'hidden',
+    maxWidth: 380,
+    margin: '0 auto',
+    boxShadow: '0 8px 24px rgba(15,17,23,0.10)'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '10px 14px',
+    background: T.card,
+    borderBottom: `1px solid ${T.border}`
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    gap: 2
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 14,
+    fontWeight: 700
+  }
+}, "S"), /*#__PURE__*/React.createElement("span", {
+  style: {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    background: T.primary,
+    display: 'inline-block'
+  }
+}), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 14,
+    fontWeight: 700
+  }
+}, "le")), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 9.5,
+    color: T.primary,
+    fontWeight: 700,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase'
+  }
+}, "Portal"), /*#__PURE__*/React.createElement("span", {
+  style: {
+    flex: 1
+  }
+}), /*#__PURE__*/React.createElement(Icon, {
+  name: "bell",
+  size: 14,
+  color: T.muted
+})), /*#__PURE__*/React.createElement("div", {
+  style: {
+    padding: '20px 18px',
+    background: T.bg
+  }
+}, children));
+
+// The email the client receives, with a prominent "Leave a review" CTA + an
+// inline star row. Both call onLeaveReview(n) — the link target opens the web
+// review page (with the rating preselected when a star was tapped).
+const EmailMock = ({
+  settings,
+  firmName,
+  onLeaveReview
+}) => {
+  const repTemplates = wfTemplatesByGroup('external')['Reputation'] || [];
+  const tpl = wfTemplateById(settings.feedbackTemplateId) || repTemplates[0] || {};
+  const ctx = {
+    ...wfSampleCtx(),
+    '{firmName}': firmName,
+    '{clientFirstName}': 'Gaurav',
+    '{jobDescription}': 'BAS — Q3 FY26',
+    '{jobName}': 'BAS — Q3 FY26',
+    '{feedbackLink}': 'app.sole.com/feedback'
+  };
+  const subject = wfResolveTokens(tpl.subject || 'How was your experience?', ctx);
+  const body = wfResolveTokens((tpl.body || '').replace(/\n?\{feedbackLink\}\n?/g, '\n'), ctx);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      overflow: 'hidden',
+      maxWidth: 460,
+      margin: '0 auto',
+      boxShadow: '0 6px 18px rgba(15,17,23,0.08)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '12px 14px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: firmName,
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700
+    }
+  }, firmName), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, "to Gaurav Sharma"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      marginBottom: 10
+    }
+  }, subject), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft,
+      whiteSpace: 'pre-wrap',
+      lineHeight: 1.55
+    }
+  }, body), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px dashed ${T.border}`,
+      borderRadius: 10,
+      padding: '14px 12px',
+      textAlign: 'center',
+      margin: '14px 0'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text,
+      marginBottom: 8
+    }
+  }, "How was your experience?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(StarRating, {
+    value: 0,
+    onChange: onLeaveReview,
+    size: 28,
+    gap: 6
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      maxWidth: 200,
+      margin: '4px auto 0',
+      fontSize: 9.5,
+      color: T.mutedSoft
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Poor"), /*#__PURE__*/React.createElement("span", null, "Excellent"))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "lg",
+    onClick: () => onLeaveReview(0),
+    style: {
+      width: '100%',
+      justifyContent: 'center'
+    }
+  }, "Leave a review"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10,
+      marginTop: 12,
+      textAlign: 'center'
+    }
+  }, "Sent by ", firmName, " \xB7 You can unsubscribe anytime.")));
+};
+
+// "Email → web page" preview: the email mock, and the browser-framed web review
+// page its link opens (rating preselected when a star was tapped in the email).
+const EmailWebPreview = ({
+  settings,
+  firmName
+}) => {
+  const [view, setView] = useState('email'); // 'email' | 'web'
+  const [rating, setRating] = useState(0);
+  const goWeb = n => {
+    setRating(n || 0);
+    setView('web');
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10,
+      marginBottom: 14,
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'email',
+      label: 'Email'
+    }, {
+      value: 'web',
+      label: 'Web page'
+    }],
+    value: view,
+    onChange: setView
+  }), /*#__PURE__*/React.createElement(Helper, null, "The client taps the link and lands on the web page \u2014 from any device.")), view === 'email' ? /*#__PURE__*/React.createElement(EmailMock, {
+    settings: settings,
+    firmName: firmName,
+    onLeaveReview: goWeb
+  }) : /*#__PURE__*/React.createElement(BrowserFrame, {
+    url: "app.sole.com/feedback"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 420,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 14,
+      padding: '24px 20px',
+      boxShadow: '0 4px 14px rgba(15,17,23,0.06)'
+    }
+  }, /*#__PURE__*/React.createElement(ClientFeedbackFlow, {
+    key: rating,
+    job: {
+      jobName: 'BAS — Q3 FY26'
+    },
+    settings: settings,
+    firmName: firmName,
+    initialRating: rating || undefined,
+    onComplete: () => {}
+  }))));
+};
+const ReputationPage = ({
+  fireToast
+}) => {
+  const [tab, setTab] = useState('overview');
+  const [settings, setSettings] = useState(() => ({
+    ...REPUTATION_SETTINGS_DEFAULT
+  }));
+  const [jobs, setJobs] = useState(() => REPUTATION_JOBS.map(j => ({
+    ...j
+  })));
+  const [composerTarget, setComposerTarget] = useState(null);
+  const [detailJob, setDetailJob] = useState(null);
+  const [preview, setPreview] = useState(null); // { mode: 'inapp' | 'email' } | null
+  const [previewMenu, setPreviewMenu] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0); // remount the flow on reopen
+  const openPreview = mode => {
+    setPreviewKey(k => k + 1);
+    setPreview({
+      mode
+    });
+  };
+  const [fbFilter, setFbFilter] = useState('all'); // all | promoters | passives | detractors
+  // Client-facing copy uses the name the client actually sees in their portal.
+  const firmName = typeof PORTAL_GROUP !== 'undefined' && PORTAL_GROUP.firm || WF_GLOBAL_SETTINGS && WF_GLOBAL_SETTINGS.fromName || 'Sole Practice';
+  const setS = patch => setSettings(s => ({
+    ...s,
+    ...patch
+  }));
+
+  // Derived aggregates.
+  const avgScore = repAvgScore(jobs, settings);
+  const avgBand = repScoreBand(avgScore);
+  const avgStars = repAvgStars(jobs);
+  const responseRate = repResponseRate(jobs);
+  const funnel = repFunnel(jobs);
+  const followups = jobs.filter(repIsFollowup);
+  const sentCount = jobs.filter(repIsSent).length;
+  const bandCounts = {};
+  REP_BANDS.forEach(b => {
+    bandCounts[b.label] = 0;
+  });
+  jobs.forEach(j => {
+    bandCounts[computeClientExperienceScore(j, settings).band.label]++;
+  });
+  const sendForJob = job => setComposerTarget({
+    clientId: job.clientId,
+    contactName: (clientById(job.clientId) || {}).name,
+    jobName: job.jobName,
+    jobId: job.id
+  });
+  const markSent = target => {
+    if (target && target.jobId) setJobs(js => js.map(j => j.id === target.jobId ? {
+      ...j,
+      status: j.rating != null ? j.status : 'Sent',
+      sentDate: j.sentDate || _d('2026-06-23')
+    } : j));
+  };
+  const startRecovery = job => {
+    fireToast(`Service recovery started for ${(clientById(job.clientId) || {}).name}`);
+  };
+  const closeFeedback = job => {
+    setJobs(js => js.map(j => j.id === job.id ? {
+      ...j,
+      status: 'Closed'
+    } : j));
+    setDetailJob(null);
+    fireToast('Feedback marked closed');
+  };
+  const goTemplates = () => {
+    window.location.hash = '#/practice/workflow-templates';
+  };
+
+  // ---- shared bits ----
+  const StatusPillFor = ({
+    status
+  }) => /*#__PURE__*/React.createElement(Pill, {
+    color: (REP_STATUS_META[status] || {}).tone || 'neutral'
+  }, status);
+  const ClientRow = ({
+    job
+  }) => {
+    const c = clientById(job.clientId) || {
+      name: job.clientId
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement(ClientMark, {
+      client: c,
+      size: 26
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, c.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted
+      }
+    }, job.jobName)));
+  };
+  const tabs = [{
+    value: 'overview',
+    label: 'Overview'
+  }, {
+    value: 'feedback',
+    label: 'Feedback'
+  }, {
+    value: 'requests',
+    label: 'Requests'
+  }, {
+    value: 'settings',
+    label: 'Settings'
+  }];
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      padding: 28,
+      maxWidth: 1180,
+      margin: '0 auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, "Reputation & client experience"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "Measure client experience across each job and turn happy clients into public reviews.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    icon: "eye",
+    iconRight: "chevronDown",
+    onClick: () => setPreviewMenu(o => !o)
+  }, "Preview client experience"), /*#__PURE__*/React.createElement(Popover, {
+    open: previewMenu,
+    onClose: () => setPreviewMenu(false),
+    width: 248,
+    anchorAlign: "right"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 4
+    }
+  }, /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "inbox",
+    onClick: () => {
+      setPreviewMenu(false);
+      openPreview('inapp');
+    }
+  }, "In-app experience"), /*#__PURE__*/React.createElement(MenuItem, {
+    icon: "mail",
+    onClick: () => {
+      setPreviewMenu(false);
+      openPreview('email');
+    }
+  }, "Email & web review page"))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    options: tabs,
+    value: tab,
+    onChange: setTab
+  })), tab === 'overview' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(RepKpi, {
+    label: "Avg client experience score",
+    value: `${avgScore}`,
+    pill: {
+      tone: avgBand.tone,
+      text: avgBand.label
+    },
+    accent: REP_TONE_COLOR[avgBand.tone],
+    sub: "Across completed jobs"
+  }), /*#__PURE__*/React.createElement(RepKpi, {
+    label: "Avg star rating",
+    value: avgStars ? avgStars.toFixed(1) : '—',
+    sub: /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement(StarRating, {
+      value: Math.round(avgStars),
+      size: 13
+    }))
+  }), /*#__PURE__*/React.createElement(RepKpi, {
+    label: "Response rate",
+    value: `${responseRate}%`,
+    sub: `${repRatedJobs(jobs).length} of ${sentCount} sent`
+  }), /*#__PURE__*/React.createElement(RepKpi, {
+    label: "Public reviews driven",
+    value: `${funnel.clicked}`,
+    accent: T.greenDark,
+    sub: `${funnel.positive} positive ratings`
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 14
+    }
+  }, "Client experience by band"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, REP_BANDS.map(b => {
+    const n = bandCounts[b.label];
+    const pct = jobs.length ? Math.round(n / jobs.length * 100) : 0;
+    return /*#__PURE__*/React.createElement("div", {
+      key: b.label
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        fontSize: 12.5,
+        marginBottom: 4
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.textSoft
+      }
+    }, b.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted
+      }
+    }, n, " job", n !== 1 ? 's' : '')), /*#__PURE__*/React.createElement(ProgressBar, {
+      pct: pct,
+      color: REP_TONE_COLOR[b.tone],
+      height: 8
+    }));
+  })), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 14,
+      paddingTop: 12,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, "Survey-style NPS lives on your ", /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = '#/practice/practice-dashboard';
+    },
+    style: {
+      border: 'none',
+      background: 'none',
+      color: T.primary,
+      fontWeight: 600,
+      cursor: 'pointer',
+      padding: 0,
+      fontSize: 12
+    }
+  }, "Practice Dashboard"), ".")), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 14
+    }
+  }, "Public review funnel"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, [{
+    label: 'Positive ratings (4–5★)',
+    n: funnel.positive,
+    color: T.primary
+  }, {
+    label: 'Prompted for a public review',
+    n: funnel.prompted,
+    color: T.blue
+  }, {
+    label: 'Clicked through to review',
+    n: funnel.clicked,
+    color: T.greenDark
+  }].map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      background: withAlpha(s.color, 0.12),
+      color: s.color,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 700,
+      fontSize: 13,
+      flexShrink: 0
+    }
+  }, s.n), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, s.label), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: funnel.positive ? Math.round(s.n / funnel.positive * 100) : 0,
+    color: s.color,
+    height: 6
+  }))))))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Needs follow-up"), /*#__PURE__*/React.createElement(Pill, {
+    color: followups.length ? 'red' : 'green'
+  }, followups.length, " open")), followups.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No low ratings need attention. \uD83C\uDF89") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, followups.map(job => /*#__PURE__*/React.createElement("div", {
+    key: job.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '8px 10px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10
+    }
+  }, /*#__PURE__*/React.createElement(ClientRow, {
+    job: job
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StarRating, {
+    value: job.rating,
+    size: 14
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => setDetailJob(job)
+  }, "View"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    onClick: () => startRecovery(job)
+  }, "Start service recovery"))))))), tab === 'feedback' && (() => {
+    const inBucket = j => fbFilter === 'all' ? true : fbFilter === 'promoters' ? j.rating === 5 : fbFilter === 'passives' ? j.rating === 4 : j.rating != null && j.rating <= 3;
+    const rated = repRatedJobs(jobs).filter(inBucket);
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6,
+        flexWrap: 'wrap'
+      }
+    }, [['all', 'All'], ['promoters', 'Promoters (5★)'], ['passives', 'Passives (4★)'], ['detractors', 'Detractors (≤3★)']].map(([v, l]) => /*#__PURE__*/React.createElement(Chip, {
+      key: v,
+      size: "sm",
+      selected: fbFilter === v,
+      onClick: () => setFbFilter(v)
+    }, l))), /*#__PURE__*/React.createElement(Card, {
+      padded: false
+    }, rated.length === 0 ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 18
+      }
+    }, /*#__PURE__*/React.createElement(Helper, null, "No feedback in this view yet.")) : rated.map((job, i) => {
+      const sc = computeClientExperienceScore(job, settings);
+      return /*#__PURE__*/React.createElement("div", {
+        key: job.id,
+        onClick: () => setDetailJob(job),
+        "data-hover": "row",
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '12px 16px',
+          borderTop: i ? `1px solid ${T.border}` : 'none',
+          cursor: 'pointer'
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: '1 1 220px',
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement(ClientRow, {
+        job: job
+      })), /*#__PURE__*/React.createElement("div", {
+        style: {
+          flexShrink: 0
+        }
+      }, /*#__PURE__*/React.createElement(StarRating, {
+        value: job.rating,
+        size: 14
+      })), /*#__PURE__*/React.createElement(Pill, {
+        color: sc.band.tone,
+        style: {
+          flexShrink: 0
+        }
+      }, sc.total, " \xB7 ", sc.band.label), /*#__PURE__*/React.createElement(Pill, {
+        color: job.routedPublic ? 'green' : 'neutral',
+        style: {
+          flexShrink: 0
+        }
+      }, job.routedPublic ? `Public · ${job.publicChannel === 'facebook' ? 'Facebook' : 'Google'}` : 'Internal'), /*#__PURE__*/React.createElement("div", {
+        style: {
+          flexShrink: 0,
+          width: 130,
+          textAlign: 'right'
+        }
+      }, /*#__PURE__*/React.createElement(StatusPillFor, {
+        status: job.status
+      })));
+    })));
+  })(), tab === 'requests' && (() => {
+    const sorted = [...jobs].sort((a, b) => (b.sentDate || 0) - (a.sentDate || 0));
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Helper, null, "Automatic requests fire ", settings.delayHours, "h after a job is completed", settings.enabled ? '' : ' (currently paused)', ". Send one manually anytime."), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      icon: "send",
+      onClick: () => {
+        const j = jobs.find(x => x.rating == null) || jobs[0];
+        sendForJob(j);
+      }
+    }, "Send review request")), /*#__PURE__*/React.createElement(Card, {
+      padded: false
+    }, sorted.map((job, i) => /*#__PURE__*/React.createElement("div", {
+      key: job.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 16px',
+        borderTop: i ? `1px solid ${T.border}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: '1 1 220px',
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement(ClientRow, {
+      job: job
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flexShrink: 0,
+        display: 'flex',
+        gap: 4,
+        color: T.muted
+      },
+      title: "Delivery channels"
+    }, settings.sendByEmail && /*#__PURE__*/React.createElement(Icon, {
+      name: "mail",
+      size: 14
+    }), settings.sendBySms && /*#__PURE__*/React.createElement(Icon, {
+      name: "messageSquare",
+      size: 14
+    }), settings.showInPortal && /*#__PURE__*/React.createElement(Icon, {
+      name: "inbox",
+      size: 14
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flexShrink: 0,
+        width: 90,
+        fontSize: 12,
+        color: T.muted,
+        textAlign: 'right'
+      }
+    }, job.sentDate ? fmtDate(job.sentDate) : '—'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flexShrink: 0,
+        width: 130,
+        textAlign: 'right'
+      }
+    }, /*#__PURE__*/React.createElement(StatusPillFor, {
+      status: job.status
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flexShrink: 0,
+        width: 96,
+        textAlign: 'right'
+      }
+    }, job.rating == null && /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      onClick: () => sendForJob(job)
+    }, job.status === 'Scheduled' ? 'Send now' : 'Resend'))))));
+  })(), tab === 'settings' && /*#__PURE__*/React.createElement(RepSettingsTab, {
+    settings: settings,
+    setS: setS,
+    fireToast: fireToast,
+    goTemplates: goTemplates,
+    firmName: firmName
+  }), /*#__PURE__*/React.createElement(Modal, {
+    open: !!detailJob,
+    onClose: () => setDetailJob(null),
+    title: detailJob ? `Client experience — ${detailJob.jobName}` : '',
+    subtitle: detailJob ? (clientById(detailJob.clientId) || {}).name : '',
+    width: 620
+  }, detailJob && (() => {
+    const sc = computeClientExperienceScore(detailJob, settings);
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 64,
+        height: 64,
+        borderRadius: 12,
+        background: withAlpha(REP_TONE_COLOR[sc.band.tone], 0.14),
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 22,
+        fontWeight: 800,
+        color: REP_TONE_COLOR[sc.band.tone]
+      }
+    }, sc.total), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: REP_TONE_COLOR[sc.band.tone]
+      }
+    }, "/ 100")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Pill, {
+      color: sc.band.tone
+    }, sc.band.label), sc.ratingMissing && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginTop: 6
+      }
+    }, "Operational score only \u2014 client rating not received."), !sc.ratingMissing && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 6
+      }
+    }, /*#__PURE__*/React.createElement(StarRating, {
+      value: detailJob.rating,
+      size: 16
+    })))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Score breakdown"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8
+      }
+    }, sc.components.map((c, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        fontSize: 12.5
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.textSoft
+      }
+    }, c.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.muted
+      }
+    }, c.result), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontWeight: 700,
+        color: T.text,
+        width: 52,
+        textAlign: 'right'
+      }
+    }, c.points == null ? '—' : `${c.points}/${c.max}`)))))), detailJob.comment && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: T.fieldBg,
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        padding: 12
+      }
+    }, /*#__PURE__*/React.createElement(Label, null, "Client feedback"), detailJob.category && /*#__PURE__*/React.createElement(Pill, {
+      color: "amber",
+      style: {
+        marginBottom: 6
+      }
+    }, detailJob.category), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        color: T.textSoft,
+        lineHeight: 1.5
+      }
+    }, "\u201C", detailJob.comment, "\u201D"), detailJob.wantsContact && /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 8,
+        fontSize: 12,
+        color: T.red,
+        fontWeight: 600
+      }
+    }, "\u25CF Client requested a callback")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
+        borderTop: `1px solid ${T.border}`,
+        paddingTop: 14
+      }
+    }, detailJob.rating != null && detailJob.rating <= 3 && /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      onClick: () => startRecovery(detailJob)
+    }, "Start service recovery"), detailJob.status !== 'Closed' && /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      onClick: () => closeFeedback(detailJob)
+    }, "Mark closed")));
+  })()), /*#__PURE__*/React.createElement(Modal, {
+    open: !!preview,
+    onClose: () => setPreview(null),
+    title: preview && preview.mode === 'inapp' ? 'In-app experience' : 'Email & web review page',
+    subtitle: preview && preview.mode === 'inapp' ? 'How the rating appears inside the client portal' : 'The email the client receives → the web page they land on',
+    width: preview && preview.mode === 'inapp' ? 460 : 660
+  }, preview && (preview.mode === 'inapp' ? /*#__PURE__*/React.createElement(AppFrame, {
+    key: previewKey
+  }, /*#__PURE__*/React.createElement(ClientFeedbackFlow, {
+    job: {
+      jobName: 'BAS — Q3 FY26'
+    },
+    settings: settings,
+    firmName: firmName,
+    onComplete: r => fireToast(r.route === 'public' ? r.googleClicked ? `Client clicked through to a ${r.publicChannel === 'facebook' ? 'Facebook' : 'Google'} review` : 'Client rated positively' : 'Private feedback captured')
+  })) : /*#__PURE__*/React.createElement(EmailWebPreview, {
+    key: previewKey,
+    settings: settings,
+    firmName: firmName
+  }))), /*#__PURE__*/React.createElement(ReviewRequestComposer, {
+    open: !!composerTarget,
+    onClose: () => setComposerTarget(null),
+    target: composerTarget,
+    settings: settings,
+    fireToast: fireToast,
+    onSent: markSent
+  }));
+};
+
+// Settings tab — firm setup mirroring spec §5 (kept in its own component so the
+// page render stays readable).
+// "What the client receives" — renders the actual EMAIL and SMS of a feedback
+// request from the live settings + the Reputation template. The email's star
+// row and the SMS link both deep-link to the standalone feedback landing page
+// (#/feedback/N) so the whole send→rate journey is demonstrable end-to-end.
+const FeedbackRequestPreview = ({
+  settings,
+  firmName,
+  fireToast
+}) => {
+  const repTemplates = wfTemplatesByGroup('external')['Reputation'] || [];
+  const tpl = wfTemplateById(settings.feedbackTemplateId) || repTemplates[0] || {};
+  const channels = [settings.sendByEmail && 'email', settings.sendBySms && 'sms', settings.showInPortal && 'portal'].filter(Boolean);
+  const [chan, setChan] = useState(channels[0] || 'email');
+  const ctx = {
+    ...wfSampleCtx(),
+    '{firmName}': firmName,
+    '{clientFirstName}': 'Gaurav',
+    '{jobDescription}': 'BAS — Q3 FY26',
+    '{jobName}': 'BAS — Q3 FY26',
+    '{feedbackLink}': 'sole.app/feedback'
+  };
+  const subject = wfResolveTokens(tpl.subject || 'How was your experience?', ctx);
+  const body = wfResolveTokens(tpl.body || '', ctx);
+  const sms = wfResolveTokens(tpl.sms || `${firmName}: how did we do? sole.app/feedback`, ctx);
+  const goLanding = n => {
+    window.location.hash = `#/feedback/${n}`;
+  };
+  if (!channels.length) return /*#__PURE__*/React.createElement(Helper, null, "Enable email, SMS or the portal above to preview the request.");
+  const tab = (id, label, icon) => /*#__PURE__*/React.createElement("button", {
+    onClick: () => setChan(id),
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '6px 12px',
+      borderRadius: 8,
+      cursor: 'pointer',
+      border: `1px solid ${chan === id ? T.primary : T.border}`,
+      background: chan === id ? T.primarySoft : T.card,
+      color: chan === id ? T.primary : T.muted,
+      fontSize: 12.5,
+      fontWeight: chan === id ? 600 : 500
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 13
+  }), " ", label);
+  const ratingRow = /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px dashed ${T.border}`,
+      borderRadius: 10,
+      padding: 12,
+      textAlign: 'center',
+      marginTop: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text,
+      marginBottom: 8
+    }
+  }, "How was your experience?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex'
+    }
+  }, /*#__PURE__*/React.createElement(StarRating, {
+    value: 0,
+    onChange: goLanding,
+    size: 26,
+    gap: 6
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      maxWidth: 190,
+      margin: '4px auto 0',
+      fontSize: 9.5,
+      color: T.mutedSoft
+    }
+  }, /*#__PURE__*/React.createElement("span", null, "Poor"), /*#__PURE__*/React.createElement("span", null, "Excellent")));
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginBottom: 12
+    }
+  }, settings.sendByEmail && tab('email', 'Email', 'mail'), settings.sendBySms && tab('sms', 'SMS', 'messageSquare'), settings.showInPortal && tab('portal', 'Portal', 'inbox')), chan === 'email' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      overflow: 'hidden',
+      maxWidth: 460
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '12px 14px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: firmName,
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700
+    }
+  }, firmName), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, "to Gaurav Sharma"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      marginBottom: 10
+    }
+  }, subject), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft,
+      whiteSpace: 'pre-wrap',
+      lineHeight: 1.55
+    }
+  }, body), ratingRow, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10,
+      marginTop: 12,
+      textAlign: 'center'
+    }
+  }, "Sent by ", firmName, " \xB7 You can unsubscribe anytime."))), chan === 'sms' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 320
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: T.primarySoft,
+      border: `1px solid #C7C9FB`,
+      borderRadius: '14px 14px 14px 4px',
+      padding: '12px 14px',
+      fontSize: 12.5,
+      color: T.text,
+      lineHeight: 1.5
+    }
+  }, sms), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    icon: "star",
+    onClick: () => goLanding(0)
+  }, "Open rating page")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "The link opens the same rating screen as the email.")), chan === 'portal' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      padding: 16,
+      maxWidth: 460,
+      background: T.primarySofter
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 40,
+      height: 40,
+      borderRadius: 10,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "star",
+    size: 20,
+    color: T.amber
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, "How was your experience with BAS \u2014 Q3 FY26?"), /*#__PURE__*/React.createElement(Helper, null, "Shown on the client's portal dashboard when they next log in."))), ratingRow), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "send",
+    onClick: () => fireToast(`Test ${chan === 'sms' ? 'SMS' : chan === 'portal' ? 'portal notification' : 'email'} sent to you`)
+  }, "Send me a test")));
+};
+const RepSettingsTab = ({
+  settings,
+  setS,
+  fireToast,
+  goTemplates,
+  firmName
+}) => {
+  const Row = ({
+    label,
+    hint,
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+      padding: '10px 0',
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 500,
+      color: T.text
+    }
+  }, label), hint && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, hint)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flexShrink: 0
+    }
+  }, children));
+  const dim = {
+    opacity: settings.enabled ? 1 : 0.45,
+    pointerEvents: settings.enabled ? 'auto' : 'none'
+  };
+  const feedbackTpl = wfTemplateById(settings.feedbackTemplateId);
+  const googleTpl = wfTemplateById(settings.googleTemplateId);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16,
+      maxWidth: 720
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, null, "Reputation management"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "Automatically ask clients for a rating after each job and route happy clients to public reviews.")), /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.enabled,
+    onChange: v => {
+      setS({
+        enabled: v
+      });
+      fireToast(v ? 'Reputation management on' : 'Reputation management paused');
+    }
+  }))), /*#__PURE__*/React.createElement(Card, {
+    style: dim
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Public review links"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+      marginTop: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Google review link"), /*#__PURE__*/React.createElement(Input, {
+    value: settings.googleUrl,
+    onChange: e => setS({
+      googleUrl: e.target.value
+    }),
+    placeholder: "https://g.page/r/\u2026/review"
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "Where 4\u20135\u2605 clients are sent. If blank, they\u2019ll only see a thank-you screen.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Facebook review link"), /*#__PURE__*/React.createElement(Input, {
+    value: settings.facebookUrl,
+    onChange: e => setS({
+      facebookUrl: e.target.value
+    }),
+    placeholder: "https://facebook.com/\u2026/reviews"
+  })))), /*#__PURE__*/React.createElement(Card, {
+    style: dim
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 4
+    }
+  }, "Sending"), /*#__PURE__*/React.createElement(Row, {
+    label: "Send feedback request after job completion"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.sendAfterCompletion,
+    onChange: v => setS({
+      sendAfterCompletion: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Delay after job completion"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: String(settings.delayHours),
+    onChange: e => setS({
+      delayHours: Number(e.target.value)
+    }),
+    style: {
+      width: 130
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "0"
+  }, "Immediately"), /*#__PURE__*/React.createElement("option", {
+    value: "24"
+  }, "24 hours"), /*#__PURE__*/React.createElement("option", {
+    value: "48"
+  }, "48 hours"), /*#__PURE__*/React.createElement("option", {
+    value: "72"
+  }, "3 days"))), /*#__PURE__*/React.createElement(Row, {
+    label: "Send by email"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.sendByEmail,
+    onChange: v => setS({
+      sendByEmail: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Send by SMS"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.sendBySms,
+    onChange: v => setS({
+      sendBySms: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Show in customer portal"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.showInPortal,
+    onChange: v => setS({
+      showInPortal: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Star threshold for public review",
+    hint: "Ratings at or above this go to Google/Facebook; below go to the private form."
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 4,
+      label: '4★+'
+    }, {
+      value: 5,
+      label: '5★ only'
+    }],
+    value: settings.publicThreshold,
+    onChange: v => setS({
+      publicThreshold: v
+    })
+  }))), /*#__PURE__*/React.createElement(Card, {
+    style: dim
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 4
+    }
+  }, "Reminders"), /*#__PURE__*/React.createElement(Row, {
+    label: "Send a reminder if no response"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.sendReminder,
+    onChange: v => setS({
+      sendReminder: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Reminder delay"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: String(settings.reminderDelayDays),
+    onChange: e => setS({
+      reminderDelayDays: Number(e.target.value)
+    }),
+    style: {
+      width: 130
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "2"
+  }, "2 days"), /*#__PURE__*/React.createElement("option", {
+    value: "3"
+  }, "3 days"), /*#__PURE__*/React.createElement("option", {
+    value: "5"
+  }, "5 days"))), /*#__PURE__*/React.createElement(Row, {
+    label: "Maximum reminders"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: String(settings.maxReminders),
+    onChange: e => setS({
+      maxReminders: Number(e.target.value)
+    }),
+    style: {
+      width: 90
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "0"
+  }, "0"), /*#__PURE__*/React.createElement("option", {
+    value: "1"
+  }, "1"), /*#__PURE__*/React.createElement("option", {
+    value: "2"
+  }, "2")))), /*#__PURE__*/React.createElement(Card, {
+    style: dim
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 4
+    }
+  }, "Preview feedback request"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 12
+    }
+  }, "Exactly what the client receives across each channel you\u2019ve enabled above."), /*#__PURE__*/React.createElement(FeedbackRequestPreview, {
+    settings: settings,
+    firmName: firmName,
+    fireToast: fireToast
+  })), /*#__PURE__*/React.createElement(Card, {
+    style: dim
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Job type eligibility"), /*#__PURE__*/React.createElement(Row, {
+    label: "Send feedback for all job types"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.sendForAllJobTypes,
+    onChange: v => setS({
+      sendForAllJobTypes: v
+    })
+  })), !settings.sendForAllJobTypes && /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingTop: 10
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Excluded job types"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 6
+    }
+  }, REP_JOB_TYPES.map(t => {
+    const ex = settings.excludedJobTypes.includes(t);
+    return /*#__PURE__*/React.createElement(Chip, {
+      key: t,
+      size: "sm",
+      selected: ex,
+      onClick: () => setS({
+        excludedJobTypes: ex ? settings.excludedJobTypes.filter(x => x !== t) : [...settings.excludedJobTypes, t]
+      })
+    }, ex ? '✕ ' : '', t);
+  })), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "Selected types won\u2019t trigger a feedback request."))), /*#__PURE__*/React.createElement(Card, {
+    style: dim
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 4
+    }
+  }, "Low-rating alerts"), /*#__PURE__*/React.createElement(Row, {
+    label: "Alert firm admin for 1\u2605 rating"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.alert1Star,
+    onChange: v => setS({
+      alert1Star: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Alert firm admin for 2\u2605 rating"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.alert2Star,
+    onChange: v => setS({
+      alert2Star: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Alert firm admin for 3\u2605 rating"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.alert3Star,
+    onChange: v => setS({
+      alert3Star: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Create a follow-up task for low ratings"
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.createFollowupTask,
+    onChange: v => setS({
+      createFollowupTask: v
+    })
+  })), /*#__PURE__*/React.createElement(Row, {
+    label: "Assign low-rating task to"
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: settings.assignTo,
+    onChange: e => setS({
+      assignTo: e.target.value
+    }),
+    style: {
+      width: 150
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "job_owner"
+  }, "Job owner"), /*#__PURE__*/React.createElement("option", {
+    value: "firm_admin"
+  }, "Firm admin")))), /*#__PURE__*/React.createElement(Card, {
+    style: dim
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Message templates"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 10
+    }
+  }, "Edit the copy in the workflow template library."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: goTemplates,
+    "data-hover": "row",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.card,
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600
+    }
+  }, "Feedback request"), /*#__PURE__*/React.createElement(Helper, null, feedbackTpl ? feedbackTpl.label : 'Set a template')), /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 16,
+    color: T.muted
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: goTemplates,
+    "data-hover": "row",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.card,
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600
+    }
+  }, "Google review prompt"), /*#__PURE__*/React.createElement(Helper, null, googleTpl ? googleTpl.label : 'Set a template')), /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 16,
+    color: T.muted
+  })))));
+};
 const parsePracticeHash = hash => {
   const m = (hash || '').match(/^#\/practice\/?([\w-]+)?(?:\/([\w-]+))?/);
   // Empty hash → Practice Dashboard (the firm-leader landing) rather than
@@ -99195,6 +102113,10 @@ const PracticeApp = () => {
         });
       case 'helicopter-view':
         return /*#__PURE__*/React.createElement(HelicopterViewPage, {
+          fireToast: fireToast
+        });
+      case 'reputation':
+        return /*#__PURE__*/React.createElement(ReputationPage, {
           fireToast: fireToast
         });
       case 'staff-scheduler':
@@ -104123,18 +107045,98 @@ const ClientPortalApp = () => {
   }));
 };
 
+// ============================================================================
+// --- reputation: client-facing review landing page ---
+// The review experience is previewed from the Reputation page (in-app + email
+// + web previews in one dropdown). The ONE real client-facing surface that ships
+// is the web review page the email/SMS link opens — a clean branded page a
+// client can use from any device. The default portal (#/portal) is left as the
+// onboarding demo (no review prompt — that read as fake on a not-onboarded
+// client). #/feedback[/N] optionally preselects a rating.
+// ============================================================================
+const FeedbackLandingApp = () => {
+  const m = (window.location.hash || '').match(/#\/feedback\/?(\d)?/);
+  const initial = m && m[1] ? Number(m[1]) : 0;
+  const firmName = PORTAL_GROUP.firm;
+  const [toast, setToast] = useState(null);
+  const fireToast = t => {
+    setToast(t);
+    setTimeout(() => setToast(null), 2400);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      background: T.bg,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px 16px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '100%',
+      maxWidth: 480,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 16,
+      boxShadow: '0 12px 36px rgba(15,17,23,0.10)',
+      padding: '28px 24px'
+    }
+  }, /*#__PURE__*/React.createElement(ClientFeedbackFlow, {
+    job: {
+      jobName: 'BAS — Q3 FY26'
+    },
+    settings: REPUTATION_SETTINGS_DEFAULT,
+    firmName: firmName,
+    initialRating: initial || undefined,
+    onComplete: r => fireToast(r.route === 'public' ? 'Thanks for your rating!' : 'Feedback received')
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 5,
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, "Powered by ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'baseline',
+      gap: 1,
+      fontWeight: 700,
+      color: T.textSoft
+    }
+  }, "S", /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-block',
+      width: 6,
+      height: 6,
+      borderRadius: '50%',
+      background: T.primary,
+      transform: 'translateY(0)'
+    }
+  }), "le")), /*#__PURE__*/React.createElement(Toast, {
+    toast: toast,
+    onClose: () => setToast(null)
+  }));
+};
+
 // --- root: hash-routed shell ---
 // Default landing is the Practice app (Employees). The proposal editor is
 // reachable via any non-practice hash (`#/proposal`, or the legacy empty-hash
 // behaviour preserved by clicking "Proposal" in the sidebar, which clears
 // the hash — handled below).
 const Root = () => {
-  // Three top-level surfaces: the client Portal (#/portal*), the Practice app
-  // (empty hash or #/practice*), and the Proposal editor (everything else,
-  // e.g. #/proposal). The empty-hash → practice default is preserved — the
-  // deployed share depends on it.
+  // Top-level surfaces: the standalone web review page (#/feedback), the client
+  // Portal (#/portal*), the Practice app (empty hash or #/practice*), and the
+  // Proposal editor (everything else). #/feedback is checked BEFORE #/portal
+  // only matters for prefix safety. The empty-hash → practice default is
+  // preserved — the deployed share depends on it.
   const classify = h => {
     const s = h || '';
+    if (s.startsWith('#/feedback')) return 'feedback';
     if (s.startsWith('#/portal')) return 'portal';
     if (!s || s === '#' || s === '#/' || s.startsWith('#/practice')) return 'practice';
     return 'proposal';
@@ -104145,6 +107147,7 @@ const Root = () => {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+  if (view === 'feedback') return /*#__PURE__*/React.createElement(FeedbackLandingApp, null);
   if (view === 'portal') return /*#__PURE__*/React.createElement(ClientPortalApp, null);
   if (view === 'practice') return /*#__PURE__*/React.createElement(PracticeApp, null);
   return /*#__PURE__*/React.createElement(App, null);
