@@ -15485,6 +15485,27 @@ const NotifyBody = ({
 // =====================================================
 // LIVE PREVIEW (right pane)
 // =====================================================
+// Client-verification request levels (Ignition-style) — drives the proposal
+// Verification section, the Confirm summary, and the client-journey page.
+const VERIFICATION_LEVELS = {
+  none: {
+    label: 'No verification',
+    short: 'None',
+    blurb: 'Don’t ask the client to verify their identity for this engagement.'
+  },
+  identity: {
+    label: 'Identity verification',
+    short: 'Identity',
+    blurb: 'Verify the client’s identity with document + face match and AML / sanctions screening.'
+  },
+  enhanced: {
+    label: 'Enhanced verification',
+    short: 'Enhanced',
+    blurb: 'Identity verification plus business checks (KYB), beneficial-owner collection, and AML & sanctions screening.'
+  }
+};
+const verificationLevelOf = state => state.verificationLevel || 'enhanced';
+const VERIFICATION_STEPS = ['Consent', 'Profile details', 'Document capture', 'Face capture', 'Screening'];
 const PREVIEW_TABS = [{
   id: 'splash',
   label: 'Cover'
@@ -15506,6 +15527,10 @@ const PREVIEW_TABS = [{
 }, {
   id: 'next',
   label: 'Next steps'
+}, {
+  id: 'verification',
+  label: 'Verification',
+  postSign: true
 }, {
   id: 'acct-software',
   label: 'Software',
@@ -15530,6 +15555,7 @@ const SECTION_TO_TAB = {
   terms: 'terms',
   docs: 'terms',
   next: 'next',
+  verification: 'verification',
   'acct-software': 'acct-software',
   perks: 'perks',
   thanks: 'thanks',
@@ -15548,6 +15574,7 @@ const TAB_TO_SECTION = {
   pricing: 'payment',
   terms: 'terms',
   next: 'next',
+  verification: 'verification',
   'acct-software': 'acct-software',
   perks: 'perks',
   thanks: 'thanks',
@@ -16988,6 +17015,16 @@ const PreviewNext = ({
   accent: state.themeColor || T.primary,
   template: getTemplate(state)
 }));
+const PreviewVerification = ({
+  state,
+  set
+}) => /*#__PURE__*/React.createElement(LivePane, null, /*#__PURE__*/React.createElement(FullVerificationPage, {
+  state: state,
+  set: set,
+  accent: state.themeColor || T.primary,
+  template: getTemplate(state),
+  showEditorBanner: true
+}));
 const PreviewAcctSoftware = ({
   state,
   set
@@ -17633,6 +17670,9 @@ const LivePreview = ({
   });else if (activeTab === 'next') body = /*#__PURE__*/React.createElement(PreviewNext, {
     state: state,
     set: set
+  });else if (activeTab === 'verification') body = /*#__PURE__*/React.createElement(PreviewVerification, {
+    state: state,
+    set: set
   });else if (activeTab === 'acct-software') body = /*#__PURE__*/React.createElement(PreviewAcctSoftware, {
     state: state,
     set: set
@@ -17783,6 +17823,9 @@ const FULL_PREVIEW_PAGES_BASE = [{
   id: 'review',
   label: 'Review agreement'
 }, {
+  id: 'verification',
+  label: 'Verification'
+}, {
   id: 'next',
   label: 'Next Steps'
 }];
@@ -17796,6 +17839,7 @@ const hasAnyAddons = state => (state.packages || []).some(p => (p.groups || []).
 const getFullPreviewPages = state => {
   let base = [...FULL_PREVIEW_PAGES_BASE];
   if (!hasAnyAddons(state)) base = base.filter(p => p.id !== 'addons');
+  if (verificationLevelOf(state) === 'none') base = base.filter(p => p.id !== 'verification');
   if (state.acctSoftwareEnabled !== false) base.push({
     id: 'acct-software',
     label: 'Software'
@@ -22334,6 +22378,186 @@ const FullNextPage = ({
   })));
 };
 
+// Client-journey verification page (Ignition-style "Start client verification").
+// Mocked: pressing Start marks the identity verified in local state.
+const FullVerificationPage = ({
+  state,
+  set,
+  accent,
+  template,
+  showEditorBanner = false
+}) => {
+  const tpl = template || getTemplate(state);
+  const acc = accent || state.themeColor || T.primary;
+  const accText = contrastText(acc);
+  const level = verificationLevelOf(state);
+  const meta = VERIFICATION_LEVELS[level] || VERIFICATION_LEVELS.enhanced;
+  const [done, setDone] = useState(false);
+  const steps = level === 'enhanced' ? VERIFICATION_STEPS.concat('Beneficial owners') : VERIFICATION_STEPS;
+  return /*#__PURE__*/React.createElement(TplPageWrap, {
+    template: tpl,
+    accent: acc
+  }, /*#__PURE__*/React.createElement(TplPageHeader, {
+    template: tpl,
+    accent: acc,
+    chapter: 8,
+    kicker: "Identity & compliance",
+    title: "Verify your identity",
+    subtitle: "A quick, secure check to meet AML/CTF obligations \u2014 part of accepting this proposal.",
+    pageId: "verification",
+    state: state,
+    set: set
+  }), /*#__PURE__*/React.createElement(TplBody, {
+    template: tpl
+  }, showEditorBanner && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(PostSignEditorBanner, {
+    accent: acc,
+    label: "verification step"
+  })), done ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      padding: 20,
+      border: '1px solid #A7F3D0',
+      borderRadius: 12,
+      background: T.greenSoft
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 44,
+      height: 44,
+      borderRadius: '50%',
+      background: T.green,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "shield",
+    size: 22,
+    color: "#fff"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: T.greenDark
+    }
+  }, "Identity verified"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12.5
+    }
+  }, meta.label, " complete \xB7 document + face match \xB7 PEP & sanctions screened."))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 18px',
+      borderBottom: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "shield",
+    size: 18,
+    color: acc
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, meta.label)), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.55
+    }
+  }, meta.blurb)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 18px'
+    }
+  }, steps.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: s,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '8px 0',
+      borderTop: i > 0 ? `1px solid ${T.border}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 24,
+      height: 24,
+      borderRadius: '50%',
+      border: `1.5px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 11,
+      fontWeight: 800,
+      color: T.muted,
+      flexShrink: 0
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, s)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 18px',
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDone(true),
+    style: {
+      padding: '10px 20px',
+      border: 'none',
+      borderRadius: 8,
+      background: acc,
+      color: accText,
+      fontSize: 13.5,
+      fontWeight: 700,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "shield",
+    size: 15,
+    color: accText
+  }), " Start verification"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Powered by a secure identity provider \u2014 mocked in this demo."))), /*#__PURE__*/React.createElement(TplFooter, {
+    template: tpl,
+    accent: acc,
+    state: state,
+    chapter: 8,
+    sectionLabel: "Verification",
+    prepared: `${practiceOf(state)} · ${meta.label}`
+  })));
+};
+
 // PDFDocument — rendered via Portal as a direct child of <body> so that
 // the print stylesheet can hide #root entirely and show only this. Each
 // templated page is wrapped in a .pdf-page A4 frame with page-break-after.
@@ -22494,7 +22718,9 @@ const FullPreview = ({
   useEffect(() => {
     if (state.signedAt && !wasSignedRef.current) {
       wasSignedRef.current = true;
-      setPage('thanks');
+      // Ignition-style: signing flows straight into the verification step when one
+      // is requested, otherwise close on the Thank-you high note.
+      setPage(pages.some(p => p.id === 'verification') ? 'verification' : 'thanks');
     } else if (!state.signedAt) {
       wasSignedRef.current = false;
     }
@@ -22510,7 +22736,9 @@ const FullPreview = ({
     onOpenIntro: () => setPage('intro')
   }));else if (page === 'toc') body = /*#__PURE__*/React.createElement(FullTocPage, _extends({}, pageProps, {
     onJump: setPage
-  }));else if (page === 'intro') body = /*#__PURE__*/React.createElement(FullIntroPage, pageProps);else if (page === 'packages') body = /*#__PURE__*/React.createElement(FullPackagesPage, pageProps);else if (page === 'services') body = /*#__PURE__*/React.createElement(FullServicesPage, pageProps);else if (page === 'addons') body = /*#__PURE__*/React.createElement(FullAddonsPage, pageProps);else if (page === 'pricing') body = /*#__PURE__*/React.createElement(FullPricingPage, pageProps);else if (page === 'payments') body = /*#__PURE__*/React.createElement(FullPaymentsPage, pageProps);else if (page === 'review') body = /*#__PURE__*/React.createElement(FullReviewPage, pageProps);else if (page === 'acct-software') body = /*#__PURE__*/React.createElement(FullAcctSoftwarePage, _extends({}, pageProps, {
+  }));else if (page === 'intro') body = /*#__PURE__*/React.createElement(FullIntroPage, pageProps);else if (page === 'packages') body = /*#__PURE__*/React.createElement(FullPackagesPage, pageProps);else if (page === 'services') body = /*#__PURE__*/React.createElement(FullServicesPage, pageProps);else if (page === 'addons') body = /*#__PURE__*/React.createElement(FullAddonsPage, pageProps);else if (page === 'pricing') body = /*#__PURE__*/React.createElement(FullPricingPage, pageProps);else if (page === 'payments') body = /*#__PURE__*/React.createElement(FullPaymentsPage, pageProps);else if (page === 'review') body = /*#__PURE__*/React.createElement(FullReviewPage, pageProps);else if (page === 'verification') body = /*#__PURE__*/React.createElement(FullVerificationPage, _extends({}, pageProps, {
+    showEditorBanner: !state.signedAt
+  }));else if (page === 'acct-software') body = /*#__PURE__*/React.createElement(FullAcctSoftwarePage, _extends({}, pageProps, {
     showEditorBanner: !state.signedAt
   }));else if (page === 'perks') body = /*#__PURE__*/React.createElement(FullPerksPage, _extends({}, pageProps, {
     showEditorBanner: !state.signedAt
@@ -23124,6 +23352,118 @@ const savePref = patch => {
     localStorage.setItem(PREFS_KEY, JSON.stringify(next));
   } catch {}
 };
+
+// Client-verification request (Ignition-style) — picks the level the client
+// completes when they accept; the choice surfaces in Confirm + the client journey.
+const VerificationBody = ({
+  state,
+  set
+}) => {
+  const level = verificationLevelOf(state);
+  const opts = [{
+    id: 'none',
+    ...VERIFICATION_LEVELS.none
+  }, {
+    id: 'identity',
+    ...VERIFICATION_LEVELS.identity
+  }, {
+    id: 'enhanced',
+    ...VERIFICATION_LEVELS.enhanced,
+    recommended: true
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.55
+    }
+  }, "Choose whether to ask this client to verify their identity when they accept. Accountants are reporting entities under AUSTRAC from 1 Jul 2026 \u2014 most engagements need identity or enhanced verification."), opts.map(o => {
+    const sel = level === o.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.id,
+      onClick: () => set({
+        verificationLevel: o.id
+      }),
+      style: {
+        textAlign: 'left',
+        display: 'flex',
+        gap: 12,
+        alignItems: 'flex-start',
+        padding: 16,
+        border: `1.5px solid ${sel ? T.primary : T.border}`,
+        borderRadius: 12,
+        background: sel ? T.primarySofter : T.card,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        border: `2px solid ${sel ? T.primary : T.borderStrong}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        marginTop: 1
+      }
+    }, sel && /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        background: T.primary
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, o.label), o.recommended && /*#__PURE__*/React.createElement(Pill, {
+      color: "accent"
+    }, "Recommended")), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12.5,
+        marginTop: 3,
+        lineHeight: 1.5
+      }
+    }, o.blurb)));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 9,
+      padding: '11px 14px',
+      background: T.fieldBg,
+      borderRadius: 10
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 15,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      lineHeight: 1.5
+    }
+  }, "When the client accepts, they complete this verification as part of the same journey. Results & risk rating flow into ", /*#__PURE__*/React.createElement("b", null, "Clients Management \u2192 Compliance"), ".")));
+};
 const ProposalEditor = ({
   state,
   set,
@@ -23298,6 +23638,7 @@ const ProposalEditor = ({
       return onCount === 0 ? 'No perks shown to client' : `${onCount} ${onCount === 1 ? 'perk' : 'perks'} shown to client`;
     })(),
     theme: state.brandFetched ? `Brand from ${state.brandUrl} · ${state.themeColor} · ${state.brandFont}` : `Primary ${state.themeColor} · accent ${state.themeAccent || '#F5C518'}`,
+    verification: (VERIFICATION_LEVELS[verificationLevelOf(state)] || VERIFICATION_LEVELS.enhanced).label,
     notify: (() => {
       const chans = getChannels(state);
       const chanList = chans.map(channelLabelOf).join(' + ');
@@ -23328,6 +23669,7 @@ const ProposalEditor = ({
   const optional = {
     docs: true,
     theme: true,
+    verification: true,
     'acct-software': true,
     perks: true,
     thanks: true
@@ -23336,6 +23678,7 @@ const ProposalEditor = ({
     ...required,
     docs: (state.uploadedDocs || []).length > 0 && state.uploadedDocs.every(d => d.fields.length > 0),
     theme: true,
+    verification: true,
     // Post-sign surfaces with sensible defaults — always "complete" so they
     // appear neutral, not flagged as empty.
     'acct-software': true,
@@ -23529,6 +23872,13 @@ const ProposalEditor = ({
         state: state,
         set: set,
         isCompact: isCompact
+      })
+    }, {
+      id: 'verification',
+      title: 'Verification',
+      body: /*#__PURE__*/React.createElement(VerificationBody, {
+        state: state,
+        set: set
       })
     }, {
       id: 'notify',
@@ -23877,8 +24227,13 @@ const Confirm = ({
     label: "Sending to",
     value: notifyValue,
     sub: notifySub,
-    last: true,
     onEdit: () => goto('notify')
+  }), /*#__PURE__*/React.createElement(SummaryRow, {
+    label: "Client verification",
+    value: (VERIFICATION_LEVELS[verificationLevelOf(state)] || VERIFICATION_LEVELS.enhanced).label,
+    sub: verificationLevelOf(state) === 'none' ? 'No identity check requested' : 'Completed by the client when they accept',
+    last: true,
+    onEdit: () => goto('verification')
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -25640,6 +25995,8 @@ const trueEmpty = proposalName => ({
   signedAt: null,
   signedName: '',
   signModalOpen: false,
+  verificationLevel: 'enhanced',
+  // client-verification request: 'none' | 'identity' | 'enhanced'
   // thanks page — defaults apply when these are blank (heading/subtitle
   // render fallback copy). Partner offers stay as platform defaults so the
   // author can curate which ones the client sees.
@@ -26807,8 +27164,8 @@ const AppSidebar = ({
     label: 'Workflow'
   }, {
     id: 'questionnaires-forms',
-    label: 'Templates'
-  } // stub, relabelled
+    label: 'Onboarding'
+  } // onboarding template builder
   ];
   const myFocusSubs = [{
     id: 'individual-staff',
@@ -33347,6 +33704,330 @@ const PRACTICE_CLIENTS = [{
   officeId: 'off-mel'
 }];
 const clientById = id => PRACTICE_CLIENTS.find(c => c.id === id);
+
+// ============================================================================
+// --- compliance / KYC-AML (accountant-side) ---------------------------------
+// A deterministic mock of each client's AML/CTF verification state, powering the
+// Compliance dashboard (fills the clients-management surface) + the per-client
+// verification detail. Modelled on AUSTRAC "Tranche 2" obligations (accountants
+// become reporting entities from 1 Jul 2026): CDD by entity type, beneficial
+// ownership (>=25%), PEP / sanctions / adverse-media screening, a risk rating
+// that drives standard vs enhanced CDD, ongoing-review cadence, 7-year record
+// retention, and an auditable verification timeline.
+// ----------------------------------------------------------------------------
+const COMPLIANCE_STATUS = {
+  not_started: {
+    label: 'Not started',
+    color: 'neutral'
+  },
+  invited: {
+    label: 'Invited',
+    color: 'blue'
+  },
+  in_progress: {
+    label: 'In progress',
+    color: 'amber'
+  },
+  submitted: {
+    label: 'Submitted',
+    color: 'accent'
+  },
+  verified: {
+    label: 'Verified',
+    color: 'green'
+  },
+  review_due: {
+    label: 'Review due',
+    color: 'amber'
+  },
+  blocked: {
+    label: 'Blocked',
+    color: 'red'
+  }
+};
+const COMPLIANCE_STATUS_ORDER = ['not_started', 'invited', 'in_progress', 'submitted', 'verified', 'review_due', 'blocked'];
+const RISK_PILL = {
+  low: 'green',
+  medium: 'amber',
+  high: 'red'
+};
+const RISK_LABEL = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High'
+};
+const compHash = id => String(id).split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+const effectiveRisk = rec => rec.overrideRating || rec.suggestedRating;
+const compDay = deltaDays => {
+  const d = new Date(Date.UTC(2026, 5, 24));
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+};
+const COMP_OWNER_NAMES = ['Daniel Cho', 'Mei Lin', 'Robert Avis', 'Sofia Marlow', 'Aisha Khan', 'Liam O’Brien', 'Nina Petrov', 'Carlos Mendez'];
+const COMP_ADVISORS = ['Sarah Mitchell', 'James Liu', 'Priya Nair', 'Tom Carter'];
+
+// Core verification state for the 7 payroll clients (kept coherent across modules).
+const COMP_CORE = {
+  'c-solepay': {
+    entityType: 'Company',
+    status: 'verified',
+    suggestedRating: 'low'
+  },
+  'c-northcoast': {
+    entityType: 'Partnership',
+    status: 'review_due',
+    suggestedRating: 'medium'
+  },
+  'c-bondi': {
+    entityType: 'Company',
+    status: 'in_progress',
+    suggestedRating: 'low'
+  },
+  'c-greenleaf': {
+    entityType: 'Trust',
+    status: 'submitted',
+    suggestedRating: 'medium'
+  },
+  'c-marlow': {
+    entityType: 'Company',
+    status: 'blocked',
+    suggestedRating: 'high',
+    overrideRating: 'high',
+    eddTriggered: true,
+    offshore: true
+  },
+  'c-acme': {
+    entityType: 'SMSF',
+    status: 'verified',
+    suggestedRating: 'low'
+  },
+  'c-kim': {
+    entityType: 'Sole Trader',
+    status: 'invited',
+    suggestedRating: 'low'
+  }
+};
+// Extra clients so every status counter is non-zero and the list reads populated.
+// `cl-portal` mirrors the live client portal group — the dashboard overlays its
+// real onboarding progress at render (the "portal completion shows up here" demo).
+const COMP_EXTRA = [{
+  id: 'cl-portal',
+  name: 'Sharma Family Group',
+  color: 'accent',
+  abn: 'SPM-2026-0042',
+  entityType: 'Individual',
+  status: 'in_progress',
+  suggestedRating: 'low',
+  _portal: true
+}, {
+  id: 'cmp-orbit',
+  name: 'Orbit Digital Pty Ltd',
+  color: 'blue',
+  abn: '45 882 110 774',
+  domain: 'orbit.com',
+  entityType: 'Company',
+  status: 'verified',
+  suggestedRating: 'low'
+}, {
+  id: 'cmp-harbour',
+  name: 'Harbour Freight Trust',
+  color: 'amber',
+  abn: '61 220 884 119',
+  entityType: 'Trust',
+  status: 'review_due',
+  suggestedRating: 'medium'
+}, {
+  id: 'cmp-vista',
+  name: 'Vista Imports Pty Ltd',
+  color: 'red',
+  abn: '33 771 005 218',
+  entityType: 'Company',
+  status: 'blocked',
+  suggestedRating: 'high',
+  overrideRating: 'high',
+  eddTriggered: true,
+  offshore: true
+}, {
+  id: 'cmp-lumen',
+  name: 'Lumen Advisory Partners',
+  color: 'green',
+  abn: '29 118 663 042',
+  entityType: 'Partnership',
+  status: 'submitted',
+  suggestedRating: 'medium'
+}, {
+  id: 'cmp-fern',
+  name: 'Fern & Co Bookkeeping',
+  color: 'neutral',
+  abn: '—',
+  entityType: 'Sole Trader',
+  status: 'not_started',
+  suggestedRating: 'low'
+}, {
+  id: 'cmp-delta',
+  name: 'Delta Super Fund',
+  color: 'blue',
+  abn: '70 552 901 663',
+  entityType: 'SMSF',
+  status: 'verified',
+  suggestedRating: 'low'
+}, {
+  id: 'cmp-rosa',
+  name: 'Rosa Nguyen',
+  color: 'amber',
+  abn: '—',
+  entityType: 'Individual',
+  status: 'invited',
+  suggestedRating: 'low'
+}, {
+  id: 'cmp-koru',
+  name: 'Koru Ventures Trust',
+  color: 'green',
+  abn: '12 889 224 551',
+  entityType: 'Trust',
+  status: 'not_started',
+  suggestedRating: 'medium'
+}];
+const mkComp = base => {
+  const h = compHash(base.id);
+  const status = base.status;
+  const isEntity = !['Individual', 'Sole Trader'].includes(base.entityType);
+  const risk = base.overrideRating || base.suggestedRating;
+  const blocked = status === 'blocked';
+  const submittedPlus = ['submitted', 'verified', 'review_due'].includes(status);
+  const early = ['not_started', 'invited'].includes(status);
+  const scr = isHit => early ? 'pending' : isHit ? 'hit' : 'cleared';
+  const screening = {
+    pep: scr(risk === 'high' && h % 3 === 0),
+    sanctions: scr(blocked && h % 2 === 0),
+    adverseMedia: scr(risk === 'high' && h % 5 === 0)
+  };
+  const idResult = blocked ? 'failed' : submittedPlus ? 'passed' : 'pending';
+  const evidence = [{
+    kind: 'identity',
+    label: 'Identity verification',
+    result: idResult,
+    detail: idResult === 'passed' ? 'Document authenticity + face match passed' : idResult === 'failed' ? 'Face match below threshold — re-capture needed' : 'Awaiting client documents',
+    at: submittedPlus ? compDay(-(8 + h % 6)) : null
+  }];
+  if (isEntity) evidence.push({
+    kind: 'abr',
+    label: 'Business registry (ABR) lookup',
+    result: submittedPlus ? 'passed' : 'pending',
+    detail: `ABN ${base.abn} · ${submittedPlus ? 'active, names matched' : 'not yet run'}`,
+    at: submittedPlus ? compDay(-(9 + h % 5)) : null
+  });
+  const owners = isEntity ? (() => {
+    const n = base.entityType === 'SMSF' ? 2 : h % 2 ? 2 : 3;
+    const pcts = n === 3 ? [40, 35, 25] : [60, 40];
+    const roleWord = base.entityType === 'SMSF' ? 'Trustee' : base.entityType === 'Trust' ? 'Trustee / beneficiary' : 'Beneficial owner';
+    return Array.from({
+      length: n
+    }, (_, i) => ({
+      name: COMP_OWNER_NAMES[(h + i * 3) % COMP_OWNER_NAMES.length],
+      role: roleWord,
+      pct: pcts[i],
+      verified: submittedPlus && !(blocked && i === 0)
+    }));
+  })() : [];
+  const riskBreakdown = [{
+    factor: 'Country / geography',
+    level: base.offshore ? 'high' : 'low',
+    note: base.offshore ? 'Beneficial owner in a high-risk jurisdiction' : 'Australia — AUSTRAC low-risk'
+  }, {
+    factor: 'Political exposure (PEP)',
+    level: screening.pep === 'hit' ? 'high' : 'low',
+    note: screening.pep === 'hit' ? 'Potential PEP match — verify' : screening.pep === 'cleared' ? 'No PEP match' : 'Screening pending'
+  }, {
+    factor: 'Occupation / industry',
+    level: risk === 'high' ? 'medium' : 'low',
+    note: base.entityType === 'SMSF' ? 'Self-managed super — standard' : 'Standard business activity'
+  }, {
+    factor: 'Watchlist / sanctions',
+    level: screening.sanctions === 'hit' ? 'high' : 'low',
+    note: screening.sanctions === 'hit' ? 'Sanctions list match — escalate' : screening.sanctions === 'cleared' ? 'No sanctions match' : 'Screening pending'
+  }];
+  const reviewDelta = {
+    low: 365,
+    medium: 180,
+    high: 90
+  }[risk] || 365;
+  const reviewDue = status === 'review_due' ? compDay(-(6 + h % 18)) : compDay(reviewDelta - h % 40);
+  const retainUntil = compDay(365 * 7 + h % 90);
+  const reached = {
+    not_started: 1,
+    invited: 2,
+    in_progress: 3,
+    submitted: 4,
+    verified: 6,
+    review_due: 6,
+    blocked: 5
+  }[status] || 1;
+  const auditSteps = [{
+    label: 'Request created',
+    d: -20
+  }, {
+    label: 'Request sent to client',
+    d: -20
+  }, {
+    label: 'Client opened request',
+    d: -16
+  }, {
+    label: 'Client submitted details',
+    d: -10
+  }, {
+    label: 'Verification completed',
+    d: -9
+  }, {
+    label: 'Risk assessed',
+    d: -9
+  }];
+  const audit = auditSteps.slice(0, reached).map(s => ({
+    label: s.label,
+    at: compDay(s.d + h % 4)
+  }));
+  const onboarding = (() => {
+    const total = 8 + h % 5;
+    const frac = {
+      verified: 1,
+      review_due: 1,
+      submitted: 1,
+      in_progress: 0.55,
+      blocked: 0.7,
+      invited: 0.12,
+      not_started: 0
+    }[status];
+    return {
+      done: Math.round(total * (frac == null ? 0 : frac)),
+      total
+    };
+  })();
+  const contact = isEntity ? owners[0] ? owners[0].name : base.name : base.name;
+  const advisor = COMP_ADVISORS[h % COMP_ADVISORS.length];
+  const eddNote = base.eddTriggered ? base.offshore ? 'Beneficial owner resident in a high-risk jurisdiction — enhanced CDD + senior approval required before service delivery.' : 'High residual risk — enhanced due diligence required before service delivery.' : '';
+  return {
+    ...base,
+    isEntity,
+    screening,
+    evidence,
+    beneficialOwners: owners,
+    riskBreakdown,
+    reviewDue,
+    retainUntil,
+    audit,
+    onboarding,
+    contact,
+    advisor,
+    eddNote,
+    suggestedRating: base.suggestedRating,
+    overrideRating: base.overrideRating || null
+  };
+};
+const PRACTICE_COMPLIANCE = [...PRACTICE_CLIENTS.filter(c => COMP_CORE[c.id]).map(c => ({
+  ...c,
+  ...COMP_CORE[c.id]
+})), ...COMP_EXTRA].map(mkComp);
+const complianceById = id => PRACTICE_COMPLIANCE.find(c => c.id === id);
 
 // =================================================================
 // --- reputation management & client experience (Module 13) ---
@@ -43357,6 +44038,839 @@ const SidePanel = ({
 // EmployeesPage/PayrollPage (header + summary tiles + Card-wrapped
 // table) so the surface feels at home in the module.
 // =================================================================
+// --- Compliance / KYC-AML dashboard (fills the Clients Management surface) ---
+const COMP_ACTION_LABEL = {
+  not_started: 'Send request',
+  invited: 'Resend',
+  in_progress: 'View',
+  submitted: 'Review',
+  verified: 'View',
+  review_due: 'Re-verify',
+  blocked: 'Resolve'
+};
+const goCompliance = id => {
+  window.location.hash = '#/practice/compliance-detail/' + id;
+};
+const ComplianceDashboardPage = ({
+  fireToast
+}) => {
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
+  const counts = {
+    all: PRACTICE_COMPLIANCE.length
+  };
+  COMPLIANCE_STATUS_ORDER.forEach(k => {
+    counts[k] = PRACTICE_COMPLIANCE.filter(r => r.status === k).length;
+  });
+  const needle = search.trim().toLowerCase();
+  const rows = PRACTICE_COMPLIANCE.filter(r => (statusFilter === 'all' || r.status === statusFilter) && (riskFilter === 'all' || effectiveRisk(r) === riskFilter) && (!needle || (r.name + ' ' + r.entityType + ' ' + r.abn).toLowerCase().includes(needle)));
+  const toggle = id => setSelected(s => {
+    const n = new Set(s);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
+  const allVisibleSelected = rows.length > 0 && rows.every(r => selected.has(r.id));
+  const toggleAll = () => setSelected(s => {
+    const n = new Set(s);
+    if (allVisibleSelected) rows.forEach(r => n.delete(r.id));else rows.forEach(r => n.add(r.id));
+    return n;
+  });
+  const onAction = (rec, e) => {
+    e.stopPropagation();
+    if (rec.status === 'not_started' || rec.status === 'invited') return fireToast({
+      message: `Verification request sent to ${rec.name}`
+    });
+    if (rec.status === 'review_due') return fireToast({
+      message: `Re-verification requested for ${rec.name}`
+    });
+    goCompliance(rec.id);
+  };
+  const today = compDay(0);
+  const cols = '34px minmax(190px,1.5fr) 0.9fr 1.15fr 1fr 0.8fr 1fr 96px';
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 40px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, "Clients Management"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Onboarding & AML/CTF verification across every client. Accountants are reporting entities under AUSTRAC from 1 Jul 2026 \u2014 track CDD, risk and review dates here."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 2,
+      flexWrap: 'wrap',
+      borderBottom: `1px solid ${T.border}`,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement(TabChip, {
+    active: statusFilter === 'all',
+    label: "All",
+    count: counts.all,
+    onClick: () => setStatusFilter('all')
+  }), COMPLIANCE_STATUS_ORDER.map(k => /*#__PURE__*/React.createElement(TabChip, {
+    key: k,
+    active: statusFilter === k,
+    label: COMPLIANCE_STATUS[k].label,
+    count: counts[k],
+    onClick: () => setStatusFilter(statusFilter === k ? 'all' : k)
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Risk"), ['all', 'low', 'medium', 'high'].map(r => /*#__PURE__*/React.createElement(Chip, {
+    key: r,
+    size: "sm",
+    selected: riskFilter === r,
+    onClick: () => setRiskFilter(r)
+  }, r === 'all' ? 'All' : RISK_LABEL[r]))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 180,
+      maxWidth: 320,
+      marginLeft: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search clients\u2026",
+    prefix: /*#__PURE__*/React.createElement(Icon, {
+      name: "search",
+      size: 14,
+      color: T.muted
+    })
+  }))), selected.size > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '10px 14px',
+      background: T.primarySofter,
+      border: `1px solid #C7C9FB`,
+      borderRadius: 10,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.primary
+    }
+  }, selected.size, " selected"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "shield",
+    onClick: () => {
+      fireToast({
+        message: `Verification requested for ${selected.size} client${selected.size === 1 ? '' : 's'}`
+      });
+      setSelected(new Set());
+    }
+  }, "Request verification"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSelected(new Set()),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Clear")), /*#__PURE__*/React.createElement(Card, {
+    padded: false,
+    style: {
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: cols,
+      padding: '10px 16px',
+      background: T.fieldBg,
+      borderBottom: `1px solid ${T.border}`,
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: allVisibleSelected,
+    onChange: toggleAll,
+    style: {
+      accentColor: T.primary,
+      width: 15,
+      height: 15,
+      cursor: 'pointer'
+    }
+  }), ['Client', 'Entity', 'Onboarding', 'Verification', 'Risk', 'Review due', ''].map((h, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6
+    }
+  }, h))), rows.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '28px 16px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "No clients match this filter.")), rows.map((rec, i) => {
+    const pct = rec.onboarding.total ? Math.round(rec.onboarding.done / rec.onboarding.total * 100) : 0;
+    const risk = effectiveRisk(rec);
+    const pastReview = rec.reviewDue < today && ['verified', 'review_due'].includes(rec.status);
+    return /*#__PURE__*/React.createElement("div", {
+      key: rec.id,
+      "data-hover": "row",
+      onClick: () => goCompliance(rec.id),
+      style: {
+        display: 'grid',
+        gridTemplateColumns: cols,
+        padding: '12px 16px',
+        alignItems: 'center',
+        gap: 12,
+        borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none',
+        fontSize: 13,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("input", {
+      type: "checkbox",
+      checked: selected.has(rec.id),
+      onClick: e => e.stopPropagation(),
+      onChange: () => toggle(rec.id),
+      style: {
+        accentColor: T.primary,
+        width: 15,
+        height: 15,
+        cursor: 'pointer'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement(ClientMark, {
+      client: rec,
+      size: 28
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 600,
+        color: T.text,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, rec.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, rec.abn))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.textSoft
+      }
+    }, rec.entityType), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        height: 5,
+        background: T.fieldBg,
+        borderRadius: 99,
+        minWidth: 40
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${pct}%`,
+        background: pct === 100 ? T.green : T.primary,
+        borderRadius: 99
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: T.muted,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, rec.onboarding.done, "/", rec.onboarding.total))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Pill, {
+      color: COMPLIANCE_STATUS[rec.status].color
+    }, COMPLIANCE_STATUS[rec.status].label)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Pill, {
+      color: RISK_PILL[risk]
+    }, RISK_LABEL[risk])), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontVariantNumeric: 'tabular-nums',
+        color: pastReview ? T.red : T.textSoft,
+        fontWeight: pastReview ? 600 : 400
+      }
+    }, fmtDate(new Date(rec.reviewDue))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right'
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      onClick: e => onAction(rec, e)
+    }, COMP_ACTION_LABEL[rec.status])));
+  })));
+};
+
+// --- per-client verification detail ---
+const EVIDENCE_PILL = {
+  passed: 'green',
+  pending: 'amber',
+  failed: 'red'
+};
+const EVIDENCE_LABEL = {
+  passed: 'Passed',
+  pending: 'Pending',
+  failed: 'Failed'
+};
+const EVIDENCE_ICON = {
+  passed: 'checkCircle',
+  pending: 'clock',
+  failed: 'xCircle'
+};
+const SCREEN_PILL = {
+  cleared: 'green',
+  hit: 'red',
+  pending: 'amber'
+};
+const SCREEN_LABEL = {
+  cleared: 'Cleared',
+  hit: 'Hit',
+  pending: 'Pending'
+};
+const ComplianceTimeline = ({
+  audit
+}) => {
+  const events = [...(audit || [])].reverse(); // newest first
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, events.map((ev, i) => {
+    const last = i === events.length - 1;
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 9,
+        height: 9,
+        borderRadius: '50%',
+        background: i === 0 ? T.primary : T.mutedSoft,
+        border: `2px solid ${T.card}`,
+        boxShadow: `0 0 0 1.5px ${i === 0 ? T.primary : T.border}`,
+        marginTop: 4,
+        flexShrink: 0
+      }
+    }), !last && /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 1.5,
+        flex: 1,
+        background: T.border,
+        margin: '2px 0'
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        paddingBottom: last ? 0 : 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, ev.label), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, fmtDate(new Date(ev.at)))));
+  }));
+};
+const ComplianceDetailPage = ({
+  clientId,
+  fireToast
+}) => {
+  const rec = complianceById(clientId);
+  const {
+    isCompact
+  } = useViewport();
+  const [override, setOverride] = useState(rec ? rec.overrideRating : null);
+  const backToList = () => {
+    window.location.hash = '#/practice/clients-management';
+  };
+  const BackLink = () => /*#__PURE__*/React.createElement("button", {
+    onClick: backToList,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.muted,
+      fontSize: 12.5,
+      fontWeight: 600,
+      padding: 0,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronLeft",
+    size: 15,
+    color: T.muted
+  }), " Clients Management");
+  if (!rec) {
+    return /*#__PURE__*/React.createElement("main", {
+      style: {
+        flex: 1,
+        minWidth: 0,
+        padding: '24px 28px 40px'
+      }
+    }, /*#__PURE__*/React.createElement(BackLink, null), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(Helper, null, "Client not found.")));
+  }
+  const risk = override || rec.suggestedRating;
+  const today = compDay(0);
+  const pastReview = rec.reviewDue < today && ['verified', 'review_due'].includes(rec.status);
+  const screenRows = [{
+    key: 'pep',
+    label: 'Politically exposed persons (PEP)'
+  }, {
+    key: 'sanctions',
+    label: 'Sanctions lists'
+  }, {
+    key: 'adverseMedia',
+    label: 'Adverse media'
+  }];
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 40px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(BackLink, null), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(ClientMark, {
+    client: rec,
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 19,
+      fontWeight: 700,
+      letterSpacing: -0.3
+    }
+  }, rec.name), /*#__PURE__*/React.createElement(Pill, {
+    color: COMPLIANCE_STATUS[rec.status].color
+  }, COMPLIANCE_STATUS[rec.status].label)), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, rec.entityType, " \xB7 ", rec.abn, " \xB7 Advisor: ", rec.advisor))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, rec._portal && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "link",
+    onClick: () => {
+      window.location.hash = '#/portal';
+    }
+  }, "Open portal"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "refresh",
+    onClick: () => fireToast({
+      message: 'Verification results refreshed (mock)'
+    })
+  }, "Refresh results"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "copy",
+    onClick: () => fireToast({
+      message: 'Verification link copied'
+    })
+  }, "Copy link"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    icon: "download",
+    onClick: () => fireToast({
+      message: 'Session report downloaded (mock)'
+    })
+  }, "Session report"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isCompact ? '1fr' : '1.45fr 1fr',
+      gap: 16,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, "Verification evidence"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      marginBottom: 14
+    }
+  }, "Checks attached to this verification request."), rec.evidence.map((ev, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      padding: '10px 0',
+      borderTop: i > 0 ? `1px solid ${T.border}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: EVIDENCE_ICON[ev.result],
+    size: 17,
+    color: ev.result === 'passed' ? T.green : ev.result === 'failed' ? T.red : T.amber
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, ev.label), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, ev.detail, ev.at ? ` · ${fmtDate(new Date(ev.at))}` : '')), /*#__PURE__*/React.createElement(Pill, {
+    color: EVIDENCE_PILL[ev.result]
+  }, EVIDENCE_LABEL[ev.result]))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14,
+      paddingTop: 14,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8
+    }
+  }, "Screening"), screenRows.map(s => /*#__PURE__*/React.createElement("div", {
+    key: s.key,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '7px 0'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, s.label), /*#__PURE__*/React.createElement(Pill, {
+    color: SCREEN_PILL[rec.screening[s.key]]
+  }, SCREEN_LABEL[rec.screening[s.key]]))))), rec.isEntity && rec.beneficialOwners.length > 0 && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, "Beneficial owners & controllers"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      marginBottom: 12
+    }
+  }, "Individuals owning or controlling 25% or more \u2014 identified and verified per CDD."), rec.beneficialOwners.map((o, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      padding: '9px 0',
+      borderTop: i > 0 ? `1px solid ${T.border}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: o.name,
+    size: 28
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, o.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, o.role, " \xB7 ", o.pct, "%")), /*#__PURE__*/React.createElement(Pill, {
+    color: o.verified ? 'green' : 'amber'
+  }, o.verified ? 'Verified' : 'Pending'))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      marginBottom: 12
+    }
+  }, "Risk assessment"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, "Provider-suggested"), /*#__PURE__*/React.createElement(Pill, {
+    color: RISK_PILL[rec.suggestedRating]
+  }, RISK_LABEL[rec.suggestedRating])), /*#__PURE__*/React.createElement(Label, null, "Advisor risk rating"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginBottom: 6
+    }
+  }, ['low', 'medium', 'high'].map(r => /*#__PURE__*/React.createElement(Chip, {
+    key: r,
+    size: "sm",
+    selected: risk === r,
+    onClick: () => setOverride(r)
+  }, RISK_LABEL[r]))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    icon: "check",
+    onClick: () => fireToast({
+      message: `Risk rating saved: ${RISK_LABEL[risk]}`
+    }),
+    style: {
+      marginTop: 6
+    }
+  }, "Save manual assessment"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      paddingTop: 14,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, rec.riskBreakdown.map((b, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: '7px 0'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600
+    }
+  }, b.factor), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, b.note)), /*#__PURE__*/React.createElement(Pill, {
+    color: RISK_PILL[b.level]
+  }, RISK_LABEL[b.level])))), rec.eddTriggered && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 9,
+      marginTop: 14,
+      padding: '11px 13px',
+      background: T.amberSoft,
+      border: '1px solid #FCD34D',
+      borderRadius: 10
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "alertTriangle",
+    size: 15,
+    color: T.amber
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: '#92400E'
+    }
+  }, "Enhanced due diligence required"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      color: '#92400E'
+    }
+  }, rec.eddNote)))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      marginBottom: 12
+    }
+  }, "Review & record-keeping"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '6px 0'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, "Next review due"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: pastReview ? T.red : T.text
+    }
+  }, fmtDate(new Date(rec.reviewDue)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '6px 0'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, "Records retained until"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600
+    }
+  }, fmtDate(new Date(rec.retainUntil)))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11,
+      marginTop: 6
+    }
+  }, "AML/CTF records are kept for 7 years after the relationship ends (AUSTRAC).")), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      marginBottom: 4
+    }
+  }, "Audit timeline"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      marginBottom: 14
+    }
+  }, "Every verification event is recorded for regulatory readiness."), /*#__PURE__*/React.createElement(ComplianceTimeline, {
+    audit: rec.audit
+  })))));
+};
 const OverviewPage = ({
   fireToast
 }) => {
@@ -102078,7 +103592,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -102211,9 +103725,13 @@ const PracticeApp = () => {
           blurb: "Set up service-line jobs, track WIP, and assign work to the team \u2014 wireframe pending."
         });
       case 'clients-management':
-        return /*#__PURE__*/React.createElement(StubPage, {
-          title: "Clients Management",
-          blurb: "Onboarding, KYC, document collection and engagement history \u2014 wireframe pending."
+        return /*#__PURE__*/React.createElement(ComplianceDashboardPage, {
+          fireToast: fireToast
+        });
+      case 'compliance-detail':
+        return /*#__PURE__*/React.createElement(ComplianceDetailPage, {
+          clientId: route.id,
+          fireToast: fireToast
         });
       case 'client-relationship-map':
         return /*#__PURE__*/React.createElement(ClientRelationshipMapPage, {
@@ -102235,9 +103753,8 @@ const PracticeApp = () => {
           blurb: "Outbound email / WhatsApp / SMS sequences and inbox triage \u2014 wireframe pending."
         });
       case 'questionnaires-forms':
-        return /*#__PURE__*/React.createElement(StubPage, {
-          title: "Questionnaires & Forms",
-          blurb: "Pre-engagement questionnaires and client intake forms \u2014 wireframe pending."
+        return /*#__PURE__*/React.createElement(OnboardingTemplatesPage, {
+          fireToast: fireToast
         });
       case 'notifications':
         return /*#__PURE__*/React.createElement(NotificationsPage, {
@@ -102357,7 +103874,7 @@ const PORTAL_NAV = [{
 }, {
   id: 'forms',
   icon: 'clipboard',
-  label: 'Questionnaires & Forms'
+  label: 'Onboarding'
 }, {
   id: 'payroll',
   icon: 'briefcase',
@@ -102390,8 +103907,8 @@ const PORTAL_TAB_META = {
     blurb: 'Message your advisor and keep the whole conversation together.'
   },
   forms: {
-    title: 'Questionnaires & Forms',
-    blurb: 'Smart forms and questionnaires your accountant shares with you.'
+    title: 'Onboarding',
+    blurb: 'Onboarding questionnaires and smart forms your accountant shares with you.'
   },
   payroll: {
     title: 'Payroll Management',
@@ -102468,6 +103985,12 @@ const seedClient = base => ({
   // declaration
   declSignedName: '',
   declSignedAt: null,
+  // template-driven onboarding: assigned template + generic answer bag (template
+  // fields read/write answers[fieldId]; named slots above stay for the no-template
+  // default path). templateId null → original hardcoded onboarding (byte-identical).
+  templateId: base.templateId || null,
+  entityType: base.entityType || null,
+  answers: {},
   // inline-edit UI (per client)
   editingField: null,
   flashField: null,
@@ -102477,7 +104000,18 @@ const seedPortal = () => ({
   group: {
     ...PORTAL_GROUP
   },
-  clients: PORTAL_CLIENTS_SEED.map(seedClient),
+  // ?onbtpl=<templateId> in the share URL assigns that onboarding template to every
+  // client (lets a reviewer deep-link straight to a template's client experience).
+  clients: (() => {
+    let forced = null;
+    try {
+      forced = new URLSearchParams(window.location.search).get('onbtpl');
+    } catch (_) {}
+    return PORTAL_CLIENTS_SEED.map(c => seedClient(forced ? {
+      ...c,
+      templateId: forced
+    } : c));
+  })(),
   activeClientId: PORTAL_CLIENTS_SEED[0].id,
   groupDocs: [{
     id: 'gd-1',
@@ -102656,11 +104190,1126 @@ const PORTAL_CLIENT_KIND = {
   business: 'Company / Sole Trader'
 };
 
+// ============================================================================
+// --- onboarding templates (data model + field registry) --------------------
+// An onboarding TEMPLATE is the accountant-defined question set sent to a client.
+//   { id, name, category, serviceType, entityTypes[], kyc, builtin,
+//     intro:{enabled, html}, pages:[{ id, title, instructions, kycSection,
+//       sections:[{ id, title, instructions, fields:[fieldDef] }] }] }
+//   fieldDef: { id, type, label, tooltip, required, placeholder, options,
+//     applicableTo[], kycFlag, confidential, conditions:[{field,op,value}], subFields[] }
+// The SAME template drives the accountant builder/preview AND the live client
+// portal wizard: computeClientActions(client) resolves the client's templateId and
+// emits the same { id, group, title, required, detail, done, summary, ... } item
+// shape the existing renderers already consume. No templateId → original hardcoded
+// field set (the default body below) renders byte-identical. Completion stays
+// DERIVED from values (never stored), so the tree/locks/progress can't disagree.
+// ----------------------------------------------------------------------------
+const ONB_TEMPLATES_KEY = 'sole.onboarding.templates.v1';
+const ONB_BLOCKS_KEY = 'sole.onboarding.blocks.v1';
+const loadOnboardingTemplates = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ONB_TEMPLATES_KEY) || '[]') || [];
+  } catch (_) {
+    return [];
+  }
+};
+const saveOnboardingTemplate = tpl => {
+  try {
+    const rest = loadOnboardingTemplates().filter(t => t.id !== tpl.id);
+    localStorage.setItem(ONB_TEMPLATES_KEY, JSON.stringify([...rest, tpl]));
+  } catch (_) {}
+};
+const deleteOnboardingTemplate = id => {
+  try {
+    localStorage.setItem(ONB_TEMPLATES_KEY, JSON.stringify(loadOnboardingTemplates().filter(t => t.id !== id)));
+  } catch (_) {}
+};
+const loadOnboardingBlocks = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ONB_BLOCKS_KEY) || '[]') || [];
+  } catch (_) {
+    return [];
+  }
+};
+const saveOnboardingBlock = b => {
+  try {
+    const rest = loadOnboardingBlocks().filter(x => x.id !== b.id);
+    localStorage.setItem(ONB_BLOCKS_KEY, JSON.stringify([...rest, b]));
+  } catch (_) {}
+};
+const onbDigits = v => String(v == null ? '' : v).replace(/\D/g, '');
+const entityTypeOf = c => c ? c.entityType || (c.kind === 'business' ? 'Company' : 'Individual') : 'Individual';
+
+// Field-type registry. Editor dispatch lives in TemplateFieldEditor; here we keep
+// the per-type icon, palette group, label, and the PURE done()/summary() logic.
+const ONB_TXT_DONE = v => !!(v && String(v).trim());
+const ONB_FIELD_TYPES = {
+  text: {
+    icon: 'edit',
+    label: 'Single line text',
+    grp: 'Common',
+    done: ONB_TXT_DONE,
+    summary: v => v || ''
+  },
+  textarea: {
+    icon: 'alignLeft',
+    label: 'Multiline text',
+    grp: 'Common',
+    done: ONB_TXT_DONE,
+    summary: v => (v || '').split('\n')[0].slice(0, 64)
+  },
+  formatted: {
+    icon: 'type',
+    label: 'Formatted text',
+    grp: 'Common',
+    noValue: true
+  },
+  fileImage: {
+    icon: 'image',
+    label: 'Image upload',
+    grp: 'Common',
+    done: v => !!v,
+    summary: v => v && v.name || ''
+  },
+  file: {
+    icon: 'paperclip',
+    label: 'File upload',
+    grp: 'Common',
+    done: v => !!v,
+    summary: v => v && v.name || ''
+  },
+  fileMulti: {
+    icon: 'paperclip',
+    label: 'Files upload',
+    grp: 'Common',
+    done: v => (v || []).length > 0,
+    summary: v => (v || []).length ? `${v.length} file${v.length === 1 ? '' : 's'}` : ''
+  },
+  email: {
+    icon: 'mail',
+    label: 'Email',
+    grp: 'Validation',
+    done: ONB_TXT_DONE,
+    summary: v => v || ''
+  },
+  address: {
+    icon: 'building',
+    label: 'Address',
+    grp: 'Validation',
+    done: a => isAddressComplete(a),
+    summary: a => isAddressComplete(a) ? addressLine(a) : ''
+  },
+  url: {
+    icon: 'link',
+    label: 'Website / URL',
+    grp: 'Validation',
+    done: ONB_TXT_DONE,
+    summary: v => v || ''
+  },
+  number: {
+    icon: 'gauge',
+    label: 'Number',
+    grp: 'Validation',
+    done: v => v !== '' && v != null,
+    summary: v => v === '' || v == null ? '' : String(v)
+  },
+  phone: {
+    icon: 'phone',
+    label: 'Phone',
+    grp: 'Validation',
+    done: ONB_TXT_DONE,
+    summary: v => v || ''
+  },
+  currency: {
+    icon: 'dollar',
+    label: 'Currency',
+    grp: 'Validation',
+    done: v => v !== '' && v != null,
+    summary: v => v === '' || v == null ? '' : fmtMoney(Number(v) || 0)
+  },
+  country: {
+    icon: 'list',
+    label: 'Country',
+    grp: 'Validation',
+    done: v => !!v,
+    summary: v => v || ''
+  },
+  date: {
+    icon: 'calendar',
+    label: 'Date',
+    grp: 'Validation',
+    done: v => !!v,
+    summary: v => v ? fmtDate(new Date(v)) : ''
+  },
+  checkbox: {
+    icon: 'list',
+    label: 'Checkboxes (multi)',
+    grp: 'Selection',
+    done: v => (v || []).length > 0,
+    summary: v => (v || []).join(', ')
+  },
+  single: {
+    icon: 'target',
+    label: 'Single choice',
+    grp: 'Selection',
+    done: v => !!v,
+    summary: v => v || ''
+  },
+  dropdown: {
+    icon: 'chevronDown',
+    label: 'Dropdown',
+    grp: 'Selection',
+    done: v => !!v,
+    summary: v => v || ''
+  },
+  yesno: {
+    icon: 'check',
+    label: 'Yes / No',
+    grp: 'Selection',
+    done: v => !!v,
+    summary: (v, c, f) => v === 'yes' ? f && f.options && f.options[0] || 'Yes' : v === 'no' ? f && f.options && f.options[1] || 'No' : ''
+  },
+  rating: {
+    icon: 'star',
+    label: 'Star rating',
+    grp: 'Selection',
+    done: v => !!v,
+    summary: v => v ? `${v} / 5` : ''
+  },
+  table: {
+    icon: 'columns',
+    label: 'Table',
+    grp: 'Special',
+    done: v => (v || []).length > 0,
+    summary: v => (v || []).length ? `${v.length} row${v.length === 1 ? '' : 's'}` : ''
+  },
+  signature: {
+    icon: 'fileSignature',
+    label: 'Signature',
+    grp: 'Special',
+    done: v => !!(v && v.at),
+    summary: v => v && v.at ? `Signed ${fmtDate(new Date(v.at))}` : ''
+  },
+  tasklist: {
+    icon: 'clipboardCheck',
+    label: 'Task list',
+    grp: 'Special',
+    done: v => (v || []).length > 0 && (v || []).every(t => t.done),
+    summary: v => (v || []).length ? `${v.filter(t => t.done).length}/${v.length} done` : ''
+  },
+  kyc: {
+    icon: 'shield',
+    label: 'KYC / AML',
+    grp: 'Special',
+    done: v => !!(v && v.verified),
+    summary: v => v && v.verified ? `Verified · ${v.docType || 'ID'}` : ''
+  },
+  abnacn: {
+    icon: 'bank',
+    label: 'Australian ABN/ACN',
+    grp: 'Special',
+    done: v => onbDigits(v).length >= 9,
+    summary: v => v || ''
+  },
+  tfn: {
+    icon: 'shield',
+    label: 'Tax file number',
+    grp: 'Special',
+    done: v => tfnDigits(v).length === 9,
+    summary: v => tfnDigits(v).length === 9 ? maskTFN(v) : ''
+  },
+  bsb: {
+    icon: 'creditCard',
+    label: 'Bank account',
+    grp: 'Special',
+    done: v => !!(v && v.acct && String(v.acct).trim()),
+    summary: v => v && v.acct ? `${v.bsb || ''} ${v.acct}`.trim() : ''
+  },
+  repeatGroup: {
+    icon: 'users',
+    label: 'Repeating group',
+    grp: 'Special',
+    done: v => (v || []).length > 0,
+    summary: v => (v || []).length ? `${v.length} added` : ''
+  },
+  connection: {
+    icon: 'gitMerge',
+    label: 'Connection',
+    grp: 'Connection',
+    done: v => !!(v && v.connected),
+    summary: v => v && v.connected ? `Connected${v.org ? ' · ' + v.org : ''}` : ''
+  },
+  info: {
+    icon: 'info',
+    label: 'Instruction',
+    grp: 'Common',
+    noValue: true
+  }
+};
+const onbMatchCond = (v, op, val) => {
+  if (op === 'eq') return v === val;
+  if (op === 'neq') return v !== val;
+  if (op === 'truthy') return !!v;
+  if (op === 'falsy') return !v;
+  return true;
+};
+const onbFieldVisible = (f, c) => {
+  if (f.applicableTo && f.applicableTo.length && !f.applicableTo.includes(entityTypeOf(c))) return false;
+  if (f.conditions && f.conditions.length) {
+    const ans = c && c.answers || {};
+    return f.conditions.every(cond => onbMatchCond(ans[cond.field], cond.op, cond.value));
+  }
+  return true;
+};
+
+// Flatten a template into the same item[] shape computeClientActions returns, so
+// every existing renderer (tree, content panel, progress) consumes it unchanged.
+const computeTemplateActions = (c, template) => {
+  const ans = c && c.answers || {};
+  const out = [];
+  (template.pages || []).forEach(page => {
+    (page.sections || []).forEach(sec => {
+      (sec.fields || []).forEach(f => {
+        if (!onbFieldVisible(f, c)) return;
+        const def = ONB_FIELD_TYPES[f.type] || ONB_FIELD_TYPES.text;
+        const value = ans[f.id];
+        const done = def.noValue ? true : def.done ? def.done(value, c, f) : !!value;
+        const summary = def.noValue ? '' : def.summary ? def.summary(value, c, f) : value || '';
+        out.push({
+          id: f.id,
+          group: page.id,
+          icon: f.icon || def.icon || 'edit',
+          title: f.label,
+          required: !!f.required && !def.noValue,
+          detail: f.tooltip || f.detail || '',
+          type: f.type,
+          options: f.options,
+          placeholder: f.placeholder,
+          confidential: f.confidential,
+          subFields: f.subFields,
+          kycFlag: f.kycFlag,
+          kycSection: !!page.kycSection,
+          done,
+          summary
+        });
+      });
+    });
+  });
+  return out;
+};
+
+// ---- built-in templates -----------------------------------------------------
+// onbF(id, type, label, opts) — compact field-def builder used by the seeds.
+const onbF = (id, type, label, opts) => ({
+  id,
+  type,
+  label,
+  ...(opts || {})
+});
+const ONB_SOFTWARE_OPTS = ['None currently used', 'Xero', 'SoleApp', 'Microsoft Excel', 'QuickBooks', 'MYOB', 'Other'];
+const ONB_PAYMENT_OPTS = ['Bank account', 'Credit card(s)', 'Stripe / Square', 'Shopify / Timely', 'PayPal', 'Other'];
+const ONB_EXTRA_SERVICES = ['Structuring / restructuring', 'Start up advisory', 'Budgeting / forecasting', 'Tax planning', 'Marketing', 'Profit advisory', 'Financial funding', 'Payroll', 'Debtors collection', 'Business coaching'];
+const ONB_PREVACC_SUBFIELDS = [onbF('firm', 'text', 'Accounting practice'), onbF('contact', 'text', 'Accountant name'), onbF('phone', 'phone', 'Phone'), onbF('email', 'email', 'Email')];
+const ONB_BO_SUBFIELDS = [onbF('name', 'text', 'Full name'), onbF('role', 'text', 'Role / title'), onbF('share', 'number', 'Ownership %')];
+const BUILTIN_ONBOARDING_TEMPLATES = [{
+  id: 'tpl-ind-au',
+  name: 'Accounting Client Onboarding — Individual (AUS)',
+  category: 'Accounting',
+  serviceType: 'Individual Tax Return',
+  entityTypes: ['Individual', 'Sole Trader'],
+  kyc: true,
+  builtin: true,
+  intro: {
+    enabled: true,
+    html: "Hi! We're so excited to have you on board. To customise our services for you and smoothly set you up with the ATO, we need a few details. If you have any questions, just give us a shout!"
+  },
+  pages: [{
+    id: 'p-ind-personal',
+    title: 'Personal details',
+    instructions: 'Tell us who you are.',
+    sections: [{
+      id: 's-ind-personal',
+      title: 'About you',
+      fields: [onbF('fullName', 'text', 'Full name', {
+        required: true,
+        tooltip: 'Your legal name as it appears on your TFN record.',
+        placeholder: 'e.g. Johann Oberholzer'
+      }), onbF('dob', 'date', 'Date of birth', {
+        required: true,
+        tooltip: 'Used to verify your identity with the ATO.'
+      }), onbF('occupation', 'text', 'Occupation', {
+        tooltip: 'What you do for work.'
+      }), onbF('maritalStatus', 'dropdown', 'Marital status', {
+        options: MARITAL_OPTIONS
+      }), onbF('email', 'email', 'Email address', {
+        required: true,
+        tooltip: 'Where we send portal notifications.'
+      }), onbF('phone', 'phone', 'Phone number', {
+        required: true,
+        placeholder: '+61 4XX XXX XXX'
+      })]
+    }]
+  }, {
+    id: 'p-ind-tax',
+    title: 'Residency & tax',
+    instructions: 'Your tax identity and residency.',
+    sections: [{
+      id: 's-ind-tax',
+      title: 'Tax details',
+      fields: [onbF('tfn', 'tfn', 'Tax file number', {
+        required: true,
+        tooltip: 'Your 9-digit TFN — stored securely and encrypted.',
+        kycFlag: true
+      }), onbF('taxResident', 'yesno', 'Australian resident for tax purposes?', {
+        required: true,
+        options: ['Yes — Australian resident', 'No — foreign resident'],
+        kycFlag: true
+      }), onbF('abn', 'abnacn', 'ABN', {
+        applicableTo: ['Sole Trader'],
+        tooltip: 'Your 11-digit Australian Business Number (sole traders).'
+      }), onbF('gst', 'yesno', 'Registered for GST?', {
+        options: ['Registered', 'Not registered']
+      })]
+    }]
+  }, {
+    id: 'p-ind-address',
+    title: 'Address',
+    instructions: 'How we reach you and your mail.',
+    sections: [{
+      id: 's-ind-address',
+      title: 'Your address',
+      fields: [onbF('residential', 'address', 'Residential address', {
+        required: true,
+        kycFlag: true
+      }), onbF('postalSame', 'yesno', 'Postal address same as residential?', {
+        required: true,
+        options: ['Yes', 'No']
+      }), onbF('postal', 'address', 'Postal address', {
+        required: true,
+        conditions: [{
+          field: 'postalSame',
+          op: 'eq',
+          value: 'no'
+        }]
+      })]
+    }]
+  }, {
+    id: 'p-ind-kyc',
+    title: 'Identity & KYC/AML',
+    instructions: 'Verify your identity (AUSTRAC Tranche-2). Required before we can act for you.',
+    kycSection: true,
+    sections: [{
+      id: 's-ind-kyc',
+      title: 'Identity verification',
+      fields: [onbF('idVerify', 'kyc', 'Photo ID verification', {
+        required: true,
+        tooltip: 'Upload a photo ID (passport / driver licence) and a selfie. We verify the document is genuine and matches your face.',
+        kycFlag: true
+      }), onbF('pep', 'yesno', 'Are you a politically exposed person (PEP)?', {
+        required: true,
+        options: ['Yes', 'No'],
+        tooltip: 'A PEP holds (or is close to someone who holds) a prominent public position. We are required to ask.',
+        kycFlag: true
+      }), onbF('sourceOfFunds', 'textarea', 'Source of funds / wealth', {
+        conditions: [{
+          field: 'pep',
+          op: 'eq',
+          value: 'yes'
+        }],
+        tooltip: 'Only required for higher-risk clients.',
+        kycFlag: true
+      })]
+    }]
+  }, {
+    id: 'p-ind-handover',
+    title: 'Handover & software',
+    instructions: 'Help us collect your history.',
+    sections: [{
+      id: 's-ind-handover',
+      title: 'Bringing your records across',
+      fields: [onbF('prevAccountant', 'repeatGroup', 'Former accountant', {
+        required: true,
+        subFields: ONB_PREVACC_SUBFIELDS,
+        tooltip: 'So we can request an ethical clearance and your prior records.'
+      }), onbF('software', 'checkbox', 'Current accounting software used', {
+        options: ONB_SOFTWARE_OPTS
+      }), onbF('bank', 'bsb', 'Bank account for refunds', {
+        tooltip: 'Account name, BSB and account number — where the ATO sends your refund.'
+      })]
+    }]
+  }, {
+    id: 'p-ind-docs',
+    title: 'Documents',
+    instructions: 'Upload your supporting paperwork.',
+    sections: [{
+      id: 's-ind-docs',
+      title: 'Your documents',
+      fields: [onbF('priorReturn', 'file', "Most recent tax return", {
+        tooltip: "If you don't have it, we can request it from your former accountant."
+      }), onbF('incomeDocs', 'fileMulti', 'Income & expense documents', {
+        tooltip: 'PAYG summaries, investment income, rental, deductions, private-health statement.'
+      }), onbF('otherDocs', 'fileMulti', 'Other supporting documents', {})]
+    }]
+  }, {
+    id: 'p-ind-services',
+    title: 'Services & declaration',
+    instructions: 'Authorise us to act and tell us what else you need.',
+    sections: [{
+      id: 's-ind-services',
+      title: 'Finishing up',
+      fields: [onbF('extraServices', 'checkbox', 'Extra services you may want in future', {
+        options: ONB_EXTRA_SERVICES
+      }), onbF('explanation', 'textarea', 'Anything else we should know?', {}), onbF('declaration', 'signature', 'Sign tax declaration', {
+        required: true,
+        tooltip: 'I declare the information is true and correct and authorise the tax agent to act on my behalf.',
+        kycFlag: true
+      })]
+    }]
+  }]
+}, {
+  id: 'tpl-biz-au',
+  name: 'Accounting Client Onboarding — Business (AUS)',
+  category: 'Accounting',
+  serviceType: 'Company / Business Tax',
+  entityTypes: ['Company', 'Trust', 'Partnership', 'SMSF', 'Sole Trader'],
+  kyc: true,
+  builtin: true,
+  intro: {
+    enabled: true,
+    html: "Welcome aboard! We've collected some basics about your business. To customise our services and set you up with the ATO and ASIC, we need a few more details."
+  },
+  pages: [{
+    id: 'p-biz-details',
+    title: 'Business details',
+    instructions: 'About your business.',
+    sections: [{
+      id: 's-biz-details',
+      title: 'The business',
+      fields: [onbF('entityName', 'text', 'Legal / registered entity name', {
+        required: true,
+        tooltip: 'The registered name of the entity.',
+        placeholder: 'e.g. Sole App Pty Ltd'
+      }), onbF('tradingName', 'text', 'Trading name', {
+        required: true
+      }), onbF('website', 'url', 'Website address', {}), onbF('natureOfBusiness', 'textarea', 'Nature of your business activity', {
+        required: true,
+        placeholder: 'Short description'
+      }), onbF('numEmployees', 'number', 'Number of employees including you', {
+        required: true
+      }), onbF('email', 'email', 'Email address', {
+        required: true
+      }), onbF('phone', 'phone', 'Phone number', {
+        required: true
+      })]
+    }]
+  }, {
+    id: 'p-biz-reg',
+    title: 'Registration & tax',
+    instructions: 'Your tax identity and registrations.',
+    sections: [{
+      id: 's-biz-reg',
+      title: 'Registrations',
+      fields: [onbF('abn', 'abnacn', 'ABN', {
+        required: true,
+        tooltip: 'Your 11-digit Australian Business Number.',
+        kycFlag: true
+      }), onbF('acn', 'abnacn', 'ACN', {
+        applicableTo: ['Company'],
+        tooltip: 'Your 9-digit Australian Company Number (companies).',
+        kycFlag: true
+      }), onbF('tfn', 'tfn', 'TFN of the company / trust / sole trader', {
+        required: true,
+        kycFlag: true
+      }), onbF('gst', 'yesno', 'Currently registered for GST?', {
+        required: true,
+        options: ['Yes', 'No']
+      }), onbF('basCycle', 'dropdown', 'BAS lodgement cycle', {
+        options: ['Monthly', 'Quarterly', 'Annual', 'Not registered'],
+        conditions: [{
+          field: 'gst',
+          op: 'eq',
+          value: 'yes'
+        }]
+      })]
+    }]
+  }, {
+    id: 'p-biz-address',
+    title: 'Address',
+    instructions: 'Where the business is located.',
+    sections: [{
+      id: 's-biz-address',
+      title: 'Addresses',
+      fields: [onbF('business', 'address', 'Business address', {
+        required: true
+      }), onbF('postalSame', 'yesno', 'Postal address same as business address?', {
+        required: true,
+        options: ['Yes', 'No']
+      }), onbF('postal', 'address', 'Postal address', {
+        required: true,
+        conditions: [{
+          field: 'postalSame',
+          op: 'eq',
+          value: 'no'
+        }]
+      })]
+    }]
+  }, {
+    id: 'p-biz-kyc',
+    title: 'Identity & KYC/AML',
+    instructions: 'Verify the people behind the entity (AUSTRAC Tranche-2). Required before we can act.',
+    kycSection: true,
+    sections: [{
+      id: 's-biz-kyc',
+      title: 'Compliance',
+      fields: [onbF('directors', 'repeatGroup', 'Directors / key contacts', {
+        required: true,
+        subFields: [onbF('name', 'text', 'Full name'), onbF('role', 'text', 'Role'), onbF('dob', 'date', 'Date of birth'), onbF('directorId', 'text', 'Director ID')],
+        tooltip: 'Each director / key contact, with their Director ID.',
+        kycFlag: true
+      }), onbF('beneficialOwners', 'repeatGroup', 'Beneficial owners (25%+)', {
+        subFields: ONB_BO_SUBFIELDS,
+        tooltip: 'Anyone who owns or controls 25% or more of the entity.',
+        kycFlag: true
+      }), onbF('idVerify', 'kyc', 'Photo ID verification (authorised contact)', {
+        required: true,
+        tooltip: 'Upload a photo ID and selfie for the person acting on behalf of the entity.',
+        kycFlag: true
+      }), onbF('pep', 'yesno', 'Is any director / owner a politically exposed person (PEP)?', {
+        required: true,
+        options: ['Yes', 'No'],
+        kycFlag: true
+      })]
+    }]
+  }, {
+    id: 'p-biz-handover',
+    title: 'Handover & systems',
+    instructions: 'Help us bring your books across.',
+    sections: [{
+      id: 's-biz-handover',
+      title: 'Records & systems',
+      fields: [onbF('prevAccountant', 'repeatGroup', "Former accountants' details", {
+        required: true,
+        subFields: ONB_PREVACC_SUBFIELDS,
+        tooltip: 'Should we need to contact them to have your records brought across.'
+      }), onbF('software', 'checkbox', 'Current accounting software used', {
+        options: ONB_SOFTWARE_OPTS
+      }), onbF('bookkeepingUpToDate', 'yesno', 'Is your bookkeeping currently up to date?', {
+        options: ['Yes', 'No']
+      }), onbF('paymentSystems', 'checkbox', 'Which of the following do you have for your business?', {
+        options: ONB_PAYMENT_OPTS
+      }), onbF('bank', 'bsb', 'Bank account details', {
+        tooltip: 'Account name, BSB and account number.'
+      })]
+    }]
+  }, {
+    id: 'p-biz-docs',
+    title: 'Documents',
+    instructions: 'Upload your supporting paperwork.',
+    sections: [{
+      id: 's-biz-docs',
+      title: 'Your documents',
+      fields: [onbF('logo', 'fileImage', 'Company logo', {}), onbF('bankStatements', 'fileMulti', 'Most recent bank statements', {}), onbF('priorReturns', 'fileMulti', "Prior year's tax returns and/or asset register", {
+        tooltip: "If you don't have these, we can request from your former accountant."
+      }), onbF('otherDocs', 'fileMulti', 'Other important documents', {
+        tooltip: 'e.g. signed trust deeds, loan agreements.'
+      })]
+    }]
+  }, {
+    id: 'p-biz-services',
+    title: 'Services & declaration',
+    instructions: 'Authorise us to act and tell us what else you need.',
+    sections: [{
+      id: 's-biz-services',
+      title: 'Finishing up',
+      fields: [onbF('workedWith', 'checkbox', 'Have you previously worked with…', {
+        options: ['An accountant', 'A bookkeeper', 'A business advisor', 'None of the above']
+      }), onbF('extraServices', 'checkbox', 'Extra services you may want in future', {
+        options: ONB_EXTRA_SERVICES
+      }), onbF('explanation', 'textarea', 'Provide more explanation about the services you are seeking', {}), onbF('declaration', 'signature', 'Authorise us to act', {
+        required: true,
+        tooltip: 'I declare the information is true and correct and authorise the tax agent to act on the entity’s behalf.',
+        kycFlag: true
+      })]
+    }]
+  }]
+}, {
+  id: 'tpl-nagaris',
+  name: 'New client onboarding (full)',
+  category: 'Accounting',
+  serviceType: 'Full onboarding',
+  entityTypes: ['Company', 'Trust', 'Partnership', 'SMSF', 'Sole Trader', 'Individual'],
+  kyc: true,
+  builtin: true,
+  intro: {
+    enabled: true,
+    html: "Welcome aboard! This quick, guided setup confirms your details, verifies identity, connects your software and bank feeds, and gets your compliance obligations in place — usually in a few minutes."
+  },
+  pages: [{
+    id: 'p-n-identity',
+    title: 'Confirm identity & entity',
+    instructions: 'Confirm who you are and your entity.',
+    sections: [{
+      id: 's-n-identity',
+      title: 'Entity',
+      fields: [onbF('entityType', 'dropdown', 'Entity type', {
+        required: true,
+        options: ENTITY_TYPES.map(e => e.v)
+      }), onbF('entityName', 'text', 'Legal / entity name', {
+        required: true
+      }), onbF('tradingName', 'text', 'Trading name', {}), onbF('abn', 'abnacn', 'ABN', {
+        required: true,
+        tooltip: 'Validated live against the Australian Business Register.',
+        kycFlag: true
+      }), onbF('directors', 'repeatGroup', 'Directors / key contacts', {
+        subFields: [onbF('name', 'text', 'Full name'), onbF('role', 'text', 'Role')],
+        applicableTo: ['Company', 'Trust', 'SMSF', 'Partnership']
+      })]
+    }]
+  }, {
+    id: 'p-n-kyc',
+    title: 'KYC / AML',
+    instructions: 'Verify identity (AUSTRAC Tranche-2).',
+    kycSection: true,
+    sections: [{
+      id: 's-n-kyc',
+      title: 'Identity',
+      fields: [onbF('idVerify', 'kyc', 'Photo ID verification', {
+        required: true,
+        kycFlag: true
+      }), onbF('pep', 'yesno', 'Politically exposed person (PEP)?', {
+        required: true,
+        options: ['Yes', 'No'],
+        kycFlag: true
+      }), onbF('beneficialOwners', 'repeatGroup', 'Beneficial owners (25%+)', {
+        subFields: ONB_BO_SUBFIELDS,
+        applicableTo: ['Company', 'Trust', 'Partnership'],
+        kycFlag: true
+      })]
+    }]
+  }, {
+    id: 'p-n-software',
+    title: 'Software connection',
+    instructions: 'Connect your accounting platform. This connects the system — it does not become your ledger.',
+    sections: [{
+      id: 's-n-software',
+      title: 'Accounting software',
+      fields: [onbF('connectSoftware', 'connection', 'Connect Xero / QuickBooks / Sole', {
+        options: ['Xero'],
+        tooltip: 'OAuth connect, confirm organisation and permissions, then see sync health.'
+      })]
+    }]
+  }, {
+    id: 'p-n-bank',
+    title: 'Bank linking',
+    instructions: 'Connect your bank feeds. Accounts are linked here; transactions are managed in Accounting.',
+    sections: [{
+      id: 's-n-bank',
+      title: 'Bank feeds',
+      fields: [onbF('connectBank', 'connection', 'Connect bank feed', {
+        options: ['NAB'],
+        tooltip: 'Connect feeds, confirm accounts to include, and validate connection health.'
+      }), onbF('bank', 'bsb', 'Primary account', {})]
+    }]
+  }, {
+    id: 'p-n-payroll',
+    title: 'Payroll setup',
+    instructions: 'Only if you run payroll.',
+    sections: [{
+      id: 's-n-payroll',
+      title: 'Payroll',
+      fields: [onbF('runsPayroll', 'yesno', 'Do you run payroll?', {
+        options: ['Yes', 'No']
+      }), onbF('connectPayroll', 'connection', 'Connect Microkeeper', {
+        options: ['Microkeeper'],
+        conditions: [{
+          field: 'runsPayroll',
+          op: 'eq',
+          value: 'yes'
+        }]
+      }), onbF('payCycle', 'dropdown', 'Pay cycle', {
+        options: ['Weekly', 'Fortnightly', 'Monthly'],
+        conditions: [{
+          field: 'runsPayroll',
+          op: 'eq',
+          value: 'yes'
+        }]
+      }), onbF('stp', 'yesno', 'STP (Single Touch Payroll) enabled?', {
+        options: ['Yes', 'No'],
+        conditions: [{
+          field: 'runsPayroll',
+          op: 'eq',
+          value: 'yes'
+        }]
+      }), onbF('employeeCount', 'number', 'Number of employees', {
+        conditions: [{
+          field: 'runsPayroll',
+          op: 'eq',
+          value: 'yes'
+        }]
+      })]
+    }]
+  }, {
+    id: 'p-n-compliance',
+    title: 'Compliance obligations',
+    instructions: 'Set up your obligations.',
+    sections: [{
+      id: 's-n-compliance',
+      title: 'Obligations',
+      fields: [onbF('gst', 'yesno', 'Registered for GST?', {
+        required: true,
+        options: ['Yes', 'No']
+      }), onbF('basCycle', 'dropdown', 'BAS lodgement cycle', {
+        options: ['Monthly', 'Quarterly', 'Annual'],
+        conditions: [{
+          field: 'gst',
+          op: 'eq',
+          value: 'yes'
+        }]
+      }), onbF('asic', 'yesno', 'ASIC obligations apply?', {
+        options: ['Yes', 'No'],
+        applicableTo: ['Company']
+      }), onbF('lodgementAgent', 'yesno', 'Authorise us as your lodgement / tax agent?', {
+        required: true,
+        options: ['Yes', 'No']
+      })]
+    }]
+  }, {
+    id: 'p-n-activation',
+    title: 'Activation',
+    instructions: 'Final confirmation — then your file goes live.',
+    sections: [{
+      id: 's-n-activation',
+      title: 'Go live',
+      fields: [onbF('docs', 'fileMulti', 'Supporting documents', {
+        tooltip: 'Prior returns, trust deeds, loan agreements, asset register.'
+      }), onbF('declaration', 'signature', 'Confirm and activate', {
+        required: true,
+        tooltip: 'I confirm the information is true and correct and authorise activation.',
+        kycFlag: true
+      })]
+    }]
+  }]
+}, {
+  id: 'tpl-smsf',
+  name: 'SMSF audit pack',
+  category: 'Accounting',
+  serviceType: 'SMSF',
+  entityTypes: ['SMSF'],
+  kyc: true,
+  builtin: true,
+  intro: {
+    enabled: true,
+    html: "Let's set up your self-managed super fund. We'll confirm the fund, members and trustee structure, then collect the documents we need to administer and audit it."
+  },
+  pages: [{
+    id: 'p-smsf-fund',
+    title: 'Fund details',
+    instructions: 'About the fund.',
+    sections: [{
+      id: 's-smsf-fund',
+      title: 'The fund',
+      fields: [onbF('fundName', 'text', 'Fund name', {
+        required: true
+      }), onbF('abn', 'abnacn', 'ABN', {
+        required: true,
+        kycFlag: true
+      }), onbF('tfn', 'tfn', 'Fund TFN', {
+        required: true,
+        kycFlag: true
+      }), onbF('esa', 'text', 'Electronic service address (ESA)', {
+        tooltip: 'Required to receive employer SuperStream contributions.'
+      }), onbF('trusteeStructure', 'dropdown', 'Trustee structure', {
+        required: true,
+        options: ['Individual trustees', 'Corporate trustee']
+      })]
+    }]
+  }, {
+    id: 'p-smsf-members',
+    title: 'Members & trustees',
+    instructions: 'Each member is usually also a trustee/director.',
+    kycSection: true,
+    sections: [{
+      id: 's-smsf-members',
+      title: 'Members',
+      fields: [onbF('members', 'repeatGroup', 'Members', {
+        required: true,
+        subFields: [onbF('name', 'text', 'Full name'), onbF('dob', 'date', 'Date of birth'), onbF('tfn', 'text', 'TFN')],
+        kycFlag: true
+      }), onbF('idVerify', 'kyc', 'Photo ID verification (each member)', {
+        required: true,
+        kycFlag: true
+      }), onbF('pep', 'yesno', 'Any member a PEP?', {
+        required: true,
+        options: ['Yes', 'No'],
+        kycFlag: true
+      })]
+    }]
+  }, {
+    id: 'p-smsf-docs',
+    title: 'Documents',
+    instructions: 'Upload fund documents.',
+    sections: [{
+      id: 's-smsf-docs',
+      title: 'Documents',
+      fields: [onbF('trustDeed', 'file', 'Trust deed', {
+        required: true
+      }), onbF('investmentStrategy', 'file', 'Investment strategy', {}), onbF('priorFinancials', 'fileMulti', 'Prior-year financials & SMSF return', {}), onbF('rollover', 'textarea', 'Rollover-in details from prior funds', {}), onbF('declaration', 'signature', 'Trustee declaration', {
+        required: true,
+        kycFlag: true
+      })]
+    }]
+  }]
+}, {
+  id: 'tpl-payroll',
+  name: 'Payroll setup',
+  category: 'Bookkeeping',
+  serviceType: 'Payroll',
+  entityTypes: ['Company', 'Trust', 'Partnership', 'Sole Trader'],
+  kyc: false,
+  builtin: true,
+  intro: {
+    enabled: true,
+    html: "Let's get your payroll set up — STP, your default super fund, and your employee details."
+  },
+  pages: [{
+    id: 'p-pay-employer',
+    title: 'Employer details',
+    instructions: 'About your payroll.',
+    sections: [{
+      id: 's-pay-employer',
+      title: 'Employer',
+      fields: [onbF('abn', 'abnacn', 'Employer ABN', {
+        required: true
+      }), onbF('stp', 'yesno', 'STP (Single Touch Payroll) enabled?', {
+        required: true,
+        options: ['Yes', 'No']
+      }), onbF('payrollSoftware', 'dropdown', 'Payroll software', {
+        options: ['Microkeeper', 'Xero', 'MYOB', 'QuickBooks', 'Other']
+      }), onbF('payCycle', 'dropdown', 'Pay cycle', {
+        required: true,
+        options: ['Weekly', 'Fortnightly', 'Monthly']
+      }), onbF('defaultSuper', 'text', 'Default super fund / clearing house', {}), onbF('connectPayroll', 'connection', 'Connect Microkeeper', {
+        options: ['Microkeeper']
+      })]
+    }]
+  }, {
+    id: 'p-pay-employees',
+    title: 'Employees',
+    instructions: 'Add each employee.',
+    sections: [{
+      id: 's-pay-employees',
+      title: 'Employee list',
+      fields: [onbF('employees', 'repeatGroup', 'Employees', {
+        required: true,
+        subFields: [onbF('name', 'text', 'Full name'), onbF('tfn', 'text', 'TFN'), onbF('start', 'date', 'Start date'), onbF('super', 'text', 'Super fund + member no.')]
+      }), onbF('tfnDecls', 'fileMulti', 'TFN declarations & super-choice forms', {}), onbF('leaveBalances', 'file', 'Leave balances to migrate', {})]
+    }]
+  }]
+}, {
+  id: 'tpl-bas',
+  name: 'Bookkeeping / BAS',
+  category: 'Bookkeeping',
+  serviceType: 'BAS / Bookkeeping',
+  entityTypes: ['Company', 'Trust', 'Partnership', 'Sole Trader'],
+  kyc: false,
+  builtin: true,
+  intro: {
+    enabled: true,
+    html: "A few details so we can take over your bookkeeping and BAS lodgements smoothly."
+  },
+  pages: [{
+    id: 'p-bas-tax',
+    title: 'GST & BAS',
+    instructions: 'Your registrations.',
+    sections: [{
+      id: 's-bas-tax',
+      title: 'Registrations',
+      fields: [onbF('abn', 'abnacn', 'ABN', {
+        required: true
+      }), onbF('gst', 'yesno', 'Registered for GST?', {
+        required: true,
+        options: ['Yes', 'No']
+      }), onbF('basCycle', 'dropdown', 'BAS cycle', {
+        required: true,
+        options: ['Monthly', 'Quarterly', 'Annual']
+      }), onbF('method', 'dropdown', 'Accounting method', {
+        options: ['Cash', 'Accrual']
+      }), onbF('paygWithholding', 'yesno', 'Registered for PAYG withholding?', {
+        options: ['Yes', 'No']
+      })]
+    }]
+  }, {
+    id: 'p-bas-systems',
+    title: 'Systems & access',
+    instructions: 'How we access your books.',
+    sections: [{
+      id: 's-bas-systems',
+      title: 'Access',
+      fields: [onbF('software', 'checkbox', 'Current accounting software', {
+        options: ONB_SOFTWARE_OPTS
+      }), onbF('connectSoftware', 'connection', 'Connect software', {
+        options: ['Xero']
+      }), onbF('bankStatements', 'fileMulti', 'Bank & credit-card statements (full period)', {
+        required: true
+      }), onbF('reconStatus', 'dropdown', 'Reconciliation status', {
+        options: ['Up to date', 'Behind', 'Not started']
+      })]
+    }]
+  }]
+}, {
+  id: 'tpl-trust',
+  name: 'Trust onboarding',
+  category: 'Accounting',
+  serviceType: 'Trust',
+  entityTypes: ['Trust'],
+  kyc: true,
+  builtin: true,
+  intro: {
+    enabled: true,
+    html: "Let's onboard your trust — we'll confirm the trustees, beneficiaries and the deed."
+  },
+  pages: [{
+    id: 'p-tr-trust',
+    title: 'Trust details',
+    instructions: 'About the trust.',
+    sections: [{
+      id: 's-tr-trust',
+      title: 'The trust',
+      fields: [onbF('trustName', 'text', 'Trust full name', {
+        required: true
+      }), onbF('trustType', 'dropdown', 'Trust type', {
+        options: ['Discretionary', 'Unit', 'Family', 'Fixed']
+      }), onbF('abn', 'abnacn', 'ABN', {
+        required: true,
+        kycFlag: true
+      }), onbF('tfn', 'tfn', 'TFN', {
+        required: true,
+        kycFlag: true
+      })]
+    }]
+  }, {
+    id: 'p-tr-people',
+    title: 'Trustees & beneficiaries',
+    instructions: 'Who controls and benefits from the trust.',
+    kycSection: true,
+    sections: [{
+      id: 's-tr-people',
+      title: 'People',
+      fields: [onbF('trustees', 'repeatGroup', 'Trustee(s)', {
+        required: true,
+        subFields: [onbF('name', 'text', 'Full name'), onbF('type', 'text', 'Individual / Corporate')],
+        kycFlag: true
+      }), onbF('appointor', 'text', 'Settlor / Appointor', {}), onbF('beneficiaries', 'repeatGroup', 'Beneficiaries', {
+        subFields: [onbF('name', 'text', 'Name'), onbF('rel', 'text', 'Relationship'), onbF('share', 'number', 'Distribution %')],
+        kycFlag: true
+      }), onbF('idVerify', 'kyc', 'Photo ID verification (trustees)', {
+        required: true,
+        kycFlag: true
+      })]
+    }]
+  }, {
+    id: 'p-tr-docs',
+    title: 'Documents',
+    instructions: 'Upload trust documents.',
+    sections: [{
+      id: 's-tr-docs',
+      title: 'Documents',
+      fields: [onbF('trustDeed', 'file', 'Trust deed', {
+        required: true
+      }), onbF('priorReturns', 'fileMulti', 'Prior-year returns & financials', {}), onbF('declaration', 'signature', 'Trustee declaration', {
+        required: true,
+        kycFlag: true
+      })]
+    }]
+  }]
+}];
+
+// Template resolution from a client's templateId (built-ins + saved). Null when the
+// client has no template (→ original hardcoded onboarding below).
+const onbAllTemplates = () => [...BUILTIN_ONBOARDING_TEMPLATES, ...loadOnboardingTemplates()];
+const findOnbTemplate = id => id ? onbAllTemplates().find(t => t.id === id) || null : null;
+// `_template` lets a preview client carry a draft template object inline (not yet
+// saved); otherwise resolve by the client's assigned templateId.
+const resolveTemplate = c => c ? c._template || (c.templateId ? findOnbTemplate(c.templateId) : null) : null;
+
+// ---- template authoring helpers (used by the builder) -----------------------
+const onbUid = p => p + '-' + Math.random().toString(36).slice(2, 8);
+const onbTemplateFieldCount = t => (t.pages || []).reduce((n, p) => n + (p.sections || []).reduce((m, s) => m + (s.fields || []).length, 0), 0);
+const onbCloneTemplate = (t, opts) => {
+  const o = opts || {};
+  return {
+    ...t,
+    id: o.id || onbUid('tpl'),
+    builtin: false,
+    name: o.name || t.name + ' (copy)',
+    pages: (t.pages || []).map(p => ({
+      ...p,
+      id: onbUid('p'),
+      sections: (p.sections || []).map(s => ({
+        ...s,
+        id: onbUid('s'),
+        fields: (s.fields || []).map(f => ({
+          ...f
+        }))
+      }))
+    }))
+  };
+};
+const onbBlankTemplate = () => ({
+  id: onbUid('tpl'),
+  name: 'Untitled onboarding template',
+  category: 'Custom',
+  serviceType: '',
+  entityTypes: ['Individual', 'Company'],
+  kyc: false,
+  builtin: false,
+  intro: {
+    enabled: true,
+    html: "Hi! We're delighted to have you on board. Please complete the questionnaire below — everything saves as you go."
+  },
+  pages: [{
+    id: onbUid('p'),
+    title: 'Page 1',
+    instructions: '',
+    sections: [{
+      id: onbUid('s'),
+      title: 'Section 1',
+      instructions: '',
+      fields: []
+    }]
+  }]
+});
+
+// Wizard sections for a client: original constant when no template, else the
+// template's pages mapped to section objects (welcome step prepended).
+const sectionsFor = c => {
+  const tpl = resolveTemplate(c);
+  if (!tpl) return ONBOARDING_SECTIONS;
+  const pages = (tpl.pages || []).map((p, i) => ({
+    id: p.id,
+    num: i + 2,
+    title: p.title,
+    icon: p.icon || 'clipboard',
+    group: p.id,
+    blurb: p.instructions || '',
+    kycSection: !!p.kycSection
+  }));
+  return [{
+    id: 'welcome',
+    num: 1,
+    title: 'Welcome',
+    icon: 'clipboardCheck',
+    isWelcome: true
+  }, ...pages];
+};
+
 // Per-client onboarding fields. Completion is recomputed from the values each
 // render (mirrors computePayrunIssues) so the form, the rail and the sidebar
 // locks can never disagree. `required` gates unlock; optional fields enrich the
 // profile but never block. Field set is kind-aware (individual vs business).
-const computeClientActions = c => {
+const computeClientActions = (c, template = resolveTemplate(c)) => {
+  if (template) return computeTemplateActions(c, template);
   const biz = c.kind === 'business';
   const items = [];
 
@@ -102923,6 +105572,18 @@ const clientProgress = c => {
 const isClientOnboarded = c => {
   const g = clientProgress(c);
   return g.total > 0 && g.done === g.total;
+};
+
+// AML/KYC verification status DERIVED from a client's KYC items (kyc-typed fields,
+// kyc-flagged fields, or any field on a KYC/AML page). Single source of truth that
+// feeds the accountant-side Compliance dashboard. 'na' = template has no KYC at all.
+const clientVerificationStatus = c => {
+  const items = computeClientActions(c).filter(i => i.kycFlag || i.type === 'kyc' || i.kycSection);
+  if (!items.length) return 'na';
+  const done = items.filter(i => i.done).length;
+  if (done === 0) return 'pending';
+  if (done < items.length) return 'submitted';
+  return 'verified';
 };
 
 // Group-level progress — aggregate required across every client in the group.
@@ -103582,6 +106243,959 @@ const OtherDocsStep = ({
     onClick: () => advance(list.length ? 'Documents saved' : null)
   }, "Save")));
 };
+
+// --- template field editors (data-driven; dispatched by field type) ----------
+// Repeatable multi-file uploader (generic value/onChange).
+const OnbMultiUpload = ({
+  list,
+  onChange,
+  fireToast
+}) => {
+  const inputRef = useRef(null);
+  const onPick = file => {
+    if (!file) return;
+    const kb = Math.round(file.size / 1024);
+    onChange([...list, {
+      id: 'f-' + list.length + '-' + kb,
+      name: file.name,
+      size: `${kb} KB`,
+      mime: file.type
+    }]);
+  };
+  const remove = id => {
+    const idx = list.findIndex(x => x.id === id);
+    const snap = list[idx];
+    onChange(list.filter(x => x.id !== id));
+    fireToast?.({
+      message: 'File removed',
+      action: {
+        label: 'Undo',
+        onClick: () => onChange([...list.slice(0, idx), snap, ...list.slice(idx)])
+      }
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", null, list.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      marginBottom: 12
+    }
+  }, list.map(d => /*#__PURE__*/React.createElement("div", {
+    key: d.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: 10,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement(PdfFileIcon, {
+    size: 28
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, d.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, d.size || 'File')), /*#__PURE__*/React.createElement("button", {
+    onClick: () => remove(d.id),
+    title: "Remove",
+    style: {
+      width: 28,
+      height: 28,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 13
+  }))))), /*#__PURE__*/React.createElement("input", {
+    ref: inputRef,
+    type: "file",
+    onChange: e => onPick(e.target.files?.[0]),
+    style: {
+      display: 'none'
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => inputRef.current?.click(),
+    style: {
+      width: '100%',
+      padding: 12,
+      border: `1px dashed ${T.borderStrong}`,
+      borderRadius: 10,
+      background: T.card,
+      color: T.primary,
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "upload",
+    size: 15,
+    color: T.primary
+  }), " Add a file"));
+};
+
+// Type-your-name signature (template signature/declaration fields).
+const OnbSignatureField = ({
+  item,
+  value,
+  onChange,
+  portal
+}) => {
+  const [name, setName] = useState(value && value.name || portal && portal.clientName || '');
+  if (value && value.at) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 16,
+        border: '1px solid #A7F3D0',
+        borderRadius: 10,
+        background: T.greenSoft,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        gap: 24
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        color: T.greenDark,
+        fontWeight: 600
+      }
+    }, "Signed by"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontFamily: '"Brush Script MT", "Lucida Handwriting", "Segoe Script", cursive',
+        fontSize: 26,
+        marginTop: 4,
+        color: T.text,
+        lineHeight: 1.1
+      }
+    }, value.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        borderTop: '1px solid #A7F3D0',
+        marginTop: 6,
+        paddingTop: 6,
+        fontSize: 12,
+        color: T.greenDark
+      }
+    }, new Date(value.at).toLocaleString('en-AU', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onChange(null),
+      title: "Clear",
+      style: {
+        background: 'transparent',
+        border: 'none',
+        color: T.greenDark,
+        fontSize: 11,
+        padding: 0,
+        cursor: 'pointer',
+        opacity: 0.7
+      }
+    }, "Clear"));
+  }
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 14px',
+      borderRadius: 10,
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
+      marginBottom: 12,
+      fontSize: 12.5,
+      color: T.textSoft,
+      lineHeight: 1.55
+    }
+  }, item.tooltip || 'I declare that the information provided is true and correct.'), /*#__PURE__*/React.createElement(Label, null, "Type your full name to sign"), /*#__PURE__*/React.createElement(Input, {
+    value: name,
+    onChange: e => setName(e.target.value),
+    placeholder: "Your full name",
+    style: {
+      maxWidth: 320
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "fileSignature",
+    disabled: name.trim().length < 2,
+    onClick: () => onChange({
+      name: name.trim(),
+      at: new Date().toISOString()
+    })
+  }, "Sign")));
+};
+
+// KYC / AML identity verification (mock: doc + selfie → verified, with PEP/sanctions framing).
+const OnbKycField = ({
+  item,
+  value,
+  onChange,
+  fireToast
+}) => {
+  const v = value || {};
+  const inputRef = useRef(null);
+  if (v.verified) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 16,
+        border: '1px solid #A7F3D0',
+        borderRadius: 10,
+        background: T.greenSoft
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "shield",
+      size: 20,
+      color: T.greenDark
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: T.greenDark
+      }
+    }, "Identity verified"), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5
+      }
+    }, v.docType || 'Photo ID', " \xB7 PEP & sanctions screened \xB7 ", fmtDate(new Date(v.at || Date.now())))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onChange(null),
+      style: {
+        background: 'transparent',
+        border: 'none',
+        color: T.greenDark,
+        fontSize: 11,
+        cursor: 'pointer',
+        opacity: 0.7
+      }
+    }, "Reset")));
+  }
+  const set = patch => onChange({
+    ...v,
+    ...patch
+  });
+  const kycSteps = [{
+    key: 'consent',
+    label: 'Consent',
+    done: true
+  }, {
+    key: 'document',
+    label: 'Document',
+    done: !!(v.docType && v.docNumber)
+  }, {
+    key: 'face',
+    label: 'Face',
+    done: !!v.doc
+  }, {
+    key: 'screening',
+    label: 'Screening',
+    done: false
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      marginBottom: 4
+    }
+  }, kycSteps.map((s, i) => /*#__PURE__*/React.createElement(React.Fragment, {
+    key: s.key
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: s.done ? T.primary : T.fieldBg,
+      border: `1.5px solid ${s.done ? T.primary : T.border}`
+    }
+  }, s.done ? /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: "#fff",
+    strokeWidth: 3
+  }) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 800,
+      color: T.muted
+    }
+  }, i + 1)), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 600,
+      color: s.done ? T.primary : T.muted
+    }
+  }, s.label)), i < kycSteps.length - 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: 1.5,
+      background: s.done ? T.primary : T.border,
+      marginTop: 10
+    }
+  })))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Document type"), /*#__PURE__*/React.createElement(Select, {
+    value: v.docType || '',
+    onChange: e => set({
+      docType: e.target.value
+    }),
+    style: {
+      maxWidth: 320
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Select\u2026"), ['Australian passport', 'Australian driver licence', 'Foreign passport', 'Medicare card'].map(o => /*#__PURE__*/React.createElement("option", {
+    key: o,
+    value: o
+  }, o)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Document number"), /*#__PURE__*/React.createElement(Input, {
+    value: v.docNumber || '',
+    onChange: e => set({
+      docNumber: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Expiry date"), /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: v.expiry || '',
+    onChange: e => set({
+      expiry: e.target.value
+    })
+  }))), /*#__PURE__*/React.createElement("input", {
+    ref: inputRef,
+    type: "file",
+    accept: "image/*,application/pdf",
+    onChange: e => {
+      const f = e.target.files?.[0];
+      if (f) set({
+        doc: {
+          name: f.name
+        }
+      });
+    },
+    style: {
+      display: 'none'
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => inputRef.current?.click(),
+    style: {
+      padding: 12,
+      border: `1px dashed ${T.borderStrong}`,
+      borderRadius: 10,
+      background: T.card,
+      color: T.primary,
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "upload",
+    size: 15,
+    color: T.primary
+  }), " ", v.doc ? v.doc.name : 'Upload ID + selfie'), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "shield",
+    disabled: !v.docType || !v.doc,
+    onClick: () => {
+      set({
+        verified: true,
+        at: new Date().toISOString()
+      });
+      fireToast?.({
+        message: 'Identity verified (mock)'
+      });
+    }
+  }, "Verify identity"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Runs document authenticity, face match, PEP and sanctions screening \u2014 mocked in this demo."));
+};
+
+// Repeating group (directors, beneficial owners, prior accountants, table rows).
+const OnbRepeatGroup = ({
+  item,
+  value,
+  onChange
+}) => {
+  const subs = item.subFields || [];
+  const [draft, setDraft] = useState({});
+  const add = () => {
+    const first = subs[0];
+    if (first && !String(draft[first.id] || '').trim()) return;
+    onChange([...value, {
+      id: 'rg-' + value.length + '-' + Date.now(),
+      ...draft
+    }]);
+    setDraft({});
+  };
+  const remove = id => onChange(value.filter(x => x.id !== id));
+  const rowLabel = row => subs.map(s => row[s.id]).filter(Boolean)[0] || 'Entry';
+  return /*#__PURE__*/React.createElement("div", null, value.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      marginBottom: 12
+    }
+  }, value.map(row => /*#__PURE__*/React.createElement("div", {
+    key: row.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      background: T.primarySoft,
+      color: T.primary,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: item.icon || 'user',
+    size: 15
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, rowLabel(row)), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, subs.slice(1).map(s => row[s.id]).filter(Boolean).join(' · ') || '—')), /*#__PURE__*/React.createElement("button", {
+    onClick: () => remove(row.id),
+    title: "Remove",
+    style: {
+      width: 28,
+      height: 28,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.muted,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 13
+  }))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 10
+    }
+  }, subs.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: s.id,
+    style: {
+      gridColumn: i === 0 || subs.length === 1 ? '1 / -1' : undefined
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, s.label), s.type === 'date' ? /*#__PURE__*/React.createElement(Input, {
+    type: "date",
+    value: draft[s.id] || '',
+    onChange: e => setDraft({
+      ...draft,
+      [s.id]: e.target.value
+    })
+  }) : /*#__PURE__*/React.createElement(Input, {
+    type: s.type === 'email' ? 'email' : s.type === 'number' ? 'number' : 'text',
+    value: draft[s.id] || '',
+    onChange: e => setDraft({
+      ...draft,
+      [s.id]: e.target.value
+    }),
+    placeholder: s.label
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "plus",
+    onClick: add
+  }, "Add")));
+};
+
+// Dispatches a template field-def to the right editor, reading/writing client.answers[id].
+const TemplateFieldEditor = ({
+  item,
+  portal,
+  set,
+  advance,
+  fireToast,
+  hideSave
+}) => {
+  const value = (portal.answers || {})[item.id];
+  const setVal = v => set({
+    answers: {
+      ...(portal.answers || {}),
+      [item.id]: v
+    }
+  });
+  const opts = item.options || [];
+  const saveBtn = hideSave ? null : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "check",
+    onClick: () => advance(item.done ? `${item.title} saved` : null)
+  }, "Save"));
+  const wrap = node => /*#__PURE__*/React.createElement("div", null, node, saveBtn);
+  if (item.type === 'text' || item.type === 'email' || item.type === 'phone' || item.type === 'url') {
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement(Input, {
+      type: item.type === 'email' ? 'email' : 'text',
+      value: value || '',
+      onChange: e => setVal(e.target.value),
+      placeholder: item.placeholder || ''
+    })));
+  }
+  if (item.type === 'number' || item.type === 'currency') {
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement(Input, {
+      type: "number",
+      value: value == null ? '' : value,
+      onChange: e => setVal(e.target.value),
+      placeholder: item.placeholder || '',
+      prefix: item.type === 'currency' ? '$' : undefined,
+      style: {
+        maxWidth: 260
+      }
+    })));
+  }
+  if (item.type === 'textarea' || item.type === 'formatted') {
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement("textarea", {
+      value: value || '',
+      onChange: e => setVal(e.target.value),
+      placeholder: item.placeholder || '',
+      rows: 4,
+      style: {
+        width: '100%',
+        padding: '10px 12px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        fontSize: 13.5,
+        fontFamily: 'inherit',
+        resize: 'vertical',
+        color: T.text,
+        background: T.card,
+        boxSizing: 'border-box'
+      }
+    })));
+  }
+  if (item.type === 'date') {
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement(Input, {
+      type: "date",
+      value: value || '',
+      onChange: e => setVal(e.target.value),
+      style: {
+        maxWidth: 240
+      }
+    })));
+  }
+  if (item.type === 'dropdown' || item.type === 'single' || item.type === 'country') {
+    const o = item.type === 'country' && !opts.length ? ['Australia', 'New Zealand', 'United Kingdom', 'United States', 'Other'] : opts;
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement(Select, {
+      value: value || '',
+      onChange: e => setVal(e.target.value),
+      style: {
+        maxWidth: 320
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "Select\u2026"), o.map(x => /*#__PURE__*/React.createElement("option", {
+      key: x,
+      value: x
+    }, x)))));
+  }
+  if (item.type === 'yesno') {
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement(PortalChoice, {
+      value: value,
+      onChange: setVal,
+      yes: opts[0] || 'Yes',
+      no: opts[1] || 'No'
+    })));
+  }
+  if (item.type === 'checkbox') {
+    const arr = value || [];
+    const toggle = o => setVal(arr.includes(o) ? arr.filter(x => x !== o) : [...arr, o]);
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6
+      }
+    }, opts.map(o => {
+      const on = arr.includes(o);
+      return /*#__PURE__*/React.createElement("label", {
+        key: o,
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '8px 11px',
+          border: `1.5px solid ${on ? T.primary : T.border}`,
+          background: on ? T.primarySofter : T.card,
+          borderRadius: 9,
+          cursor: 'pointer',
+          fontSize: 13
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 17,
+          height: 17,
+          borderRadius: 5,
+          flexShrink: 0,
+          border: `1.5px solid ${on ? T.primary : T.borderStrong}`,
+          background: on ? T.primary : T.card,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }
+      }, on && /*#__PURE__*/React.createElement(Icon, {
+        name: "check",
+        size: 11,
+        color: "#fff",
+        strokeWidth: 3
+      })), o);
+    }))));
+  }
+  if (item.type === 'rating') {
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 4
+      }
+    }, [1, 2, 3, 4, 5].map(n => /*#__PURE__*/React.createElement("button", {
+      key: n,
+      onClick: () => setVal(n),
+      title: `${n}`,
+      style: {
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        padding: 2
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "star",
+      size: 26,
+      color: (value || 0) >= n ? T.amber : T.borderStrong
+    }))))));
+  }
+  if (item.type === 'address') {
+    const a = value || {};
+    const setAddr = patch => setVal({
+      ...a,
+      ...patch
+    });
+    return wrap(/*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Street address"), /*#__PURE__*/React.createElement(Input, {
+      value: a.line1 || '',
+      onChange: e => setAddr({
+        line1: e.target.value
+      }),
+      placeholder: "e.g. 14 Marine Parade"
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '2fr 1fr 1fr',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Suburb"), /*#__PURE__*/React.createElement(Input, {
+      value: a.suburb || '',
+      onChange: e => setAddr({
+        suburb: e.target.value
+      }),
+      placeholder: "Southport"
+    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "State"), /*#__PURE__*/React.createElement(Select, {
+      value: a.state || '',
+      onChange: e => setAddr({
+        state: e.target.value
+      })
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "\u2014"), AU_STATES.map(s => /*#__PURE__*/React.createElement("option", {
+      key: s,
+      value: s
+    }, s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Postcode"), /*#__PURE__*/React.createElement(Input, {
+      value: a.postcode || '',
+      onChange: e => setAddr({
+        postcode: e.target.value
+      }),
+      placeholder: "4215"
+    })))));
+  }
+  if (item.type === 'tfn') {
+    const d = tfnDigits(value);
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement(Input, {
+      value: value || '',
+      onChange: e => setVal(e.target.value),
+      placeholder: "123 456 789",
+      style: {
+        maxWidth: 240
+      }
+    }), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        marginTop: 6
+      }
+    }, "Your 9-digit TFN \u2014 stored securely. ", d.length, "/9 digits.")));
+  }
+  if (item.type === 'abnacn') {
+    const valid = onbDigits(value).length >= 9;
+    return wrap(/*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Label, null, item.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Input, {
+      value: value || '',
+      onChange: e => setVal(e.target.value),
+      placeholder: "e.g. 85 628 688 219",
+      style: {
+        maxWidth: 280
+      }
+    }), valid ? /*#__PURE__*/React.createElement(Pill, {
+      color: "green",
+      title: "Validated against the Australian Business Register (mock)"
+    }, "ABR \u2713") : /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "search",
+      onClick: () => fireToast?.({
+        message: 'ABR lookup is mocked in this demo'
+      })
+    }, "Lookup"))));
+  }
+  if (item.type === 'bsb') {
+    const v = value || {};
+    const setB = patch => setVal({
+      ...v,
+      ...patch
+    });
+    return wrap(/*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        gridColumn: '1 / -1'
+      }
+    }, /*#__PURE__*/React.createElement(Label, null, "Account name"), /*#__PURE__*/React.createElement(Input, {
+      value: v.name || '',
+      onChange: e => setB({
+        name: e.target.value
+      }),
+      placeholder: "e.g. NAB"
+    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "BSB"), /*#__PURE__*/React.createElement(Input, {
+      value: v.bsb || '',
+      onChange: e => setB({
+        bsb: e.target.value
+      }),
+      placeholder: "123-456"
+    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Account number"), /*#__PURE__*/React.createElement(Input, {
+      value: v.acct || '',
+      onChange: e => setB({
+        acct: e.target.value
+      }),
+      placeholder: "12345678"
+    }))));
+  }
+  if (item.type === 'file' || item.type === 'fileImage') {
+    return wrap(/*#__PURE__*/React.createElement(PortalUpload, {
+      value: value,
+      onChange: setVal,
+      title: item.label,
+      desc: item.type === 'fileImage' ? 'Image — PNG or JPG' : 'PDF or document',
+      fireToast: fireToast
+    }));
+  }
+  if (item.type === 'fileMulti') {
+    return wrap(/*#__PURE__*/React.createElement(OnbMultiUpload, {
+      list: value || [],
+      onChange: setVal,
+      fireToast: fireToast
+    }));
+  }
+  if (item.type === 'signature') {
+    return wrap(/*#__PURE__*/React.createElement(OnbSignatureField, {
+      item: item,
+      value: value,
+      onChange: setVal,
+      portal: portal
+    }));
+  }
+  if (item.type === 'kyc') {
+    return wrap(/*#__PURE__*/React.createElement(OnbKycField, {
+      item: item,
+      value: value,
+      onChange: setVal,
+      fireToast: fireToast
+    }));
+  }
+  if (item.type === 'connection') {
+    const v = value || {};
+    return wrap(v.connected ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: 14,
+        border: '1px solid #A7F3D0',
+        borderRadius: 10,
+        background: T.greenSoft
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "checkCircle",
+      size: 20,
+      color: T.greenDark
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.greenDark
+      }
+    }, "Connected", v.org ? ` · ${v.org}` : ''), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, "Sync healthy \xB7 last updated just now")), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      onClick: () => setVal({
+        connected: false
+      })
+    }, "Disconnect")) : /*#__PURE__*/React.createElement("button", {
+      onClick: () => setVal({
+        connected: true,
+        org: opts[0] || 'Connected'
+      }),
+      style: {
+        width: '100%',
+        padding: 14,
+        border: `1px dashed ${T.borderStrong}`,
+        borderRadius: 10,
+        background: T.card,
+        color: T.primary,
+        fontWeight: 600,
+        fontSize: 13.5,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "gitMerge",
+      size: 16,
+      color: T.primary
+    }), " ", item.label));
+  }
+  if (item.type === 'table' || item.type === 'repeatGroup') {
+    return wrap(/*#__PURE__*/React.createElement(OnbRepeatGroup, {
+      item: item,
+      value: value || [],
+      onChange: setVal
+    }));
+  }
+  return wrap(/*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13
+    }
+  }, item.detail || item.label));
+};
 const ActionStepEditor = ({
   item,
   portal,
@@ -103605,6 +107219,16 @@ const ActionStepEditor = ({
     icon: "check",
     onClick: () => advance(item.done ? `${item.title} saved` : null)
   }, "Save"));
+  // Template-driven fields dispatch by TYPE; the original id-based branches below
+  // remain the no-template fallback (existing portal renders byte-identical).
+  if (item.type) return /*#__PURE__*/React.createElement(TemplateFieldEditor, {
+    item: item,
+    portal: portal,
+    set: set,
+    advance: advance,
+    fireToast: fireToast,
+    hideSave: hideSave
+  });
   if (item.id === 'dob') {
     const today = new Date().toISOString().split('T')[0];
     const dobIsInFuture = portal.dob && portal.dob > today;
@@ -104476,6 +108100,8 @@ const OnboardingWelcomeContent = ({
 }) => {
   const activeClient = activeClientOf(portal);
   const first = (activeClient?.name || '').split(' ')[0];
+  const tpl = resolveTemplate(activeClient);
+  const introHtml = tpl && tpl.intro && tpl.intro.enabled && tpl.intro.html ? tpl.intro.html : null;
   return /*#__PURE__*/React.createElement(Card, {
     style: {
       padding: 32
@@ -104520,7 +108146,7 @@ const OnboardingWelcomeContent = ({
       marginBottom: 20,
       color: T.textSoft
     }
-  }, "We just need a few details from each person in your group. Work through the checklist on the left", first ? ` — starting with ${first}'s` : '', " \u2014 you can save and come back anytime, and we'll always show what's still required."), /*#__PURE__*/React.createElement("div", {
+  }, introHtml || `We just need a few details from each person in your group. Work through the checklist on the left${first ? ` — starting with ${first}'s` : ''} — you can save and come back anytime, and we'll always show what's still required.`), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'flex-start',
@@ -104671,7 +108297,11 @@ const OnboardingTreeSidebar = ({
       whiteSpace: 'nowrap',
       color: pillActive ? '#fff' : sectionActive ? T.primary : T.text
     }
-  }, sec.num, ". ", sec.title), showCount && /*#__PURE__*/React.createElement("span", {
+  }, sec.num, ". ", sec.title), sec.kycSection && /*#__PURE__*/React.createElement(Icon, {
+    name: "shield",
+    size: 11,
+    color: pillActive ? '#fff' : T.blue
+  }), showCount && /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
       fontWeight: 700,
@@ -104883,7 +108513,7 @@ const OnboardingContentPanel = ({
         fontSize: 13.5,
         marginBottom: 22
       }
-    }, GROUP_META[section.group]?.blurb || ''), /*#__PURE__*/React.createElement("div", {
+    }, section.blurb || GROUP_META[section.group]?.blurb || ''), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -105008,7 +108638,28 @@ const OnboardingContentPanel = ({
       lineHeight: 1.6,
       marginBottom: 22
     }
-  }, item.detail), item.done && item.summary && /*#__PURE__*/React.createElement("div", {
+  }, item.detail), section.kycSection && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: '11px 14px',
+      background: T.blueSoft,
+      border: '1px solid #BFDBFE',
+      borderRadius: 10,
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "shield",
+    size: 16,
+    color: T.blue
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      lineHeight: 1.5,
+      color: T.text
+    }
+  }, "This step verifies your identity to meet our ", /*#__PURE__*/React.createElement("b", null, "AML/CTF obligations"), ". Your details are encrypted and used only for verification.")), item.done && item.summary && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -105092,6 +108743,7 @@ const PortalGetStarted = ({
   go
 }) => {
   const activeClient = activeClientOf(portal);
+  const sections = sectionsFor(activeClient); // template pages when assigned, else the original ONBOARDING_SECTIONS
   const setClient = patch => setPortal(p => ({
     ...p,
     clients: p.clients.map(c => c.id === p.activeClientId ? {
@@ -105111,7 +108763,7 @@ const PortalGetStarted = ({
   // Flat ordered list for linear prev/next navigation
   const allItems = useMemo(() => {
     const flat = [];
-    ONBOARDING_SECTIONS.forEach(sec => {
+    sections.forEach(sec => {
       flat.push({
         type: 'section',
         sec
@@ -105126,7 +108778,7 @@ const PortalGetStarted = ({
   }, [activeClient, portal]);
   const goToSection = id => {
     setActiveSectionId(id);
-    const sec = ONBOARDING_SECTIONS.find(s => s.id === id);
+    const sec = sections.find(s => s.id === id);
     if (sec && !sec.isWelcome) {
       const items = sectionItems(sec, activeClient);
       const first = items.find(i => !i.done) || items[0];
@@ -105150,7 +108802,7 @@ const PortalGetStarted = ({
     if (!c) return;
     const firstReq = computeClientActions(c).find(i => i.required && !i.done);
     if (firstReq) {
-      const sec = ONBOARDING_SECTIONS.find(s => s.group === firstReq.group);
+      const sec = sectionsFor(c).find(s => s.group === firstReq.group);
       if (sec) {
         setActiveSectionId(sec.id);
         setActiveItemId(firstReq.id);
@@ -105219,7 +108871,7 @@ const PortalGetStarted = ({
       }));
     }
   }, [portal.wizardSection, portal.wizardItem]);
-  const activeSection = ONBOARDING_SECTIONS.find(s => s.id === activeSectionId) || ONBOARDING_SECTIONS[0];
+  const activeSection = sections.find(s => s.id === activeSectionId) || sections[0];
   const activeItem = activeItemId ? sectionItems(activeSection, activeClient).find(i => i.id === activeItemId) : null;
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -105300,7 +108952,7 @@ const PortalGetStarted = ({
       padding: '9px 8px 11px'
     }
   }, /*#__PURE__*/React.createElement(OnboardingTreeSidebar, {
-    sections: ONBOARDING_SECTIONS,
+    sections: sections,
     activeClient: activeClient,
     activeSectionId: activeSectionId,
     activeItemId: activeItemId,
@@ -106316,6 +109968,13 @@ const PortalDemoControls = ({
 }, "Demo"), /*#__PURE__*/React.createElement(Btn, {
   variant: "ghost",
   size: "sm",
+  icon: "arrowLeft",
+  onClick: () => {
+    window.location.hash = '#/practice';
+  }
+}, "Back to SPM"), /*#__PURE__*/React.createElement(Btn, {
+  variant: "ghost",
+  size: "sm",
   icon: "check",
   onClick: () => {
     setPortal(p => ({
@@ -106941,7 +110600,7 @@ const ClientPortalApp = () => {
   const goToFieldFromHeader = (clientId, fieldId) => {
     if (route.section !== 'details') go('details');
     const c = portal.clients.find(cl => cl.id === clientId);
-    const sec = c && fieldId ? ONBOARDING_SECTIONS.find(s => sectionItems(s, c).some(i => i.id === fieldId)) : null;
+    const sec = c && fieldId ? sectionsFor(c).find(s => sectionItems(s, c).some(i => i.id === fieldId)) : null;
     setPortal(p => ({
       ...p,
       activeClientId: clientId,
@@ -107046,6 +110705,1838 @@ const ClientPortalApp = () => {
 };
 
 // ============================================================================
+// --- onboarding template builder (accountant side) --------------------------
+// The "Onboarding" page (replaces the questionnaires-forms stub): a 5-step wizard
+// — Templates → Essentials → Builder → Preview → Finalize — modelled on Content
+// Snare. It builds/edits an onboarding template (Pages → Sections → Fields); the
+// client portal wizard renders it live through the same renderers (the seam in
+// computeClientActions / sectionsFor / TemplateFieldEditor). No new primitives.
+// ----------------------------------------------------------------------------
+const ONB_STEPS = [{
+  id: 'gallery',
+  label: 'Templates'
+}, {
+  id: 'essentials',
+  label: 'Essentials'
+}, {
+  id: 'builder',
+  label: 'Builder'
+}, {
+  id: 'preview',
+  label: 'Preview'
+}, {
+  id: 'finalize',
+  label: 'Finalize'
+}];
+const ONB_CAT_ICON = {
+  Accounting: 'bank',
+  Bookkeeping: 'receipt',
+  Custom: 'sliders'
+};
+const onbSixDot = color => /*#__PURE__*/React.createElement("svg", {
+  width: "9",
+  height: "15",
+  viewBox: "0 0 9 15",
+  style: {
+    flexShrink: 0
+  }
+}, [2, 7].map(x => [3, 7.5, 12].map(y => /*#__PURE__*/React.createElement("circle", {
+  key: `${x}-${y}`,
+  cx: x,
+  cy: y,
+  r: "1.2",
+  fill: color
+}))));
+
+// HTML5-native drag-reorderable list (reuses the IntroBlocksEditor pattern). The
+// grip handler set is handed to renderItem so the drag handle can be the grip only.
+const OnbDraggableList = ({
+  items,
+  onReorder,
+  renderItem
+}) => {
+  const [dragIdx, setDragIdx] = useState(null);
+  const [drop, setDrop] = useState({
+    idx: null,
+    pos: null
+  });
+  const move = (from, to) => {
+    const next = [...items];
+    const [m] = next.splice(from, 1);
+    next.splice(to > from ? to - 1 : to, 0, m);
+    onReorder(next);
+  };
+  const onDragOver = (e, i) => {
+    if (dragIdx == null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const r = e.currentTarget.getBoundingClientRect();
+    const pos = e.clientY - r.top < r.height / 2 ? 'before' : 'after';
+    if (drop.idx !== i || drop.pos !== pos) setDrop({
+      idx: i,
+      pos
+    });
+  };
+  const onDrop = (e, i) => {
+    e.preventDefault();
+    if (dragIdx == null) return;
+    move(dragIdx, drop.pos === 'before' ? i : i + 1);
+    setDragIdx(null);
+    setDrop({
+      idx: null,
+      pos: null
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", null, items.map((it, i) => {
+    const grip = {
+      draggable: true,
+      onDragStart: e => {
+        setDragIdx(i);
+        e.dataTransfer.effectAllowed = 'move';
+        try {
+          e.dataTransfer.setData('text/plain', String(i));
+        } catch (_) {}
+      },
+      onDragEnd: () => {
+        setDragIdx(null);
+        setDrop({
+          idx: null,
+          pos: null
+        });
+      }
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      key: it.id || i,
+      onDragOver: e => onDragOver(e, i),
+      onDrop: e => onDrop(e, i),
+      style: {
+        opacity: dragIdx === i ? 0.4 : 1
+      }
+    }, drop.idx === i && drop.pos === 'before' && /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 2,
+        background: T.primary,
+        borderRadius: 2,
+        margin: '3px 0'
+      }
+    }), renderItem(it, i, grip), drop.idx === i && drop.pos === 'after' && /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 2,
+        background: T.primary,
+        borderRadius: 2,
+        margin: '3px 0'
+      }
+    }));
+  }));
+};
+
+// Field-type picker (the Content Snare "Select a field type" dialog).
+const OnbFieldPicker = ({
+  open,
+  onClose,
+  onPick
+}) => {
+  const [q, setQ] = useState('');
+  const groups = ['Common', 'Validation', 'Selection', 'Special', 'Connection'];
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: "Select a field type",
+    width: 780
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: q,
+    onChange: e => setQ(e.target.value),
+    placeholder: "Search for a field type\u2026",
+    autoFocus: true,
+    style: {
+      marginBottom: 18
+    }
+  }), groups.map(g => {
+    const items = Object.entries(ONB_FIELD_TYPES).filter(([k, d]) => d.grp === g && (!q || d.label.toLowerCase().includes(q.toLowerCase())));
+    if (!items.length) return null;
+    return /*#__PURE__*/React.createElement("div", {
+      key: g,
+      style: {
+        marginBottom: 18
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        fontWeight: 700,
+        color: T.muted,
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        marginBottom: 9
+      }
+    }, g, " fields"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(128px, 1fr))',
+        gap: 10
+      }
+    }, items.map(([k, d]) => /*#__PURE__*/React.createElement("button", {
+      key: k,
+      onClick: () => {
+        onPick(k);
+        onClose();
+      },
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+        padding: '16px 10px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        background: T.card,
+        cursor: 'pointer',
+        textAlign: 'center',
+        transition: 'all 0.1s'
+      },
+      onMouseEnter: e => {
+        e.currentTarget.style.borderColor = T.primary;
+        e.currentTarget.style.background = T.primarySofter;
+      },
+      onMouseLeave: e => {
+        e.currentTarget.style.borderColor = T.border;
+        e.currentTarget.style.background = T.card;
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: d.icon,
+      size: 20,
+      color: T.primary
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 600,
+        color: T.text,
+        lineHeight: 1.3
+      }
+    }, d.label)))));
+  }));
+};
+
+// Per-field settings drawer (right slide-over).
+const OnbFieldSettings = ({
+  field,
+  onChange,
+  onChangeType,
+  onClose,
+  onDelete
+}) => {
+  if (!field) return null;
+  const def = ONB_FIELD_TYPES[field.type] || {};
+  const hasOptions = ['dropdown', 'single', 'checkbox', 'yesno'].includes(field.type);
+  const hasPlaceholder = ['text', 'email', 'phone', 'url', 'number', 'currency', 'textarea'].includes(field.type);
+  const cond = field.conditions && field.conditions[0] || null;
+  const toggleEntity = v => {
+    const cur = field.applicableTo || [];
+    onChange({
+      applicableTo: cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v]
+    });
+  };
+  const taStyle = {
+    width: '100%',
+    padding: '9px 12px',
+    border: `1px solid ${T.border}`,
+    borderRadius: 8,
+    fontSize: 13,
+    fontFamily: 'inherit',
+    resize: 'vertical',
+    boxSizing: 'border-box',
+    color: T.text,
+    background: T.card
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onMouseDown: onClose,
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,0.25)',
+      zIndex: 60
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 384,
+      background: T.card,
+      borderLeft: `1px solid ${T.border}`,
+      boxShadow: '-12px 0 32px rgba(0,0,0,0.12)',
+      zIndex: 61,
+      display: 'flex',
+      flexDirection: 'column',
+      animation: 'drawerin 0.2s ease'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '15px 18px',
+      borderBottom: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: def.icon || 'edit',
+    size: 16,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700
+    }
+  }, "Field settings")), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 18
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: 18,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Type"), /*#__PURE__*/React.createElement("button", {
+    onClick: onChangeType,
+    disabled: !onChangeType,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      width: '100%',
+      padding: '8px 11px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      cursor: onChangeType ? 'pointer' : 'default',
+      textAlign: 'left'
+    },
+    onMouseEnter: e => {
+      if (onChangeType) e.currentTarget.style.borderColor = T.primary;
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.border;
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: def.icon || 'edit',
+    size: 15,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, def.label || field.type), onChangeType && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 700,
+      color: T.primary
+    }
+  }, "Change"))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Label / question"), /*#__PURE__*/React.createElement(Input, {
+    value: field.label || '',
+    onChange: e => onChange({
+      label: e.target.value
+    })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Help text / tooltip"), /*#__PURE__*/React.createElement("textarea", {
+    value: field.tooltip || '',
+    onChange: e => onChange({
+      tooltip: e.target.value
+    }),
+    rows: 3,
+    style: taStyle,
+    placeholder: "Shown under the field to guide the client"
+  })), hasPlaceholder && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Placeholder"), /*#__PURE__*/React.createElement(Input, {
+    value: field.placeholder || '',
+    onChange: e => onChange({
+      placeholder: e.target.value
+    })
+  })), hasOptions && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Options (one per line)"), /*#__PURE__*/React.createElement("textarea", {
+    value: (field.options || []).join('\n'),
+    onChange: e => onChange({
+      options: e.target.value.split('\n').map(s => s.trim()).filter(Boolean)
+    }),
+    rows: 4,
+    style: taStyle
+  }), field.type === 'yesno' && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 5
+    }
+  }, "First line = \"Yes\" label, second = \"No\" label.")), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, "Required"), /*#__PURE__*/React.createElement(Toggle, {
+    on: !!field.required,
+    onChange: v => onChange({
+      required: v
+    })
+  })), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, "KYC / AML field"), /*#__PURE__*/React.createElement(Toggle, {
+    on: !!field.kycFlag,
+    onChange: v => onChange({
+      kycFlag: v
+    })
+  })), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, "Confidential"), /*#__PURE__*/React.createElement(Toggle, {
+    on: !!field.confidential,
+    onChange: v => onChange({
+      confidential: v
+    })
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Only show for entity types"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 6
+    }
+  }, ENTITY_TYPES.map(e => /*#__PURE__*/React.createElement(Chip, {
+    key: e.v,
+    size: "sm",
+    selected: (field.applicableTo || []).includes(e.v),
+    onClick: () => toggleEntity(e.v)
+  }, e.v))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "Leave none selected to show for all entity types.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Conditional logic"), cond ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      padding: 10,
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: cond.field || '',
+    onChange: e => onChange({
+      conditions: [{
+        ...cond,
+        field: e.target.value
+      }]
+    }),
+    placeholder: "Field id (e.g. gst)"
+  }), /*#__PURE__*/React.createElement(Select, {
+    value: cond.op || 'eq',
+    onChange: e => onChange({
+      conditions: [{
+        ...cond,
+        op: e.target.value
+      }]
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "eq"
+  }, "equals"), /*#__PURE__*/React.createElement("option", {
+    value: "neq"
+  }, "does not equal"), /*#__PURE__*/React.createElement("option", {
+    value: "truthy"
+  }, "is answered")), ['eq', 'neq'].includes(cond.op || 'eq') && /*#__PURE__*/React.createElement(Input, {
+    value: cond.value || '',
+    onChange: e => onChange({
+      conditions: [{
+        ...cond,
+        value: e.target.value
+      }]
+    }),
+    placeholder: "Value (e.g. yes)"
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "trash",
+    onClick: () => onChange({
+      conditions: []
+    })
+  }, "Remove condition")) : /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    onClick: () => onChange({
+      conditions: [{
+        field: '',
+        op: 'eq',
+        value: ''
+      }]
+    })
+  }, "Add condition"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 14,
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "dangerOutline",
+    icon: "trash",
+    onClick: onDelete
+  }, "Delete"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "check",
+    onClick: onClose
+  }, "Done"))));
+};
+
+// Live client preview — literally the portal wizard, fed the draft template via an
+// inline `_template` on a synthetic client of the chosen entity type.
+const OnbPreview = ({
+  template,
+  entityType,
+  fireToast
+}) => {
+  const [portal, setPortal] = useState(() => ({
+    group: {
+      name: 'Preview group',
+      ref: '—',
+      firm: 'Sole Accounting'
+    },
+    clients: [{
+      ...seedClient({
+        id: 'cl-preview',
+        name: 'Sample Client',
+        kind: entityType === 'Individual' ? 'individual' : 'business',
+        entityType,
+        isYou: true,
+        service: template.name
+      }),
+      _template: template
+    }],
+    activeClientId: 'cl-preview',
+    forceOnboarded: false,
+    wizardSection: null,
+    wizardItem: null,
+    groupDocs: [{
+      id: 'gd-prev-1',
+      name: 'Engagement-letter.pdf',
+      tag: 'Signed',
+      size: '182 KB'
+    }, {
+      id: 'gd-prev-2',
+      name: 'Photo-ID-passport.pdf',
+      tag: 'Reference',
+      size: '420 KB'
+    }, {
+      id: 'gd-prev-3',
+      name: 'Prior-year-tax-return.pdf',
+      tag: 'Reference',
+      size: '96 KB'
+    }]
+  }));
+  return /*#__PURE__*/React.createElement(PortalGetStarted, {
+    portal: portal,
+    setPortal: setPortal,
+    fireToast: fireToast,
+    onboarded: false,
+    go: () => {}
+  });
+};
+const OnboardingTemplatesPage = ({
+  fireToast
+}) => {
+  const [view, setView] = useState('gallery');
+  const [draft, setDraft] = useState(null);
+  const [userTpls, setUserTpls] = useState(() => loadOnboardingTemplates());
+  const [cat, setCat] = useState('All');
+  const [q, setQ] = useState('');
+  const [selPageId, setSelPageId] = useState(null);
+  const [focusSectionId, setFocusSectionId] = useState(null); // scroll-flash a section card in the right editor
+  const sectionRefs = useRef({}); // sectionId -> wrapper DOM node
+  const [drawerRef, setDrawerRef] = useState(null); // { pageId, sectionId, fieldId }
+  const [picker, setPicker] = useState(null); // { pageId, sectionId, fieldId?, mode:'add'|'change' }
+  const [ai, setAi] = useState(null); // { pageId, sectionId }
+  const [aiText, setAiText] = useState('');
+  const [previewEntity, setPreviewEntity] = useState('Individual');
+  const [previewKey, setPreviewKey] = useState(0);
+
+  // Scroll the focused section card into view in the right editor and pulse it, then clear.
+  useEffect(() => {
+    if (!focusSectionId) return;
+    const el = sectionRefs.current[focusSectionId];
+    if (el && el.scrollIntoView) el.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+    const t = setTimeout(() => setFocusSectionId(null), 1100);
+    return () => clearTimeout(t);
+  }, [focusSectionId]);
+  const allTemplates = [...BUILTIN_ONBOARDING_TEMPLATES, ...userTpls];
+  const cats = ['All', ...Array.from(new Set(allTemplates.map(t => t.category)))];
+  const visible = allTemplates.filter(t => (cat === 'All' || t.category === cat) && (!q || (t.name + ' ' + t.serviceType + ' ' + (t.entityTypes || []).join(' ')).toLowerCase().includes(q.toLowerCase())));
+
+  // Draft mutation — draft is pure data, so a JSON deep-clone keeps updates immutable.
+  const mutate = fn => setDraft(d => {
+    const nd = JSON.parse(JSON.stringify(d));
+    fn(nd);
+    return nd;
+  });
+  const pageOf = (d, pid) => d.pages.find(p => p.id === pid);
+  const secOf = (d, pid, sid) => pageOf(d, pid).sections.find(s => s.id === sid);
+  const fieldOf = (d, ref) => ref && secOf(d, ref.pageId, ref.sectionId).fields.find(f => f.id === ref.fieldId);
+  const drawerField = drawerRef && draft ? fieldOf(draft, drawerRef) : null;
+  const newTemplate = () => {
+    const d = onbBlankTemplate();
+    setDraft(d);
+    setSelPageId(d.pages[0].id);
+    setView('essentials');
+  };
+  const editTemplate = t => {
+    const d = t.builtin ? onbCloneTemplate(t, {
+      name: t.name
+    }) : JSON.parse(JSON.stringify(t));
+    setDraft(d);
+    setSelPageId((d.pages[0] || {}).id);
+    setView('builder');
+  };
+  const useTemplate = t => {
+    const d = JSON.parse(JSON.stringify(t));
+    setDraft(d);
+    setSelPageId((d.pages[0] || {}).id);
+    setPreviewEntity((d.entityTypes || ['Individual'])[0]);
+    setPreviewKey(k => k + 1);
+    setView('preview');
+  };
+  const duplicateTemplate = t => {
+    saveOnboardingTemplate(onbCloneTemplate(t));
+    setUserTpls(loadOnboardingTemplates());
+    fireToast({
+      message: `Duplicated "${t.name}"`
+    });
+  };
+  const removeTemplate = t => {
+    deleteOnboardingTemplate(t.id);
+    setUserTpls(loadOnboardingTemplates());
+    fireToast({
+      message: `Deleted "${t.name}"`
+    });
+  };
+  const persistDraft = () => {
+    saveOnboardingTemplate(draft);
+    setUserTpls(loadOnboardingTemplates());
+    fireToast({
+      message: 'Template saved'
+    });
+  };
+  const goStep = id => {
+    if (id !== 'gallery' && !draft) return;
+    if (id === 'preview') {
+      setPreviewEntity(e => (draft.entityTypes || ['Individual']).includes(e) ? e : (draft.entityTypes || ['Individual'])[0]);
+      setPreviewKey(k => k + 1);
+    }
+    setView(id);
+  };
+
+  // ---- gallery ----
+  const renderGallery = () => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: 16,
+      marginBottom: 18,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      color: T.text
+    }
+  }, "Onboarding templates"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13.5,
+      marginTop: 4
+    }
+  }, "The question sets your clients complete during onboarding. Pick one per service type \u2014 or build your own.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "plus",
+    size: "lg",
+    onClick: newTemplate
+  }, "New template")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 18,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 7,
+      flexWrap: 'wrap'
+    }
+  }, cats.map(c => /*#__PURE__*/React.createElement(Chip, {
+    key: c,
+    size: "sm",
+    selected: cat === c,
+    onClick: () => setCat(c)
+  }, c))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 180,
+      maxWidth: 320,
+      marginLeft: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: q,
+    onChange: e => setQ(e.target.value),
+    placeholder: "Search templates\u2026",
+    prefix: /*#__PURE__*/React.createElement(Icon, {
+      name: "search",
+      size: 14,
+      color: T.muted
+    })
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: newTemplate,
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      minHeight: 168,
+      border: `1.5px dashed ${T.borderStrong}`,
+      borderRadius: 12,
+      background: T.card,
+      cursor: 'pointer',
+      color: T.primary
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "plus",
+    size: 24,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700
+    }
+  }, "Start from scratch"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Build a template with drag & drop")), visible.map(t => {
+    const fc = onbTemplateFieldCount(t);
+    return /*#__PURE__*/React.createElement(Card, {
+      key: t.id,
+      style: {
+        padding: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 16,
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 11,
+        marginBottom: 10
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 38,
+        height: 38,
+        borderRadius: 9,
+        background: T.primarySoft,
+        color: T.primary,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: ONB_CAT_ICON[t.category] || 'clipboard',
+      size: 19
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: T.text,
+        lineHeight: 1.3
+      }
+    }, t.name), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5,
+        marginTop: 2
+      }
+    }, t.serviceType || 'Custom', t.builtin ? '' : ' · Your template')), t.kyc && /*#__PURE__*/React.createElement(Pill, {
+      color: "blue",
+      title: "Includes a KYC / AML section"
+    }, "KYC/AML")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 5,
+        marginBottom: 10
+      }
+    }, (t.entityTypes || []).slice(0, 4).map(e => /*#__PURE__*/React.createElement(Pill, {
+      key: e,
+      color: "neutral",
+      style: {
+        fontSize: 10
+      }
+    }, e))), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5
+      }
+    }, t.pages.length, " page", t.pages.length === 1 ? '' : 's', " \xB7 ", fc, " field", fc === 1 ? '' : 's')), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 14px',
+        borderTop: `1px solid ${T.border}`,
+        background: T.fieldBg
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "send",
+      onClick: () => useTemplate(t)
+    }, "Use"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "edit",
+      onClick: () => editTemplate(t)
+    }, "Edit"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "copy",
+      title: "Duplicate",
+      onClick: () => duplicateTemplate(t)
+    }), !t.builtin && /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "trash",
+      title: "Delete",
+      onClick: () => removeTemplate(t)
+    })));
+  })));
+
+  // ---- essentials ----
+  const renderEssentials = () => /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 720,
+      margin: '0 auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      fontSize: 22,
+      fontWeight: 800,
+      marginBottom: 24
+    }
+  }, "Let's set up this onboarding request"), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Give this request a name"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.name,
+    onChange: e => mutate(d => {
+      d.name = e.target.value;
+    }),
+    placeholder: "e.g. Accounting Client Onboarding (Individual)"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Service type"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.serviceType || '',
+    onChange: e => mutate(d => {
+      d.serviceType = e.target.value;
+    }),
+    placeholder: "e.g. Individual Tax Return"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Category"), /*#__PURE__*/React.createElement(Select, {
+    value: draft.category,
+    onChange: e => mutate(d => {
+      d.category = e.target.value;
+    })
+  }, ['Accounting', 'Bookkeeping', 'Custom'].map(c => /*#__PURE__*/React.createElement("option", {
+    key: c,
+    value: c
+  }, c))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Applies to entity types"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 6
+    }
+  }, ENTITY_TYPES.map(e => {
+    const on = (draft.entityTypes || []).includes(e.v);
+    return /*#__PURE__*/React.createElement(Chip, {
+      key: e.v,
+      size: "sm",
+      selected: on,
+      onClick: () => mutate(d => {
+        const cur = d.entityTypes || [];
+        d.entityTypes = cur.includes(e.v) ? cur.filter(x => x !== e.v) : [...cur, e.v];
+      })
+    }, e.v);
+  }))), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600
+    }
+  }, "Enable a welcome message / instructions"), /*#__PURE__*/React.createElement(Toggle, {
+    on: !!(draft.intro && draft.intro.enabled),
+    onChange: v => mutate(d => {
+      d.intro = {
+        ...(d.intro || {}),
+        enabled: v
+      };
+    })
+  })), draft.intro && draft.intro.enabled && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Welcome message"), /*#__PURE__*/React.createElement("textarea", {
+    value: draft.intro.html || '',
+    onChange: e => mutate(d => {
+      d.intro = {
+        ...(d.intro || {}),
+        html: e.target.value
+      };
+    }),
+    rows: 4,
+    style: {
+      width: '100%',
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      fontSize: 13.5,
+      fontFamily: 'inherit',
+      resize: 'vertical',
+      boxSizing: 'border-box'
+    },
+    placeholder: "Shown to the client on the welcome step"
+  })), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600
+    }
+  }, "Include a KYC / AML section"), /*#__PURE__*/React.createElement(Toggle, {
+    on: !!draft.kyc,
+    onChange: v => mutate(d => {
+      d.kyc = v;
+    })
+  }))));
+
+  // ---- builder ----
+  const selPage = draft ? pageOf(draft, selPageId) || draft.pages[0] : null;
+  const addPage = () => mutate(d => {
+    const p = {
+      id: onbUid('p'),
+      title: `Page ${d.pages.length + 1}`,
+      instructions: '',
+      sections: [{
+        id: onbUid('s'),
+        title: 'Section 1',
+        instructions: '',
+        fields: []
+      }]
+    };
+    d.pages.push(p);
+  });
+  const removePage = pid => mutate(d => {
+    d.pages = d.pages.filter(p => p.id !== pid);
+  });
+  const addSection = pid => mutate(d => {
+    pageOf(d, pid).sections.push({
+      id: onbUid('s'),
+      title: `Section ${pageOf(d, pid).sections.length + 1}`,
+      instructions: '',
+      fields: []
+    });
+  });
+  const removeSection = (pid, sid) => mutate(d => {
+    const p = pageOf(d, pid);
+    p.sections = p.sections.filter(s => s.id !== sid);
+  });
+  const addField = (pid, sid, type) => {
+    const def = ONB_FIELD_TYPES[type];
+    const id = onbUid('f');
+    mutate(d => {
+      secOf(d, pid, sid).fields.push({
+        id,
+        type,
+        label: def.label,
+        required: false
+      });
+    });
+    setDrawerRef({
+      pageId: pid,
+      sectionId: sid,
+      fieldId: id
+    });
+  };
+  const removeField = (pid, sid, fid) => mutate(d => {
+    const s = secOf(d, pid, sid);
+    s.fields = s.fields.filter(f => f.id !== fid);
+  });
+  const updateField = (ref, patch) => mutate(d => {
+    const f = fieldOf(d, ref);
+    Object.assign(f, patch);
+  });
+  // Changing a field's type: keep type-agnostic settings (label/tooltip/required/kyc/conditions),
+  // drop type-specific config. The client answer is keyed by the stable field id, so an
+  // old-typed value may linger until re-answered — acceptable for a builder-side prototype.
+  const typeChangePatch = (newType, field) => {
+    const oldDef = ONB_FIELD_TYPES[field.type] || {};
+    const newDef = ONB_FIELD_TYPES[newType] || {};
+    const keepLabel = field.label && field.label !== oldDef.label ? field.label : newDef.label;
+    return {
+      type: newType,
+      label: keepLabel,
+      options: undefined,
+      subFields: undefined,
+      placeholder: undefined
+    };
+  };
+  const runAi = () => {
+    const lines = aiText.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+    if (!lines.length || !ai) {
+      setAi(null);
+      return;
+    }
+    mutate(d => {
+      const s = secOf(d, ai.pageId, ai.sectionId);
+      lines.forEach(l => s.fields.push({
+        id: onbUid('f'),
+        type: /upload|document|file|statement|deed/i.test(l) ? 'file' : /email/i.test(l) ? 'email' : /phone|mobile/i.test(l) ? 'phone' : /date|dob|birth/i.test(l) ? 'date' : 'text',
+        label: l.replace(/^[-*\d.\s]+/, ''),
+        required: false
+      }));
+    });
+    fireToast({
+      message: `Added ${lines.length} field${lines.length === 1 ? '' : 's'} (AI mock)`
+    });
+    setAi(null);
+    setAiText('');
+  };
+  const renderBuilder = () => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '240px 1fr',
+      gap: 20,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: 0,
+      overflow: 'hidden',
+      position: 'sticky',
+      top: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '11px 13px',
+      borderBottom: `1px solid ${T.border}`,
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase'
+    }
+  }, "Pages"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 8
+    }
+  }, /*#__PURE__*/React.createElement(OnbDraggableList, {
+    items: draft.pages,
+    onReorder: np => mutate(d => {
+      d.pages = np;
+    }),
+    renderItem: (p, i, grip) => {
+      const active = p.id === selPageId;
+      return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        "data-onb-row": true,
+        onClick: () => setSelPageId(p.id),
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '8px 9px',
+          borderRadius: 8,
+          cursor: 'pointer',
+          background: active ? T.primarySofter : 'transparent',
+          marginBottom: 2
+        }
+      }, /*#__PURE__*/React.createElement("button", _extends({}, grip, {
+        title: "Drag to reorder",
+        style: {
+          cursor: 'grab',
+          border: 'none',
+          background: 'transparent',
+          padding: 0,
+          display: 'flex'
+        }
+      }), onbSixDot(T.mutedSoft)), /*#__PURE__*/React.createElement(Icon, {
+        name: active ? 'chevronDown' : 'chevronRight',
+        size: 12,
+        color: active ? T.primary : T.mutedSoft
+      }), /*#__PURE__*/React.createElement("span", {
+        style: {
+          flex: 1,
+          minWidth: 0,
+          fontSize: 12.5,
+          fontWeight: active ? 700 : 600,
+          color: active ? T.primary : T.text,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, i + 1, ". ", p.title), p.kycSection && /*#__PURE__*/React.createElement(Icon, {
+        name: "shield",
+        size: 12,
+        color: T.blue
+      }), draft.pages.length > 1 && /*#__PURE__*/React.createElement("button", {
+        onClick: e => {
+          e.stopPropagation();
+          removePage(p.id);
+          if (selPageId === p.id) setSelPageId(draft.pages[0].id);
+        },
+        title: "Delete page",
+        className: "onb-rowdel",
+        style: {
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          color: T.mutedSoft,
+          padding: 2,
+          display: 'flex'
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "trash",
+        size: 12
+      }))), active && /*#__PURE__*/React.createElement("div", {
+        style: {
+          paddingLeft: 16,
+          marginBottom: 4
+        }
+      }, /*#__PURE__*/React.createElement(OnbDraggableList, {
+        items: p.sections,
+        onReorder: ns => mutate(d => {
+          pageOf(d, p.id).sections = ns;
+        }),
+        renderItem: (sec, si, sgrip) => {
+          const hasKyc = (sec.fields || []).some(f => f.kycFlag);
+          const focused = sec.id === focusSectionId;
+          return /*#__PURE__*/React.createElement("div", {
+            "data-onb-row": true,
+            onClick: () => {
+              setSelPageId(p.id);
+              setFocusSectionId(sec.id);
+            },
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '5px 8px',
+              borderRadius: 7,
+              cursor: 'pointer',
+              marginBottom: 1,
+              background: focused ? T.primarySofter : 'transparent'
+            }
+          }, /*#__PURE__*/React.createElement("button", _extends({}, sgrip, {
+            onClick: e => e.stopPropagation(),
+            title: "Drag to reorder",
+            style: {
+              cursor: 'grab',
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              display: 'flex'
+            }
+          }), onbSixDot(T.mutedSoft)), /*#__PURE__*/React.createElement("span", {
+            style: {
+              width: 4,
+              height: 4,
+              borderRadius: '50%',
+              background: T.mutedSoft,
+              flexShrink: 0
+            }
+          }), /*#__PURE__*/React.createElement("span", {
+            style: {
+              flex: 1,
+              minWidth: 0,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: T.textSoft,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }
+          }, sec.title), hasKyc && /*#__PURE__*/React.createElement(Icon, {
+            name: "shield",
+            size: 10,
+            color: T.blue
+          }), /*#__PURE__*/React.createElement("span", {
+            style: {
+              fontSize: 10,
+              fontWeight: 700,
+              color: T.mutedSoft,
+              flexShrink: 0
+            }
+          }, (sec.fields || []).length));
+        }
+      })));
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    onClick: addPage,
+    style: {
+      width: '100%',
+      marginTop: 6
+    }
+  }, "Add a page"))), selPage && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(Label, null, "Page title"), /*#__PURE__*/React.createElement(Input, {
+    value: selPage.title,
+    onChange: e => mutate(d => {
+      pageOf(d, selPage.id).title = e.target.value;
+    }),
+    style: {
+      fontWeight: 700
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Page instructions (optional)"), /*#__PURE__*/React.createElement("textarea", {
+    value: selPage.instructions || '',
+    onChange: e => mutate(d => {
+      pageOf(d, selPage.id).instructions = e.target.value;
+    }),
+    rows: 2,
+    style: {
+      width: '100%',
+      padding: '9px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      fontSize: 13,
+      fontFamily: 'inherit',
+      resize: 'vertical',
+      boxSizing: 'border-box'
+    },
+    placeholder: "Shown at the top of this step"
+  })), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      marginTop: 12,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    size: "sm",
+    on: !!selPage.kycSection,
+    onChange: v => mutate(d => {
+      pageOf(d, selPage.id).kycSection = v;
+    })
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft
+    }
+  }, "This is a KYC / AML compliance step"))), selPage.sections.map(sec => /*#__PURE__*/React.createElement("div", {
+    key: sec.id,
+    ref: el => {
+      sectionRefs.current[sec.id] = el;
+    },
+    style: {
+      borderRadius: 12,
+      animation: sec.id === focusSectionId ? 'flash 1.1s ease' : undefined
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: 0,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '12px 14px',
+      borderBottom: `1px solid ${T.border}`,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: sec.title,
+    onChange: e => mutate(d => {
+      secOf(d, selPage.id, sec.id).title = e.target.value;
+    }),
+    style: {
+      fontWeight: 700,
+      background: T.card
+    }
+  }), selPage.sections.length > 1 && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "trash",
+    title: "Delete section",
+    onClick: () => removeSection(selPage.id, sec.id)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 14
+    }
+  }, sec.fields.length === 0 && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12.5,
+      marginBottom: 12
+    }
+  }, "No fields yet \u2014 add one below."), /*#__PURE__*/React.createElement(OnbDraggableList, {
+    items: sec.fields,
+    onReorder: nf => mutate(d => {
+      secOf(d, selPage.id, sec.id).fields = nf;
+    }),
+    renderItem: (f, i, grip) => {
+      const def = ONB_FIELD_TYPES[f.type] || {};
+      return /*#__PURE__*/React.createElement("div", {
+        "data-onb-row": true,
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+          padding: '9px 11px',
+          border: `1px solid ${T.border}`,
+          borderRadius: 9,
+          background: T.card,
+          marginBottom: 7
+        }
+      }, /*#__PURE__*/React.createElement("button", _extends({}, grip, {
+        title: "Drag to reorder",
+        style: {
+          cursor: 'grab',
+          border: 'none',
+          background: 'transparent',
+          padding: 0,
+          display: 'flex'
+        }
+      }), onbSixDot(T.mutedSoft)), /*#__PURE__*/React.createElement(Icon, {
+        name: f.icon || def.icon || 'edit',
+        size: 15,
+        color: T.primary
+      }), /*#__PURE__*/React.createElement("button", {
+        onClick: () => setDrawerRef({
+          pageId: selPage.id,
+          sectionId: sec.id,
+          fieldId: f.id
+        }),
+        style: {
+          flex: 1,
+          minWidth: 0,
+          textAlign: 'left',
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          padding: 0
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 13,
+          fontWeight: 600,
+          color: T.text
+        }
+      }, f.label)), f.kycFlag && /*#__PURE__*/React.createElement(Pill, {
+        color: "blue",
+        style: {
+          fontSize: 9.5
+        }
+      }, "KYC"), f.required && /*#__PURE__*/React.createElement("span", {
+        title: "Required",
+        style: {
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: T.amber,
+          flexShrink: 0
+        }
+      }), /*#__PURE__*/React.createElement(Pill, {
+        color: "neutral",
+        style: {
+          fontSize: 10
+        }
+      }, def.label || f.type), /*#__PURE__*/React.createElement("button", {
+        onClick: () => setDrawerRef({
+          pageId: selPage.id,
+          sectionId: sec.id,
+          fieldId: f.id
+        }),
+        title: "Settings",
+        style: {
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          color: T.muted,
+          padding: 2,
+          display: 'flex'
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "sliders",
+        size: 13
+      })), /*#__PURE__*/React.createElement("button", {
+        onClick: () => removeField(selPage.id, sec.id, f.id),
+        title: "Delete",
+        style: {
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          color: T.mutedSoft,
+          padding: 2,
+          display: 'flex'
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "trash",
+        size: 13
+      })));
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    icon: "plus",
+    onClick: () => setPicker({
+      pageId: selPage.id,
+      sectionId: sec.id
+    })
+  }, "Add a field"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "sparkle",
+    onClick: () => {
+      setAi({
+        pageId: selPage.id,
+        sectionId: sec.id
+      });
+      setAiText('');
+    }
+  }, "Add fields from AI prompt")))))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "plus",
+    onClick: () => addSection(selPage.id),
+    style: {
+      alignSelf: 'flex-start'
+    }
+  }, "Add a section")));
+
+  // ---- preview ----
+  const renderPreview = () => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 16,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: "accent"
+  }, "Live client preview"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12.5
+    }
+  }, "This is exactly what the client sees. Switch entity type to check conditional fields."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginLeft: 'auto',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      margin: 0
+    }
+  }, "Preview as"), /*#__PURE__*/React.createElement(Select, {
+    value: previewEntity,
+    onChange: e => {
+      setPreviewEntity(e.target.value);
+      setPreviewKey(k => k + 1);
+    },
+    style: {
+      width: 170
+    }
+  }, (draft.entityTypes && draft.entityTypes.length ? draft.entityTypes : ENTITY_TYPES.map(x => x.v)).map(v => /*#__PURE__*/React.createElement("option", {
+    key: v,
+    value: v
+  }, v))))), /*#__PURE__*/React.createElement(OnbPreview, {
+    key: previewKey,
+    template: draft,
+    entityType: previewEntity,
+    fireToast: fireToast
+  }));
+
+  // ---- finalize ----
+  const renderFinalize = () => {
+    const fc = onbTemplateFieldCount(draft);
+    const reqCount = draft.pages.flatMap(p => p.sections).flatMap(s => s.fields).filter(f => f.required).length;
+    const kycCount = draft.pages.flatMap(p => p.sections).flatMap(s => s.fields).filter(f => f.kycFlag).length;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        maxWidth: 720,
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'center',
+        fontSize: 22,
+        fontWeight: 800
+      }
+    }, "Ready to send"), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 42,
+        height: 42,
+        borderRadius: 10,
+        background: T.primarySoft,
+        color: T.primary,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: ONB_CAT_ICON[draft.category] || 'clipboard',
+      size: 20
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 15,
+        fontWeight: 700
+      }
+    }, draft.name), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12
+      }
+    }, draft.serviceType || 'Custom', " \xB7 ", draft.pages.length, " pages \xB7 ", fc, " fields \xB7 ", reqCount, " required", kycCount ? ` · ${kycCount} KYC/AML` : '')), draft.kyc && /*#__PURE__*/React.createElement(Pill, {
+      color: "blue"
+    }, "KYC/AML")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 10,
+        flexWrap: 'wrap',
+        borderTop: `1px solid ${T.border}`,
+        paddingTop: 14
+      }
+    }, !draft.builtin && /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      icon: "save",
+      onClick: persistDraft
+    }, "Save to my templates"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      icon: "send",
+      onClick: () => {
+        if (!draft.builtin) persistDraft();
+        fireToast({
+          message: `Sent to client · onboarding requested`
+        });
+      }
+    }, "Send to client"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      icon: "eye",
+      onClick: () => {
+        if (!draft.builtin) persistDraft();
+        window.open(`${window.location.pathname}?onbtpl=${draft.id}#/portal`, '_blank');
+      }
+    }, "Open as client")), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5,
+        marginTop: 12
+      }
+    }, "Sending invites the client to their portal to complete this exact question set. When they sign, downstream jobs & tasks are created automatically (mocked).")));
+  };
+  const stepActions = {
+    gallery: null,
+    essentials: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      iconRight: "arrow",
+      onClick: () => goStep('builder')
+    }, "Save & continue"),
+    builder: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      iconRight: "arrow",
+      onClick: () => goStep('preview')
+    }, "Preview"),
+    preview: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      iconRight: "arrow",
+      onClick: () => goStep('finalize')
+    }, "Continue"),
+    finalize: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      icon: "check",
+      onClick: () => {
+        setView('gallery');
+        fireToast({
+          message: 'Done'
+        });
+      }
+    }, "Finish")
+  };
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      padding: '24px 32px 64px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 22,
+      flexWrap: 'wrap'
+    }
+  }, view !== 'gallery' && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setView('gallery'),
+    title: "Back to templates",
+    style: {
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      borderRadius: 8,
+      width: 32,
+      height: 32,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "arrowLeft",
+    size: 16
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, ONB_STEPS.map((s, i) => {
+    const active = s.id === view;
+    const enabled = s.id === 'gallery' || !!draft;
+    return /*#__PURE__*/React.createElement(React.Fragment, {
+      key: s.id
+    }, i > 0 && /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronRight",
+      size: 13,
+      color: T.mutedSoft
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: () => goStep(s.id),
+      disabled: !enabled,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '6px 12px',
+        borderRadius: 999,
+        border: 'none',
+        cursor: enabled ? 'pointer' : 'default',
+        background: active ? T.primary : 'transparent',
+        color: active ? '#fff' : enabled ? T.textSoft : T.mutedSoft,
+        fontWeight: active ? 700 : 600,
+        fontSize: 12.5,
+        opacity: enabled ? 1 : 0.5
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 10.5,
+        fontWeight: 800,
+        background: active ? 'rgba(255,255,255,0.25)' : T.fieldBg,
+        color: active ? '#fff' : T.muted
+      }
+    }, i + 1), s.label));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginLeft: 'auto',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, draft && view !== 'gallery' && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      fontWeight: 600,
+      maxWidth: 220,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, draft.name), stepActions[view])), view === 'gallery' && renderGallery(), view === 'essentials' && draft && renderEssentials(), view === 'builder' && draft && renderBuilder(), view === 'preview' && draft && renderPreview(), view === 'finalize' && draft && renderFinalize(), /*#__PURE__*/React.createElement(OnbFieldPicker, {
+    open: !!picker,
+    onClose: () => setPicker(null),
+    onPick: type => {
+      if (!picker) return;
+      if (picker.mode === 'change' && picker.fieldId) {
+        const ref = {
+          pageId: picker.pageId,
+          sectionId: picker.sectionId,
+          fieldId: picker.fieldId
+        };
+        const f = fieldOf(draft, ref);
+        if (f) updateField(ref, typeChangePatch(type, f));
+      } else {
+        addField(picker.pageId, picker.sectionId, type);
+      }
+    }
+  }), drawerField && /*#__PURE__*/React.createElement(OnbFieldSettings, {
+    field: drawerField,
+    onChange: patch => updateField(drawerRef, patch),
+    onChangeType: () => setPicker({
+      pageId: drawerRef.pageId,
+      sectionId: drawerRef.sectionId,
+      fieldId: drawerRef.fieldId,
+      mode: 'change'
+    }),
+    onClose: () => setDrawerRef(null),
+    onDelete: () => {
+      removeField(drawerRef.pageId, drawerRef.sectionId, drawerRef.fieldId);
+      setDrawerRef(null);
+    }
+  }), /*#__PURE__*/React.createElement(Modal, {
+    open: !!ai,
+    onClose: () => setAi(null),
+    title: "Add fields from a prompt",
+    subtitle: "Paste a list of questions (one per line) or describe what you need \u2014 we'll turn each into a field.",
+    width: 560
+  }, /*#__PURE__*/React.createElement("textarea", {
+    value: aiText,
+    onChange: e => setAiText(e.target.value),
+    rows: 7,
+    autoFocus: true,
+    placeholder: "Full name\nDate of birth\nUpload your most recent tax return\nAre you registered for GST?",
+    style: {
+      width: '100%',
+      padding: 12,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      fontSize: 13.5,
+      fontFamily: 'inherit',
+      resize: 'vertical',
+      boxSizing: 'border-box'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 10,
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setAi(null)
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "sparkle",
+    onClick: runAi
+  }, "Generate fields"))));
+};
+
 // --- reputation: client-facing review landing page ---
 // The review experience is previewed from the Reputation page (in-app + email
 // + web previews in one dropdown). The ONE real client-facing surface that ships
