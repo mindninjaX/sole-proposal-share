@@ -312,7 +312,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -526,6 +526,54 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   [data-editable][data-empty="true"][data-editing="false"] {
     opacity: 0.55;
   }
+
+  /* ============================================================================
+     CLIENT PORTAL PREMIUM THEME — scoped to .sole-portal so the practice/SPM
+     side is completely untouched. On-brand with the marketing site: Plus Jakarta
+     Sans, deep-indigo (#4A3FBE) brand + orange spark, brand-tinted depth, grain
+     + aurora atmosphere. White-label ready (one accent drives it all).
+     ============================================================================ */
+  .sole-portal { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .sole-portal ::selection { background: rgba(74,63,190,0.16); }
+  .sole-portal input:focus, .sole-portal select:focus, .sole-portal textarea:focus { border-color: #4A3FBE !important; box-shadow: 0 0 0 3px rgba(74,63,190,0.13) !important; }
+  /* Grain + aurora atmosphere */
+  .pt-grain::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(90,79,207,0.05) 1px, transparent 1px); background-size: 22px 22px; pointer-events: none; z-index: 0; }
+  .pt-aurora { position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; z-index: 0; }
+  /* Premium card depth (portal-only via the [data-card] hook on shared atoms) */
+  .sole-portal [data-card] { border-radius: 18px !important; border-color: #EAEAF6 !important; box-shadow: 0 4px 16px -4px rgba(28,27,71,0.08), 0 1px 4px -1px rgba(28,27,71,0.05) !important; }
+  .sole-portal [data-card="stat"] { transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s cubic-bezier(.22,1,.36,1); }
+  .sole-portal [data-card="stat"]:hover { transform: translateY(-3px); box-shadow: 0 18px 38px -16px rgba(74,63,190,0.34) !important; }
+  /* Brand the primary CTA into a deep-indigo gradient (via Btn's data-btn attr) */
+  .sole-portal [data-btn="primary"] { background: linear-gradient(135deg, #5A4FCF 0%, #4A3FBE 100%) !important; border-color: #463BB8 !important; box-shadow: 0 8px 18px -9px rgba(74,63,190,0.6) !important; transition: filter .15s, transform .15s, box-shadow .15s; }
+  .sole-portal [data-btn="primary"]:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .sole-portal [data-btn="primaryOutline"] { color: #4A3FBE !important; border-color: #C7C9FB !important; }
+  .sole-portal [data-chip][data-selected="true"] { background: #EEF0FF !important; border-color: #4A3FBE !important; color: #3C33A4 !important; }
+  /* Staggered load reveal */
+  @keyframes ptReveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  .pt-reveal { animation: ptReveal .5s cubic-bezier(.22,1,.36,1) both; }
+  /* Gentle hover-lift utility (opt-in via style on a wrapping element when needed) */
+  .pt-lift { transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s cubic-bezier(.22,1,.36,1); }
+  .pt-lift:hover { transform: translateY(-2px); }
+  /* One-class staggered page-load reveal — add .pt-stagger to a screen's root column */
+  .sole-portal .pt-stagger > * { animation: ptReveal .5s cubic-bezier(.22,1,.36,1) both; }
+  .sole-portal .pt-stagger > *:nth-child(1) { animation-delay: .02s; }
+  .sole-portal .pt-stagger > *:nth-child(2) { animation-delay: .08s; }
+  .sole-portal .pt-stagger > *:nth-child(3) { animation-delay: .14s; }
+  .sole-portal .pt-stagger > *:nth-child(4) { animation-delay: .20s; }
+  .sole-portal .pt-stagger > *:nth-child(5) { animation-delay: .26s; }
+  .sole-portal .pt-stagger > *:nth-child(n+6) { animation-delay: .30s; }
+  /* r7: richer non-gradient icon tiles (subtle tone-tinted gradient + inset ring; icon colour stays inline) */
+  .sole-portal [data-iconchip]:not([data-grad]) { box-shadow: inset 0 0 0 1px rgba(28,27,71,0.04); }
+  .sole-portal [data-iconchip][data-tone="accent"]:not([data-grad]) { background: linear-gradient(140deg, #EEF0FF 0%, #E3E4FF 100%) !important; }
+  /* r7: soft/ghost/icon buttons pick up a faint brand tint on hover */
+  .sole-portal [data-btn="soft"]:not(:disabled), .sole-portal [data-btn="ghost"]:not(:disabled), .sole-portal [data-btn="iconOnly"]:not(:disabled) { transition: border-color .12s, color .12s, background .12s; }
+  .sole-portal [data-btn="soft"]:not(:disabled):hover, .sole-portal [data-btn="ghost"]:not(:disabled):hover, .sole-portal [data-btn="iconOnly"]:not(:disabled):hover { border-color: #C7C9FB !important; color: #4A3FBE !important; }
+  .sole-portal [data-btn="iconOnly"]:not(:disabled):hover { background: #F5F6FF !important; }
+  /* r7: list-row hover gets a soft brand tint + hairline lift */
+  .sole-portal [data-hover="row"]:not(:disabled) { transition: background .12s; }
+  .sole-portal [data-hover="row"]:not(:disabled):hover { background: #F6F6FE; }
+  /* r7: live presence ring pulse */
+  @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
 </style>
 </head>
 <body>
@@ -565,7 +613,46 @@ const T = {
   blue: '#3B82F6',
   blueSoft: '#EFF6FF',
   yellowChip: '#FEF3C7',
-  yellowChipBorder: '#FCD34D'
+  yellowChipBorder: '#FCD34D',
+  // --- elevation + radius scale (Jun-24 shadcn-grade polish; additive) ---
+  surface: '#FBFBFD',
+  borderSoft: '#ECEDF2',
+  radiusSm: 8,
+  radius: 10,
+  radiusLg: 14,
+  radiusXl: 18,
+  shadowXs: '0 1px 2px rgba(16,24,40,0.04)',
+  shadowSm: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)',
+  shadowMd: '0 2px 4px -1px rgba(16,24,40,0.05), 0 4px 12px -2px rgba(16,24,40,0.08)',
+  shadowLg: '0 8px 24px -6px rgba(16,24,40,0.12)'
+};
+
+// --- client-portal premium theme (PT) — on-brand with the marketing site.
+// Scoped to portal components only (the practice side keeps T). One `brand`
+// accent drives everything, so per-accountant white-labelling is a one-liner.
+const PT = {
+  brand: '#4A3FBE',
+  // brand-600 — primary strong (live-site brand)
+  brandMid: '#5A4FCF',
+  // brand-500
+  brandDeep: '#3C33A4',
+  // brand-700 — headings/deep
+  brandSoft: '#EEF0FF',
+  // brand-50
+  brandSofter: '#F5F6FF',
+  accent: '#F97316',
+  // orange spark
+  accentDeep: '#EA580C',
+  accentSoft: '#FFEDD5',
+  ink: '#1E1B4B',
+  // near-black indigo for hero text
+  gradient: 'linear-gradient(135deg, #5A4FCF 0%, #4A3FBE 100%)',
+  gradientHero: 'linear-gradient(135deg, #2F2880 0%, #4A3FBE 55%, #5A4FCF 100%)',
+  pageBg: 'linear-gradient(160deg, #F8F9FF 0%, #EEF0FF 48%, #F5F3FF 100%)',
+  shadowSoft: '0 4px 16px -4px rgba(28,27,71,0.08), 0 1px 4px -1px rgba(28,27,71,0.05)',
+  shadowLift: '0 18px 40px -12px rgba(74,63,190,0.22)',
+  shadowPop: '0 28px 60px -20px rgba(74,63,190,0.34)',
+  radius: 18
 };
 
 // --- proposal templates ---
@@ -1958,10 +2045,12 @@ const Card = ({
   style,
   padded = true
 }) => /*#__PURE__*/React.createElement("div", {
+  "data-card": "base",
   style: {
     background: T.card,
-    border: `1px solid ${T.border}`,
-    borderRadius: 12,
+    border: `1px solid ${T.borderSoft}`,
+    borderRadius: T.radiusLg,
+    boxShadow: T.shadowSm,
     padding: padded ? 18 : 0,
     ...style
   }
@@ -1999,6 +2088,451 @@ const Helper = ({
     ...style
   }
 }, children);
+
+// --- shadcn-grade building blocks (Jun-24 polish pass) -----------------------
+// Reusable, inline-styled off T. Reference Icon/IconChip/MiniSpark at render time
+// (defined later in the file) — fine since these only run inside JSX at runtime.
+const ICONCHIP_TONES = {
+  accent: {
+    bg: T.primarySoft,
+    fg: T.primary,
+    grad: 'linear-gradient(135deg, #5A4FCF 0%, #4A3FBE 100%)',
+    shadow: 'rgba(74,63,190,0.5)'
+  },
+  green: {
+    bg: T.greenSoft,
+    fg: T.greenDark,
+    grad: 'linear-gradient(135deg, #34D399 0%, #059669 100%)',
+    shadow: 'rgba(5,150,105,0.42)'
+  },
+  amber: {
+    bg: T.amberSoft,
+    fg: T.amber,
+    grad: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)',
+    shadow: 'rgba(217,119,6,0.42)'
+  },
+  blue: {
+    bg: T.blueSoft,
+    fg: T.blue,
+    grad: 'linear-gradient(135deg, #60A5FA 0%, #2563EB 100%)',
+    shadow: 'rgba(37,99,235,0.42)'
+  },
+  red: {
+    bg: T.redSoft,
+    fg: T.red,
+    grad: 'linear-gradient(135deg, #F87171 0%, #DC2626 100%)',
+    shadow: 'rgba(220,38,38,0.42)'
+  },
+  neutral: {
+    bg: T.fieldBg,
+    fg: T.muted,
+    grad: 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)',
+    shadow: 'rgba(107,114,128,0.36)'
+  }
+};
+// Rounded-square icon tile — the reference's signature motif. `gradient` renders a
+// bold tone-coloured gradient tile with a white icon (used on KPIs/heroes); the
+// flat pastel default is used elsewhere. data-iconchip/-tone/-grad are hooks the
+// portal CSS uses to enrich tiles without touching the practice side.
+const IconChip = ({
+  icon,
+  tone = 'accent',
+  size = 36,
+  style,
+  gradient
+}) => {
+  const t = ICONCHIP_TONES[tone] || ICONCHIP_TONES.accent;
+  const bg = gradient ? t.grad : t.bg;
+  const fg = gradient ? '#fff' : t.fg;
+  return /*#__PURE__*/React.createElement("div", {
+    "data-iconchip": true,
+    "data-tone": tone,
+    "data-grad": gradient ? 'true' : undefined,
+    style: {
+      width: size,
+      height: size,
+      borderRadius: Math.round(size * 0.29),
+      background: bg,
+      color: fg,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      boxShadow: gradient ? `0 6px 14px -6px ${t.shadow}` : undefined,
+      ...style
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: Math.round(size * 0.5),
+    color: fg
+  }));
+};
+
+// KPI tile — compact, uniform height. icon chip + label + big value + sub (and
+// optional delta). Keep every tile in a row structurally identical (icon+label+
+// value+sub) so the grid doesn't leave a void under shorter cards. `spark` is
+// supported but discouraged in a mixed row — it changes card height.
+const StatCard = ({
+  icon,
+  tone = 'accent',
+  label,
+  value,
+  sub,
+  delta,
+  deltaTone,
+  spark,
+  onClick,
+  style
+}) => /*#__PURE__*/React.createElement("div", {
+  onClick: onClick,
+  "data-card": "stat",
+  "data-hover": onClick ? 'tile' : undefined,
+  style: {
+    background: T.card,
+    border: `1px solid ${T.borderSoft}`,
+    borderRadius: T.radiusLg,
+    boxShadow: T.shadowSm,
+    padding: '13px 15px',
+    display: 'flex',
+    flexDirection: 'column',
+    cursor: onClick ? 'pointer' : 'default',
+    minWidth: 0,
+    ...style
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8
+  }
+}, icon && /*#__PURE__*/React.createElement(IconChip, {
+  icon: icon,
+  tone: tone,
+  size: 32,
+  gradient: true
+}), delta != null && /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: deltaTone === 'down' ? T.red : T.greenDark,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 2
+  }
+}, deltaTone === 'down' ? '▼' : '▲', " ", delta)), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11.5,
+    fontWeight: 600,
+    color: T.muted,
+    letterSpacing: 0.2,
+    marginTop: 11
+  }
+}, label), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: T.text,
+    letterSpacing: -0.4,
+    fontVariantNumeric: 'tabular-nums',
+    marginTop: 2,
+    lineHeight: 1.15
+  }
+}, value), sub && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11.5,
+    color: T.muted,
+    marginTop: 3
+  }
+}, sub), spark && /*#__PURE__*/React.createElement("div", {
+  style: {
+    height: 28,
+    display: 'flex',
+    alignItems: 'flex-end',
+    marginTop: 9
+  }
+}, spark));
+
+// Card with a standard header row (icon + title + subtitle + right-aligned actions).
+const PanelCard = ({
+  title,
+  subtitle,
+  icon,
+  iconTone = 'accent',
+  actions,
+  children,
+  style,
+  bodyStyle
+}) => /*#__PURE__*/React.createElement("div", {
+  "data-card": "panel",
+  style: {
+    background: T.card,
+    border: `1px solid ${T.borderSoft}`,
+    borderRadius: T.radiusLg,
+    boxShadow: T.shadowSm,
+    overflow: 'hidden',
+    ...style
+  }
+}, (title || actions) && /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 11,
+    padding: '14px 16px',
+    borderBottom: `1px solid ${T.borderSoft}`
+  }
+}, icon && /*#__PURE__*/React.createElement(IconChip, {
+  icon: icon,
+  tone: iconTone,
+  size: 32
+}), /*#__PURE__*/React.createElement("div", {
+  style: {
+    flex: 1,
+    minWidth: 0
+  }
+}, title && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: T.text
+  }
+}, title), subtitle && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11.5,
+    color: T.muted,
+    marginTop: 1
+  }
+}, subtitle)), actions), /*#__PURE__*/React.createElement("div", {
+  style: {
+    padding: 16,
+    ...bodyStyle
+  }
+}, children));
+
+// Page header — large title + subtitle + actions.
+const PageHead = ({
+  title,
+  subtitle,
+  actions,
+  style
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+    flexWrap: 'wrap',
+    marginBottom: 18,
+    ...style
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    minWidth: 0
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: T.text,
+    letterSpacing: -0.4
+  }
+}, title), subtitle && /*#__PURE__*/React.createElement(Helper, {
+  style: {
+    fontSize: 13,
+    marginTop: 3
+  }
+}, subtitle)), actions && /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap'
+  }
+}, actions));
+
+// Tone-aware status / callout banner.
+const BANNER_TONES = {
+  success: {
+    bg: T.greenSoft,
+    bd: '#A7F3D0',
+    fg: T.greenDark,
+    icon: 'checkCircle'
+  },
+  info: {
+    bg: T.blueSoft,
+    bd: '#BFDBFE',
+    fg: T.blue,
+    icon: 'info'
+  },
+  accent: {
+    bg: T.primarySofter,
+    bd: '#C7C9FB',
+    fg: T.primary,
+    icon: 'shield'
+  },
+  warn: {
+    bg: T.amberSoft,
+    bd: '#FCD34D',
+    fg: '#92400E',
+    icon: 'alertTriangle'
+  },
+  danger: {
+    bg: T.redSoft,
+    bd: '#FECACA',
+    fg: '#991B1B',
+    icon: 'alertTriangle'
+  }
+};
+const Banner = ({
+  tone = 'info',
+  title,
+  children,
+  icon,
+  action,
+  style
+}) => {
+  const t = BANNER_TONES[tone] || BANNER_TONES.info;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 16px',
+      background: t.bg,
+      border: `1px solid ${t.bd}`,
+      borderRadius: T.radius,
+      ...style
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon || t.icon,
+    size: 18,
+    color: t.fg
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, title && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700,
+      color: t.fg
+    }
+  }, title), children && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: t.fg,
+      opacity: 0.92,
+      marginTop: title ? 1 : 0,
+      lineHeight: 1.45
+    }
+  }, children)), action);
+};
+
+// Horizontal step tracker — done / current / upcoming.
+const Stepper = ({
+  steps,
+  style
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    ...style
+  }
+}, steps.map((s, i) => {
+  const last = i === steps.length - 1;
+  const done = s.state === 'done',
+    current = s.state === 'current';
+  const c = done ? T.green : current ? T.primary : T.borderStrong;
+  return /*#__PURE__*/React.createElement(React.Fragment, {
+    key: s.label || i
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 24,
+      height: 24,
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: done ? T.green : current ? T.primary : T.card,
+      border: `1.5px solid ${c}`,
+      flexShrink: 0
+    }
+  }, done ? /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 12,
+    color: "#fff",
+    strokeWidth: 3
+  }) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 800,
+      color: current ? '#fff' : T.mutedSoft
+    }
+  }, i + 1)), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: current ? 700 : 600,
+      color: done ? T.text : current ? T.primary : T.muted,
+      whiteSpace: 'nowrap'
+    }
+  }, s.label)), !last && /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: 1.5,
+      background: done ? T.green : T.border,
+      margin: '0 10px',
+      minWidth: 16
+    }
+  }));
+}));
+
+// Consistent empty state.
+const EmptyState = ({
+  icon = 'inbox',
+  title,
+  hint,
+  action,
+  style
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    padding: '40px 24px',
+    ...style
+  }
+}, /*#__PURE__*/React.createElement(IconChip, {
+  icon: icon,
+  tone: "neutral",
+  size: 44
+}), title && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: T.text,
+    marginTop: 12
+  }
+}, title), hint && /*#__PURE__*/React.createElement(Helper, {
+  style: {
+    fontSize: 12.5,
+    marginTop: 4,
+    maxWidth: 320
+  }
+}, hint), action && /*#__PURE__*/React.createElement("div", {
+  style: {
+    marginTop: 14
+  }
+}, action));
 const Input = ({
   value,
   onChange,
@@ -2138,7 +2672,8 @@ const Btn = ({
       ...base,
       background: T.primary,
       color: '#fff',
-      borderColor: T.primary
+      borderColor: T.primary,
+      boxShadow: '0 1px 2px rgba(79,70,229,0.18)'
     },
     primaryOutline: {
       ...base,
@@ -44501,6 +45036,77 @@ const ComplianceDetailPage = ({
     key: 'adverseMedia',
     label: 'Adverse media'
   }];
+
+  // Top-line verdict + next action (the "clear line of sight" the feedback asked for).
+  const verdict = (() => {
+    if (rec.status === 'blocked') return {
+      tone: 'danger',
+      title: 'Action required — verification blocked',
+      text: rec.eddNote || 'This client can’t be onboarded until the outstanding checks are resolved.',
+      cta: 'Review & resolve'
+    };
+    if (rec.eddTriggered) return {
+      tone: 'warn',
+      title: 'Enhanced due diligence required',
+      text: rec.eddNote,
+      cta: 'Start EDD'
+    };
+    if (rec.status === 'verified') return {
+      tone: 'success',
+      title: 'Verified — cleared to act',
+      text: `All checks passed. Next review ${fmtDate(new Date(rec.reviewDue))}.`
+    };
+    if (rec.status === 'review_due') return {
+      tone: 'warn',
+      title: pastReview ? 'Periodic review overdue' : 'Periodic review due',
+      text: 'CDD is due for refresh — re-run verification to stay compliant.',
+      cta: 'Re-verify'
+    };
+    if (rec.status === 'submitted') return {
+      tone: 'info',
+      title: 'Submitted — awaiting your review',
+      text: 'The client has provided their details. Review the evidence and confirm a risk rating.',
+      cta: 'Review evidence'
+    };
+    if (rec.status === 'in_progress') return {
+      tone: 'info',
+      title: 'Verification in progress',
+      text: 'Waiting on the client to complete their identity checks.'
+    };
+    if (rec.status === 'invited') return {
+      tone: 'info',
+      title: 'Invitation sent',
+      text: 'The client has been invited to complete verification.',
+      cta: 'Resend invite'
+    };
+    return {
+      tone: 'accent',
+      title: 'Not started',
+      text: 'No verification request has been sent to this client yet.',
+      cta: 'Send request'
+    };
+  })();
+
+  // Step tracker derived from evidence / screening / risk / review state.
+  const identityDone = (rec.evidence.find(e => e.kind === 'identity') || {}).result === 'passed';
+  const screeningDone = Object.values(rec.screening).every(v => v === 'cleared');
+  const riskAssessed = ['submitted', 'verified', 'review_due'].includes(rec.status);
+  const reviewDone = rec.status === 'verified' && !pastReview;
+  const stepState = (done, prevDone) => done ? 'done' : prevDone ? 'current' : 'upcoming';
+  const steps = [{
+    label: 'Identity',
+    state: identityDone ? 'done' : 'current'
+  }, {
+    label: 'Screening',
+    state: stepState(screeningDone, identityDone)
+  }, {
+    label: 'Risk',
+    state: stepState(riskAssessed, screeningDone)
+  }, {
+    label: 'Review',
+    state: stepState(reviewDone, riskAssessed)
+  }];
+  const verdictBtn = verdict.tone === 'danger' ? 'danger' : verdict.tone === 'warn' ? 'primary' : 'primaryOutline';
   return /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -44515,7 +45121,7 @@ const ComplianceDetailPage = ({
       justifyContent: 'space-between',
       gap: 16,
       flexWrap: 'wrap',
-      marginBottom: 18
+      marginBottom: 16
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -44539,8 +45145,8 @@ const ComplianceDetailPage = ({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 19,
-      fontWeight: 700,
+      fontSize: 20,
+      fontWeight: 800,
       letterSpacing: -0.3
     }
   }, rec.name), /*#__PURE__*/React.createElement(Pill, {
@@ -44584,38 +45190,46 @@ const ComplianceDetailPage = ({
     onClick: () => fireToast({
       message: 'Session report downloaded (mock)'
     })
-  }, "Session report"))), /*#__PURE__*/React.createElement("div", {
+  }, "Session report"))), /*#__PURE__*/React.createElement(Banner, {
+    tone: verdict.tone,
+    title: verdict.title,
+    action: verdict.cta && /*#__PURE__*/React.createElement(Btn, {
+      variant: verdictBtn,
+      size: "sm",
+      onClick: () => fireToast({
+        message: `${verdict.cta} (mock)`
+      })
+    }, verdict.cta),
+    style: {
+      marginBottom: 14
+    }
+  }, verdict.text), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 16,
+      padding: '16px 20px'
+    }
+  }, /*#__PURE__*/React.createElement(Stepper, {
+    steps: steps
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: isCompact ? '1fr' : '1.45fr 1fr',
       gap: 16,
       alignItems: 'start'
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16
-    }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      marginBottom: 4
-    }
-  }, "Verification evidence"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 12,
-      marginBottom: 14
-    }
-  }, "Checks attached to this verification request."), rec.evidence.map((ev, i) => /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Verification & evidence",
+    subtitle: "Identity, registry and screening checks attached to this request",
+    icon: "shield",
+    iconTone: "accent"
+  }, rec.evidence.map((ev, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     style: {
       display: 'flex',
       alignItems: 'center',
       gap: 11,
       padding: '10px 0',
-      borderTop: i > 0 ? `1px solid ${T.border}` : 'none'
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: EVIDENCE_ICON[ev.result],
@@ -44641,16 +45255,16 @@ const ComplianceDetailPage = ({
     style: {
       marginTop: 14,
       paddingTop: 14,
-      borderTop: `1px solid ${T.border}`
+      borderTop: `1px solid ${T.borderSoft}`
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: 700,
       color: T.muted,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
-      marginBottom: 8
+      marginBottom: 6
     }
   }, "Screening"), screenRows.map(s => /*#__PURE__*/React.createElement("div", {
     key: s.key,
@@ -44668,25 +45282,28 @@ const ComplianceDetailPage = ({
     }
   }, s.label), /*#__PURE__*/React.createElement(Pill, {
     color: SCREEN_PILL[rec.screening[s.key]]
-  }, SCREEN_LABEL[rec.screening[s.key]]))))), rec.isEntity && rec.beneficialOwners.length > 0 && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+  }, SCREEN_LABEL[rec.screening[s.key]])))), rec.isEntity && rec.beneficialOwners.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 14,
+      marginTop: 14,
+      paddingTop: 14,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
       fontWeight: 700,
-      marginBottom: 4
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8
     }
-  }, "Beneficial owners & controllers"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 12,
-      marginBottom: 12
-    }
-  }, "Individuals owning or controlling 25% or more \u2014 identified and verified per CDD."), rec.beneficialOwners.map((o, i) => /*#__PURE__*/React.createElement("div", {
+  }, "Beneficial owners & controllers (\u226525%)"), rec.beneficialOwners.map((o, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
     style: {
       display: 'flex',
       alignItems: 'center',
       gap: 11,
-      padding: '9px 0',
-      borderTop: i > 0 ? `1px solid ${T.border}` : 'none'
+      padding: '8px 0'
     }
   }, /*#__PURE__*/React.createElement(Avatar, {
     name: o.name,
@@ -44713,13 +45330,12 @@ const ComplianceDetailPage = ({
       flexDirection: 'column',
       gap: 16
     }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      marginBottom: 12
-    }
-  }, "Risk assessment"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Risk & sign-off",
+    subtitle: "Provider rating + your manual assessment",
+    icon: "gauge",
+    iconTone: "amber"
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -44758,7 +45374,7 @@ const ComplianceDetailPage = ({
     style: {
       marginTop: 16,
       paddingTop: 14,
-      borderTop: `1px solid ${T.border}`
+      borderTop: `1px solid ${T.borderSoft}`
     }
   }, rec.riskBreakdown.map((b, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
@@ -44793,7 +45409,7 @@ const ComplianceDetailPage = ({
       padding: '11px 13px',
       background: T.amberSoft,
       border: '1px solid #FCD34D',
-      borderRadius: 10
+      borderRadius: T.radius
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "alertTriangle",
@@ -44810,13 +45426,12 @@ const ComplianceDetailPage = ({
       fontSize: 11.5,
       color: '#92400E'
     }
-  }, rec.eddNote)))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      marginBottom: 12
-    }
-  }, "Review & record-keeping"), /*#__PURE__*/React.createElement("div", {
+  }, rec.eddNote)))), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Compliance calendar",
+    subtitle: "Review schedule, retention & full audit trail",
+    icon: "calendar",
+    iconTone: "blue"
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -44831,7 +45446,7 @@ const ComplianceDetailPage = ({
   }, "Next review due"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12.5,
-      fontWeight: 600,
+      fontWeight: 700,
       color: pastReview ? T.red : T.text
     }
   }, fmtDate(new Date(rec.reviewDue)))), /*#__PURE__*/React.createElement("div", {
@@ -44849,27 +45464,31 @@ const ComplianceDetailPage = ({
   }, "Records retained until"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12.5,
-      fontWeight: 600
+      fontWeight: 700
     }
   }, fmtDate(new Date(rec.retainUntil)))), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11,
-      marginTop: 6
-    }
-  }, "AML/CTF records are kept for 7 years after the relationship ends (AUSTRAC).")), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      marginBottom: 4
-    }
-  }, "Audit timeline"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 12,
+      marginTop: 4,
       marginBottom: 14
     }
-  }, "Every verification event is recorded for regulatory readiness."), /*#__PURE__*/React.createElement(ComplianceTimeline, {
+  }, "AML/CTF records are kept for 7 years after the relationship ends (AUSTRAC)."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingTop: 14,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 12
+    }
+  }, "Audit timeline"), /*#__PURE__*/React.createElement(ComplianceTimeline, {
     audit: rec.audit
-  })))));
+  }))))));
 };
 const OverviewPage = ({
   fireToast
@@ -103819,6 +104438,116 @@ const PORTAL_CLIENT = {
   engagementRef: 'SPM-2026-0042'
 };
 
+// The people the client actually deals with — a real team, not one lone contact.
+// `lead` is the default sender for canned replies. Used by the Communications surface.
+const PORTAL_TEAM = [{
+  id: 't-sarah',
+  name: 'Sarah Mitchell',
+  title: 'Senior Tax Accountant',
+  online: true,
+  lead: true
+}, {
+  id: 't-james',
+  name: 'James Okafor',
+  title: 'Bookkeeper',
+  online: true
+}, {
+  id: 't-lena',
+  name: 'Lena Brooks',
+  title: 'Client Partner',
+  online: false
+}];
+const portalTeamMember = id => PORTAL_TEAM.find(m => m.id === id) || PORTAL_TEAM[0];
+
+// Conversation threads for the portal chat. A client of a firm doesn't need Slack —
+// just a handful of meaningful threads: a general team channel + a few topic threads
+// tied to their engagement. `day` labels drive the date separators; `from:'me'` is
+// the logged-in client. Seeded with realistic back-and-forth so the surface feels live.
+const PORTAL_CONVERSATIONS_SEED = [{
+  id: 'conv-team',
+  title: 'Your accounting team',
+  kind: 'team',
+  participantIds: ['t-sarah', 't-james', 't-lena'],
+  unread: 1,
+  messages: [{
+    from: 't-sarah',
+    day: 'Mon 22 Jun',
+    time: '9:12am',
+    text: "Hi Gaurav — welcome aboard! I'm Sarah, your lead accountant. James looks after your bookkeeping and Lena is our client partner if you ever need anything escalated."
+  }, {
+    from: 't-sarah',
+    day: 'Mon 22 Jun',
+    time: '9:13am',
+    text: "We've received your engagement letter — we're all set to start on your 2026 return."
+  }, {
+    from: 'me',
+    day: 'Yesterday',
+    time: '4:02pm',
+    text: "Thanks Sarah! Should I upload last year's documents through the portal?"
+  }, {
+    from: 't-sarah',
+    day: 'Yesterday',
+    time: '4:20pm',
+    text: "Yes please — payment summaries, bank statements and any investment income would be a great start. Just use the Documents section."
+  }, {
+    from: 't-james',
+    day: 'Today',
+    time: '8:45am',
+    text: "Morning Gaurav — I've reconciled your last quarter and it all balances. I'll flag anything that needs a receipt."
+  }]
+}, {
+  id: 'conv-tax',
+  title: '2026 Tax return',
+  kind: 'topic',
+  participantIds: ['t-sarah'],
+  unread: 0,
+  messages: [{
+    from: 't-sarah',
+    day: 'Mon 22 Jun',
+    time: '11:30am',
+    text: "I've started your 2026 return. Early estimate is a refund of around $3,180 — I'll confirm once your income details are locked in."
+  }, {
+    from: 'me',
+    day: 'Yesterday',
+    time: '5:10pm',
+    text: "Great news. Is there anything you still need from me?"
+  }, {
+    from: 't-sarah',
+    day: 'Yesterday',
+    time: '5:25pm',
+    text: "Just a confirmation of your private health cover dates and we're good to lodge."
+  }]
+}, {
+  id: 'conv-onb',
+  title: 'Onboarding & KYC',
+  kind: 'topic',
+  participantIds: ['t-lena', 't-sarah'],
+  unread: 0,
+  messages: [{
+    from: 't-lena',
+    day: 'Fri 19 Jun',
+    time: '2:15pm',
+    text: "Hi Gaurav, Lena here. Your identity and AML checks have all cleared — you're fully verified. 🎉"
+  }, {
+    from: 'me',
+    day: 'Fri 19 Jun',
+    time: '2:40pm',
+    text: "Perfect, thank you!"
+  }]
+}, {
+  id: 'conv-bas',
+  title: 'Quarterly BAS',
+  kind: 'topic',
+  participantIds: ['t-james'],
+  unread: 0,
+  messages: [{
+    from: 't-james',
+    day: 'Thu 18 Jun',
+    time: '10:05am',
+    text: "Your Q4 BAS is prepared and ready for review. Nothing unusual this quarter."
+  }]
+}];
+
 // A client GROUP can hold several tax entities (people / sole traders / companies).
 // The logged-in contact onboards each one; the portal unlocks once EVERY client in
 // the group has its required details in.
@@ -103851,10 +104580,24 @@ const PORTAL_CLIENTS_SEED = [{
 // Vertical sidebar nav (mirrors the onboarded reference). `home` is always
 // accessible (the Client Group / onboarding surface); everything else LOCKS
 // until the group is fully onboarded.
+// Portal nav. `open: true` = accessible during onboarding (Onboarding wizard +
+// the Client Group overview); everything else is a locked teaser until the group
+// is fully onboarded. `home: true` = default landing + carries the remaining badge.
 const PORTAL_NAV = [{
+  id: 'onboarding',
+  icon: 'clipboardCheck',
+  label: 'Onboarding',
+  open: true,
+  home: true
+}, {
   id: 'dashboard',
   icon: 'chartBar',
   label: 'Dashboard'
+}, {
+  id: 'details',
+  icon: 'users',
+  label: 'Client Group',
+  open: true
 }, {
   id: 'documents',
   icon: 'fileText',
@@ -103872,55 +104615,62 @@ const PORTAL_NAV = [{
   icon: 'messageSquare',
   label: 'Communications'
 }, {
-  id: 'forms',
-  icon: 'clipboard',
-  label: 'Onboarding'
-}, {
   id: 'payroll',
   icon: 'briefcase',
   label: 'Payroll Management'
-}, {
-  id: 'details',
-  icon: 'users',
-  label: 'Client Group',
-  home: true
 }];
 const PORTAL_TAB_META = {
+  onboarding: {
+    title: 'Onboarding',
+    icon: 'clipboardCheck',
+    blurb: 'Complete every member’s details to get started with your accountant.'
+  },
   dashboard: {
     title: 'Dashboard',
-    blurb: 'Your engagement at a glance — balances, deadlines and what we need next.'
+    icon: 'chartBar',
+    blurb: 'Your engagement at a glance — value delivered, what’s next, and your team.'
+  },
+  details: {
+    title: 'Client Group',
+    icon: 'users',
+    blurb: 'Everyone in your group, their status, and shared documents.'
   },
   documents: {
     title: 'Documents',
+    icon: 'fileText',
     blurb: 'Every signed letter, statement and report in one secure place.'
   },
   payments: {
     title: 'Payments',
+    icon: 'creditCard',
     blurb: 'Invoices, receipts and your saved payment methods.'
   },
   requests: {
     title: 'Request & Task',
+    icon: 'inbox',
     blurb: 'Anything we need from you, tracked so nothing slips through.'
   },
   communications: {
     title: 'Communications',
+    icon: 'messageSquare',
     blurb: 'Message your advisor and keep the whole conversation together.'
-  },
-  forms: {
-    title: 'Onboarding',
-    blurb: 'Onboarding questionnaires and smart forms your accountant shares with you.'
   },
   payroll: {
     title: 'Payroll Management',
+    icon: 'briefcase',
     blurb: 'Pay runs, payslips and superannuation — once your file is set up.'
   }
 };
 const parsePortalHash = hash => {
   const m = (hash || '').match(/^#\/portal\/?([\w-]+)?/);
-  const section = m && m[1] || 'details';
-  const valid = ['details', ...Object.keys(PORTAL_TAB_META)];
+  const section = m && m[1] || 'onboarding';
+  const valid = Object.keys(PORTAL_TAB_META);
+  // legacy: old 'forms' route now maps to onboarding
+  if (section === 'forms') return {
+    section: 'onboarding'
+  };
   return {
-    section: valid.includes(section) ? section : 'details'
+    section: valid.includes(section) ? section : 'onboarding'
   };
 };
 
@@ -107664,12 +108414,13 @@ const PortalRing = ({
   pct,
   size = 60,
   stroke = 6,
-  done
+  done,
+  color: colorProp
 }) => {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const off = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
-  const color = done ? T.green : T.primary;
+  const color = done ? T.green : colorProp || T.primary;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'relative',
@@ -108391,51 +109142,127 @@ const OnboardingContentPanel = ({
   selectClient
 }) => {
   if (onboarded) {
+    const unlocked = [{
+      id: 'dashboard',
+      icon: 'chartBar',
+      tone: 'accent',
+      label: 'Dashboard',
+      desc: 'Your value & key dates'
+    }, {
+      id: 'documents',
+      icon: 'fileText',
+      tone: 'blue',
+      label: 'Documents',
+      desc: 'Letters, returns & statements'
+    }, {
+      id: 'payments',
+      icon: 'creditCard',
+      tone: 'amber',
+      label: 'Payments',
+      desc: 'Invoices & receipts'
+    }, {
+      id: 'communications',
+      icon: 'messageSquare',
+      tone: 'green',
+      label: 'Messages',
+      desc: 'Chat with your team'
+    }, {
+      id: 'requests',
+      icon: 'inbox',
+      tone: 'accent',
+      label: 'Requests',
+      desc: 'What we need from you'
+    }, {
+      id: 'payroll',
+      icon: 'briefcase',
+      tone: 'blue',
+      label: 'Payroll',
+      desc: 'Payslips & super'
+    }];
     return /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 400,
         textAlign: 'center',
-        padding: '48px 32px'
+        padding: '36px 32px 40px'
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
-        width: 68,
-        height: 68,
+        width: 60,
+        height: 60,
         borderRadius: '50%',
         background: T.green,
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20
+        marginBottom: 16,
+        boxShadow: '0 8px 22px rgba(16,185,129,0.32)'
       }
     }, /*#__PURE__*/React.createElement(Icon, {
       name: "check",
-      size: 34,
+      size: 30,
       color: "#fff",
       strokeWidth: 3
     })), /*#__PURE__*/React.createElement("div", {
       style: {
-        fontSize: 24,
+        fontSize: 23,
         fontWeight: 800,
         color: T.greenDark,
-        marginBottom: 8
+        marginBottom: 7
       }
     }, "You're all set", youName ? `, ${youName}` : '', "!"), /*#__PURE__*/React.createElement(Helper, {
       style: {
-        fontSize: 14,
-        marginBottom: 28,
-        maxWidth: 360,
-        lineHeight: 1.6
+        fontSize: 13.5,
+        marginBottom: 24,
+        maxWidth: 400,
+        lineHeight: 1.55
       }
-    }, "Every client is complete \u2014 your portal is now fully unlocked."), /*#__PURE__*/React.createElement(Btn, {
+    }, "Every client is complete \u2014 your portal is fully unlocked. Here's everything you can do now:"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: 11,
+        width: '100%',
+        maxWidth: 540,
+        marginBottom: 24
+      }
+    }, unlocked.map(u => /*#__PURE__*/React.createElement("button", {
+      key: u.id,
+      "data-hover": "tile",
+      onClick: () => go(u.id),
+      style: {
+        textAlign: 'left',
+        cursor: 'pointer',
+        border: `1px solid ${T.borderSoft}`,
+        borderRadius: T.radius,
+        background: T.card,
+        boxShadow: T.shadowSm,
+        padding: '13px 14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 9
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: u.icon,
+      tone: u.tone,
+      size: 32
+    }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, u.label), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11,
+        marginTop: 1
+      }
+    }, u.desc))))), /*#__PURE__*/React.createElement(Btn, {
       variant: "primary",
       iconRight: "arrow",
       onClick: () => go('dashboard')
-    }, "Explore portal"));
+    }, "Go to dashboard"));
   }
   if (clientDone) {
     const nextClient = portal.clients.find(c => !isClientOnboarded(c));
@@ -109126,60 +109953,957 @@ const PortalGetStarted = ({
   }));
 };
 
-// --- portal tab preview mocks (tab-specific realistic content) ----------------
-
-const PortalDashboardMock = () => {
-  const invoices = [{
-    desc: 'Professional Fees — Jan 2026',
-    ref: 'INV-1042',
-    amt: '$1,500',
-    tag: 'Overdue',
-    tc: '#EF4444',
-    bc: '#FEE2E2'
+// ============================================================================
+// One-page onboarding (Jun-24 r6 redesign) — replaces the field-by-field wizard.
+// Everything on ONE page: each section is a card you expand to fill (input) and,
+// once done, it collapses to show your answers (view). A sticky rail tracks
+// progress + jumps. Reuses the existing data model + ActionStepEditor unchanged.
+// REVERT: the previous wizard (PortalGetStarted / OnboardingTreeSidebar /
+// OnboardingContentPanel) is left intact above; re-enable by swapping the one
+// render line in ClientPortalApp (search "REVERT onboarding").
+// ============================================================================
+const PortalOnboardingOnePage = ({
+  portal,
+  setPortal,
+  fireToast,
+  onboarded,
+  go
+}) => {
+  const {
+    isTablet
+  } = useViewport();
+  const activeClient = activeClientOf(portal);
+  const setClient = patch => setPortal(p => ({
+    ...p,
+    clients: p.clients.map(c => c.id === p.activeClientId ? {
+      ...c,
+      ...patch
+    } : c)
+  }));
+  const sectionData = sectionsFor(activeClient).filter(s => !s.isWelcome).map(sec => {
+    const items = sectionItems(sec, activeClient);
+    const req = items.filter(i => i.required);
+    const reqDone = req.filter(i => i.done).length;
+    return {
+      sec,
+      items,
+      reqTotal: req.length,
+      reqDone,
+      done: req.length > 0 && reqDone === req.length,
+      optional: req.length === 0
+    };
+  });
+  const cprog = clientProgress(activeClient);
+  const pct = cprog.total ? Math.round(cprog.done / cprog.total * 100) : 0;
+  const clientDone = isClientOnboarded(activeClient);
+  const firstName = (activeClient.name || '').split(' ')[0];
+  const firstIncomplete = sectionData.find(s => !s.done && !s.optional) || sectionData.find(s => !s.done) || sectionData[0];
+  const [openId, setOpenId] = useState(firstIncomplete ? firstIncomplete.sec.id : null);
+  const cardRefs = useRef({});
+  const openSection = id => {
+    setOpenId(id);
+    setTimeout(() => {
+      const el = cardRefs.current[id];
+      if (el && el.scrollIntoView) el.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }, 40);
+  };
+  const continueNext = curId => {
+    const idx = sectionData.findIndex(s => s.sec.id === curId);
+    const next = sectionData.slice(idx + 1).find(s => !s.done);
+    if (next) openSection(next.sec.id);else setOpenId(null);
+  };
+  const unlocked = [{
+    id: 'dashboard',
+    icon: 'chartBar',
+    label: 'Dashboard'
   }, {
-    desc: 'Consultation Service',
-    ref: 'INV-1043',
-    amt: '$800',
-    tag: 'Due in 3 days',
-    tc: T.amber,
-    bc: T.amberSoft
+    id: 'documents',
+    icon: 'fileText',
+    label: 'Documents'
   }, {
-    desc: 'Annual Subscription',
-    ref: 'INV-1044',
-    amt: '$600',
-    tag: 'Due in 14 days',
-    tc: T.muted,
-    bc: T.fieldBg
+    id: 'payments',
+    icon: 'creditCard',
+    label: 'Payments'
   }, {
-    desc: 'Bookkeeping — Q1',
-    ref: 'INV-1045',
-    amt: '$950',
-    tag: 'Due in 21 days',
-    tc: T.muted,
-    bc: T.fieldBg
-  }];
-  const todos = [{
-    l: 'Upload Q2 bank statements',
-    sev: 'CRITICAL',
-    done: false,
-    c: '#EF4444'
+    id: 'communications',
+    icon: 'messageSquare',
+    label: 'Messages'
   }, {
-    l: 'Confirm income details',
-    sev: 'ACTION',
-    done: false,
-    c: T.amber
+    id: 'requests',
+    icon: 'inbox',
+    label: 'Requests'
   }, {
-    l: 'Sign engagement letter',
-    sev: 'DONE',
-    done: true,
-    c: T.green
-  }, {
-    l: 'Tax return review',
-    sev: 'WAITING',
-    done: false,
-    c: T.amber
+    id: 'payroll',
+    icon: 'briefcase',
+    label: 'Payroll'
   }];
   return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : '1fr 296px',
+      gap: 18,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14,
+      minWidth: 0
+    }
+  }, clientDone ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: 20,
+      padding: '24px 26px',
+      background: PT.gradientHero,
+      color: '#fff',
+      boxShadow: PT.shadowPop
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: -60,
+      right: -20,
+      width: 210,
+      height: 210,
+      borderRadius: '50%',
+      background: 'rgba(255,255,255,0.12)'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      fontSize: 11,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      color: 'rgba(255,255,255,0.85)',
+      marginBottom: 9
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 14,
+    color: "#A7F3D0"
+  }), " Onboarding complete"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      fontWeight: 800,
+      letterSpacing: -0.5
+    }
+  }, "You're all set, ", firstName, "!"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.84)',
+      marginTop: 7,
+      maxWidth: 520,
+      lineHeight: 1.5
+    }
+  }, onboarded ? "Your portal is fully unlocked — here's everything you can do now." : 'Your details are in. Switch between members above to finish onboarding the whole group.'), onboarded && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 9,
+      marginTop: 16
+    }
+  }, unlocked.map(u => /*#__PURE__*/React.createElement("button", {
+    key: u.id,
+    onClick: () => go(u.id),
+    className: "pt-lift",
+    style: {
+      textAlign: 'left',
+      cursor: 'pointer',
+      border: '1px solid rgba(255,255,255,0.18)',
+      borderRadius: 12,
+      background: 'rgba(255,255,255,0.1)',
+      padding: '11px 12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      color: '#fff'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: u.icon,
+    size: 17,
+    color: "#fff"
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700
+    }
+  }, u.label)))))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: 20,
+      padding: '22px 24px',
+      background: 'linear-gradient(135deg, #F5F6FF, #EEF0FF)',
+      border: `1px solid ${PT.brandSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      color: PT.brand,
+      marginBottom: 8
+    }
+  }, "Welcome"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      letterSpacing: -0.4,
+      color: PT.ink
+    }
+  }, "Let's get you set up, ", firstName, "."), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13,
+      marginTop: 7,
+      maxWidth: 560,
+      lineHeight: 1.55
+    }
+  }, "Work through the sections below \u2014 your answers save automatically as you go, and you can come back to anything anytime. It only takes a few minutes."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      maxWidth: 320,
+      height: 8,
+      borderRadius: 99,
+      background: '#fff',
+      overflow: 'hidden',
+      border: `1px solid ${PT.brandSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '100%',
+      width: `${pct}%`,
+      background: PT.gradient,
+      borderRadius: 99,
+      transition: 'width .3s'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: PT.brandDeep
+    }
+  }, cprog.done, "/", cprog.total, " done"))), sectionData.map(({
+    sec,
+    items,
+    reqTotal,
+    reqDone,
+    done,
+    optional
+  }, i) => {
+    const open = openId === sec.id;
+    return /*#__PURE__*/React.createElement("div", {
+      key: sec.id,
+      ref: el => cardRefs.current[sec.id] = el,
+      "data-card": "panel",
+      style: {
+        background: T.card,
+        borderRadius: 18,
+        border: `1px solid ${open ? PT.brand : T.borderSoft}`,
+        overflow: 'hidden',
+        boxShadow: open ? '0 12px 32px -16px rgba(74,63,190,0.4)' : undefined,
+        transition: 'border-color .15s, box-shadow .15s'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => setOpenId(open ? null : sec.id),
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 13,
+        width: '100%',
+        textAlign: 'left',
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        padding: '15px 18px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 34,
+        height: 34,
+        borderRadius: 11,
+        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 800,
+        fontSize: 13.5,
+        background: done ? T.greenSoft : open ? PT.brandSoft : T.fieldBg,
+        color: done ? T.greenDark : open ? PT.brand : T.muted
+      }
+    }, done ? /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 17,
+      color: T.greenDark
+    }) : i + 1), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14.5,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, sec.title), sec.blurb && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12,
+        marginTop: 1,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, sec.blurb)), optional ? /*#__PURE__*/React.createElement(Pill, {
+      color: "neutral"
+    }, "Optional") : done ? /*#__PURE__*/React.createElement(Pill, {
+      color: "green"
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 10,
+      color: T.greenDark
+    }), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        marginLeft: 2
+      }
+    }, "Complete")) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11.5,
+        fontWeight: 800,
+        color: reqDone ? PT.brand : T.mutedSoft,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, reqDone, "/", reqTotal), /*#__PURE__*/React.createElement(Icon, {
+      name: open ? 'chevronUp' : 'chevronDown',
+      size: 16,
+      color: T.muted
+    })), open && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '2px 18px 18px',
+        borderTop: `1px solid ${T.borderSoft}`
+      }
+    }, items.length === 0 && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        padding: '14px 0'
+      }
+    }, "Nothing to fill in for this section."), items.map((item, j) => /*#__PURE__*/React.createElement("div", {
+      key: item.id,
+      style: {
+        padding: '16px 0',
+        borderTop: j > 0 ? `1px solid ${T.borderSoft}` : 'none'
+      }
+    }, item.detail && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5,
+        marginBottom: 8,
+        lineHeight: 1.45
+      }
+    }, item.detail), /*#__PURE__*/React.createElement(ActionStepEditor, {
+      item: item,
+      portal: activeClient,
+      set: setClient,
+      fireToast: fireToast,
+      hideSave: true,
+      advance: () => {}
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
+        marginTop: 16
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      onClick: () => setOpenId(null)
+    }, "Collapse"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      iconRight: "arrow",
+      onClick: () => continueNext(sec.id)
+    }, "Save & continue"))), !open && done && /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '2px 18px 14px',
+        borderTop: `1px solid ${T.borderSoft}`
+      }
+    }, items.filter(it => it.summary).map((it, j) => /*#__PURE__*/React.createElement("div", {
+      key: it.id,
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 14,
+        padding: '7px 0',
+        borderTop: j > 0 ? `1px solid ${T.borderSoft}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: T.muted,
+        flexShrink: 0
+      }
+    }, it.title), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.text,
+        textAlign: 'right',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, it.summary))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => openSection(sec.id),
+      "data-hover": "link",
+      style: {
+        marginTop: 9,
+        border: 'none',
+        background: 'transparent',
+        color: PT.brand,
+        fontWeight: 700,
+        fontSize: 12,
+        cursor: 'pointer',
+        padding: 0
+      }
+    }, "Edit answers")));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: isTablet ? 'static' : 'sticky',
+      top: 14,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      padding: 16,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 13
+    }
+  }, /*#__PURE__*/React.createElement(PortalRing, {
+    pct: pct,
+    size: 58,
+    stroke: 6,
+    done: clientDone,
+    color: PT.brand
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700
+    }
+  }, "Your progress"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: 2,
+      lineHeight: 1.4
+    }
+  }, cprog.done, " of ", cprog.total, " required details complete"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 14,
+      paddingTop: 12,
+      borderTop: `1px solid ${T.borderSoft}`,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2
+    }
+  }, sectionData.map((s, i) => /*#__PURE__*/React.createElement("button", {
+    key: s.sec.id,
+    onClick: () => openSection(s.sec.id),
+    "data-hover": "row",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      padding: '7px 8px',
+      borderRadius: 8,
+      border: 'none',
+      background: openId === s.sec.id ? PT.brandSoft : 'transparent',
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 18,
+      height: 18,
+      borderRadius: '50%',
+      flexShrink: 0,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: s.done ? T.green : 'transparent',
+      border: s.done ? 'none' : `1.5px solid ${T.borderStrong}`
+    }
+  }, s.done && /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: "#fff"
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: openId === s.sec.id ? 700 : 500,
+      color: openId === s.sec.id ? PT.brandDeep : T.textSoft,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, s.sec.title), !s.done && !s.optional && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, s.reqDone, "/", s.reqTotal)))), clientDone ? /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: () => go('dashboard'),
+    style: {
+      width: '100%',
+      justifyContent: 'center',
+      marginTop: 12
+    }
+  }, onboarded ? 'Explore your portal' : 'View dashboard') : /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: () => {
+      if (firstIncomplete) openSection(firstIncomplete.sec.id);
+    },
+    style: {
+      width: '100%',
+      justifyContent: 'center',
+      marginTop: 12
+    }
+  }, "Continue onboarding")), (portal.groupDocs || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      padding: 16,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      marginBottom: 8
+    }
+  }, "Group documents"), portal.groupDocs.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: d.id || i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      padding: '7px 0',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(PdfFileIcon, {
+    size: 26
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    },
+    title: d.name
+  }, d.name)), /*#__PURE__*/React.createElement(Pill, {
+    color: d.tag === 'Signed' ? 'green' : d.tag === 'Reference' ? 'blue' : 'neutral',
+    style: {
+      fontSize: 9
+    }
+  }, d.tag)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: PT.brandSofter,
+      borderRadius: 16,
+      padding: 14,
+      border: `1px solid ${PT.brandSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 700,
+      marginBottom: 8
+    }
+  }, "Need a hand?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: PORTAL_CLIENT.advisor,
+    size: 28
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700
+    }
+  }, PORTAL_CLIENT.advisor), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, PORTAL_CLIENT.advisorTitle))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "messageSquare",
+    onClick: () => go('communications'),
+    style: {
+      width: '100%',
+      justifyContent: 'center',
+      marginTop: 10
+    }
+  }, "Message your team"))));
+};
+
+// --- portal tab preview mocks (tab-specific realistic content) ----------------
+
+// Value-first client dashboard (Jun-24 redesign). Leads with compliance
+// peace-of-mind, financial visibility and proactive value — NOT outstanding
+// payments (those live on the Payments tab; only a quiet account line remains).
+// A real download control (vs the old bare grey glyph) — labelled by default,
+// icon-only where the row is tight. Fires a "downloading…" toast (mock, no backend).
+const RowDownload = ({
+  name,
+  fireToast,
+  compact
+}) => /*#__PURE__*/React.createElement(Btn, {
+  variant: compact ? 'iconOnly' : 'soft',
+  size: "sm",
+  icon: "download",
+  title: `Download ${name}`,
+  onClick: e => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    fireToast && fireToast({
+      message: `Downloading “${name}”…`
+    });
+  }
+}, compact ? null : 'Download');
+
+// Slim labelled bar that drops into a StatCard's fixed-height viz slot (for KPIs
+// where a ratio reads better than a trend line). Pairs with MiniSpark in the same row.
+const KpiBar = ({
+  pct,
+  color,
+  note
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    width: '100%'
+  }
+}, note && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: T.mutedSoft,
+    marginBottom: 5,
+    letterSpacing: 0.2
+  }
+}, note), /*#__PURE__*/React.createElement("div", {
+  style: {
+    height: 6,
+    borderRadius: 99,
+    background: T.fieldBg,
+    overflow: 'hidden'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    height: '100%',
+    width: `${Math.max(4, Math.min(100, pct))}%`,
+    background: color || PT.gradient,
+    borderRadius: 99
+  }
+})));
+
+// Shared portal dialogs — reused across Dashboard, Payments and Communications.
+const BookCallModal = ({
+  open,
+  onClose,
+  member,
+  fireToast
+}) => {
+  const m = member || PORTAL_TEAM[0];
+  const slots = [{
+    day: 'Tue 1 Jul',
+    time: '10:00am'
+  }, {
+    day: 'Tue 1 Jul',
+    time: '2:30pm'
+  }, {
+    day: 'Wed 2 Jul',
+    time: '11:15am'
+  }, {
+    day: 'Thu 3 Jul',
+    time: '9:00am'
+  }, {
+    day: 'Thu 3 Jul',
+    time: '4:00pm'
+  }, {
+    day: 'Fri 4 Jul',
+    time: '1:00pm'
+  }];
+  const [pick, setPick] = useState(null);
+  useEffect(() => {
+    if (open) setPick(null);
+  }, [open]);
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: "Book a call",
+    subtitle: `30-minute call with ${m.name}`,
+    width: 460
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      padding: '2px 0 16px'
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: m.name,
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700
+    }
+  }, m.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, m.title))), /*#__PURE__*/React.createElement(Label, null, "Choose a time"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: 8,
+      marginTop: 8
+    }
+  }, slots.map((s, i) => {
+    const sel = pick === i;
+    return /*#__PURE__*/React.createElement("button", {
+      key: i,
+      "data-hover": sel ? undefined : 'surface',
+      onClick: () => setPick(i),
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        padding: '9px 12px',
+        borderRadius: 9,
+        cursor: 'pointer',
+        textAlign: 'left',
+        border: `1px solid ${sel ? T.primary : T.border}`,
+        background: sel ? T.primarySoft : T.card,
+        color: T.text
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700
+      }
+    }, s.day), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11.5,
+        color: sel ? T.primary : T.muted
+      }
+    }, s.time));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 18
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "calendar",
+    disabled: pick == null,
+    onClick: () => {
+      const s = slots[pick];
+      onClose();
+      fireToast({
+        message: `Call booked with ${m.name.split(' ')[0]} — ${s.day}, ${s.time}`
+      });
+    }
+  }, "Confirm booking")));
+};
+const PayModal = ({
+  open,
+  onClose,
+  invoice,
+  onPaid,
+  fireToast
+}) => {
+  const inv = invoice || {};
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: "Pay invoice",
+    subtitle: inv.ref ? `${inv.ref} · ${inv.desc}` : '',
+    width: 440
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: T.fieldBg,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: 10,
+      padding: '14px 16px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Amount due"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      letterSpacing: -0.5
+    }
+  }, inv.amt)), /*#__PURE__*/React.createElement(IconChip, {
+    icon: "receipt",
+    tone: "accent",
+    size: 40
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      marginTop: 14,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "creditCard",
+    tone: "neutral",
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Visa ending 4242"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, "Expires 08 / 28")), /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, "Default")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 18
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "lock",
+    onClick: () => {
+      onClose();
+      onPaid && onPaid(inv);
+      fireToast({
+        message: `Payment of ${inv.amt} successful — receipt emailed`
+      });
+    }
+  }, "Pay ", inv.amt)));
+};
+const PortalDashboardMock = ({
+  go,
+  fireToast
+} = {}) => {
+  const [bookOpen, setBookOpen] = useState(false);
+  const first = (PORTAL_CLIENT.name || '').split(' ')[0];
+  const firm = PORTAL_CLIENT.firm || 'your accountant';
+  const insights = [{
+    icon: 'dollar',
+    tone: 'green',
+    title: 'Identified $4,200 in deductions',
+    detail: 'Vehicle, home-office & depreciation — on your FY26 return.'
+  }, {
+    icon: 'checkCircle',
+    tone: 'accent',
+    title: 'March BAS lodged on time',
+    detail: 'No late fees, no ATO follow-ups.'
+  }, {
+    icon: 'shield',
+    tone: 'blue',
+    title: 'Identity & AML checks complete',
+    detail: 'Fully verified — we can act with the ATO instantly.'
+  }];
+  const nextUp = [{
+    icon: 'fileText',
+    label: 'Q2 bank statements',
+    meta: 'Requested early July'
+  }, {
+    icon: 'calendar',
+    label: 'Tax planning call',
+    meta: 'Suggested before 30 Jun'
+  }, {
+    icon: 'edit',
+    label: 'Confirm income details',
+    meta: 'A quick review when you can'
+  }];
+  const listRow = i => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 11,
+    padding: '11px 16px',
+    borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -109187,90 +110911,240 @@ const PortalDashboardMock = () => {
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: 20,
+      padding: '26px 28px',
+      background: PT.gradientHero,
+      color: '#fff',
+      boxShadow: PT.shadowPop
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: -70,
+      right: -30,
+      width: 260,
+      height: 260,
+      borderRadius: '50%',
+      background: 'rgba(255,255,255,0.12)'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      bottom: -90,
+      right: 140,
+      width: 200,
+      height: 200,
+      borderRadius: '50%',
+      background: 'rgba(249,115,22,0.26)',
+      filter: 'blur(30px)'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 22,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+      color: 'rgba(255,255,255,0.82)',
+      marginBottom: 11
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 7,
+      height: 7,
+      borderRadius: '50%',
+      background: '#34D399',
+      display: 'inline-block',
+      animation: 'pulseDot 1.8s ease-in-out infinite'
+    }
+  }), " Everything on track"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 26,
+      fontWeight: 800,
+      letterSpacing: -0.6,
+      lineHeight: 1.1
+    }
+  }, "You're in good shape, ", first, "."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      color: 'rgba(255,255,255,0.84)',
+      marginTop: 9,
+      maxWidth: 520,
+      lineHeight: 1.55
+    }
+  }, firm, " has your compliance up to date and your FY26 return on track \u2014 here's the value working quietly in the background for you.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: 'rgba(255,255,255,0.13)',
+      border: '1px solid rgba(255,255,255,0.22)',
+      borderRadius: 16,
+      padding: '14px 18px',
+      minWidth: 176
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: 'rgba(255,255,255,0.8)',
+      fontWeight: 600
+    }
+  }, "Estimated FY26 refund"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 27,
+      fontWeight: 800,
+      letterSpacing: -0.6,
+      marginTop: 3
+    }
+  }, "$3,180"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement(MiniSpark, {
+    data: [8, 9, 7, 11, 10, 13, 12, 15],
+    h: 22,
+    color: "#C7D2FE",
+    responsive: true
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: '#A7F3D0',
+      fontWeight: 700,
+      marginTop: 4
+    }
+  }, "\u25B2 On track to lodge")))), /*#__PURE__*/React.createElement("div", {
+    style: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
+      gridTemplateColumns: 'repeat(4, 1fr)',
       gap: 12
     }
-  }, /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 14
-    }
-  }, /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11
-    }
-  }, "Outstanding balance"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 22,
-      fontWeight: 700,
-      color: T.text,
-      marginTop: 4
-    }
-  }, "$6,500")), /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 14
-    }
-  }, /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11
-    }
-  }, "Next payment due"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14,
-      fontWeight: 700,
-      color: T.text,
-      marginTop: 4
-    }
-  }, "14 Jul 2026"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      color: T.amber,
-      fontWeight: 600,
-      marginTop: 2
-    }
-  }, "$800"))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "shield",
+    tone: "green",
+    label: "Compliance",
+    value: "Up to date",
+    sub: "KYC verified \xB7 BAS current",
+    spark: /*#__PURE__*/React.createElement(KpiBar, {
+      pct: 100,
+      color: "linear-gradient(90deg,#34D399,#059669)",
+      note: "All obligations current"
+    })
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "dollar",
+    tone: "accent",
+    label: "Estimated FY26 position",
+    value: "$3,180",
+    sub: "Projected refund",
+    spark: /*#__PURE__*/React.createElement(MiniSpark, {
+      data: [8, 9, 7, 11, 10, 13, 12, 15],
+      h: 26,
+      color: PT.brand,
+      responsive: true
+    })
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "calendar",
+    tone: "amber",
+    label: "Next key date",
+    value: "28 Jul",
+    sub: "BAS lodgement",
+    spark: /*#__PURE__*/React.createElement(KpiBar, {
+      pct: 42,
+      color: "linear-gradient(90deg,#FBBF24,#D97706)",
+      note: "About 5 weeks away"
+    })
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "fileText",
+    tone: "blue",
+    label: "Documents shared",
+    value: "12",
+    sub: "4 added this year",
+    spark: /*#__PURE__*/React.createElement(MiniSpark, {
+      data: [3, 4, 5, 6, 8, 9, 11, 12],
+      h: 26,
+      color: T.blue,
+      responsive: true
+    })
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '2fr 1fr',
-      gap: 14
+      gridTemplateColumns: '1.5fr 1fr',
+      gap: 14,
+      alignItems: 'stretch'
     }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: `How ${firm} is adding value`,
+    subtitle: "Proactive work on your behalf this quarter",
+    icon: "sparkle",
+    iconTone: "accent",
+    bodyStyle: {
+      padding: 0
+    }
+  }, insights.map((ins, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: listRow(i)
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: ins.icon,
+    tone: ins.tone,
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12
+      flex: 1,
+      minWidth: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
-      fontWeight: 600
+      fontWeight: 700,
+      color: T.text
     }
-  }, "Outstanding Payments"), /*#__PURE__*/React.createElement(Pill, {
-    color: "amber"
-  }, "6")), invoices.map(inv => /*#__PURE__*/React.createElement("div", {
-    key: inv.ref,
+  }, ins.title), /*#__PURE__*/React.createElement(Helper, {
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '8px 0',
-      borderBottom: `1px solid ${T.border}`
+      fontSize: 12,
+      marginTop: 2,
+      lineHeight: 1.4
     }
+  }, ins.detail))))), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Your accounting team",
+    icon: "user",
+    iconTone: "accent",
+    bodyStyle: {
+      padding: 0
+    }
+  }, PORTAL_TEAM.map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    style: listRow(i)
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      width: 32,
-      height: 32,
-      borderRadius: 7,
-      background: T.primarySoft,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
+      position: 'relative'
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "fileText",
-    size: 13,
-    color: T.primary
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: m.name,
+    size: 32
+  }), m.online && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      bottom: -1,
+      right: -1,
+      width: 9,
+      height: 9,
+      borderRadius: '50%',
+      background: T.green,
+      border: '2px solid #fff'
+    }
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
@@ -109279,115 +111153,235 @@ const PortalDashboardMock = () => {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 12.5,
-      fontWeight: 600,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
+      fontWeight: 700
     }
-  }, inv.desc), /*#__PURE__*/React.createElement(Helper, {
+  }, m.name), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11
     }
-  }, inv.ref)), /*#__PURE__*/React.createElement("div", {
+  }, m.title)))), /*#__PURE__*/React.createElement("div", {
     style: {
-      textAlign: 'right',
-      flexShrink: 0
+      display: 'flex',
+      gap: 8,
+      padding: '12px 16px',
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "messageSquare",
+    onClick: () => go && go('communications'),
+    style: {
+      flex: 1,
+      justifyContent: 'center'
+    }
+  }, "Message"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "calendar",
+    onClick: () => setBookOpen(true),
+    style: {
+      flex: 1,
+      justifyContent: 'center'
+    }
+  }, "Book a call")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1.5fr 1fr',
+      gap: 14,
+      alignItems: 'stretch'
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "What's next",
+    icon: "clipboardCheck",
+    iconTone: "blue",
+    bodyStyle: {
+      padding: 0
+    }
+  }, nextUp.map((n, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: listRow(i)
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: n.icon,
+    tone: "neutral",
+    size: 30
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 12.5,
-      fontWeight: 700
+      fontWeight: 600
     }
-  }, inv.amt), /*#__PURE__*/React.createElement("div", {
+  }, n.label), /*#__PURE__*/React.createElement(Helper, {
     style: {
-      fontSize: 10,
-      fontWeight: 600,
-      color: inv.tc,
-      background: inv.bc,
-      borderRadius: 4,
-      padding: '1px 6px',
-      display: 'inline-block',
-      marginTop: 2
+      fontSize: 11
     }
-  }, inv.tag))))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 13,
-      fontWeight: 600,
-      marginBottom: 10
-    }
-  }, "To-do list ", /*#__PURE__*/React.createElement(Pill, {
-    color: "neutral",
-    style: {
-      fontSize: 10,
-      marginLeft: 4
-    }
-  }, "4")), todos.map(t => /*#__PURE__*/React.createElement("div", {
-    key: t.l,
+  }, n.meta))))), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Account & billing",
+    icon: "creditCard",
+    iconTone: "neutral"
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '6px 0',
-      borderBottom: `1px solid ${T.border}`
+      alignItems: 'baseline',
+      justifyContent: 'space-between'
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      width: 16,
-      height: 16,
-      borderRadius: '50%',
-      flexShrink: 0,
-      background: t.done ? T.green : t.sev === 'CRITICAL' ? '#FEE2E2' : T.amberSoft,
-      border: `1.5px solid ${t.c}`,
+      fontSize: 12,
+      color: T.muted
+    }
+  }, "Due now"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 20,
+      fontWeight: 800,
+      color: T.amber,
+      letterSpacing: -0.3
+    }
+  }, "$800")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: 2
+    }
+  }, "Invoice due 14 Jul \xB7 all others paid"), /*#__PURE__*/React.createElement("div", {
+    style: {
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'space-between',
+      marginTop: 12,
+      paddingTop: 12,
+      borderTop: `1px solid ${T.borderSoft}`
     }
-  }, t.done && /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
-    size: 9,
-    color: T.green,
-    strokeWidth: 3
-  })), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Helper, {
     style: {
-      flex: 1,
-      fontSize: 11.5,
-      color: T.textSoft
+      fontSize: 11.5
     }
-  }, t.l), /*#__PURE__*/React.createElement("div", {
+  }, "Paid this year"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10,
-      fontWeight: 700,
-      color: t.c
+      fontSize: 13.5,
+      fontWeight: 700
     }
-  }, t.sev))))));
+  }, "$5,350")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    iconRight: "arrow",
+    onClick: () => go && go('payments')
+  }, "View payments")))), /*#__PURE__*/React.createElement(BookCallModal, {
+    open: bookOpen,
+    onClose: () => setBookOpen(false),
+    member: PORTAL_TEAM[0],
+    fireToast: fireToast
+  }));
 };
-const PortalDocumentsMock = () => {
+const PortalDocumentsMock = ({
+  go,
+  fireToast
+} = {}) => {
   const docs = [{
+    name: 'Engagement Letter Addendum.pdf',
+    date: '18 Jun 2026',
+    size: '96 KB',
+    tag: 'Awaiting signature',
+    tagColor: 'amber',
+    cat: 'letters'
+  }, {
     name: 'Engagement Letter 2026.pdf',
     date: '10 Jun 2026',
     size: '180 KB',
     tag: 'Signed',
-    tagColor: 'green'
+    tagColor: 'green',
+    cat: 'letters'
+  }, {
+    name: 'Tax Planning Letter FY26.pdf',
+    date: '05 Jun 2026',
+    size: '142 KB',
+    tag: 'Shared',
+    tagColor: 'accent',
+    cat: 'letters'
+  }, {
+    name: 'Depreciation Schedule 2026.pdf',
+    date: '02 Jun 2026',
+    size: '88 KB',
+    tag: 'Reviewed',
+    tagColor: 'blue',
+    cat: 'other'
   }, {
     name: 'Individual Tax Return 2025.pdf',
     date: '15 Mar 2026',
     size: '248 KB',
     tag: 'Lodged',
-    tagColor: 'green'
+    tagColor: 'green',
+    cat: 'tax'
   }, {
     name: 'Financial Statements FY25.pdf',
     date: '01 Feb 2026',
     size: '512 KB',
     tag: 'Reviewed',
-    tagColor: 'green'
+    tagColor: 'blue',
+    cat: 'financial'
   }, {
-    name: 'Activity Statement Q3.pdf',
+    name: 'Activity Statement Q3 FY26.pdf',
     date: '28 Jan 2026',
     size: '94 KB',
     tag: 'Filed',
-    tagColor: 'green'
+    tagColor: 'neutral',
+    cat: 'activity'
+  }, {
+    name: 'Activity Statement Q2 FY26.pdf',
+    date: '28 Oct 2025',
+    size: '91 KB',
+    tag: 'Filed',
+    tagColor: 'neutral',
+    cat: 'activity'
+  }, {
+    name: 'PAYG Summary 2025.pdf',
+    date: '14 Jul 2025',
+    size: '120 KB',
+    tag: 'Reference',
+    tagColor: 'neutral',
+    cat: 'other'
+  }, {
+    name: 'Individual Tax Return 2024.pdf',
+    date: '12 Apr 2025',
+    size: '236 KB',
+    tag: 'Lodged',
+    tagColor: 'green',
+    cat: 'tax'
+  }, {
+    name: 'Financial Statements FY24.pdf',
+    date: '20 Feb 2025',
+    size: '498 KB',
+    tag: 'Reviewed',
+    tagColor: 'blue',
+    cat: 'financial'
   }];
+  const cats = [{
+    key: 'all',
+    l: 'All'
+  }, {
+    key: 'tax',
+    l: 'Tax returns'
+  }, {
+    key: 'financial',
+    l: 'Financial'
+  }, {
+    key: 'letters',
+    l: 'Letters'
+  }, {
+    key: 'activity',
+    l: 'Activity'
+  }, {
+    key: 'other',
+    l: 'Other'
+  }];
+  const [fil, setFil] = useState('all');
+  const countFor = k => k === 'all' ? docs.length : docs.filter(d => d.cat === k).length;
+  const shown = docs.filter(d => fil === 'all' || d.cat === fil);
   return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -109396,50 +111390,1611 @@ const PortalDocumentsMock = () => {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr 1fr',
-      gap: 10
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 12
     }
-  }, [{
-    l: 'Total documents',
-    v: '12'
-  }, {
-    l: 'Shared this year',
-    v: '4'
-  }, {
-    l: 'Awaiting signature',
-    v: '1'
-  }].map(k => /*#__PURE__*/React.createElement(Card, {
-    key: k.l,
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "fileText",
+    tone: "accent",
+    label: "Total documents",
+    value: String(docs.length),
+    sub: "across all years"
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "shield",
+    tone: "green",
+    label: "Shared this year",
+    value: "6",
+    sub: "this financial year",
+    delta: "2"
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "fileSignature",
+    tone: "amber",
+    label: "Awaiting signature",
+    value: "1",
+    sub: "action needed"
+  })), /*#__PURE__*/React.createElement(Banner, {
+    tone: "warn",
+    title: "1 document awaiting signature",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      onClick: () => fireToast && fireToast({
+        message: 'Opening Engagement Letter Addendum to sign…'
+      })
+    }, "Review & sign")
+  }, "Engagement Letter Addendum \u2014 please review & sign."), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Documents",
+    subtitle: "Every signed letter, statement and return",
+    icon: "fileText",
+    bodyStyle: {
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: 14
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap',
+      padding: '10px 14px',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, cats.map(c => /*#__PURE__*/React.createElement(Chip, {
+    key: c.key,
+    size: "sm",
+    selected: fil === c.key,
+    onClick: () => setFil(c.key)
+  }, c.l, " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      opacity: 0.6,
+      fontWeight: 600
+    }
+  }, countFor(c.key))))), shown.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: d.name,
+    "data-hover": "row",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '11px 16px',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(PdfFileIcon, {
+    size: 34
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, d.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12
+    }
+  }, d.date, " \xB7 ", d.size)), /*#__PURE__*/React.createElement(Pill, {
+    color: d.tagColor,
+    style: {
+      fontSize: 10
+    }
+  }, d.tag), /*#__PURE__*/React.createElement(RowDownload, {
+    name: d.name,
+    fireToast: fireToast,
+    compact: true
+  }))), shown.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "fileText",
+    title: "Nothing here yet",
+    hint: "No documents in this category.",
+    style: {
+      padding: '32px 16px'
+    }
+  })));
+};
+const PortalPaymentsMock = ({
+  go,
+  fireToast
+} = {}) => {
+  const [invoices, setInvoices] = useState([{
+    ref: 'INV-1052',
+    desc: 'Professional Fees — Jun 2026',
+    date: 'Due 14 Jul 2026',
+    amt: 1500,
+    status: 'due'
+  }, {
+    ref: 'INV-1042',
+    desc: 'Tax Return Preparation 2025',
+    date: 'Was due 28 May 2026',
+    amt: 1500,
+    status: 'overdue'
+  }, {
+    ref: 'INV-1049',
+    desc: 'Bookkeeping — Q3 FY26',
+    date: '01 May 2026',
+    amt: 950,
+    status: 'paid'
+  }, {
+    ref: 'INV-1045',
+    desc: 'BAS Lodgement — Q3 FY26',
+    date: '12 Apr 2026',
+    amt: 450,
+    status: 'paid'
+  }, {
+    ref: 'INV-1041',
+    desc: 'Annual Subscription 2026',
+    date: '01 Jan 2026',
+    amt: 2400,
+    status: 'paid'
+  }, {
+    ref: 'INV-1040',
+    desc: 'Bookkeeping — Q4 2025',
+    date: '15 Dec 2025',
+    amt: 950,
+    status: 'paid'
+  }, {
+    ref: 'INV-1038',
+    desc: 'Tax Planning Session',
+    date: '20 Nov 2025',
+    amt: 600,
+    status: 'paid'
+  }]);
+  const [autoPay, setAutoPay] = useState(true);
+  const [payInv, setPayInv] = useState(null);
+  const money = n => '$' + Number(n || 0).toLocaleString('en-AU');
+  const sum = f => invoices.filter(f).reduce((a, x) => a + x.amt, 0);
+  const outstanding = sum(i => i.status !== 'paid');
+  const overdue = sum(i => i.status === 'overdue');
+  const paidYear = sum(i => i.status === 'paid');
+  const overdueCount = invoices.filter(i => i.status === 'overdue').length;
+  const outCount = invoices.filter(i => i.status !== 'paid').length;
+  const firstOverdue = invoices.find(i => i.status === 'overdue');
+  const meta = s => s === 'overdue' ? {
+    l: 'Overdue',
+    tc: T.red,
+    bc: T.redSoft
+  } : s === 'due' ? {
+    l: 'Due soon',
+    tc: T.amber,
+    bc: T.amberSoft
+  } : {
+    l: 'Paid',
+    tc: T.greenDark,
+    bc: T.greenSoft
+  };
+  const markPaid = inv => setInvoices(prev => prev.map(x => x.ref === inv.ref ? {
+    ...x,
+    status: 'paid',
+    date: 'Paid just now'
+  } : x));
+  // Pay modal needs a formatted amount string for its display.
+  const payDisplay = payInv ? {
+    ...payInv,
+    amt: money(payInv.amt)
+  } : null;
+  const [fil, setFil] = useState('all');
+  const fils = [{
+    key: 'all',
+    l: 'All'
+  }, {
+    key: 'outstanding',
+    l: 'Outstanding'
+  }, {
+    key: 'paid',
+    l: 'Paid'
+  }];
+  const filCount = k => k === 'all' ? invoices.length : k === 'paid' ? invoices.filter(i => i.status === 'paid').length : invoices.filter(i => i.status !== 'paid').length;
+  const shown = invoices.filter(i => fil === 'all' || (fil === 'paid' ? i.status === 'paid' : i.status !== 'paid'));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "creditCard",
+    tone: outstanding ? 'amber' : 'green',
+    label: "Outstanding",
+    value: money(outstanding),
+    sub: `${outCount} invoice${outCount === 1 ? '' : 's'} to pay`,
+    spark: /*#__PURE__*/React.createElement(KpiBar, {
+      pct: outstanding / (outstanding + paidYear || 1) * 100,
+      color: "linear-gradient(90deg,#FBBF24,#D97706)",
+      note: "of total billed"
+    })
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "alertTriangle",
+    tone: overdue ? 'red' : 'neutral',
+    label: "Overdue",
+    value: money(overdue),
+    sub: `${overdueCount} invoice${overdueCount === 1 ? '' : 's'}`,
+    spark: /*#__PURE__*/React.createElement(KpiBar, {
+      pct: overdue / (outstanding || 1) * 100,
+      color: "linear-gradient(90deg,#F87171,#DC2626)",
+      note: "of outstanding"
+    })
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "checkCircle",
+    tone: "green",
+    label: "Paid this year",
+    value: money(paidYear),
+    sub: "across 5 invoices",
+    delta: "12%",
+    spark: /*#__PURE__*/React.createElement(MiniSpark, {
+      data: [2, 3, 2.6, 4, 3.4, 5, 4.6, 6],
+      h: 26,
+      color: T.green,
+      responsive: true
+    })
+  })), firstOverdue && /*#__PURE__*/React.createElement(Banner, {
+    tone: "danger",
+    title: `${money(overdue)} overdue`,
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "danger",
+      size: "sm",
+      onClick: () => setPayInv(firstOverdue)
+    }, "Pay now")
+  }, firstOverdue.ref, " was due ", firstOverdue.date.replace(/^Was due /, ''), "."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 16px',
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: T.radiusLg,
+      boxShadow: T.shadowSm,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "creditCard",
+    tone: "accent",
+    size: 34
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Visa ending 4242"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, "Expires 08 / 28")), /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, "Default"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'right'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600
+    }
+  }, "Auto-pay invoices"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, "Pay on the due date")), /*#__PURE__*/React.createElement(Toggle, {
+    on: autoPay,
+    onChange: v => {
+      setAutoPay(v);
+      fireToast && fireToast({
+        message: v ? 'Auto-pay turned on' : 'Auto-pay turned off'
+      });
+    }
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Invoices",
+    subtitle: "Your billing history with the firm",
+    icon: "receipt",
+    bodyStyle: {
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap',
+      padding: '10px 14px',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, fils.map(f => /*#__PURE__*/React.createElement(Chip, {
+    key: f.key,
+    size: "sm",
+    selected: fil === f.key,
+    onClick: () => setFil(f.key)
+  }, f.l, " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      opacity: 0.6,
+      fontWeight: 600
+    }
+  }, filCount(f.key))))), shown.map((inv, i) => {
+    const m = meta(inv.status);
+    const unpaid = inv.status !== 'paid';
+    return /*#__PURE__*/React.createElement("div", {
+      key: inv.ref,
+      "data-hover": "row",
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '11px 16px',
+        borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none',
+        opacity: unpaid ? 1 : 0.92
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: "receipt",
+      tone: unpaid ? inv.status === 'overdue' ? 'red' : 'amber' : 'neutral',
+      size: 32
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: unpaid ? T.text : T.textSoft,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, inv.desc), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12
+      }
+    }, inv.ref, " \xB7 ", inv.date)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right',
+        flexShrink: 0,
+        minWidth: 78
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 700,
+        fontSize: 14,
+        color: unpaid ? T.text : T.muted
+      }
+    }, money(inv.amt)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: m.tc,
+        background: m.bc,
+        borderRadius: 5,
+        padding: '1px 7px',
+        display: 'inline-block',
+        marginTop: 3
+      }
+    }, m.l)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 78,
+        display: 'flex',
+        justifyContent: 'flex-end',
+        flexShrink: 0
+      }
+    }, unpaid ? /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      onClick: () => setPayInv(inv),
+      style: {
+        minWidth: 56,
+        justifyContent: 'center'
+      }
+    }, "Pay") : /*#__PURE__*/React.createElement(RowDownload, {
+      name: `${inv.ref} receipt`,
+      fireToast: fireToast,
+      compact: true
+    })));
+  })), /*#__PURE__*/React.createElement(PayModal, {
+    open: !!payInv,
+    invoice: payDisplay,
+    onClose: () => setPayInv(null),
+    onPaid: markPaid,
+    fireToast: fireToast
+  }));
+};
+const PortalRequestsMock = ({
+  go,
+  fireToast
+} = {}) => {
+  const [open, setOpen] = useState([{
+    id: 'rq1',
+    title: 'Upload Q2 bank statements',
+    priority: 'High',
+    due: 'Due today',
+    tone: 'red',
+    icon: 'upload',
+    cta: 'Upload'
+  }, {
+    id: 'rq2',
+    title: 'Review draft tax return',
+    priority: 'High',
+    due: 'Due in 3 days',
+    tone: 'amber',
+    icon: 'fileText',
+    cta: 'Review'
+  }, {
+    id: 'rq3',
+    title: 'Confirm income details',
+    priority: 'Medium',
+    due: 'Due in 7 days',
+    tone: 'blue',
+    icon: 'clipboardCheck',
+    cta: 'Confirm'
+  }, {
+    id: 'rq4',
+    title: 'Sign depreciation schedule',
+    priority: 'Low',
+    due: 'Due in 14 days',
+    tone: 'neutral',
+    icon: 'fileSignature',
+    cta: 'Sign'
+  }]);
+  const [done, setDone] = useState([{
+    title: 'Sign engagement letter',
+    when: 'Completed 10 Jun'
+  }, {
+    title: 'Provide ID for verification',
+    when: 'Completed 09 Jun'
+  }, {
+    title: 'Confirm contact details',
+    when: 'Completed 08 Jun'
+  }]);
+  const complete = r => {
+    setOpen(prev => prev.filter(x => x.id !== r.id));
+    setDone(prev => [{
+      title: r.title,
+      when: 'Completed just now'
+    }, ...prev]);
+    fireToast && fireToast({
+      message: `“${r.title}” marked done`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setDone(prev => prev.filter(x => x.title !== r.title));
+          setOpen(prev => [r, ...prev].sort((a, b) => a.id.localeCompare(b.id)));
+        }
+      }
+    });
+  };
+  const overdueOpen = open.filter(r => r.due === 'Due today').length;
+  const dueThisWeek = open.filter(r => /today|3 days|7 days/.test(r.due)).length;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "inbox",
+    tone: "accent",
+    label: "Open requests",
+    value: String(open.length),
+    sub: `${dueThisWeek} due this week`
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "alertTriangle",
+    tone: overdueOpen ? 'red' : 'neutral',
+    label: "Overdue",
+    value: String(overdueOpen),
+    sub: overdueOpen ? 'needs attention' : 'all on track'
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "checkCircle",
+    tone: "green",
+    label: "Completed",
+    value: String(done.length),
+    sub: "this engagement"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1.6fr 1fr',
+      gap: 14,
+      alignItems: 'stretch'
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Open requests",
+    subtitle: "What your accountant needs from you",
+    icon: "inbox",
+    bodyStyle: {
+      padding: 0
+    }
+  }, open.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "checkCircle",
+    title: "All caught up",
+    hint: "Nothing outstanding right now \u2014 we'll let you know when we need something.",
+    style: {
+      padding: '32px 16px'
+    }
+  }), open.map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: r.id,
+    "data-hover": "row",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '11px 16px',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: r.icon,
+    tone: r.tone,
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, r.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      color: r.tone === 'red' ? T.red : T.muted
+    }
+  }, r.due)), /*#__PURE__*/React.createElement(Pill, {
+    color: r.priority === 'High' ? 'red' : r.priority === 'Medium' ? 'amber' : 'neutral',
+    style: {
+      fontSize: 9.5,
+      width: 54,
+      justifyContent: 'center'
+    }
+  }, r.priority), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    onClick: () => complete(r),
+    style: {
+      minWidth: 82,
+      justifyContent: 'center'
+    }
+  }, r.cta)))), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Recently completed",
+    icon: "checkCircle",
+    iconTone: "green",
+    bodyStyle: {
+      padding: 0
+    }
+  }, done.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: d.title + i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '11px 16px',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 16,
+    color: T.green
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.textSoft
+    }
+  }, d.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, d.when)))))));
+};
+
+// Overlapping avatars for a multi-person conversation (the "team" thread).
+const AvatarStack = ({
+  ids,
+  size = 30
+}) => {
+  const members = (ids || []).map(portalTeamMember).slice(0, 3);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      flexShrink: 0
+    }
+  }, members.map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    style: {
+      marginLeft: i === 0 ? 0 : -9,
+      borderRadius: '50%',
+      boxShadow: '0 0 0 2px #fff',
+      position: 'relative',
+      zIndex: members.length - i
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: m.name,
+    size: size
+  }))));
+};
+
+// Deterministic canned reply so the demo chat feels alive without a backend.
+const cannedReply = text => {
+  const t = (text || '').toLowerCase();
+  const first = (PORTAL_CLIENT.name || '').split(' ')[0];
+  if (/thank|thanks|cheers|great|perfect|awesome/.test(t)) return "You're very welcome! 😊 Anything else I can help with?";
+  if (/document|upload|statement|file|receipt|attach/.test(t)) return "Perfect — I can see that come through on our side. I'll review it and let you know if anything's missing.";
+  if (/when|how|what|why|can you|could you|\?$/.test(t)) return "Good question — let me check on that and come right back to you shortly.";
+  return `Thanks ${first} — noted. I'll follow up on this shortly.`;
+};
+const PortalCommsMock = ({
+  go,
+  fireToast
+} = {}) => {
+  const {
+    isTablet
+  } = useViewport();
+  const [convos, setConvos] = useState(() => PORTAL_CONVERSATIONS_SEED.map(c => ({
+    ...c,
+    messages: c.messages.map(m => ({
+      ...m
+    }))
+  })));
+  const [activeId, setActiveId] = useState(convos[0].id);
+  const [draft, setDraft] = useState('');
+  const [search, setSearch] = useState('');
+  const [typingId, setTypingId] = useState(null);
+  const [mobilePane, setMobilePane] = useState('list');
+  const [bookOpen, setBookOpen] = useState(false);
+  const scrollRef = useRef(null);
+  const taRef = useRef(null);
+  const active = convos.find(c => c.id === activeId) || convos[0];
+  const lead = portalTeamMember((active.participantIds || [])[0]);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [activeId, active.messages.length, typingId]);
+  const openConvo = id => {
+    setActiveId(id);
+    setMobilePane('thread');
+    setConvos(prev => prev.map(c => c.id === id ? {
+      ...c,
+      unread: 0
+    } : c));
+  };
+  const nowTime = () => new Date().toLocaleTimeString('en-AU', {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+  const send = () => {
+    const text = draft.trim();
+    if (!text) return;
+    const id = active.id;
+    setConvos(prev => prev.map(c => c.id === id ? {
+      ...c,
+      messages: [...c.messages, {
+        from: 'me',
+        day: 'Today',
+        time: nowTime(),
+        text
+      }]
+    } : c));
+    setDraft('');
+    if (taRef.current) taRef.current.style.height = '38px';
+    setTimeout(() => setTypingId(id), 750);
+    setTimeout(() => {
+      setConvos(prev => prev.map(c => c.id === id ? {
+        ...c,
+        messages: [...c.messages, {
+          from: lead.id,
+          day: 'Today',
+          time: nowTime(),
+          text: cannedReply(text)
+        }]
+      } : c));
+      setTypingId(t => t === id ? null : t);
+    }, 2200);
+  };
+  const onKey = e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  };
+  const filtered = convos.filter(c => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return c.title.toLowerCase().includes(q) || c.messages.some(m => m.text.toLowerCase().includes(q));
+  });
+  const DaySep = ({
+    label
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      margin: '12px 0 6px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: 1,
+      background: T.borderSoft
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: 1,
+      background: T.borderSoft
+    }
+  }));
+  const MessageRow = ({
+    m,
+    mine,
+    grouped,
+    member
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 9,
+      flexDirection: mine ? 'row-reverse' : 'row',
+      marginTop: grouped ? 2 : 7,
+      alignItems: 'flex-end'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 28,
+      flexShrink: 0
+    }
+  }, !mine && !grouped && /*#__PURE__*/React.createElement(Avatar, {
+    name: member.name,
+    size: 28
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: '74%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: mine ? 'flex-end' : 'flex-start'
+    }
+  }, !mine && !grouped && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.textSoft,
+      margin: '0 0 3px 2px'
+    }
+  }, member.name.split(' ')[0], " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 500,
+      color: T.mutedSoft
+    }
+  }, "\xB7 ", member.title)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 6,
+      flexDirection: mine ? 'row-reverse' : 'row'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '9px 13px',
+      borderRadius: mine ? '14px 4px 14px 14px' : '4px 14px 14px 14px',
+      background: mine ? T.primary : T.card,
+      border: mine ? 'none' : `1px solid ${T.borderSoft}`,
+      color: mine ? '#fff' : T.text,
+      fontSize: 12.5,
+      lineHeight: 1.55,
+      boxShadow: mine ? '0 1px 2px rgba(79,70,229,0.18)' : T.shadowXs,
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word'
+    }
+  }, m.text), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9.5,
+      color: T.mutedSoft,
+      flexShrink: 0,
+      marginBottom: 2
+    }
+  }, m.time))));
+  const renderMessages = () => {
+    let prevDay = null,
+      prevFrom = null;
+    const out = [];
+    active.messages.forEach((m, i) => {
+      if (m.day !== prevDay) {
+        out.push(/*#__PURE__*/React.createElement(DaySep, {
+          key: 'd' + i,
+          label: m.day
+        }));
+        prevFrom = null;
+      }
+      const mine = m.from === 'me';
+      const grouped = m.from === prevFrom;
+      out.push(/*#__PURE__*/React.createElement(MessageRow, {
+        key: i,
+        m: m,
+        mine: mine,
+        grouped: grouped,
+        member: mine ? null : portalTeamMember(m.from)
+      }));
+      prevDay = m.day;
+      prevFrom = m.from;
+    });
+    return out;
+  };
+  const names = (active.participantIds || []).map(id => portalTeamMember(id).name.split(' ')[0]);
+  const anyOnline = (active.participantIds || []).some(id => portalTeamMember(id).online);
+  const presence = names.join(', ') + (anyOnline ? ' · Online' : '');
+  const listPane = /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: isTablet ? '100%' : 304,
+      flexShrink: 0,
+      borderRight: isTablet ? 'none' : `1px solid ${T.borderSoft}`,
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 12,
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search conversations"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      overflowY: 'auto',
+      minHeight: 0
+    }
+  }, filtered.length === 0 && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      padding: 16,
+      display: 'block'
+    }
+  }, "No conversations match \u201C", search, "\u201D."), filtered.map((c, idx) => {
+    const last = c.messages[c.messages.length - 1];
+    const sel = c.id === activeId;
+    const preview = (last.from === 'me' ? 'You: ' : '') + last.text;
+    return /*#__PURE__*/React.createElement("button", {
+      key: c.id,
+      "data-hover": sel ? undefined : 'row',
+      onClick: () => openConvo(c.id),
+      style: {
+        display: 'flex',
+        gap: 10,
+        alignItems: 'center',
+        width: '100%',
+        textAlign: 'left',
+        cursor: 'pointer',
+        background: sel ? PT.brandSoft : 'transparent',
+        padding: '11px 12px 11px 9px',
+        borderTop: idx > 0 ? `1px solid ${T.borderSoft}` : 'none',
+        border: 'none',
+        borderLeft: `3px solid ${sel ? PT.brand : 'transparent'}`
+      }
+    }, c.kind === 'team' ? /*#__PURE__*/React.createElement(AvatarStack, {
+      ids: c.participantIds,
+      size: 30
+    }) : /*#__PURE__*/React.createElement(Avatar, {
+      name: portalTeamMember(c.participantIds[0]).name,
+      size: 34
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700,
+        color: T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, c.title), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10.5,
+        color: T.mutedSoft,
+        flexShrink: 0
+      }
+    }, last.day === 'Today' ? last.time : last.day)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 8,
+        marginTop: 2,
+        alignItems: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11.5,
+        color: c.unread ? T.text : T.muted,
+        fontWeight: c.unread ? 600 : 400,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        flex: 1
+      }
+    }, preview), c.unread > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: '#fff',
+        background: PT.gradient,
+        borderRadius: 999,
+        minWidth: 17,
+        height: 17,
+        lineHeight: '17px',
+        textAlign: 'center',
+        padding: '0 5px',
+        boxShadow: '0 3px 8px -2px rgba(74,63,190,0.5)'
+      }
+    }, c.unread))));
+  })));
+  const threadPane = /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      minWidth: 0,
+      minHeight: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      padding: '11px 16px',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, isTablet && /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    icon: "chevronLeft",
+    title: "Back",
+    onClick: () => setMobilePane('list')
+  }), active.kind === 'team' ? /*#__PURE__*/React.createElement(AvatarStack, {
+    ids: active.participantIds,
+    size: 32
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: lead.name,
+    size: 36
+  }), lead.online && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      bottom: -1,
+      right: -1,
+      width: 10,
+      height: 10,
+      borderRadius: '50%',
+      background: T.green,
+      border: '2px solid #fff',
+      boxShadow: '0 0 0 0 rgba(16,185,129,0.5)',
+      animation: 'pulseRing 2s ease-out infinite'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, active.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, presence)), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "calendar",
+    onClick: () => setBookOpen(true)
+  }, "Book a call"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    icon: "phone",
+    title: "Start a call",
+    onClick: () => fireToast && fireToast({
+      message: `Calling ${lead.name.split(' ')[0]}…`
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    ref: scrollRef,
+    style: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: '12px 18px 16px',
+      background: T.surface,
+      minHeight: 0,
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 'auto'
+    }
+  }, renderMessages(), typingId === active.id && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 9,
+      alignItems: 'flex-end',
+      marginTop: 7
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: lead.name,
+    size: 28
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '11px 14px',
+      borderRadius: '4px 14px 14px 14px',
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      boxShadow: T.shadowXs,
+      display: 'flex',
+      gap: 4
+    }
+  }, [0, 0.15, 0.3].map(d => /*#__PURE__*/React.createElement("span", {
+    key: d,
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: '50%',
+      background: T.mutedSoft,
+      display: 'inline-block',
+      animation: `pulseDot 1s ${d}s infinite`
+    }
+  })))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-end',
+      gap: 8,
+      padding: '12px 14px',
+      borderTop: `1px solid ${T.borderSoft}`,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "md",
+    icon: "paperclip",
+    title: "Attach a file",
+    onClick: () => fireToast && fireToast({
+      message: 'You can share files from the Documents tab'
+    })
+  }), /*#__PURE__*/React.createElement("textarea", {
+    ref: taRef,
+    value: draft,
+    onChange: e => {
+      setDraft(e.target.value);
+      e.target.style.height = 'auto';
+      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+    },
+    onKeyDown: onKey,
+    placeholder: "Write a message\u2026",
+    rows: 1,
+    style: {
+      flex: 1,
+      resize: 'none',
+      height: 38,
+      maxHeight: 120,
+      padding: '9px 14px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 18,
+      fontSize: 13,
+      fontFamily: 'inherit',
+      lineHeight: 1.45,
+      outline: 'none',
+      boxSizing: 'border-box',
+      color: T.text
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "send",
+    disabled: !draft.trim(),
+    onClick: send
+  }, "Send")));
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      height: 'calc(100vh - 116px)',
+      minHeight: 520,
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: T.radiusLg,
+      boxShadow: T.shadowSm,
+      overflow: 'hidden'
+    }
+  }, (!isTablet || mobilePane === 'list') && listPane, (!isTablet || mobilePane === 'thread') && threadPane), /*#__PURE__*/React.createElement(BookCallModal, {
+    open: bookOpen,
+    onClose: () => setBookOpen(false),
+    member: lead,
+    fireToast: fireToast
+  }));
+};
+const PortalPayrollMock = ({
+  go,
+  fireToast
+} = {}) => {
+  const slips = [{
+    period: 'Pay period 12 — Jun 2026',
+    date: '28 Jun 2026',
+    net: '$4,820'
+  }, {
+    period: 'Pay period 11 — May 2026',
+    date: '30 May 2026',
+    net: '$4,820'
+  }, {
+    period: 'Pay period 10 — Apr 2026',
+    date: '30 Apr 2026',
+    net: '$4,720'
+  }, {
+    period: 'Pay period 9 — Mar 2026',
+    date: '31 Mar 2026',
+    net: '$4,720'
+  }, {
+    period: 'Pay period 8 — Feb 2026',
+    date: '28 Feb 2026',
+    net: '$4,650'
+  }, {
+    period: 'Pay period 7 — Jan 2026',
+    date: '30 Jan 2026',
+    net: '$4,650'
+  }, {
+    period: 'Pay period 6 — Dec 2025',
+    date: '23 Dec 2025',
+    net: '$4,980'
+  }, {
+    period: 'Pay period 5 — Nov 2025',
+    date: '28 Nov 2025',
+    net: '$4,650'
+  }, {
+    period: 'Pay period 4 — Oct 2025',
+    date: '31 Oct 2025',
+    net: '$4,650'
+  }, {
+    period: 'Pay period 3 — Sep 2025',
+    date: '30 Sep 2025',
+    net: '$4,580'
+  }, {
+    period: 'Pay period 2 — Aug 2025',
+    date: '29 Aug 2025',
+    net: '$4,580'
+  }, {
+    period: 'Pay period 1 — Jul 2025',
+    date: '31 Jul 2025',
+    net: '$4,580'
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "wallet",
+    tone: "accent",
+    label: "Last net pay",
+    value: "$4,820",
+    sub: "Paid 28 Jun 2026",
+    spark: /*#__PURE__*/React.createElement(MiniSpark, {
+      data: [4.58, 4.58, 4.65, 4.65, 4.72, 4.72, 4.82, 4.82],
+      h: 26,
+      color: PT.brand,
+      responsive: true
+    })
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "chartBar",
+    tone: "green",
+    label: "YTD gross",
+    value: "$112,400",
+    sub: "Across 12 pay periods",
+    spark: /*#__PURE__*/React.createElement(MiniSpark, {
+      data: [6, 7, 7, 8, 8, 9, 9, 10],
+      h: 26,
+      color: T.green,
+      responsive: true
+    })
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "shield",
+    tone: "blue",
+    label: "Super paid YTD",
+    value: "$12,930",
+    sub: "11.5% of gross",
+    spark: /*#__PURE__*/React.createElement(MiniSpark, {
+      data: [4, 5, 5, 6, 7, 7, 8, 9],
+      h: 26,
+      color: T.blue,
+      responsive: true
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 16px',
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: T.radiusLg,
+      boxShadow: T.shadowSm,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "building",
+    tone: "blue",
+    size: 34
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "AustralianSuper"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, "Member 1234 5678 \xB7 11.5% SG")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'right'
     }
   }, /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11
     }
-  }, k.l), /*#__PURE__*/React.createElement("div", {
+  }, "Next contribution"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 20,
-      fontWeight: 700,
-      marginTop: 4
+      fontSize: 12.5,
+      fontWeight: 700
     }
-  }, k.v)))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+  }, "28 Jul 2026")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "download",
+    onClick: () => fireToast && fireToast({
+      message: 'Downloading “Super statement FY26”…'
+    })
+  }, "FY26 statement")), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Payslips",
+    subtitle: "Your full pay history this financial year",
+    icon: "receipt",
+    bodyStyle: {
+      padding: 0
+    }
+  }, slips.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    "data-hover": "row",
     style: {
-      fontWeight: 600,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '11px 16px',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "receipt",
+    tone: "neutral",
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
       fontSize: 13,
-      marginBottom: 12
+      fontWeight: 600
     }
-  }, "Recent Documents"), docs.map(d => /*#__PURE__*/React.createElement("div", {
-    key: d.name,
+  }, s.period), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12
+    }
+  }, "Paid ", s.date)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      minWidth: 64,
+      textAlign: 'right'
+    }
+  }, s.net), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 40,
+      display: 'flex',
+      justifyContent: 'flex-end',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(RowDownload, {
+    name: s.period,
+    fireToast: fireToast,
+    compact: true
+  }))))));
+};
+
+// Client Group overview — the members, their status + shared docs (NOT the wizard).
+const PortalClientGroupOverview = ({
+  portal,
+  go,
+  fireToast
+}) => {
+  const g = groupProgress(portal);
+  const clients = portal.clients || [];
+  const docs = portal.groupDocs || [];
+  // A member with no KYC step in their template is treated as verified once onboarded.
+  const memberVerify = c => {
+    const v = clientVerificationStatus(c);
+    if (v === 'verified' || v === 'na' && isClientOnboarded(c)) return {
+      l: 'Verified',
+      c: 'green'
+    };
+    if (v === 'submitted') return {
+      l: 'In review',
+      c: 'accent'
+    };
+    if (v === 'pending') return {
+      l: 'KYC pending',
+      c: 'amber'
+    };
+    return null;
+  };
+  const verifiedCount = clients.filter(c => {
+    const m = memberVerify(c);
+    return m && m.c === 'green';
+  }).length;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, 1fr)',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "users",
+    tone: "accent",
+    label: "Members",
+    value: String(g.clientsTotal),
+    sub: PORTAL_GROUP.name
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "clipboardCheck",
+    tone: g.clientsComplete === g.clientsTotal ? 'green' : 'amber',
+    label: "Onboarding complete",
+    value: `${g.clientsComplete}/${g.clientsTotal}`,
+    sub: `${g.pct}% overall`
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "shield",
+    tone: "blue",
+    label: "Identity verified",
+    value: `${verifiedCount}/${g.clientsTotal}`,
+    sub: "AML / KYC"
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "fileText",
+    tone: "neutral",
+    label: "Group documents",
+    value: String(docs.length),
+    sub: "shared with you"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1.6fr 1fr',
+      gap: 16,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Members",
+    subtitle: "Everyone in this client group and where they're at",
+    icon: "users",
+    actions: /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      iconRight: "arrow",
+      onClick: () => go('onboarding')
+    }, "Onboarding")
+  }, clients.map((c, i) => {
+    const cp = clientProgress(c);
+    const done = isClientOnboarded(c);
+    const vs = memberVerify(c);
+    const pct = cp.total ? Math.round(cp.done / cp.total * 100) : 0;
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '12px 0',
+        borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: c.name,
+      size: 38
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 700
+      }
+    }, c.name), c.isYou && /*#__PURE__*/React.createElement(Pill, {
+      color: "accent",
+      style: {
+        fontSize: 9
+      }
+    }, "YOU")), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5
+      }
+    }, c.service || PORTAL_CLIENT_KIND[c.kind] || ''), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 6,
+        maxWidth: 260
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        height: 5,
+        background: T.fieldBg,
+        borderRadius: 99
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${pct}%`,
+        background: done ? T.green : T.primary,
+        borderRadius: 99
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10.5,
+        fontWeight: 700,
+        color: T.muted,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, cp.done, "/", cp.total))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 5
+      }
+    }, vs && vs.c === 'green' ? /*#__PURE__*/React.createElement(Pill, {
+      color: "green",
+      style: {
+        fontWeight: 700
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "shield",
+      size: 11,
+      color: T.greenDark
+    }), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        marginLeft: 3
+      }
+    }, "Verified")) : vs ? /*#__PURE__*/React.createElement(Pill, {
+      color: vs.c,
+      style: {
+        fontWeight: 600
+      }
+    }, vs.l) : /*#__PURE__*/React.createElement(Pill, {
+      color: done ? 'green' : 'amber'
+    }, done ? 'Onboarded' : 'In progress'), done && /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 10.5,
+        fontWeight: 600,
+        color: T.muted
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 11,
+      color: T.green
+    }), " Engagement signed")));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Group documents",
+    icon: "fileText",
+    iconTone: "blue"
+  }, docs.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "fileText",
+    title: "No shared documents yet",
+    hint: "Engagement letters and reports for the whole group will appear here as they're prepared.",
+    style: {
+      padding: '24px 16px'
+    }
+  }), docs.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: d.id || i,
+    "data-hover": "row",
     style: {
       display: 'flex',
       alignItems: 'center',
       gap: 10,
-      padding: '8px 0',
-      borderBottom: `1px solid ${T.border}`
+      padding: '8px 6px',
+      borderRadius: 8,
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
     }
   }, /*#__PURE__*/React.createElement(PdfFileIcon, {
-    size: 32
+    size: 30
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
@@ -109455,372 +113010,69 @@ const PortalDocumentsMock = () => {
     }
   }, d.name), /*#__PURE__*/React.createElement(Helper, {
     style: {
-      fontSize: 11
+      fontSize: 11.5
     }
-  }, d.date, " \xB7 ", d.size)), /*#__PURE__*/React.createElement(Pill, {
-    color: d.tagColor,
+  }, d.size)), /*#__PURE__*/React.createElement(Pill, {
+    color: d.tag === 'Signed' ? 'green' : d.tag === 'Reference' ? 'blue' : 'neutral',
     style: {
-      fontSize: 10
+      fontSize: 9.5
     }
-  }, d.tag)))));
-};
-const PortalPaymentsMock = () => {
-  const invoices = [{
-    ref: 'INV-1042',
-    desc: 'Professional Fees — Jan 2026',
-    date: '28 Jan 2026',
-    amt: '$1,500',
-    tag: 'Overdue',
-    tc: '#EF4444',
-    bc: '#FEE2E2'
-  }, {
-    ref: 'INV-1043',
-    desc: 'Consultation Service',
-    date: '14 Feb 2026',
-    amt: '$800',
-    tag: 'Due in 3 days',
-    tc: T.amber,
-    bc: T.amberSoft
-  }, {
-    ref: 'INV-1041',
-    desc: 'Annual Subscription 2026',
-    date: '01 Jan 2026',
-    amt: '$2,400',
-    tag: 'Paid',
-    tc: T.greenDark,
-    bc: T.greenSoft
-  }, {
-    ref: 'INV-1040',
-    desc: 'Bookkeeping Q4 2025',
-    date: '15 Dec 2025',
-    amt: '$950',
-    tag: 'Paid',
-    tc: T.greenDark,
-    bc: T.greenSoft
-  }];
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 14
-    }
+  }, d.tag), /*#__PURE__*/React.createElement(RowDownload, {
+    name: d.name,
+    fireToast: fireToast,
+    compact: true
+  })))), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Your accounting team",
+    icon: "user"
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr 1fr',
-      gap: 10
-    }
-  }, [{
-    l: 'Outstanding',
-    v: '$2,300',
-    c: T.amber
-  }, {
-    l: 'Overdue',
-    v: '$1,500',
-    c: '#EF4444'
-  }, {
-    l: 'Paid this year',
-    v: '$4,200',
-    c: T.greenDark
-  }].map(k => /*#__PURE__*/React.createElement(Card, {
-    key: k.l,
-    style: {
-      padding: 14
-    }
-  }, /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11
-    }
-  }, k.l), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 20,
-      fontWeight: 700,
-      marginTop: 4,
-      color: k.c
-    }
-  }, k.v)))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 600,
-      fontSize: 13,
-      marginBottom: 12
-    }
-  }, "Invoices"), invoices.map(inv => /*#__PURE__*/React.createElement("div", {
-    key: inv.ref,
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 10,
-      padding: '9px 0',
-      borderBottom: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 7,
-      background: T.primarySoft,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "creditCard",
-    size: 13,
-    color: T.primary
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
-    }
-  }, inv.desc), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11
-    }
-  }, inv.ref, " \xB7 ", inv.date)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'right',
-      flexShrink: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 700,
-      fontSize: 13
-    }
-  }, inv.amt), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 600,
-      color: inv.tc,
-      background: inv.bc,
-      borderRadius: 4,
-      padding: '1px 6px',
-      display: 'inline-block',
-      marginTop: 2
-    }
-  }, inv.tag))))));
-};
-const PortalRequestsMock = () => {
-  const requests = [{
-    title: 'Upload Q2 bank statements',
-    priority: 'High',
-    due: 'Due today',
-    dc: '#EF4444',
-    icon: 'upload'
-  }, {
-    title: 'Review draft tax return',
-    priority: 'High',
-    due: 'Due in 3 days',
-    dc: T.amber,
-    icon: 'fileText'
-  }, {
-    title: 'Confirm income details',
-    priority: 'Medium',
-    due: 'Due in 7 days',
-    dc: T.muted,
-    icon: 'clipboardCheck'
-  }, {
-    title: 'Sign depreciation schedule',
-    priority: 'Low',
-    due: 'Due in 14 days',
-    dc: T.muted,
-    icon: 'fileSignature'
-  }];
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr 1fr',
-      gap: 10
-    }
-  }, [{
-    l: 'Open requests',
-    v: '4'
-  }, {
-    l: 'Overdue',
-    v: '1'
-  }, {
-    l: 'Completed',
-    v: '3'
-  }].map(k => /*#__PURE__*/React.createElement(Card, {
-    key: k.l,
-    style: {
-      padding: 14
-    }
-  }, /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11
-    }
-  }, k.l), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 20,
-      fontWeight: 700,
-      marginTop: 4
-    }
-  }, k.v)))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontWeight: 600,
-      fontSize: 13,
-      marginBottom: 12
-    }
-  }, "Open Requests"), requests.map(r => /*#__PURE__*/React.createElement("div", {
-    key: r.title,
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '9px 0',
-      borderBottom: `1px solid ${T.border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 32,
-      height: 32,
-      borderRadius: 7,
-      background: T.amberSoft,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: r.icon,
-    size: 13,
-    color: T.amber
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600
-    }
-  }, r.title), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11,
-      color: r.dc
-    }
-  }, r.due)), /*#__PURE__*/React.createElement(Pill, {
-    color: r.priority === 'High' ? 'amber' : 'neutral',
-    style: {
-      fontSize: 10
-    }
-  }, r.priority)))));
-};
-const PortalMessagesMock = () => {
-  const msgs = [{
-    from: PORTAL_CLIENT.advisor,
-    time: '2 hours ago',
-    text: 'Hi Gaurav, just to let you know we\'ve received your engagement letter — we\'re all set to start on your tax return. I\'ll be in touch once I\'ve had a chance to review your details.',
-    isAdvisor: true
-  }, {
-    from: PORTAL_CLIENT.name,
-    time: 'Yesterday',
-    text: 'Thanks Sarah! Should I upload last year\'s documents through the portal?',
-    isAdvisor: false
-  }, {
-    from: PORTAL_CLIENT.advisor,
-    time: 'Yesterday',
-    text: 'Yes please — payment summaries, bank statements, and any investment income would be a great start. Just use the Documents section.',
-    isAdvisor: true
-  }];
-  return /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      marginBottom: 16,
-      paddingBottom: 12,
-      borderBottom: `1px solid ${T.border}`
+      gap: 11
     }
   }, /*#__PURE__*/React.createElement(Avatar, {
     name: PORTAL_CLIENT.advisor,
-    size: 32
-  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontWeight: 600,
-      fontSize: 13
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700
     }
   }, PORTAL_CLIENT.advisor), /*#__PURE__*/React.createElement(Helper, {
     style: {
-      fontSize: 11
+      fontSize: 11.5
     }
-  }, PORTAL_CLIENT.advisorTitle, " \xB7 Online")), /*#__PURE__*/React.createElement("div", {
+  }, PORTAL_CLIENT.advisorTitle, " \xB7 ", PORTAL_GROUP.firm))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "messageSquare",
+    onClick: () => go('communications'),
     style: {
-      marginLeft: 'auto'
+      marginTop: 12,
+      width: '100%',
+      justifyContent: 'center'
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 8,
-      height: 8,
-      borderRadius: '50%',
-      background: T.green
-    }
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12
-    }
-  }, msgs.map((m, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: 'flex',
-      gap: 9,
-      flexDirection: m.isAdvisor ? 'row' : 'row-reverse'
-    }
-  }, /*#__PURE__*/React.createElement(Avatar, {
-    name: m.from,
-    size: 26
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      maxWidth: '78%'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: T.muted,
-      marginBottom: 3,
-      textAlign: m.isAdvisor ? 'left' : 'right'
-    }
-  }, m.time), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '9px 12px',
-      borderRadius: m.isAdvisor ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
-      background: m.isAdvisor ? T.fieldBg : T.primary,
-      color: m.isAdvisor ? T.text : '#fff',
-      fontSize: 12.5,
-      lineHeight: 1.55
-    }
-  }, m.text))))));
+  }, "Message your advisor")))));
 };
 const PORTAL_TAB_MOCKS = {
   dashboard: PortalDashboardMock,
   documents: PortalDocumentsMock,
   payments: PortalPaymentsMock,
   requests: PortalRequestsMock,
-  communications: PortalMessagesMock
+  communications: PortalCommsMock,
+  payroll: PortalPayrollMock
 };
 const PortalLockedContent = ({
   tab,
   portal,
   onboarded,
-  go
+  go,
+  fireToast
 }) => {
   const meta = PORTAL_TAB_META[tab];
   const g = groupProgress(portal);
@@ -109828,28 +113080,46 @@ const PortalLockedContent = ({
   const pct = g.pct;
   const MockComponent = PORTAL_TAB_MOCKS[tab] || PortalDashboardMock;
   if (onboarded) {
+    // Communications is a full-height surface — it owns its own chrome, no preview strip.
+    if (tab === 'communications') return /*#__PURE__*/React.createElement(MockComponent, {
+      go: go,
+      fireToast: fireToast
+    });
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
-        padding: '8px 12px',
-        background: T.greenSoft,
-        border: `1px solid #A7F3D0`,
-        borderRadius: 10
+        gap: 9,
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+        color: PT.brand,
+        background: PT.brandSoft,
+        border: '1px solid #D9DBFB',
+        borderRadius: 999,
+        padding: '4px 10px',
+        flexShrink: 0
       }
     }, /*#__PURE__*/React.createElement(Icon, {
-      name: "checkCircle",
-      size: 14,
-      color: T.greenDark
-    }), /*#__PURE__*/React.createElement("span", {
+      name: "eye",
+      size: 12,
+      color: PT.brand
+    }), " Preview"), /*#__PURE__*/React.createElement(Helper, {
       style: {
-        fontSize: 12.5,
-        fontWeight: 600,
-        color: T.greenDark
+        fontSize: 11.5
       }
-    }, "Preview \u2014 your ", meta.title.toLowerCase(), " will populate as your engagement progresses.")), /*#__PURE__*/React.createElement(MockComponent, null));
+    }, "Sample data \u2014 your ", meta.title.toLowerCase(), " fills in as your engagement progresses.")), /*#__PURE__*/React.createElement(MockComponent, {
+      go: go,
+      fireToast: fireToast
+    }));
   }
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -109862,7 +113132,10 @@ const PortalLockedContent = ({
       pointerEvents: 'none',
       userSelect: 'none'
     }
-  }, /*#__PURE__*/React.createElement(MockComponent, null)), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(MockComponent, {
+    go: go,
+    fireToast: fireToast
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
       inset: 0,
@@ -109946,7 +113219,7 @@ const PortalLockedContent = ({
     variant: "primary",
     size: "md",
     iconRight: "arrow",
-    onClick: () => go('details')
+    onClick: () => go('onboarding')
   }, "Complete your details"))));
 };
 const PortalDemoControls = ({
@@ -109958,14 +113231,30 @@ const PortalDemoControls = ({
     alignItems: 'center',
     gap: 8
   }
-}, /*#__PURE__*/React.createElement(Pill, {
-  color: "neutral",
+}, /*#__PURE__*/React.createElement("span", {
   style: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
     fontSize: 10,
+    fontWeight: 700,
     textTransform: 'uppercase',
-    letterSpacing: 0.5
+    letterSpacing: 0.6,
+    color: PT.brandDeep,
+    background: PT.brandSoft,
+    border: '1px dashed #B9BCF5',
+    borderRadius: 999,
+    padding: '4px 10px'
   }
-}, "Demo"), /*#__PURE__*/React.createElement(Btn, {
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    background: PT.brand,
+    animation: 'pulseDot 1.8s ease-in-out infinite'
+  }
+}), " Demo"), /*#__PURE__*/React.createElement(Btn, {
   variant: "ghost",
   size: "sm",
   icon: "arrowLeft",
@@ -110197,15 +113486,16 @@ const PortalSidebar = ({
       alignItems: 'center',
       gap: 11,
       width: '100%',
-      padding: '9px 12px',
-      borderRadius: 9,
-      marginBottom: 2,
+      padding: '10px 12px',
+      borderRadius: 11,
+      marginBottom: 3,
       textAlign: 'left',
       cursor: 'pointer',
       border: 'none',
-      background: active ? T.primary : 'transparent',
+      background: active ? PT.gradient : 'transparent',
       color: active ? '#fff' : locked ? T.mutedSoft : T.textSoft,
-      transition: 'background 0.12s'
+      boxShadow: active ? '0 8px 18px -8px rgba(74,63,190,0.55)' : 'none',
+      transition: 'background 0.12s, box-shadow 0.12s'
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: icon,
@@ -110311,8 +113601,10 @@ const PortalSidebar = ({
   return /*#__PURE__*/React.createElement("aside", {
     style: {
       width: slim ? 68 : 248,
-      background: T.card,
-      borderRight: `1px solid ${T.border}`,
+      background: 'rgba(255,255,255,0.78)',
+      backdropFilter: 'blur(14px)',
+      WebkitBackdropFilter: 'blur(14px)',
+      borderRight: `1px solid rgba(74,63,190,0.10)`,
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
@@ -110321,7 +113613,8 @@ const PortalSidebar = ({
       alignSelf: 'flex-start',
       height: '100vh',
       overflowY: 'auto',
-      transition: 'width 0.2s'
+      transition: 'width 0.2s',
+      zIndex: 2
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -110359,9 +113652,10 @@ const PortalSidebar = ({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 19,
-      fontWeight: 700,
-      letterSpacing: -0.5
+      fontSize: 20,
+      fontWeight: 800,
+      letterSpacing: -0.5,
+      color: PT.ink
     }
   }, "S"), /*#__PURE__*/React.createElement("span", {
     style: {
@@ -110369,22 +113663,24 @@ const PortalSidebar = ({
       width: 11,
       height: 11,
       borderRadius: '50%',
-      background: `radial-gradient(circle at 30% 30%, ${T.primary}, ${T.primaryDark})`,
-      transform: 'translateY(2px)'
+      background: `radial-gradient(circle at 30% 30%, ${PT.brandMid}, ${PT.brandDeep})`,
+      transform: 'translateY(2px)',
+      boxShadow: '0 2px 6px -1px rgba(74,63,190,0.5)'
     }
   }), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 19,
-      fontWeight: 700,
-      letterSpacing: -0.5
+      fontSize: 20,
+      fontWeight: 800,
+      letterSpacing: -0.5,
+      color: PT.ink
     }
   }, "le"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 9,
-      color: T.primary,
-      fontWeight: 700,
-      marginLeft: 2,
-      letterSpacing: 0.4,
+      color: PT.brand,
+      fontWeight: 800,
+      marginLeft: 3,
+      letterSpacing: 1,
       textTransform: 'uppercase'
     }
   }, "Portal"))), /*#__PURE__*/React.createElement("div", {
@@ -110415,7 +113711,7 @@ const PortalSidebar = ({
       lineHeight: 1.3
     }
   }, "Modules unlock once all clients are onboarded")), PORTAL_NAV.map(item => {
-    const locked = !onboarded && !item.home;
+    const locked = !onboarded && !item.open;
     const active = activeSection === item.id;
     const badge = item.home && !onboarded ? remaining || null : null;
     return slim ? /*#__PURE__*/React.createElement(IconRow, {
@@ -110614,17 +113910,41 @@ const ClientPortalApp = () => {
     const firstField = c ? clientProgress(c).items.find(i => !i.done) : null;
     goToFieldFromHeader(clientId, firstField ? firstField.id : null);
   };
-  const isHome = route.section === 'details';
-  const meta = PORTAL_TAB_META[route.section];
-  const title = isHome ? onboarded ? 'Client Group' : 'Onboarding' : meta ? meta.title : 'Portal';
-  const subtitle = isHome ? onboarded ? `Your client group with ${PORTAL_GROUP.firm}. You can update any details at any time.` : `Complete every client's details to get started with ${PORTAL_GROUP.firm}` : meta ? meta.blurb : '';
+  const meta = PORTAL_TAB_META[route.section] || {};
+  const isOnb = route.section === 'onboarding';
+  const isGroup = route.section === 'details';
+  const title = meta.title || 'Portal';
+  const subtitle = meta.blurb || '';
+  const showGroupHeader = isOnb; // the group-progress strip belongs on the onboarding page
+
   return /*#__PURE__*/React.createElement("div", {
+    className: "sole-portal pt-grain",
     style: {
       minHeight: '100vh',
-      background: T.bg,
-      display: 'flex'
+      background: PT.pageBg,
+      display: 'flex',
+      position: 'relative',
+      overflow: 'hidden'
     }
-  }, /*#__PURE__*/React.createElement(PortalSidebar, {
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pt-aurora",
+    style: {
+      top: -180,
+      right: -60,
+      width: 540,
+      height: 540,
+      background: 'rgba(124,131,247,0.32)'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "pt-aurora",
+    style: {
+      top: 60,
+      left: 220,
+      width: 460,
+      height: 460,
+      background: 'rgba(249,115,22,0.10)'
+    }
+  }), /*#__PURE__*/React.createElement(PortalSidebar, {
     portal: portal,
     onboarded: onboarded,
     activeSection: route.section,
@@ -110635,63 +113955,118 @@ const ClientPortalApp = () => {
       flex: 1,
       minWidth: 0,
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      position: 'relative',
+      zIndex: 1
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      background: T.card,
-      borderBottom: `1px solid ${T.border}`,
+      background: 'rgba(255,255,255,0.72)',
+      backdropFilter: 'blur(14px)',
+      WebkitBackdropFilter: 'blur(14px)',
+      borderBottom: `1px solid rgba(74,63,190,0.10)`,
       position: 'sticky',
       top: 0,
       zIndex: 10
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
+      maxWidth: 1160,
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: showGroupHeader ? '18px 32px 16px' : '18px 32px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '16px 28px 12px'
+      gap: 16
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 19,
-      fontWeight: 700,
-      color: T.text
+      display: 'flex',
+      alignItems: 'center',
+      gap: 13,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+      background: PT.gradient,
+      boxShadow: '0 8px 18px -8px rgba(74,63,190,0.6)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: meta.icon || 'clipboard',
+    size: 21,
+    color: "#fff"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 21,
+      fontWeight: 800,
+      color: PT.ink,
+      letterSpacing: -0.4
     }
   }, title), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 12.5,
-      marginTop: 2
+      marginTop: 1
     }
-  }, subtitle)), /*#__PURE__*/React.createElement(PortalDemoControls, {
+  }, subtitle))), /*#__PURE__*/React.createElement(PortalDemoControls, {
     setPortal: setPortal,
     fireToast: fireToast
-  })), isHome && /*#__PURE__*/React.createElement("div", {
+  })), showGroupHeader && /*#__PURE__*/React.createElement("div", {
     style: {
-      marginInline: 28,
-      marginBottom: 16
+      marginTop: 16
     }
   }, /*#__PURE__*/React.createElement(PortalGroupHeader, {
     portal: portal,
     onboarded: onboarded,
     onPickClient: pickClient
-  }))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
-      padding: '24px 28px'
+      width: '100%',
+      minHeight: 0
     }
-  }, isHome ? /*#__PURE__*/React.createElement(PortalGetStarted, {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 1160,
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: route.section === 'communications' ? '14px 22px 16px' : '24px 32px 48px'
+    }
+  }, isOnb
+  /* REVERT onboarding: swap the next line back to <PortalGetStarted .../> to restore the old field-by-field wizard. */ ? /*#__PURE__*/React.createElement(PortalOnboardingOnePage, {
     portal: portal,
     setPortal: setPortal,
     fireToast: fireToast,
     onboarded: onboarded,
     go: go
+  })
+  /* OLD (kept for revert): ? <PortalGetStarted portal={portal} setPortal={setPortal} fireToast={fireToast} onboarded={onboarded} go={go} /> */ : isGroup ? /*#__PURE__*/React.createElement(PortalClientGroupOverview, {
+    portal: portal,
+    go: go,
+    fireToast: fireToast
   }) : /*#__PURE__*/React.createElement(PortalLockedContent, {
     tab: route.section,
     portal: portal,
     onboarded: onboarded,
-    go: go
-  }))), /*#__PURE__*/React.createElement(PortalSignModal, {
+    go: go,
+    fireToast: fireToast
+  })))), /*#__PURE__*/React.createElement(PortalSignModal, {
     portal: activeClient,
     set: setActiveClient,
     fireToast: fireToast,
@@ -111281,6 +114656,7 @@ const OnboardingTemplatesPage = ({
   fireToast
 }) => {
   const [view, setView] = useState('gallery');
+  const [builderMode, setBuilderMode] = useState('outline'); // 'outline' (MECE map) | 'edit'
   const [draft, setDraft] = useState(null);
   const [userTpls, setUserTpls] = useState(() => loadOnboardingTemplates());
   const [cat, setCat] = useState('All');
@@ -111792,7 +115168,7 @@ const OnboardingTemplatesPage = ({
     setAi(null);
     setAiText('');
   };
-  const renderBuilder = () => /*#__PURE__*/React.createElement("div", {
+  const renderBuilderEdit = () => /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '240px 1fr',
@@ -112209,6 +115585,156 @@ const OnboardingTemplatesPage = ({
       alignSelf: 'flex-start'
     }
   }, "Add a section")));
+
+  // ---- builder: Outline (MECE map — every page→sections→field count at a glance) ----
+  const renderBuilderOutline = () => /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+      gap: 14
+    }
+  }, draft.pages.map((p, i) => {
+    const secs = p.sections || [];
+    const fc = secs.reduce((n, s) => n + (s.fields || []).length, 0);
+    return /*#__PURE__*/React.createElement(PanelCard, {
+      key: p.id,
+      title: `${i + 1}. ${p.title}`,
+      subtitle: `${secs.length} section${secs.length === 1 ? '' : 's'} · ${fc} field${fc === 1 ? '' : 's'}`,
+      icon: p.kycSection ? 'shield' : 'fileText',
+      iconTone: p.kycSection ? 'blue' : 'accent',
+      actions: /*#__PURE__*/React.createElement(Btn, {
+        variant: "ghost",
+        size: "sm",
+        icon: "edit",
+        onClick: () => {
+          setSelPageId(p.id);
+          setBuilderMode('edit');
+        }
+      }, "Edit")
+    }, p.kycSection && /*#__PURE__*/React.createElement(Pill, {
+      color: "blue",
+      style: {
+        marginBottom: 10
+      }
+    }, "KYC / AML step"), secs.length === 0 && /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12
+      }
+    }, "No sections yet."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6
+      }
+    }, secs.map(sec => {
+      const sf = (sec.fields || []).length;
+      const hasKyc = (sec.fields || []).some(f => f.kycFlag);
+      return /*#__PURE__*/React.createElement("button", {
+        key: sec.id,
+        "data-hover": "row",
+        onClick: () => {
+          setSelPageId(p.id);
+          setFocusSectionId(sec.id);
+          setBuilderMode('edit');
+        },
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          textAlign: 'left',
+          border: `1px solid ${T.borderSoft}`,
+          borderRadius: 8,
+          background: T.fieldBg,
+          padding: '8px 10px',
+          cursor: 'pointer'
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          flex: 1,
+          minWidth: 0,
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: T.text,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, sec.title), hasKyc && /*#__PURE__*/React.createElement(Icon, {
+        name: "shield",
+        size: 11,
+        color: T.blue
+      }), /*#__PURE__*/React.createElement(Pill, {
+        color: "neutral",
+        style: {
+          fontSize: 10
+        }
+      }, sf, " field", sf === 1 ? '' : 's'));
+    })));
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: addPage,
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      minHeight: 150,
+      border: `1.5px dashed ${T.borderStrong}`,
+      borderRadius: T.radiusLg,
+      background: T.card,
+      cursor: 'pointer',
+      color: T.primary
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "plus",
+    size: 22,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Add a page")));
+  const renderBuilder = () => {
+    const fc = onbTemplateFieldCount(draft);
+    const kycCount = draft.pages.flatMap(p => p.sections || []).flatMap(s => s.fields || []).filter(f => f.kycFlag).length;
+    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 16,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 16,
+        fontWeight: 800,
+        color: T.text
+      }
+    }, draft.name || 'Untitled template'), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12,
+        marginTop: 2
+      }
+    }, draft.pages.length, " page", draft.pages.length === 1 ? '' : 's', " \xB7 ", fc, " field", fc === 1 ? '' : 's', kycCount ? ` · ${kycCount} KYC/AML` : '', " \xB7 ", builderMode === 'outline' ? 'see the whole shape, then edit a step' : 'editing a step')), /*#__PURE__*/React.createElement(SegToggle, {
+      options: [{
+        value: 'outline',
+        label: 'Outline'
+      }, {
+        value: 'edit',
+        label: 'Edit'
+      }],
+      value: builderMode,
+      onChange: setBuilderMode
+    })), builderMode === 'outline' ? renderBuilderOutline() : renderBuilderEdit());
+  };
 
   // ---- preview ----
   const renderPreview = () => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
