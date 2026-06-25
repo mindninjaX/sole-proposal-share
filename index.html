@@ -574,6 +574,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   .sole-portal [data-hover="row"]:not(:disabled):hover { background: #F6F6FE; }
   /* r7: live presence ring pulse */
   @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
+  /* Stepper steps read as clickable — hover lifts the dot + tints the label */
+  .sole-portal [data-portal-step] { transition: background .12s; border-radius: 12px; }
+  .sole-portal [data-portal-step]:hover { background: rgba(74,63,190,0.08); }
+  .sole-portal [data-portal-step]:hover .pps-dot { border-color: #4A3FBE !important; color: #4A3FBE; box-shadow: 0 6px 14px -6px rgba(74,63,190,0.5) !important; transform: translateY(-1px); }
+  .sole-portal [data-portal-step]:hover .pps-label { color: #3C33A4; }
 </style>
 </head>
 <body>
@@ -44788,7 +44793,9 @@ const ComplianceDashboardPage = ({
       textAlign: 'center'
     }
   }, /*#__PURE__*/React.createElement(Helper, null, "No clients match this filter.")), rows.map((rec, i) => {
-    const pct = rec.onboarding.total ? Math.round(rec.onboarding.done / rec.onboarding.total * 100) : 0;
+    // The portal-linked row mirrors the live client group's real progress so the
+    // dashboard and the detail page agree (the rest use the seeded mock %).
+    const pct = rec._portal ? groupProgress(buildPortalMirror()).pct : rec.onboarding.total ? Math.round(rec.onboarding.done / rec.onboarding.total * 100) : 0;
     const risk = effectiveRisk(rec);
     const pastReview = rec.reviewDue < today && ['verified', 'review_due'].includes(rec.status);
     return /*#__PURE__*/React.createElement("div", {
@@ -45107,6 +45114,33 @@ const ComplianceDetailPage = ({
     state: stepState(reviewDone, riskAssessed)
   }];
   const verdictBtn = verdict.tone === 'danger' ? 'danger' : verdict.tone === 'warn' ? 'primary' : 'primaryOutline';
+
+  // For a client-portal-linked record, mirror the SAME group/onboarding view the
+  // client sees (read-only) — answers "will the accountant see this too?".
+  const mirror = rec._portal ? buildPortalMirror() : null;
+  const mg = mirror ? groupProgress(mirror) : null;
+  const mVerify = c => {
+    const v = clientVerificationStatus(c);
+    if (v === 'verified' || v === 'na' && isClientOnboarded(c)) return {
+      l: 'ID verified',
+      c: 'green'
+    };
+    if (v === 'submitted') return {
+      l: 'In review',
+      c: 'accent'
+    };
+    if (v === 'pending') return {
+      l: 'KYC pending',
+      c: 'amber'
+    };
+    return isClientOnboarded(c) ? {
+      l: 'Complete',
+      c: 'green'
+    } : {
+      l: 'Awaiting client',
+      c: 'neutral'
+    };
+  };
   return /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -45203,7 +45237,139 @@ const ComplianceDetailPage = ({
     style: {
       marginBottom: 14
     }
-  }, verdict.text), /*#__PURE__*/React.createElement(Card, {
+  }, verdict.text), mirror && /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Client portal \u2014 onboarding status",
+    subtitle: "Exactly what the client sees in their portal \u2014 live, read-only",
+    icon: "users",
+    iconTone: "accent",
+    actions: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "sm",
+      icon: "link",
+      onClick: () => {
+        window.location.hash = '#/portal?family=1';
+      }
+    }, "Open as client"),
+    style: {
+      marginBottom: 16
+    },
+    bodyStyle: {
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 16px',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement(PortalRing, {
+    pct: mg.pct,
+    size: 44,
+    stroke: 5,
+    done: mg.clientsComplete === mg.clientsTotal,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, mirror.group.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, mg.clientsComplete, " of ", mg.clientsTotal, " members onboarded \xB7 ", mg.done, "/", mg.total, " required details in"))), mirror.clients.map((c, i) => {
+    const cp = clientProgress(c);
+    const done = isClientOnboarded(c);
+    const cpct = cp.total ? Math.round(cp.done / cp.total * 100) : 0;
+    const ver = mVerify(c);
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '11px 16px',
+        borderTop: `1px solid ${T.borderSoft}`
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: c.name,
+      size: 34
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, c.name), c.isYou && /*#__PURE__*/React.createElement(Pill, {
+      color: "accent",
+      style: {
+        fontSize: 9
+      }
+    }, "Primary contact")), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5
+      }
+    }, c.service, " \xB7 ", done ? 'All details complete' : `On: ${memberCurrentStep(c)}`)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 120,
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 5,
+        background: T.fieldBg,
+        borderRadius: 99
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${done ? 100 : cpct}%`,
+        background: done ? T.green : T.primary,
+        borderRadius: 99
+      }
+    })), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 10.5,
+        marginTop: 3
+      }
+    }, done ? 'Onboarded' : `${cp.done}/${cp.total} done`)), /*#__PURE__*/React.createElement(Pill, {
+      color: ver.c,
+      style: {
+        fontSize: 10
+      }
+    }, ver.l));
+  }), mg.clientsComplete < mg.clientsTotal && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 16px',
+      borderTop: `1px solid ${T.borderSoft}`,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(PortalOutstandingList, {
+    clients: mirror.clients.filter(c => !isClientOnboarded(c)),
+    readOnly: true,
+    title: "Outstanding from the client"
+  }))), /*#__PURE__*/React.createElement(Card, {
     style: {
       marginBottom: 16,
       padding: '16px 20px'
@@ -104559,6 +104725,9 @@ const PORTAL_GROUP = {
 
 // Seed clients in the group. `kind` tweaks the field set (individuals need DOB,
 // businesses need ABN). `isYou` flags the logged-in contact's own record.
+// The FULL family group (canonical "many clients" demo). Most real clients are a
+// single individual, so the portal DEFAULTS to a solo seed and scales up to this
+// group seamlessly (?family=1 or the demo toggle switches between them).
 const PORTAL_CLIENTS_SEED = [{
   id: 'cl-1',
   name: 'Gaurav Sharma',
@@ -104576,6 +104745,15 @@ const PORTAL_CLIENTS_SEED = [{
   kind: 'business',
   service: 'Company Tax Return 2026'
 }];
+// Default (the common case): just the logged-in individual — no family/group chrome.
+const PORTAL_CLIENTS_SOLO = [PORTAL_CLIENTS_SEED[0]];
+const portalFamilyMode = () => {
+  try {
+    return new URLSearchParams(window.location.search).get('family') === '1';
+  } catch (_) {
+    return false;
+  }
+};
 
 // Vertical sidebar nav (mirrors the onboarded reference). `home` is always
 // accessible (the Client Group / onboarding surface); everything else LOCKS
@@ -104659,6 +104837,16 @@ const PORTAL_TAB_META = {
     title: 'Payroll Management',
     icon: 'briefcase',
     blurb: 'Pay runs, payslips and superannuation — once your file is set up.'
+  },
+  notifications: {
+    title: 'Notifications',
+    icon: 'bell',
+    blurb: 'Updates from your accountant and anything that needs your attention.'
+  },
+  settings: {
+    title: 'Settings',
+    icon: 'sliders',
+    blurb: 'Your profile, notification preferences, security and billing.'
   }
 };
 const parsePortalHash = hash => {
@@ -104746,38 +104934,48 @@ const seedClient = base => ({
   flashField: null,
   signModalOpen: false
 });
-const seedPortal = () => ({
-  group: {
-    ...PORTAL_GROUP
-  },
+const seedPortal = (opts = {}) => {
+  // Individual by default; `family` (opts override or ?family=1) seeds the full group.
+  const family = opts.family != null ? opts.family : portalFamilyMode();
+  const list = family ? PORTAL_CLIENTS_SEED : PORTAL_CLIENTS_SOLO;
   // ?onbtpl=<templateId> in the share URL assigns that onboarding template to every
   // client (lets a reviewer deep-link straight to a template's client experience).
-  clients: (() => {
-    let forced = null;
-    try {
-      forced = new URLSearchParams(window.location.search).get('onbtpl');
-    } catch (_) {}
-    return PORTAL_CLIENTS_SEED.map(c => seedClient(forced ? {
+  let forced = null;
+  try {
+    forced = new URLSearchParams(window.location.search).get('onbtpl');
+  } catch (_) {}
+  return {
+    // Solo: the "group" is just the person, so we drop the family name + chrome.
+    group: family ? {
+      ...PORTAL_GROUP
+    } : {
+      name: list[0].name,
+      ref: PORTAL_GROUP.ref,
+      firm: PORTAL_GROUP.firm,
+      solo: true
+    },
+    clients: list.map(c => seedClient(forced ? {
       ...c,
       templateId: forced
-    } : c));
-  })(),
-  activeClientId: PORTAL_CLIENTS_SEED[0].id,
-  groupDocs: [{
-    id: 'gd-1',
-    name: 'Engagement-letter-2026.pdf',
-    tag: 'Signed',
-    size: '180 KB'
-  }, {
-    id: 'gd-2',
-    name: 'Group-structure.pdf',
-    tag: 'Reference',
-    size: '96 KB'
-  }],
-  forceOnboarded: false,
-  wizardSection: null,
-  wizardItem: null
-});
+    } : c)),
+    activeClientId: list[0].id,
+    groupDocs: [{
+      id: 'gd-1',
+      name: 'Engagement-letter-2026.pdf',
+      tag: 'Signed',
+      size: '180 KB'
+    }, {
+      id: 'gd-2',
+      name: 'Group-structure.pdf',
+      tag: 'Reference',
+      size: '96 KB'
+    }],
+    forceOnboarded: false,
+    family,
+    wizardSection: null,
+    wizardItem: null
+  };
+};
 
 // Fills one client's fields with valid mock data → instantly complete (the demo's
 // "Mark all done"). Kind-aware so a company doesn't get a date of birth, etc.
@@ -106363,6 +106561,41 @@ const isOnboarded = portal => portal.forceOnboarded || (() => {
 
 // Convenience: the currently-selected client object.
 const activeClientOf = portal => (portal.clients || []).find(c => c.id === portal.activeClientId) || (portal.clients || [])[0];
+
+// Deterministic snapshot of the live portal group for the ACCOUNTANT's read-only
+// mirror (the portal + practice apps don't share state — see BACKLOG). Gives a
+// realistic spread (1 complete · 1 in progress · 1 not started) so the accountant
+// sees the same members / onboarding / KYC view the client does.
+const buildPortalMirror = () => {
+  const modes = ['done', 'partial', 'none'];
+  const mk = (base, mode) => {
+    let c = seedClient(base);
+    if (mode === 'done') return {
+      ...c,
+      ...clientAllDoneValues(c)
+    };
+    if (mode === 'partial') return {
+      ...c,
+      ...clientAllDoneValues(c),
+      tfn: '',
+      residential: {
+        line1: '',
+        suburb: '',
+        state: '',
+        postcode: ''
+      },
+      declSignedAt: null,
+      declSignedName: ''
+    };
+    return c;
+  };
+  return {
+    group: {
+      ...PORTAL_GROUP
+    },
+    clients: PORTAL_CLIENTS_SEED.map((b, i) => mk(b, modes[i] || 'none'))
+  };
+};
 
 // --- a small on-brand PDF uploader (MediaSlot's pdf path, but client-worded) --
 const PortalUpload = ({
@@ -110596,6 +110829,1086 @@ const PortalOnboardingOnePage = ({
   }, "Message your team"))));
 };
 
+// ============================================================================
+// Step-by-step onboarding wizard (Jun-25) — the stakeholder asked for a HORIZONTAL
+// stepper, "individual by default" with a flow that scales smoothly to many
+// clients. ONE section at a time, Back/Continue, a horizontal PortalStepper on top.
+// Reuses the exact same data model + ActionStepEditor as the one-page flow, so the
+// template path (?onbtpl=) keeps working. REVERT: ClientPortalApp picks the view via
+// the `OnboardingView` constant — set it to PortalOnboardingOnePage to restore the
+// loved one-page design.
+// ============================================================================
+
+// Portal-styled horizontal stepper (copies the global Stepper idiom but on PT.brand
+// tokens, clickable, with a per-step required count + a KYC shield). Scrolls
+// horizontally so a template with many pages never overflows.
+const PortalStepper = ({
+  steps,
+  activeIdx,
+  onStep
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    overflowX: 'auto',
+    padding: '8px 2px 4px'
+  }
+}, steps.map((s, i) => {
+  const done = s.complete,
+    current = i === activeIdx;
+  return /*#__PURE__*/React.createElement(React.Fragment, {
+    key: s.id || i
+  }, /*#__PURE__*/React.createElement("button", {
+    "data-portal-step": "1",
+    onClick: () => onStep(i),
+    title: `Go to ${s.title}`,
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 6,
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      flexShrink: 0,
+      width: 96,
+      padding: '5px 4px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "pps-dot",
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 13,
+      fontWeight: 800,
+      flexShrink: 0,
+      background: done ? PT.gradient : '#fff',
+      color: done ? '#fff' : current ? PT.brand : T.muted,
+      border: current ? `2px solid ${PT.brand}` : done ? 'none' : `1.5px solid ${T.borderStrong}`,
+      boxShadow: current ? '0 6px 14px -6px rgba(74,63,190,0.6)' : done ? '0 4px 10px -4px rgba(74,63,190,0.45)' : '0 1px 3px rgba(28,27,71,0.1)',
+      transition: 'all .15s'
+    }
+  }, done ? /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 16,
+    color: "#fff",
+    strokeWidth: 3
+  }) : i + 1), /*#__PURE__*/React.createElement("span", {
+    className: "pps-label",
+    style: {
+      fontSize: 11,
+      fontWeight: current ? 700 : 600,
+      color: current ? PT.brandDeep : done ? T.text : T.muted,
+      textAlign: 'center',
+      lineHeight: 1.25,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 3,
+      justifyContent: 'center',
+      transition: 'color .12s'
+    }
+  }, s.kyc && /*#__PURE__*/React.createElement(Icon, {
+    name: "shield",
+    size: 11,
+    color: current ? PT.brand : T.muted
+  }), s.title)), i < steps.length - 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 16px',
+      minWidth: 16,
+      height: 2,
+      borderRadius: 2,
+      background: done ? PT.brand : T.border,
+      marginTop: 17
+    }
+  }));
+}));
+
+// Which section a client is currently "on" (first incomplete required section).
+const memberCurrentStep = c => {
+  if (isClientOnboarded(c)) return 'Complete';
+  const sec = sectionsFor(c).filter(s => !s.isWelcome).find(s => {
+    const req = sectionItems(s, c).filter(i => i.required);
+    return req.length > 0 && req.some(i => !i.done);
+  });
+  return sec ? sec.title : 'In progress';
+};
+
+// "Still to complete" — the consolidated outstanding-actions list the stakeholder
+// said was missing. Lists every incomplete REQUIRED item, grouped by member, each
+// row jumping straight to the step that fixes it. Reused on the accountant side
+// (read-only) so both sides see exactly what the client still owes.
+const PortalOutstandingList = ({
+  clients,
+  onJump,
+  title = 'Still to complete',
+  readOnly
+}) => {
+  const groups = (clients || []).map(c => {
+    const inc = clientProgress(c).items.filter(i => !i.done);
+    const secs = sectionsFor(c).filter(s => !s.isWelcome);
+    const rows = inc.map(i => {
+      const sec = secs.find(s => sectionItems(s, c).some(x => x.id === i.id));
+      return {
+        item: i,
+        secId: sec ? sec.id : i.group,
+        secTitle: sec ? sec.title : i.group
+      };
+    });
+    return {
+      client: c,
+      rows
+    };
+  }).filter(g => g.rows.length);
+  const total = groups.reduce((s, g) => s + g.rows.length, 0);
+  if (!total) return null;
+  const multi = (clients || []).length > 1;
+  return /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      padding: 16,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 9,
+      background: T.amberSoft,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "alertTriangle",
+    size: 15,
+    color: T.amber
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, total, " item", total === 1 ? '' : 's', " still needed"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: multi ? 11 : 3
+    }
+  }, groups.map(g => /*#__PURE__*/React.createElement("div", {
+    key: g.client.id
+  }, multi && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 7,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: g.client.name,
+    size: 18
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 700,
+      color: T.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, g.client.name), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.amber,
+      background: T.amberSoft,
+      borderRadius: 99,
+      padding: '0 6px'
+    }
+  }, g.rows.length)), g.rows.map((r, j) => {
+    const inner = /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: T.amber,
+        flexShrink: 0
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: 11.5,
+        color: T.textSoft,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, r.item.title, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.mutedSoft
+      }
+    }, " \xB7 ", r.secTitle)), !readOnly && /*#__PURE__*/React.createElement(Icon, {
+      name: "arrow",
+      size: 12,
+      color: T.muted
+    }));
+    return readOnly ? /*#__PURE__*/React.createElement("div", {
+      key: r.item.id || j,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '5px 8px'
+      }
+    }, inner) : /*#__PURE__*/React.createElement("button", {
+      key: r.item.id || j,
+      "data-hover": "row",
+      onClick: () => onJump && onJump(g.client.id, r.secId),
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        width: '100%',
+        textAlign: 'left',
+        cursor: 'pointer',
+        border: 'none',
+        background: 'transparent',
+        padding: '6px 8px',
+        borderRadius: 8
+      }
+    }, inner);
+  })))));
+};
+const PortalOnboardingWizard = ({
+  portal,
+  setPortal,
+  fireToast,
+  onboarded,
+  go,
+  onStartTour
+}) => {
+  const {
+    isTablet
+  } = useViewport();
+  const clients = portal.clients || [];
+  const multi = clients.length > 1;
+  const activeClient = activeClientOf(portal);
+  const setClient = patch => setPortal(p => ({
+    ...p,
+    clients: p.clients.map(c => c.id === p.activeClientId ? {
+      ...c,
+      ...patch
+    } : c)
+  }));
+  const dataSections = sectionsFor(activeClient).filter(s => !s.isWelcome);
+  const stepMeta = dataSections.map(sec => {
+    const items = sectionItems(sec, activeClient);
+    const req = items.filter(i => i.required);
+    const reqDone = req.filter(i => i.done).length;
+    const complete = req.length > 0 ? reqDone === req.length : items.every(i => i.done);
+    return {
+      id: sec.id,
+      sec,
+      title: sec.title,
+      items,
+      total: req.length,
+      done: reqDone,
+      complete,
+      optional: req.length === 0,
+      kyc: !!sec.kycSection
+    };
+  });
+  const cprog = clientProgress(activeClient);
+  const pct = cprog.total ? Math.round(cprog.done / cprog.total * 100) : 0;
+  const clientDone = isClientOnboarded(activeClient);
+  const firstName = (activeClient.name || '').split(' ')[0];
+  const started = cprog.done > 0 || cprog.optionalDone > 0;
+  const firstIncompleteIdx = stepMeta.findIndex(s => !s.complete && !s.optional);
+  const initialIdx = clientDone ? dataSections.length : firstIncompleteIdx >= 0 ? firstIncompleteIdx : 0;
+  const [stepIdx, setStepIdx] = useState(initialIdx);
+  // When the active member changes, jump to that member's first outstanding step
+  // (or to a specific section if an outstanding-list row requested one).
+  const cidRef = useRef(portal.activeClientId);
+  const pendingJump = useRef(null);
+  useEffect(() => {
+    if (cidRef.current === portal.activeClientId) return;
+    cidRef.current = portal.activeClientId;
+    if (pendingJump.current) {
+      const idx = dataSections.findIndex(s => s.id === pendingJump.current);
+      pendingJump.current = null;
+      setStepIdx(idx >= 0 ? idx : 0);
+      return;
+    }
+    const fi = stepMeta.findIndex(s => !s.complete && !s.optional);
+    setStepIdx(isClientOnboarded(activeClient) ? dataSections.length : fi >= 0 ? fi : 0);
+  }, [portal.activeClientId]);
+  // When this member becomes complete (Finish, or the demo's complete-all), surface the
+  // celebration/unlock state — it hosts the "Take a quick tour" entry point.
+  const doneRef = useRef(clientDone);
+  useEffect(() => {
+    if (clientDone && !doneRef.current) setStepIdx(dataSections.length);
+    doneRef.current = clientDone;
+  }, [clientDone]);
+  const goStep = i => setStepIdx(Math.max(0, Math.min(dataSections.length, i)));
+  const continueStep = () => {
+    const next = stepMeta.findIndex((s, i) => i > stepIdx && !s.complete && !s.optional);
+    goStep(next >= 0 ? next : dataSections.length);
+  };
+  const atComplete = stepIdx >= dataSections.length;
+  const cur = atComplete ? null : stepMeta[stepIdx];
+  const g = groupProgress(portal);
+  const nextMember = clients.find(c => c.id !== activeClient.id && !isClientOnboarded(c));
+  const pickMember = id => setPortal(p => ({
+    ...p,
+    activeClientId: id
+  }));
+  // Jump to a specific member + section (from the outstanding "Still to complete" list).
+  const jumpTo = (clientId, secId) => {
+    if (clientId === activeClient.id) {
+      const idx = dataSections.findIndex(s => s.id === secId);
+      if (idx >= 0) setStepIdx(idx);
+      return;
+    }
+    pendingJump.current = secId;
+    pickMember(clientId);
+  };
+  const unlocked = [{
+    id: 'dashboard',
+    icon: 'chartBar',
+    label: 'Dashboard'
+  }, {
+    id: 'documents',
+    icon: 'fileText',
+    label: 'Documents'
+  }, {
+    id: 'payments',
+    icon: 'creditCard',
+    label: 'Payments'
+  }, {
+    id: 'communications',
+    icon: 'messageSquare',
+    label: 'Messages'
+  }, {
+    id: 'requests',
+    icon: 'inbox',
+    label: 'Requests'
+  }, {
+    id: 'payroll',
+    icon: 'briefcase',
+    label: 'Payroll'
+  }];
+
+  // --- the wizard body (stepper + current section, or completion) ---
+  const wizardBody = /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14,
+      minWidth: 0
+    }
+  }, !started && !clientDone && stepIdx === firstIncompleteIdx && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: 18,
+      padding: '16px 20px',
+      background: 'linear-gradient(135deg, #F5F6FF, #EEF0FF)',
+      border: `1px solid ${PT.brandSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      color: PT.brand,
+      marginBottom: 5
+    }
+  }, "Welcome"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      fontWeight: 800,
+      letterSpacing: -0.3,
+      color: PT.ink
+    }
+  }, "Let's get you set up, ", firstName, "."), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12.5,
+      marginTop: 5,
+      maxWidth: 560,
+      lineHeight: 1.5
+    }
+  }, "A few quick steps and you're done \u2014 your answers save automatically and you can change them anytime.")), !atComplete && /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 16,
+      border: `1px solid ${T.borderSoft}`,
+      padding: '8px 14px 10px'
+    }
+  }, /*#__PURE__*/React.createElement(PortalStepper, {
+    steps: stepMeta,
+    activeIdx: stepIdx,
+    onStep: goStep
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 11,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, "Tap any step to jump there"))), atComplete ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: 20,
+      padding: '24px 26px',
+      background: PT.gradientHero,
+      color: '#fff',
+      boxShadow: PT.shadowPop
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: -60,
+      right: -20,
+      width: 210,
+      height: 210,
+      borderRadius: '50%',
+      background: 'rgba(255,255,255,0.12)'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      fontSize: 11,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      color: 'rgba(255,255,255,0.85)',
+      marginBottom: 9
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 14,
+    color: "#A7F3D0"
+  }), " ", multi ? `${activeClient.name} complete` : 'Onboarding complete'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      fontWeight: 800,
+      letterSpacing: -0.5
+    }
+  }, onboarded ? `You're all set, ${firstName}!` : `Nice work, ${firstName}!`), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.84)',
+      marginTop: 7,
+      maxWidth: 520,
+      lineHeight: 1.5
+    }
+  }, onboarded ? "Your portal is now unlocked — take a quick tour, or jump straight in." : nextMember ? `That's one done. Let's finish ${nextMember.name} to unlock the portal for everyone.` : 'Your details are in.'), onboarded ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 9,
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onStartTour ? onStartTour() : go('dashboard'),
+    className: "pt-lift",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '10px 16px',
+      borderRadius: 10,
+      border: 'none',
+      background: '#fff',
+      color: PT.brandDeep,
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: 'pointer',
+      boxShadow: '0 8px 20px -8px rgba(0,0,0,0.35)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "sparkle",
+    size: 15,
+    color: PT.brand
+  }), " Take a quick tour"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go('dashboard'),
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '10px 16px',
+      borderRadius: 10,
+      border: '1.5px solid rgba(255,255,255,0.65)',
+      background: 'rgba(255,255,255,0.14)',
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: 'pointer'
+    }
+  }, "Go to dashboard ", /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 14,
+    color: "#fff"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 9,
+      marginTop: 16
+    }
+  }, unlocked.map(u => /*#__PURE__*/React.createElement("button", {
+    key: u.id,
+    onClick: () => go(u.id),
+    className: "pt-lift",
+    style: {
+      textAlign: 'left',
+      cursor: 'pointer',
+      border: '1px solid rgba(255,255,255,0.18)',
+      borderRadius: 12,
+      background: 'rgba(255,255,255,0.1)',
+      padding: '11px 12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      color: '#fff'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: u.icon,
+    size: 17,
+    color: "#fff"
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700
+    }
+  }, u.label))))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 9,
+      marginTop: 16
+    }
+  }, nextMember && /*#__PURE__*/React.createElement("button", {
+    onClick: () => pickMember(nextMember.id),
+    className: "pt-lift",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '10px 16px',
+      borderRadius: 10,
+      border: 'none',
+      background: '#fff',
+      color: PT.brandDeep,
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: 'pointer',
+      boxShadow: '0 8px 20px -8px rgba(0,0,0,0.35)'
+    }
+  }, "Onboard ", (nextMember.name || '').split(' ')[0], " ", /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 14,
+    color: PT.brand
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => goStep(0),
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '10px 16px',
+      borderRadius: 10,
+      border: '1.5px solid rgba(255,255,255,0.65)',
+      background: 'rgba(255,255,255,0.14)',
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: 700,
+      cursor: 'pointer'
+    }
+  }, "Review answers")))) : cur && /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      border: `1px solid ${T.borderSoft}`,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '16px 18px',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 11,
+      flexShrink: 0,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: cur.complete ? T.greenSoft : PT.brandSoft,
+      color: cur.complete ? T.greenDark : PT.brand
+    }
+  }, cur.complete ? /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 18,
+    color: T.greenDark
+  }) : /*#__PURE__*/React.createElement(Icon, {
+    name: cur.sec.icon || 'clipboard',
+    size: 18,
+    color: PT.brand
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 800,
+      color: T.text,
+      letterSpacing: -0.2
+    }
+  }, cur.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      marginTop: 1
+    }
+  }, "Step ", stepIdx + 1, " of ", dataSections.length, cur.sec.blurb ? ` · ${cur.sec.blurb}` : '')), cur.optional ? /*#__PURE__*/React.createElement(Pill, {
+    color: "neutral"
+  }, "Optional") : cur.complete ? /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 10,
+    color: T.greenDark
+  }), " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: 2
+    }
+  }, "Complete")) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 800,
+      color: PT.brand,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, cur.done, "/", cur.total)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '4px 18px 18px'
+    }
+  }, cur.items.length === 0 && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      padding: '16px 0'
+    }
+  }, "Nothing to fill in for this section."), cur.items.map((item, j) => /*#__PURE__*/React.createElement("div", {
+    key: item.id,
+    style: {
+      padding: '16px 0',
+      borderTop: j > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, item.detail && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginBottom: 8,
+      lineHeight: 1.45
+    }
+  }, item.detail), /*#__PURE__*/React.createElement(ActionStepEditor, {
+    item: item,
+    portal: activeClient,
+    set: setClient,
+    fireToast: fireToast,
+    hideSave: true,
+    advance: () => {}
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      padding: '14px 18px',
+      borderTop: `1px solid ${T.borderSoft}`,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "arrowLeft",
+    onClick: () => goStep(stepIdx - 1),
+    disabled: stepIdx === 0
+  }, "Back"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Saved automatically"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: continueStep
+  }, stepIdx === dataSections.length - 1 ? 'Finish' : 'Continue')))));
+
+  // --- side rail: solo = your progress; group = members + group progress ---
+  const progressCard = /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      padding: 16,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 13
+    }
+  }, /*#__PURE__*/React.createElement(PortalRing, {
+    pct: multi ? g.pct : pct,
+    size: 58,
+    stroke: 6,
+    done: multi ? onboarded : clientDone,
+    color: PT.brand
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700
+    }
+  }, multi ? 'Group progress' : 'Your progress'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: 2,
+      lineHeight: 1.4
+    }
+  }, multi ? `${g.clientsComplete} of ${g.clientsTotal} members complete` : `${cprog.done} of ${cprog.total} required details complete`))));
+  const memberPanel = multi && /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      padding: 16,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 800,
+      color: T.text
+    }
+  }, portal.group.name), /*#__PURE__*/React.createElement(Pill, {
+    color: onboarded ? 'green' : 'amber',
+    style: {
+      fontSize: 9
+    }
+  }, onboarded ? 'Onboarded' : `${g.clientsComplete}/${g.clientsTotal}`)), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11,
+      marginBottom: 10
+    }
+  }, "The people & entities in this group. Pick anyone to fill in their details."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, clients.map(c => {
+    const cp = clientProgress(c);
+    const cdone = isClientOnboarded(c);
+    const active = c.id === activeClient.id;
+    const cpct = cp.total ? Math.round(cp.done / cp.total * 100) : 0;
+    return /*#__PURE__*/React.createElement("button", {
+      key: c.id,
+      "data-hover": active ? undefined : 'row',
+      onClick: () => pickMember(c.id),
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 11,
+        width: '100%',
+        textAlign: 'left',
+        cursor: 'pointer',
+        padding: '10px 11px',
+        borderRadius: 12,
+        border: `1.5px solid ${active ? PT.brand : cdone ? '#A7F3D0' : T.border}`,
+        background: active ? PT.brandSofter : T.card,
+        transition: 'all .12s'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'relative',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(Avatar, {
+      name: c.name,
+      size: 34
+    }), cdone && /*#__PURE__*/React.createElement("span", {
+      style: {
+        position: 'absolute',
+        bottom: -3,
+        right: -3,
+        width: 15,
+        height: 15,
+        borderRadius: '50%',
+        background: T.green,
+        border: '2px solid #fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 9,
+      color: "#fff",
+      strokeWidth: 3
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700,
+        color: active ? PT.brandDeep : T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, c.name), c.isYou && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 8.5,
+        fontWeight: 800,
+        color: PT.brand,
+        background: '#fff',
+        borderRadius: 4,
+        padding: '1px 4px',
+        letterSpacing: 0.4,
+        flexShrink: 0,
+        border: `1px solid ${PT.brandSoft}`
+      }
+    }, "YOU")), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 10.5,
+        marginTop: 1,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, cdone ? 'All details complete' : `On: ${memberCurrentStep(c)}`), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: 4,
+        background: T.fieldBg,
+        borderRadius: 99,
+        marginTop: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: '100%',
+        width: `${cdone ? 100 : cpct}%`,
+        background: cdone ? T.green : PT.brand,
+        borderRadius: 99,
+        transition: 'width .4s'
+      }
+    }))), !cdone && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        fontWeight: 800,
+        color: active ? PT.brand : T.amber,
+        flexShrink: 0,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, cp.done, "/", cp.total));
+  })));
+  const helpCards = /*#__PURE__*/React.createElement(React.Fragment, null, (portal.groupDocs || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      padding: 16,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      marginBottom: 8
+    }
+  }, multi ? 'Group documents' : 'Shared documents'), portal.groupDocs.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: d.id || i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      padding: '7px 0',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(PdfFileIcon, {
+    size: 26
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    },
+    title: d.name
+  }, d.name)), /*#__PURE__*/React.createElement(Pill, {
+    color: d.tag === 'Signed' ? 'green' : d.tag === 'Reference' ? 'blue' : 'neutral',
+    style: {
+      fontSize: 9
+    }
+  }, d.tag)))), /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      borderRadius: 18,
+      padding: 16,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      marginBottom: 8
+    }
+  }, "Need a hand?"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: PORTAL_CLIENT.advisor,
+    size: 28
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700
+    }
+  }, PORTAL_CLIENT.advisor), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 10.5
+    }
+  }, PORTAL_CLIENT.advisorTitle))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "messageSquare",
+    onClick: () => go('communications'),
+    style: {
+      width: '100%',
+      justifyContent: 'center',
+      marginTop: 10
+    }
+  }, "Message your team")));
+
+  // "Still to complete" — solo: this person's outstanding; group: every incomplete member.
+  const outstandingClients = multi ? clients.filter(c => !isClientOnboarded(c)) : clientDone ? [] : [activeClient];
+  const outstandingCard = outstandingClients.length ? /*#__PURE__*/React.createElement(PortalOutstandingList, {
+    clients: outstandingClients,
+    onJump: jumpTo
+  }) : null;
+  if (isTablet) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14
+      }
+    }, wizardBody, multi && memberPanel, progressCard, outstandingCard, helpCards);
+  }
+  // Always: the form is the wide LEFT column; the group/progress/help live in the narrow RIGHT rail.
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: multi ? '1fr 300px' : '1fr 296px',
+      gap: 18,
+      alignItems: 'start'
+    }
+  }, wizardBody, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+      position: 'sticky',
+      top: 14
+    }
+  }, multi && memberPanel, progressCard, outstandingCard, helpCards));
+};
+
 // --- portal tab preview mocks (tab-specific realistic content) ----------------
 
 // Value-first client dashboard (Jun-24 redesign). Leads with compliance
@@ -110962,7 +112275,7 @@ const PortalDashboardMock = ({
       fontWeight: 700,
       letterSpacing: 0.8,
       textTransform: 'uppercase',
-      color: 'rgba(255,255,255,0.82)',
+      color: 'rgba(255,255,255,0.95)',
       marginBottom: 11
     }
   }, /*#__PURE__*/React.createElement("span", {
@@ -110970,7 +112283,7 @@ const PortalDashboardMock = ({
       width: 7,
       height: 7,
       borderRadius: '50%',
-      background: '#34D399',
+      background: '#6EE7B7',
       display: 'inline-block',
       animation: 'pulseDot 1.8s ease-in-out infinite'
     }
@@ -110984,15 +112297,15 @@ const PortalDashboardMock = ({
   }, "You're in good shape, ", first, "."), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13.5,
-      color: 'rgba(255,255,255,0.84)',
+      color: 'rgba(255,255,255,0.94)',
       marginTop: 9,
       maxWidth: 520,
       lineHeight: 1.55
     }
   }, firm, " has your compliance up to date and your FY26 return on track \u2014 here's the value working quietly in the background for you.")), /*#__PURE__*/React.createElement("div", {
     style: {
-      background: 'rgba(255,255,255,0.13)',
-      border: '1px solid rgba(255,255,255,0.22)',
+      background: 'rgba(255,255,255,0.18)',
+      border: '1px solid rgba(255,255,255,0.32)',
       borderRadius: 16,
       padding: '14px 18px',
       minWidth: 176
@@ -111000,8 +112313,8 @@ const PortalDashboardMock = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11,
-      color: 'rgba(255,255,255,0.8)',
-      fontWeight: 600
+      color: 'rgba(255,255,255,0.95)',
+      fontWeight: 700
     }
   }, "Estimated FY26 refund"), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -111278,108 +112591,176 @@ const PortalDashboardMock = ({
 };
 const PortalDocumentsMock = ({
   go,
-  fireToast
+  fireToast,
+  portal
 } = {}) => {
+  // source: 'firm' = shared by your accountant · 'you' = uploaded by you.
+  // memberId ties a doc to a family member ('group' = shared across the group).
   const docs = [{
     name: 'Engagement Letter Addendum.pdf',
     date: '18 Jun 2026',
     size: '96 KB',
     tag: 'Awaiting signature',
     tagColor: 'amber',
-    cat: 'letters'
+    cat: 'engagement',
+    source: 'firm',
+    memberId: 'group'
   }, {
     name: 'Engagement Letter 2026.pdf',
     date: '10 Jun 2026',
     size: '180 KB',
     tag: 'Signed',
     tagColor: 'green',
-    cat: 'letters'
+    cat: 'engagement',
+    source: 'firm',
+    memberId: 'group'
   }, {
     name: 'Tax Planning Letter FY26.pdf',
     date: '05 Jun 2026',
     size: '142 KB',
     tag: 'Shared',
     tagColor: 'accent',
-    cat: 'letters'
+    cat: 'engagement',
+    source: 'firm',
+    memberId: 'cl-1'
+  }, {
+    name: 'Onboarding Checklist 2026.pdf',
+    date: '04 Jun 2026',
+    size: '58 KB',
+    tag: 'Reference',
+    tagColor: 'neutral',
+    cat: 'onboarding',
+    source: 'firm',
+    memberId: 'group'
+  }, {
+    name: 'Group Structure.pdf',
+    date: '03 Jun 2026',
+    size: '96 KB',
+    tag: 'Reference',
+    tagColor: 'blue',
+    cat: 'onboarding',
+    source: 'you',
+    memberId: 'group'
   }, {
     name: 'Depreciation Schedule 2026.pdf',
     date: '02 Jun 2026',
     size: '88 KB',
     tag: 'Reviewed',
     tagColor: 'blue',
-    cat: 'other'
+    cat: 'financial',
+    source: 'firm',
+    memberId: 'cl-3'
   }, {
     name: 'Individual Tax Return 2025.pdf',
     date: '15 Mar 2026',
     size: '248 KB',
     tag: 'Lodged',
     tagColor: 'green',
-    cat: 'tax'
+    cat: 'tax',
+    source: 'firm',
+    memberId: 'cl-1'
   }, {
     name: 'Financial Statements FY25.pdf',
     date: '01 Feb 2026',
     size: '512 KB',
     tag: 'Reviewed',
     tagColor: 'blue',
-    cat: 'financial'
+    cat: 'financial',
+    source: 'firm',
+    memberId: 'cl-3'
   }, {
     name: 'Activity Statement Q3 FY26.pdf',
     date: '28 Jan 2026',
     size: '94 KB',
     tag: 'Filed',
     tagColor: 'neutral',
-    cat: 'activity'
+    cat: 'tax',
+    source: 'firm',
+    memberId: 'cl-3'
   }, {
-    name: 'Activity Statement Q2 FY26.pdf',
-    date: '28 Oct 2025',
-    size: '91 KB',
-    tag: 'Filed',
-    tagColor: 'neutral',
-    cat: 'activity'
-  }, {
-    name: 'PAYG Summary 2025.pdf',
+    name: 'PAYG Payment Summary 2025.pdf',
     date: '14 Jul 2025',
     size: '120 KB',
     tag: 'Reference',
     tagColor: 'neutral',
-    cat: 'other'
+    cat: 'payroll',
+    source: 'firm',
+    memberId: 'cl-2'
   }, {
     name: 'Individual Tax Return 2024.pdf',
     date: '12 Apr 2025',
     size: '236 KB',
     tag: 'Lodged',
     tagColor: 'green',
-    cat: 'tax'
+    cat: 'tax',
+    source: 'firm',
+    memberId: 'cl-1'
   }, {
-    name: 'Financial Statements FY24.pdf',
+    name: 'Bank Statements FY25.pdf',
     date: '20 Feb 2025',
-    size: '498 KB',
-    tag: 'Reviewed',
-    tagColor: 'blue',
-    cat: 'financial'
+    size: '310 KB',
+    tag: 'Uploaded',
+    tagColor: 'neutral',
+    cat: 'other',
+    source: 'you',
+    memberId: 'cl-1'
   }];
-  const cats = [{
-    key: 'all',
-    l: 'All'
+  // Document-type cards (matches the SPM/AD reference — each a tone-aware gradient tile + count).
+  const types = [{
+    key: 'engagement',
+    l: 'Engagement Terms',
+    icon: 'fileSignature',
+    tone: 'accent'
   }, {
     key: 'tax',
-    l: 'Tax returns'
+    l: 'Tax Returns',
+    icon: 'fileText',
+    tone: 'blue'
   }, {
     key: 'financial',
-    l: 'Financial'
+    l: 'Financial',
+    icon: 'chartBar',
+    tone: 'green'
   }, {
-    key: 'letters',
-    l: 'Letters'
+    key: 'payroll',
+    l: 'Payroll',
+    icon: 'briefcase',
+    tone: 'amber'
   }, {
-    key: 'activity',
-    l: 'Activity'
+    key: 'onboarding',
+    l: 'Onboarding',
+    icon: 'clipboardCheck',
+    tone: 'red'
   }, {
     key: 'other',
-    l: 'Other'
+    l: 'Other',
+    icon: 'inbox',
+    tone: 'neutral'
   }];
-  const [fil, setFil] = useState('all');
-  const countFor = k => k === 'all' ? docs.length : docs.filter(d => d.cat === k).length;
-  const shown = docs.filter(d => fil === 'all' || d.cat === fil);
+  const tabs = [{
+    key: 'recent',
+    l: 'Recent'
+  }, {
+    key: 'firm',
+    l: 'Shared with you'
+  }, {
+    key: 'you',
+    l: 'Uploaded by you'
+  }, {
+    key: 'signed',
+    l: 'Signed'
+  }];
+  const members = portal && portal.clients && portal.clients.length > 1 ? portal.clients : null;
+  const [cat, setCat] = useState(null);
+  const [tab, setTab] = useState('recent');
+  const [member, setMember] = useState('all');
+  const memberName = id => id === 'group' ? 'Whole group' : ((members || []).find(c => c.id === id) || {}).name || '';
+  const tabMatch = d => tab === 'recent' ? true : tab === 'signed' ? d.tag === 'Signed' : d.source === tab;
+  const memMatch = d => member === 'all' || d.memberId === member || d.memberId === 'group';
+  const shown = docs.filter(d => (!cat || d.cat === cat) && tabMatch(d) && memMatch(d));
+  const usedGb = 1.8,
+    totalGb = 10,
+    usedPct = Math.round(usedGb / totalGb * 100);
   return /*#__PURE__*/React.createElement("div", {
     className: "pt-stagger",
     style: {
@@ -111388,31 +112769,66 @@ const PortalDocumentsMock = ({
       gap: 14
     }
   }, /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
     style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
-      gap: 12
+      background: T.card,
+      borderRadius: 16,
+      border: `1px solid ${T.borderSoft}`,
+      padding: '14px 18px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 16
     }
-  }, /*#__PURE__*/React.createElement(StatCard, {
+  }, /*#__PURE__*/React.createElement(IconChip, {
     icon: "fileText",
     tone: "accent",
-    label: "Total documents",
-    value: String(docs.length),
-    sub: "across all years"
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "shield",
-    tone: "green",
-    label: "Shared this year",
-    value: "6",
-    sub: "this financial year",
-    delta: "2"
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "fileSignature",
-    tone: "amber",
-    label: "Awaiting signature",
-    value: "1",
-    sub: "action needed"
-  })), /*#__PURE__*/React.createElement(Banner, {
+    size: 40,
+    gradient: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, "Storage"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, usedGb, " GB of ", totalGb, " GB used \xB7 ", (totalGb - usedGb).toFixed(1), " GB free")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 7,
+      background: T.fieldBg,
+      borderRadius: 99,
+      marginTop: 8,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '100%',
+      width: `${usedPct}%`,
+      background: PT.gradient,
+      borderRadius: 99
+    }
+  }))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "upload",
+    onClick: () => fireToast && fireToast({
+      message: 'Upload — choose a file to share with your accountant'
+    })
+  }, "Upload")), /*#__PURE__*/React.createElement(Banner, {
     tone: "warn",
     title: "1 document awaiting signature",
     action: /*#__PURE__*/React.createElement(Btn, {
@@ -111422,32 +112838,150 @@ const PortalDocumentsMock = ({
         message: 'Opening Engagement Letter Addendum to sign…'
       })
     }, "Review & sign")
-  }, "Engagement Letter Addendum \u2014 please review & sign."), /*#__PURE__*/React.createElement(PanelCard, {
+  }, "Engagement Letter Addendum \u2014 please review & sign."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+      gap: 12
+    }
+  }, types.map(t => {
+    const n = docs.filter(d => d.cat === t.key).length;
+    const active = cat === t.key;
+    return /*#__PURE__*/React.createElement("button", {
+      key: t.key,
+      "data-card": "stat",
+      onClick: () => setCat(active ? null : t.key),
+      className: "pt-lift",
+      style: {
+        position: 'relative',
+        textAlign: 'left',
+        cursor: 'pointer',
+        background: active ? PT.brandSofter : T.card,
+        borderRadius: 16,
+        border: `2px solid ${active ? PT.brand : T.borderSoft}`,
+        padding: 14,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
+        boxShadow: active ? '0 12px 28px -14px rgba(74,63,190,0.5)' : undefined
+      }
+    }, active && /*#__PURE__*/React.createElement("span", {
+      style: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        background: PT.gradient,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 3px 8px -2px rgba(74,63,190,0.6)'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 12,
+      color: "#fff",
+      strokeWidth: 3
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: t.icon,
+      tone: t.tone,
+      size: 38,
+      gradient: true
+    }), !active && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 20,
+        fontWeight: 800,
+        color: T.text,
+        letterSpacing: -0.5
+      }
+    }, n)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700,
+        color: active ? PT.brandDeep : T.text
+      }
+    }, t.l), active ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        fontSize: 10,
+        fontWeight: 800,
+        color: '#fff',
+        background: PT.brand,
+        borderRadius: 99,
+        padding: '2px 8px',
+        marginTop: 3,
+        textTransform: 'uppercase',
+        letterSpacing: 0.4
+      }
+    }, "Filtering") : /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, n, " file", n === 1 ? '' : 's')));
+  })), /*#__PURE__*/React.createElement(PanelCard, {
     title: "Documents",
-    subtitle: "Every signed letter, statement and return",
+    subtitle: cat ? `${types.find(t => t.key === cat).l} · ${shown.length} shown` : 'Every signed letter, statement and return',
     icon: "fileText",
+    actions: cat ? /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "close",
+      onClick: () => setCat(null)
+    }, "Clear filter") : null,
     bodyStyle: {
       padding: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      gap: 6,
+      gap: 4,
       flexWrap: 'wrap',
       padding: '10px 14px',
       borderBottom: `1px solid ${T.borderSoft}`
     }
-  }, cats.map(c => /*#__PURE__*/React.createElement(Chip, {
-    key: c.key,
+  }, tabs.map(t => /*#__PURE__*/React.createElement(Chip, {
+    key: t.key,
     size: "sm",
-    selected: fil === c.key,
-    onClick: () => setFil(c.key)
-  }, c.l, " ", /*#__PURE__*/React.createElement("span", {
+    selected: tab === t.key,
+    onClick: () => setTab(t.key)
+  }, t.l))), members && /*#__PURE__*/React.createElement("div", {
     style: {
-      opacity: 0.6,
-      fontWeight: 600
+      display: 'flex',
+      alignItems: 'center',
+      gap: 7,
+      flexWrap: 'wrap',
+      padding: '10px 14px',
+      borderBottom: `1px solid ${T.borderSoft}`,
+      background: PT.brandSofter
     }
-  }, countFor(c.key))))), shown.map((d, i) => /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, "Member"), /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: member === 'all',
+    onClick: () => setMember('all')
+  }, "Everyone"), members.map(c => /*#__PURE__*/React.createElement(Chip, {
+    key: c.id,
+    size: "sm",
+    selected: member === c.id,
+    onClick: () => setMember(c.id)
+  }, c.name.split(' ')[0]))), shown.map((d, i) => /*#__PURE__*/React.createElement("div", {
     key: d.name,
     "data-hover": "row",
     style: {
@@ -111476,7 +113010,7 @@ const PortalDocumentsMock = ({
     style: {
       fontSize: 12
     }
-  }, d.date, " \xB7 ", d.size)), /*#__PURE__*/React.createElement(Pill, {
+  }, d.date, " \xB7 ", d.size, members ? ` · ${memberName(d.memberId)}` : '')), /*#__PURE__*/React.createElement(Pill, {
     color: d.tagColor,
     style: {
       fontSize: 10
@@ -111488,7 +113022,7 @@ const PortalDocumentsMock = ({
   }))), shown.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
     icon: "fileText",
     title: "Nothing here yet",
-    hint: "No documents in this category.",
+    hint: "No documents match this filter.",
     style: {
       padding: '32px 16px'
     }
@@ -111496,8 +113030,10 @@ const PortalDocumentsMock = ({
 };
 const PortalPaymentsMock = ({
   go,
-  fireToast
+  fireToast,
+  portal
 } = {}) => {
+  const billedTo = portal && portal.group && portal.group.name || PORTAL_GROUP.name;
   const [invoices, setInvoices] = useState([{
     ref: 'INV-1052',
     desc: 'Professional Fees — Jun 2026',
@@ -111541,8 +113077,36 @@ const PortalPaymentsMock = ({
     amt: 600,
     status: 'paid'
   }]);
+  const [methods, setMethods] = useState([{
+    id: 'pm-visa',
+    brand: 'Visa',
+    last4: '4242',
+    exp: '08 / 28',
+    kind: 'card',
+    isDefault: true
+  }, {
+    id: 'pm-mc',
+    brand: 'Mastercard',
+    last4: '4444',
+    exp: '06 / 27',
+    kind: 'card'
+  }, {
+    id: 'pm-amex',
+    brand: 'Amex',
+    last4: '1009',
+    exp: '11 / 26',
+    kind: 'card'
+  }, {
+    id: 'pm-bank',
+    brand: 'Bank transfer',
+    last4: '1234',
+    exp: null,
+    kind: 'bank'
+  }]);
   const [autoPay, setAutoPay] = useState(true);
   const [payInv, setPayInv] = useState(null);
+  const [view, setView] = useState('invoices');
+  const [hRange, setHRange] = useState('all');
   const money = n => '$' + Number(n || 0).toLocaleString('en-AU');
   const sum = f => invoices.filter(f).reduce((a, x) => a + x.amt, 0);
   const outstanding = sum(i => i.status !== 'paid');
@@ -111569,12 +113133,107 @@ const PortalPaymentsMock = ({
     status: 'paid',
     date: 'Paid just now'
   } : x));
-  // Pay modal needs a formatted amount string for its display.
   const payDisplay = payInv ? {
     ...payInv,
     amt: money(payInv.amt)
   } : null;
-  const [fil, setFil] = useState('all');
+  const setDefaultMethod = id => {
+    setMethods(prev => prev.map(m => ({
+      ...m,
+      isDefault: m.id === id
+    })));
+    fireToast && fireToast({
+      message: 'Default payment method updated'
+    });
+  };
+  const removeMethod = id => {
+    const m = methods.find(x => x.id === id);
+    setMethods(prev => prev.filter(x => x.id !== id));
+    fireToast && fireToast({
+      message: `Removed ${m ? m.brand + ' ending ' + m.last4 : 'payment method'}`
+    });
+  };
+  const defaultMethod = methods.find(m => m.isDefault) || methods[0];
+
+  // Payment history (receipts + a failed retry) — distinct from the live Invoices list.
+  const history = [{
+    ref: 'INV-1049',
+    desc: 'Bookkeeping — Q3 FY26',
+    date: '01 May 2026',
+    amt: 950,
+    method: 'Visa ending 4242',
+    status: 'paid',
+    mAgo: 2
+  }, {
+    ref: 'INV-1045',
+    desc: 'BAS Lodgement — Q3 FY26',
+    date: '12 Apr 2026',
+    amt: 450,
+    method: 'Visa ending 4242',
+    status: 'paid',
+    mAgo: 3
+  }, {
+    ref: 'INV-1035',
+    desc: 'Annual Subscription 2026 (first attempt)',
+    date: '02 Jan 2026',
+    amt: 2400,
+    method: 'Visa ending 4242',
+    status: 'failed',
+    mAgo: 6
+  }, {
+    ref: 'INV-1041',
+    desc: 'Annual Subscription 2026',
+    date: '03 Jan 2026',
+    amt: 2400,
+    method: 'Mastercard ending 4444',
+    status: 'paid',
+    mAgo: 6
+  }, {
+    ref: 'INV-1040',
+    desc: 'Bookkeeping — Q4 2025',
+    date: '15 Dec 2025',
+    amt: 950,
+    method: 'Visa ending 4242',
+    status: 'paid',
+    mAgo: 6
+  }, {
+    ref: 'INV-1038',
+    desc: 'Tax Planning Session',
+    date: '20 Nov 2025',
+    amt: 600,
+    method: 'Visa ending 4242',
+    status: 'paid',
+    mAgo: 7
+  }, {
+    ref: 'INV-1031',
+    desc: 'Bookkeeping — Q2 2025',
+    date: '18 Oct 2025',
+    amt: 950,
+    method: 'Mastercard ending 4444',
+    status: 'paid',
+    mAgo: 8
+  }];
+  const hRanges = [{
+    key: 'all',
+    l: 'All time',
+    mo: 999
+  }, {
+    key: 'year',
+    l: 'This year',
+    mo: 12
+  }, {
+    key: '6m',
+    l: '6 months',
+    mo: 6
+  }, {
+    key: '3m',
+    l: '3 months',
+    mo: 3
+  }];
+  const hMo = (hRanges.find(r => r.key === hRange) || {}).mo || 999;
+  const hShown = history.filter(h => h.mAgo <= hMo);
+  const fil0 = 'all';
+  const [fil, setFil] = useState(fil0);
   const fils = [{
     key: 'all',
     l: 'All'
@@ -111594,7 +113253,20 @@ const PortalPaymentsMock = ({
       flexDirection: 'column',
       gap: 14
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'invoices',
+      label: 'Invoices'
+    }, {
+      value: 'history',
+      label: 'Payment History'
+    }, {
+      value: 'billing',
+      label: 'Billing & Payments'
+    }],
+    value: view,
+    onChange: setView
+  }), view === 'invoices' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: 'repeat(3, 1fr)',
@@ -111668,40 +113340,22 @@ const PortalPaymentsMock = ({
       fontSize: 13,
       fontWeight: 700
     }
-  }, "Visa ending 4242"), /*#__PURE__*/React.createElement(Helper, {
+  }, "Paying with ", defaultMethod ? `${defaultMethod.brand} ending ${defaultMethod.last4}` : 'no method'), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11
     }
-  }, "Expires 08 / 28")), /*#__PURE__*/React.createElement(Pill, {
-    color: "green"
-  }, "Default"), /*#__PURE__*/React.createElement("div", {
+  }, "Auto-pay ", autoPay ? 'on' : 'off', " \xB7 pays on the due date")), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'right'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600
-    }
-  }, "Auto-pay invoices"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11
-    }
-  }, "Pay on the due date")), /*#__PURE__*/React.createElement(Toggle, {
-    on: autoPay,
-    onChange: v => {
-      setAutoPay(v);
-      fireToast && fireToast({
-        message: v ? 'Auto-pay turned on' : 'Auto-pay turned off'
-      });
-    }
-  })), /*#__PURE__*/React.createElement(PanelCard, {
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "creditCard",
+    onClick: () => setView('billing')
+  }, "Manage payment methods")), /*#__PURE__*/React.createElement(PanelCard, {
     title: "Invoices",
-    subtitle: "Your billing history with the firm",
+    subtitle: "Outstanding and recent invoices",
     icon: "receipt",
     bodyStyle: {
       padding: 0
@@ -111803,7 +113457,265 @@ const PortalPaymentsMock = ({
       fireToast: fireToast,
       compact: true
     })));
-  })), /*#__PURE__*/React.createElement(PayModal, {
+  }))), view === 'history' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "checkCircle",
+    tone: "green",
+    label: "Paid (12 months)",
+    value: money(history.filter(h => h.status === 'paid').reduce((a, x) => a + x.amt, 0)),
+    sub: `${history.filter(h => h.status === 'paid').length} payments`
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "alertTriangle",
+    tone: "red",
+    label: "Failed",
+    value: String(history.filter(h => h.status === 'failed').length),
+    sub: "retried successfully"
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "creditCard",
+    tone: "accent",
+    label: "Avg. invoice",
+    value: money(Math.round(history.reduce((a, x) => a + x.amt, 0) / history.length)),
+    sub: "last 12 months"
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Payment history",
+    subtitle: "Every completed and failed payment",
+    icon: "receipt",
+    bodyStyle: {
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap',
+      padding: '10px 14px',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, hRanges.map(r => /*#__PURE__*/React.createElement(Chip, {
+    key: r.key,
+    size: "sm",
+    selected: hRange === r.key,
+    onClick: () => setHRange(r.key)
+  }, r.l))), hShown.map((h, i) => {
+    const failed = h.status === 'failed';
+    return /*#__PURE__*/React.createElement("div", {
+      key: h.ref + i,
+      "data-hover": "row",
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '11px 16px',
+        borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: failed ? 'alertTriangle' : 'checkCircle',
+      tone: failed ? 'red' : 'green',
+      size: 32
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, h.desc), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12
+      }
+    }, h.ref, " \xB7 ", h.date, " \xB7 ", h.method)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right',
+        flexShrink: 0,
+        minWidth: 78
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 700,
+        fontSize: 14,
+        color: failed ? T.red : T.text
+      }
+    }, money(h.amt)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: failed ? T.red : T.greenDark,
+        background: failed ? T.redSoft : T.greenSoft,
+        borderRadius: 5,
+        padding: '1px 7px',
+        display: 'inline-block',
+        marginTop: 3
+      }
+    }, failed ? 'Failed' : 'Paid')), /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 78,
+        display: 'flex',
+        justifyContent: 'flex-end',
+        flexShrink: 0
+      }
+    }, failed ? /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      onClick: () => fireToast && fireToast({
+        message: 'Payment was retried successfully the next day'
+      })
+    }, "Details") : /*#__PURE__*/React.createElement(RowDownload, {
+      name: `${h.ref} receipt`,
+      fireToast: fireToast,
+      compact: true
+    })));
+  }), hShown.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "receipt",
+    title: "No payments in this range",
+    hint: "Try a wider date range.",
+    style: {
+      padding: '32px 16px'
+    }
+  }))), view === 'billing' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Payment methods",
+    subtitle: "Cards and accounts you use to pay invoices",
+    icon: "creditCard",
+    actions: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "plus",
+      onClick: () => fireToast && fireToast({
+        message: 'Add payment method — secure card form (demo)'
+      })
+    }, "Add method"),
+    bodyStyle: {
+      padding: 0
+    }
+  }, methods.map((m, i) => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    "data-hover": "row",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '13px 16px',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: m.kind === 'bank' ? 'building' : 'creditCard',
+    tone: m.isDefault ? 'accent' : 'neutral',
+    size: 34,
+    gradient: m.isDefault
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, m.brand, m.last4 ? ` ending ${m.last4}` : ''), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, m.exp ? `Expires ${m.exp}` : 'Direct debit')), m.isDefault ? /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, "Default") : /*#__PURE__*/React.createElement("button", {
+    onClick: () => setDefaultMethod(m.id),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontSize: 12,
+      fontWeight: 700,
+      color: PT.brand
+    }
+  }, "Set as default"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => removeMethod(m.id),
+    title: "Remove",
+    disabled: m.isDefault,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: m.isDefault ? 'not-allowed' : 'pointer',
+      display: 'flex',
+      padding: 4,
+      opacity: m.isDefault ? 0.3 : 1
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 15,
+    color: T.muted
+  }))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '14px 16px',
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: T.radiusLg,
+      boxShadow: T.shadowSm
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "check",
+    tone: "green",
+    size: 34
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Auto-pay invoices"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Automatically pay each invoice on its due date using your default method.")), /*#__PURE__*/React.createElement(Toggle, {
+    on: autoPay,
+    onChange: v => {
+      setAutoPay(v);
+      fireToast && fireToast({
+        message: v ? 'Auto-pay turned on' : 'Auto-pay turned off'
+      });
+    }
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Billing details",
+    subtitle: "Where your invoices and receipts are sent",
+    icon: "building"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '12px 24px'
+    }
+  }, [['Billed to', billedTo], ['Email', PORTAL_CLIENT.email], ['Billing address', '14 Marine Parade, Southport QLD 4215'], ['Payment terms', '14 days from invoice']].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+    key: k
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, k), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      marginTop: 2
+    }
+  }, v)))))), /*#__PURE__*/React.createElement(PayModal, {
     open: !!payInv,
     invoice: payDisplay,
     onClose: () => setPayInv(null),
@@ -113059,12 +114971,685 @@ const PortalClientGroupOverview = ({
     }
   }, "Message your advisor")))));
 };
+
+// Notifications inbox (tabs: All / Unread / Action required) — matches the old
+// AD inbox, on our design system. Click an item to open the relevant module.
+// Two-pane notifications — same pattern as the SPM module (horizontal tabs +
+// list | reading pane), themed to the portal. Click a row to read it on the right.
+const PortalNotificationsMock = ({
+  go,
+  fireToast
+} = {}) => {
+  const [items, setItems] = useState([{
+    id: 'n1',
+    type: 'action',
+    icon: 'fileSignature',
+    tone: 'amber',
+    title: 'Signature required',
+    from: 'Sarah Mitchell · Sole Accounting',
+    body: 'Your Engagement Letter Addendum is ready for your signature. Please review the updated scope and sign at your earliest convenience so we can proceed.',
+    time: '2h ago',
+    unread: true,
+    action: {
+      label: 'Review & sign',
+      to: 'documents'
+    }
+  }, {
+    id: 'n2',
+    type: 'action',
+    icon: 'creditCard',
+    tone: 'red',
+    title: 'Invoice overdue',
+    from: 'Sole Accounting · Billing',
+    body: 'Invoice INV-1042 (Tax Return Preparation 2025) for $1,500 is now overdue. You can pay securely from the Payments tab using your saved card.',
+    time: '1d ago',
+    unread: true,
+    action: {
+      label: 'Pay now',
+      to: 'payments'
+    }
+  }, {
+    id: 'n3',
+    type: 'doc',
+    icon: 'fileText',
+    tone: 'blue',
+    title: 'New document shared',
+    from: 'James Lee · Sole Accounting',
+    body: 'We\'ve shared your Tax Planning Letter FY26. It outlines a few opportunities to reduce your FY26 position — have a read and reply with any questions.',
+    time: '2d ago',
+    unread: true,
+    action: {
+      label: 'View document',
+      to: 'documents'
+    }
+  }, {
+    id: 'n4',
+    type: 'message',
+    icon: 'messageSquare',
+    tone: 'accent',
+    title: 'New message from Sarah Mitchell',
+    from: 'Sarah Mitchell · Senior Tax Accountant',
+    body: '"Thanks Gaurav — I\'ve reviewed your return and it\'s looking great. I\'ll lodge it once you\'ve signed the engagement addendum."',
+    time: '3d ago',
+    unread: false,
+    action: {
+      label: 'Open chat',
+      to: 'communications'
+    }
+  }, {
+    id: 'n5',
+    type: 'request',
+    icon: 'inbox',
+    tone: 'green',
+    title: 'Request completed',
+    from: 'Sole Accounting',
+    body: 'You uploaded your 2025 tax return. Thank you! There\'s nothing else we need from you right now.',
+    time: '5d ago',
+    unread: false
+  }, {
+    id: 'n6',
+    type: 'payment',
+    icon: 'checkCircle',
+    tone: 'green',
+    title: 'Payment received',
+    from: 'Sole Accounting · Billing',
+    body: 'We received your $950 payment for invoice INV-1049 (Bookkeeping — Q3 FY26). A receipt is available in Payments → Payment History.',
+    time: '1w ago',
+    unread: false,
+    action: {
+      label: 'View receipt',
+      to: 'payments'
+    }
+  }]);
+  const [tab, setTab] = useState('all');
+  const [selId, setSelId] = useState('n1');
+  const shown = items.filter(n => tab === 'all' ? true : tab === 'unread' ? n.unread : n.type === 'action' && n.unread);
+  const counts = {
+    all: items.length,
+    unread: items.filter(n => n.unread).length,
+    action: items.filter(n => n.type === 'action' && n.unread).length
+  };
+  const tabs = [{
+    key: 'all',
+    l: 'All',
+    icon: 'inbox'
+  }, {
+    key: 'unread',
+    l: 'Unread',
+    icon: 'bell'
+  }, {
+    key: 'action',
+    l: 'Action required',
+    icon: 'alertTriangle'
+  }];
+  const markRead = id => setItems(prev => prev.map(n => n.id === id ? {
+    ...n,
+    unread: false
+  } : n));
+  const selectRow = n => {
+    setSelId(n.id);
+    if (n.unread) markRead(n.id);
+  };
+  const sel = items.find(n => n.id === selId && shown.some(s => s.id === selId)) || shown[0] || null;
+  return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 2,
+      borderBottom: `1px solid ${T.borderSoft}`,
+      overflowX: 'auto'
+    }
+  }, tabs.map(t => {
+    const on = tab === t.key;
+    const hot = t.key === 'action' && counts.action > 0;
+    return /*#__PURE__*/React.createElement("button", {
+      key: t.key,
+      onClick: () => setTab(t.key),
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '10px 13px',
+        cursor: 'pointer',
+        background: 'transparent',
+        border: 'none',
+        borderBottom: `2px solid ${on ? PT.brand : 'transparent'}`,
+        marginBottom: -1,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        color: on ? PT.brandDeep : T.textSoft,
+        fontSize: 12.5,
+        fontWeight: on ? 700 : 600
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: t.icon,
+      size: 14,
+      color: on ? PT.brand : hot ? T.red : T.muted
+    }), t.l, counts[t.key] > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 800,
+        color: hot ? '#fff' : on ? PT.brand : T.muted,
+        background: hot ? T.red : on ? PT.brandSoft : T.fieldBg,
+        padding: '1px 6px',
+        borderRadius: 999,
+        minWidth: 17,
+        textAlign: 'center'
+      }
+    }, counts[t.key]));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 8
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "check",
+    disabled: counts.unread === 0,
+    onClick: () => {
+      setItems(prev => prev.map(n => ({
+        ...n,
+        unread: false
+      })));
+      fireToast && fireToast({
+        message: 'All notifications marked as read'
+      });
+    },
+    style: {
+      marginBottom: 4
+    }
+  }, "Mark all read")), /*#__PURE__*/React.createElement("div", {
+    "data-card": "panel",
+    style: {
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: 16,
+      overflow: 'hidden',
+      display: 'grid',
+      gridTemplateColumns: '360px 1fr',
+      height: 'calc(100vh - 230px)',
+      minHeight: 440
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderRight: `1px solid ${T.borderSoft}`,
+      overflowY: 'auto',
+      minWidth: 0
+    }
+  }, shown.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '48px 20px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 24,
+    color: T.greenDark
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      marginTop: 10
+    }
+  }, "You're all caught up"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: 3
+    }
+  }, "Nothing in this view.")), shown.map((n, i) => {
+    const isSel = sel && sel.id === n.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: n.id,
+      "data-hover": isSel ? undefined : 'row',
+      onClick: () => selectRow(n),
+      style: {
+        position: 'relative',
+        display: 'flex',
+        gap: 11,
+        alignItems: 'flex-start',
+        width: '100%',
+        textAlign: 'left',
+        cursor: 'pointer',
+        border: 'none',
+        padding: '12px 14px',
+        borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none',
+        background: isSel ? PT.brandSofter : n.unread ? 'rgba(74,63,190,0.03)' : 'transparent'
+      }
+    }, n.unread && /*#__PURE__*/React.createElement("span", {
+      style: {
+        position: 'absolute',
+        left: 0,
+        top: 12,
+        bottom: 12,
+        width: 3,
+        borderRadius: 999,
+        background: PT.brand
+      }
+    }), /*#__PURE__*/React.createElement(IconChip, {
+      icon: n.icon,
+      tone: n.tone,
+      size: 32,
+      gradient: n.unread
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        fontSize: 12.5,
+        fontWeight: n.unread ? 800 : 600,
+        color: T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, n.title), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 10.5,
+        flexShrink: 0
+      }
+    }, n.time)), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5,
+        marginTop: 2,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, n.body)));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowY: 'auto',
+      padding: sel ? 24 : 0
+    }
+  }, sel ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: sel.icon,
+    tone: sel.tone,
+    size: 44,
+    gradient: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 17,
+      fontWeight: 800,
+      color: T.text,
+      letterSpacing: -0.2
+    }
+  }, sel.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      marginTop: 1
+    }
+  }, sel.from, " \xB7 ", sel.time))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      color: T.textSoft,
+      lineHeight: 1.6,
+      maxWidth: 560
+    }
+  }, sel.body), sel.action && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 18
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: () => {
+      markRead(sel.id);
+      go && go(sel.action.to);
+    }
+  }, sel.action.label))) : /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "bell",
+    title: "Select a notification",
+    hint: "Pick one from the list to read it here.",
+    style: {
+      padding: '60px 20px'
+    }
+  }))));
+};
+
+// Settings — Profile · Notifications · Security · Billing (mirrors the old AD tabs).
+const PortalSettingsMock = ({
+  go,
+  fireToast
+} = {}) => {
+  const [view, setView] = useState('profile');
+  const [channels, setChannels] = useState({
+    inapp: true,
+    email: true,
+    sms: false
+  });
+  const [types, setTypes] = useState({
+    requests: true,
+    documents: true,
+    signature: true,
+    payments: true,
+    messages: true,
+    reminders: true
+  });
+  const toggleType = k => setTypes(prev => ({
+    ...prev,
+    [k]: !prev[k]
+  }));
+  const rows = [['First name', 'Gaurav'], ['Last name', 'Sharma'], ['Email', PORTAL_CLIENT.email], ['Phone', '+61 412 345 678'], ['Address', '14 Marine Parade, Southport QLD 4215'], ['Time zone', 'Australia/Brisbane (AEST)']];
+  return /*#__PURE__*/React.createElement("div", {
+    className: "pt-stagger",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement(SegToggle, {
+    options: [{
+      value: 'profile',
+      label: 'Profile'
+    }, {
+      value: 'notifications',
+      label: 'Notifications'
+    }, {
+      value: 'security',
+      label: 'Security'
+    }, {
+      value: 'billing',
+      label: 'Billing'
+    }],
+    value: view,
+    onChange: setView
+  }), view === 'profile' && /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Your profile",
+    subtitle: "Personal information your accountant has on file",
+    icon: "user",
+    iconTone: "accent",
+    actions: /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "edit",
+      onClick: () => fireToast && fireToast({
+        message: 'Edit profile (demo)'
+      })
+    }, "Edit")
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      paddingBottom: 16,
+      borderBottom: `1px solid ${T.borderSoft}`,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: "Gaurav Sharma",
+    size: 52
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 800,
+      color: T.text
+    }
+  }, "Gaurav Sharma"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12
+    }
+  }, PORTAL_CLIENT.email))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '14px 24px'
+    }
+  }, rows.map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+    key: k
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, k), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text,
+      marginTop: 2
+    }
+  }, v))))), view === 'notifications' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Notification channels",
+    subtitle: "How we reach you",
+    icon: "bell",
+    iconTone: "accent"
+  }, [['inapp', 'In-app notifications', 'Shown in your portal'], ['email', 'Email notifications', PORTAL_CLIENT.email], ['sms', 'SMS notifications', '+61 412 345 678']].map(([k, l, sub], i) => /*#__PURE__*/React.createElement("div", {
+    key: k,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '11px 0',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, l), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, sub)), /*#__PURE__*/React.createElement(Toggle, {
+    on: channels[k],
+    onChange: v => setChannels(p => ({
+      ...p,
+      [k]: v
+    }))
+  })))), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "What to notify me about",
+    subtitle: "Choose the updates you care about",
+    icon: "sliders",
+    iconTone: "blue"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '10px 24px'
+    }
+  }, [['requests', 'New requests'], ['documents', 'Documents shared'], ['signature', 'Signature required'], ['payments', 'Payments & invoices'], ['messages', 'Messages'], ['reminders', 'Reminders']].map(([k, l]) => /*#__PURE__*/React.createElement("label", {
+    key: k,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      cursor: 'pointer',
+      fontSize: 13,
+      color: T.textSoft
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: types[k],
+    onChange: () => toggleType(k),
+    style: {
+      accentColor: T.primary,
+      width: 16,
+      height: 16
+    }
+  }), l))))), view === 'security' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Password",
+    subtitle: "Keep your account secure",
+    icon: "shield",
+    iconTone: "accent"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Last changed 10 Jan 2026")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "refresh",
+    onClick: () => fireToast && fireToast({
+      message: 'Change password (demo)'
+    })
+  }, "Change password"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '14px 16px',
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: T.radiusLg,
+      boxShadow: T.shadowSm
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "shield",
+    tone: "amber",
+    size: 34
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Two-factor authentication"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Add an extra layer of security to your account.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    onClick: () => fireToast && fireToast({
+      message: 'Enable 2FA (demo)'
+    })
+  }, "Enable 2FA")), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Active sessions",
+    subtitle: "Devices currently signed in",
+    icon: "check",
+    iconTone: "green",
+    bodyStyle: {
+      padding: 0
+    }
+  }, [['Chrome · macOS', 'Gold Coast, AU — active now', true], ['Safari · iPhone', 'Gold Coast, AU — 2 days ago', false]].map(([d, m, active], i) => /*#__PURE__*/React.createElement("div", {
+    key: d,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 16px',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, d, " ", active && /*#__PURE__*/React.createElement(Pill, {
+    color: "green",
+    style: {
+      fontSize: 9
+    }
+  }, "This device")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, m)), !active && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: () => fireToast && fireToast({
+      message: 'Signed out of that device'
+    })
+  }, "Sign out"))))), view === 'billing' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '16px',
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: T.radiusLg,
+      boxShadow: T.shadowSm
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "creditCard",
+    tone: "accent",
+    size: 38,
+    gradient: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700
+    }
+  }, "Billing & payment methods"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12
+    }
+  }, "Manage your saved cards, auto-pay and billing details in Payments.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    iconRight: "arrow",
+    onClick: () => go && go('payments')
+  }, "Go to Billing")));
+};
 const PORTAL_TAB_MOCKS = {
   dashboard: PortalDashboardMock,
   documents: PortalDocumentsMock,
   payments: PortalPaymentsMock,
   requests: PortalRequestsMock,
   communications: PortalCommsMock,
+  notifications: PortalNotificationsMock,
+  settings: PortalSettingsMock,
   payroll: PortalPayrollMock
 };
 const PortalLockedContent = ({
@@ -113080,10 +115665,11 @@ const PortalLockedContent = ({
   const pct = g.pct;
   const MockComponent = PORTAL_TAB_MOCKS[tab] || PortalDashboardMock;
   if (onboarded) {
-    // Communications is a full-height surface — it owns its own chrome, no preview strip.
-    if (tab === 'communications') return /*#__PURE__*/React.createElement(MockComponent, {
+    // Communications/Notifications/Settings are real portal features (not "preview" data) — no preview strip.
+    if (tab === 'communications' || tab === 'notifications' || tab === 'settings') return /*#__PURE__*/React.createElement(MockComponent, {
       go: go,
-      fireToast: fireToast
+      fireToast: fireToast,
+      portal: portal
     });
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -113118,7 +115704,8 @@ const PortalLockedContent = ({
       }
     }, "Sample data \u2014 your ", meta.title.toLowerCase(), " fills in as your engagement progresses.")), /*#__PURE__*/React.createElement(MockComponent, {
       go: go,
-      fireToast: fireToast
+      fireToast: fireToast,
+      portal: portal
     }));
   }
   return /*#__PURE__*/React.createElement("div", {
@@ -113134,7 +115721,8 @@ const PortalLockedContent = ({
     }
   }, /*#__PURE__*/React.createElement(MockComponent, {
     go: go,
-    fireToast: fireToast
+    fireToast: fireToast,
+    portal: portal
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'absolute',
@@ -113215,81 +115803,104 @@ const PortalLockedContent = ({
       marginBottom: 20,
       color: T.muted
     }
-  }, remaining, " more client", remaining === 1 ? '' : 's', " to onboard to unlock everything"), /*#__PURE__*/React.createElement(Btn, {
+  }, g.clientsTotal > 1 ? `${remaining} more member${remaining === 1 ? '' : 's'} to onboard to unlock everything` : 'Finish your onboarding to unlock everything'), /*#__PURE__*/React.createElement(Btn, {
     variant: "primary",
     size: "md",
     iconRight: "arrow",
     onClick: () => go('onboarding')
   }, "Complete your details"))));
 };
+
+// Demo-only controls (clearly framed as a demo so a reviewer doesn't read them as
+// product copy). The Solo/Family toggle reseeds between the single-individual default
+// and the full family group so we can show the flow scaling 1 → many.
 const PortalDemoControls = ({
+  portal,
   setPortal,
   fireToast
-}) => /*#__PURE__*/React.createElement("div", {
-  style: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8
-  }
-}, /*#__PURE__*/React.createElement("span", {
-  style: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    fontSize: 10,
-    fontWeight: 700,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    color: PT.brandDeep,
-    background: PT.brandSoft,
-    border: '1px dashed #B9BCF5',
-    borderRadius: 999,
-    padding: '4px 10px'
-  }
-}, /*#__PURE__*/React.createElement("span", {
-  style: {
-    width: 6,
-    height: 6,
-    borderRadius: '50%',
-    background: PT.brand,
-    animation: 'pulseDot 1.8s ease-in-out infinite'
-  }
-}), " Demo"), /*#__PURE__*/React.createElement(Btn, {
-  variant: "ghost",
-  size: "sm",
-  icon: "arrowLeft",
-  onClick: () => {
-    window.location.hash = '#/practice';
-  }
-}, "Back to SPM"), /*#__PURE__*/React.createElement(Btn, {
-  variant: "ghost",
-  size: "sm",
-  icon: "check",
-  onClick: () => {
-    setPortal(p => ({
-      ...p,
-      clients: p.clients.map(c => ({
-        ...c,
-        ...clientAllDoneValues(c),
-        editingField: null,
-        signModalOpen: false
-      }))
-    }));
-    fireToast({
-      message: 'All clients completed'
-    });
-  }
-}, "Mark all done"), /*#__PURE__*/React.createElement(Btn, {
-  variant: "ghost",
-  size: "sm",
-  icon: "undo",
-  onClick: () => {
-    setPortal(seedPortal());
-    fireToast({
-      message: 'Onboarding reset'
-    });
-  }
-}, "Reset"));
+}) => {
+  const family = !!portal.family;
+  const fillLabel = (portal.clients || []).length > 1 ? 'Complete all members' : 'Auto-complete';
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 10,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      color: PT.brandDeep,
+      background: PT.brandSoft,
+      border: '1px dashed #B9BCF5',
+      borderRadius: 999,
+      padding: '4px 10px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: '50%',
+      background: PT.brand,
+      animation: 'pulseDot 1.8s ease-in-out infinite'
+    }
+  }), " Demo"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: () => {
+      window.location.hash = '#/practice';
+    }
+  }, "Back to SPM"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "users",
+    onClick: () => {
+      setPortal(p => seedPortal({
+        family: !p.family
+      }));
+      fireToast({
+        message: family ? 'Switched to a solo individual' : 'Switched to a family group'
+      });
+    }
+  }, family ? 'Solo client' : 'Family group'), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "check",
+    onClick: () => {
+      setPortal(p => ({
+        ...p,
+        clients: p.clients.map(c => ({
+          ...c,
+          ...clientAllDoneValues(c),
+          editingField: null,
+          signModalOpen: false
+        }))
+      }));
+      fireToast({
+        message: 'Onboarding completed'
+      });
+    }
+  }, fillLabel), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "undo",
+    onClick: () => {
+      setPortal(p => seedPortal({
+        family: p.family
+      }));
+      fireToast({
+        message: 'Onboarding reset'
+      });
+    }
+  }, "Reset"));
+};
 
 // --- declaration signing modal (own copy; never touches the proposal SignModal)
 const PortalSignModal = ({
@@ -113480,6 +116091,7 @@ const PortalSidebar = ({
     badge
   }) => /*#__PURE__*/React.createElement("button", {
     "data-hover": "row",
+    "data-tour": 'nav-' + id,
     onClick: () => onNav(id),
     style: {
       display: 'flex',
@@ -113710,7 +116322,7 @@ const PortalSidebar = ({
       color: '#92400E',
       lineHeight: 1.3
     }
-  }, "Modules unlock once all clients are onboarded")), PORTAL_NAV.map(item => {
+  }, (portal.clients || []).length > 1 ? 'Your portal unlocks once everyone is onboarded' : 'Your portal unlocks once onboarding is complete')), PORTAL_NAV.map(item => {
     const locked = !onboarded && !item.open;
     const active = activeSection === item.id;
     const badge = item.home && !onboarded ? remaining || null : null;
@@ -113739,25 +116351,29 @@ const PortalSidebar = ({
       padding: slim ? '10px 8px' : '10px 12px'
     }
   }, slim ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(IconRow, {
+    id: "notifications",
     icon: "bell",
     label: onboarded ? 'Notifications' : 'Notifications — unlocks once onboarded',
     locked: !onboarded,
+    active: activeSection === 'notifications',
     badge: onboarded ? 3 : null,
     dotColor: "#EF4444",
-    onClick: () => fireToast({
-      message: onboarded ? 'Notifications — mocked in this demo' : 'Notifications unlock after onboarding'
+    onClick: () => onboarded ? onNav('notifications') : fireToast({
+      message: 'Notifications unlock after onboarding'
     })
   }), /*#__PURE__*/React.createElement(IconRow, {
+    id: "settings",
     icon: "sliders",
     label: onboarded ? 'Settings' : 'Settings — unlocks once onboarded',
     locked: !onboarded,
-    onClick: () => fireToast({
-      message: onboarded ? 'Settings — mocked in this demo' : 'Settings unlock after onboarding'
+    active: activeSection === 'settings',
+    onClick: () => onboarded ? onNav('settings') : fireToast({
+      message: 'Settings unlock after onboarding'
     })
   })) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
     "data-hover": "row",
-    onClick: () => fireToast({
-      message: onboarded ? 'Notifications — mocked in this demo' : 'Notifications unlock after onboarding'
+    onClick: () => onboarded ? onNav('notifications') : fireToast({
+      message: 'Notifications unlock after onboarding'
     }),
     style: {
       display: 'flex',
@@ -113770,18 +116386,18 @@ const PortalSidebar = ({
       textAlign: 'left',
       cursor: 'pointer',
       border: 'none',
-      background: 'transparent',
-      color: onboarded ? T.textSoft : T.mutedSoft
+      background: activeSection === 'notifications' ? PT.brandSoft : 'transparent',
+      color: activeSection === 'notifications' ? PT.brandDeep : onboarded ? T.textSoft : T.mutedSoft
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "bell",
     size: 16,
-    color: onboarded ? T.muted : T.mutedSoft
+    color: activeSection === 'notifications' ? PT.brand : onboarded ? T.muted : T.mutedSoft
   }), /*#__PURE__*/React.createElement("span", {
     style: {
       flex: 1,
       fontSize: 13,
-      fontWeight: 500
+      fontWeight: activeSection === 'notifications' ? 600 : 500
     }
   }, "Notifications"), onboarded ? /*#__PURE__*/React.createElement("span", {
     style: {
@@ -113798,8 +116414,8 @@ const PortalSidebar = ({
     color: T.mutedSoft
   })), /*#__PURE__*/React.createElement("button", {
     "data-hover": "row",
-    onClick: () => fireToast({
-      message: onboarded ? 'Settings — mocked in this demo' : 'Settings unlock after onboarding'
+    onClick: () => onboarded ? onNav('settings') : fireToast({
+      message: 'Settings unlock after onboarding'
     }),
     style: {
       display: 'flex',
@@ -113811,18 +116427,18 @@ const PortalSidebar = ({
       textAlign: 'left',
       cursor: 'pointer',
       border: 'none',
-      background: 'transparent',
-      color: onboarded ? T.textSoft : T.mutedSoft
+      background: activeSection === 'settings' ? PT.brandSoft : 'transparent',
+      color: activeSection === 'settings' ? PT.brandDeep : onboarded ? T.textSoft : T.mutedSoft
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "sliders",
     size: 16,
-    color: onboarded ? T.muted : T.mutedSoft
+    color: activeSection === 'settings' ? PT.brand : onboarded ? T.muted : T.mutedSoft
   }), /*#__PURE__*/React.createElement("span", {
     style: {
       flex: 1,
       fontSize: 13,
-      fontWeight: 500
+      fontWeight: activeSection === 'settings' ? 600 : 500
     }
   }, "Settings"), !onboarded && /*#__PURE__*/React.createElement(Icon, {
     name: "lock",
@@ -113860,6 +116476,371 @@ const PortalSidebar = ({
   }, PORTAL_CLIENT.email))));
 };
 
+// ============================================================================
+// Guided product walkthrough (Jun-25) — the stakeholder asked for a "Product Fruits"
+// style tour that fires once a client finishes onboarding: a spotlight + tooltip that
+// steps through each unlocked area. Built on the existing overlay/z-index conventions
+// (no new deps). "Seen" is remembered in localStorage so it never nags twice.
+// ============================================================================
+const PORTAL_TOUR_KEY = 'sole.portal.tour.v1';
+const portalTourSeen = () => {
+  try {
+    return localStorage.getItem(PORTAL_TOUR_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
+};
+const markPortalTourSeen = () => {
+  try {
+    localStorage.setItem(PORTAL_TOUR_KEY, '1');
+  } catch (_) {}
+};
+const PORTAL_TOUR_STEPS = [{
+  target: null,
+  route: 'dashboard',
+  icon: 'sparkle',
+  title: 'Welcome to your portal 🎉',
+  body: "Everything your accountant shares lives here. Here's a 30-second tour — you can skip anytime."
+}, {
+  target: 'nav-dashboard',
+  route: 'dashboard',
+  icon: 'chartBar',
+  title: 'Your dashboard',
+  body: "See the value we're delivering, your key dates, and your team — all at a glance."
+}, {
+  target: 'nav-documents',
+  route: 'documents',
+  icon: 'fileText',
+  title: 'Documents',
+  body: 'Every signed letter, statement and report — sorted by type, in one secure place.'
+}, {
+  target: 'nav-payments',
+  route: 'payments',
+  icon: 'creditCard',
+  title: 'Payments',
+  body: 'View invoices, pay securely, and manage your saved payment methods.'
+}, {
+  target: 'nav-requests',
+  route: 'requests',
+  icon: 'inbox',
+  title: 'Requests & tasks',
+  body: 'Anything we need from you, tracked so nothing slips through the cracks.'
+}, {
+  target: 'nav-communications',
+  route: 'communications',
+  icon: 'messageSquare',
+  title: 'Messages',
+  body: 'Chat with your accounting team and keep the whole conversation together.'
+}, {
+  target: null,
+  route: 'dashboard',
+  icon: 'checkCircle',
+  title: "You're all set!",
+  body: 'Explore anytime — and reach us from Messages whenever you need a hand. Replay this tour from the header.'
+}];
+const PortalTour = ({
+  open,
+  step,
+  onStep,
+  onClose,
+  go
+}) => {
+  const [rect, setRect] = useState(null);
+  const cur = PORTAL_TOUR_STEPS[step] || null;
+  useEffect(() => {
+    if (!open || !cur) return;
+    if (cur.route) go(cur.route);
+    const measure = () => {
+      if (!cur.target) {
+        setRect(null);
+        return;
+      }
+      const el = document.querySelector(`[data-tour="${cur.target}"]`);
+      if (el && el.getBoundingClientRect) {
+        const r = el.getBoundingClientRect();
+        setRect({
+          top: r.top,
+          left: r.left,
+          width: r.width,
+          height: r.height
+        });
+      } else setRect(null);
+    };
+    const t = setTimeout(measure, 240);
+    window.addEventListener('resize', measure);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', measure);
+    };
+  }, [open, step]);
+  if (!open || !cur) return null;
+  const last = step === PORTAL_TOUR_STEPS.length - 1;
+  const pad = 7;
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const ttW = 320;
+  // Anchor the tooltip beside the spotlit element (to its right), else centre it.
+  const tt = rect ? rect.left + rect.width + 18 + ttW < vw ? {
+    left: rect.left + rect.width + 18,
+    top: Math.max(14, Math.min(rect.top - 8, vh - 240))
+  } : {
+    left: Math.max(14, Math.min(rect.left, vw - ttW - 14)),
+    top: Math.min(rect.top + rect.height + 14, vh - 240)
+  } : {
+    left: (vw - ttW) / 2,
+    top: Math.max(80, vh / 2 - 130)
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 400
+    }
+  }, rect ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: rect.top - pad,
+      left: rect.left - pad,
+      width: rect.width + pad * 2,
+      height: rect.height + pad * 2,
+      borderRadius: 12,
+      boxShadow: '0 0 0 9999px rgba(20,18,50,0.58)',
+      border: `2px solid ${PT.brand}`,
+      transition: 'all .28s cubic-bezier(.22,1,.36,1)'
+    }
+  }) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      inset: 0,
+      background: 'rgba(20,18,50,0.58)'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      left: tt.left,
+      top: tt.top,
+      width: ttW,
+      background: '#fff',
+      borderRadius: 16,
+      boxShadow: PT.shadowPop,
+      border: `1px solid ${PT.brandSoft}`,
+      padding: 18,
+      animation: 'ptReveal .3s cubic-bezier(.22,1,.36,1) both'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 9
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: PT.gradient,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      boxShadow: '0 6px 14px -6px rgba(74,63,190,0.6)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: cur.icon,
+    size: 17,
+    color: "#fff"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      fontSize: 14.5,
+      fontWeight: 800,
+      color: PT.ink,
+      letterSpacing: -0.2
+    }
+  }, cur.title), /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    title: "Skip tour",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.mutedSoft,
+      display: 'flex',
+      padding: 2
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 15,
+    color: T.muted
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft,
+      lineHeight: 1.55
+    }
+  }, cur.body), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 14
+    }
+  }, PORTAL_TOUR_STEPS.map((_, i) => /*#__PURE__*/React.createElement("span", {
+    key: i,
+    style: {
+      width: i === step ? 16 : 6,
+      height: 6,
+      borderRadius: 99,
+      background: i === step ? PT.brand : i < step ? '#C7C9FB' : T.border,
+      transition: 'all .2s'
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.muted,
+      padding: 0
+    }
+  }, last ? '' : 'Skip'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, step > 0 && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: () => onStep(step - 1)
+  }, "Back"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    iconRight: last ? undefined : 'arrow',
+    onClick: () => last ? onClose() : onStep(step + 1)
+  }, last ? 'Finish' : 'Next')))));
+};
+
+// One-time launcher prompt — appears bottom-right the first time the portal unlocks
+// (Johann: "show a prompt and initiate a walkthrough"). Dismiss = remembered as seen.
+const PortalTourPrompt = ({
+  open,
+  onStart,
+  onDismiss
+}) => {
+  if (!open) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'fixed',
+      right: 22,
+      bottom: 22,
+      zIndex: 360,
+      width: 320,
+      background: '#fff',
+      borderRadius: 16,
+      boxShadow: PT.shadowPop,
+      border: `1px solid ${PT.brandSoft}`,
+      padding: 18,
+      animation: 'ptReveal .35s cubic-bezier(.22,1,.36,1) both'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 11,
+      background: PT.gradient,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+      boxShadow: '0 6px 14px -6px rgba(74,63,190,0.6)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "sparkle",
+    size: 18,
+    color: "#fff"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 800,
+      color: PT.ink
+    }
+  }, "You're all set! \uD83C\uDF89")), /*#__PURE__*/React.createElement("button", {
+    onClick: onDismiss,
+    title: "Dismiss",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      display: 'flex',
+      padding: 2
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 15,
+    color: T.muted
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft,
+      lineHeight: 1.55
+    }
+  }, "Want a quick tour of your portal? It takes about 30 seconds."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 14
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "sparkle",
+    onClick: onStart,
+    style: {
+      flex: 1,
+      justifyContent: 'center'
+    }
+  }, "Take the tour"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: onDismiss
+  }, "Maybe later")));
+};
+
+// REVERT onboarding: set this to PortalOnboardingOnePage to restore the loved
+// one-page flow (kept fully intact above). Default = the step-by-step wizard the
+// stakeholder asked for (horizontal stepper, individual-first, scales 1 → many).
+const PORTAL_ONBOARDING_VIEW = PortalOnboardingWizard;
+
+// DEV ONLY: the demo state-switchers (Back to SPM / Family group / Auto-complete / Reset).
+// The real client portal is an isolated, firm-branded surface with NO link back to SPM —
+// set this to false to strip every demo control for production. The "Tour" button is a
+// real product feature and stays regardless.
+const PORTAL_DEV_CONTROLS = true;
+
 // --- main app shell -----------------------------------------------------------
 const ClientPortalApp = () => {
   const [portal, setPortal] = useState(seedPortal);
@@ -113883,6 +116864,30 @@ const ClientPortalApp = () => {
     window.location.hash = `#/portal/${section}`;
   };
   const onboarded = isOnboarded(portal);
+
+  // Guided tour state + the one-time launcher prompt (fires the first time the portal unlocks).
+  const [tour, setTour] = useState({
+    open: false,
+    step: 0
+  });
+  const [tourPrompt, setTourPrompt] = useState(false);
+  const startTour = () => {
+    setTourPrompt(false);
+    markPortalTourSeen();
+    setTour({
+      open: true,
+      step: 0
+    });
+  };
+  const closeTour = () => setTour({
+    open: false,
+    step: 0
+  });
+  const onbRef = useRef(onboarded);
+  useEffect(() => {
+    if (onboarded && !onbRef.current && !portalTourSeen()) setTourPrompt(true);
+    onbRef.current = onboarded;
+  }, [onboarded]);
   const activeClient = activeClientOf(portal);
   const setActiveClient = patch => setPortal(p => ({
     ...p,
@@ -113915,8 +116920,9 @@ const ClientPortalApp = () => {
   const isGroup = route.section === 'details';
   const title = meta.title || 'Portal';
   const subtitle = meta.blurb || '';
-  const showGroupHeader = isOnb; // the group-progress strip belongs on the onboarding page
-
+  // The shared group-progress strip is only for the one-page (revert) flow; the new
+  // wizard owns its own member/group chrome (and shows none at all for a solo client).
+  const showGroupHeader = isOnb && PORTAL_ONBOARDING_VIEW === PortalOnboardingOnePage;
   return /*#__PURE__*/React.createElement("div", {
     className: "sole-portal pt-grain",
     style: {
@@ -114023,10 +117029,22 @@ const ClientPortalApp = () => {
       fontSize: 12.5,
       marginTop: 1
     }
-  }, subtitle))), /*#__PURE__*/React.createElement(PortalDemoControls, {
+  }, subtitle))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, onboarded && /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "sparkle",
+    onClick: startTour
+  }, "Tour"), PORTAL_DEV_CONTROLS && /*#__PURE__*/React.createElement(PortalDemoControls, {
+    portal: portal,
     setPortal: setPortal,
     fireToast: fireToast
-  })), showGroupHeader && /*#__PURE__*/React.createElement("div", {
+  }))), showGroupHeader && /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 16
     }
@@ -114049,14 +117067,14 @@ const ClientPortalApp = () => {
       padding: route.section === 'communications' ? '14px 22px 16px' : '24px 32px 48px'
     }
   }, isOnb
-  /* REVERT onboarding: swap the next line back to <PortalGetStarted .../> to restore the old field-by-field wizard. */ ? /*#__PURE__*/React.createElement(PortalOnboardingOnePage, {
+  /* REVERT onboarding: PORTAL_ONBOARDING_VIEW (defined above) selects wizard vs. one-page. */ ? /*#__PURE__*/React.createElement(PORTAL_ONBOARDING_VIEW, {
     portal: portal,
     setPortal: setPortal,
     fireToast: fireToast,
     onboarded: onboarded,
-    go: go
-  })
-  /* OLD (kept for revert): ? <PortalGetStarted portal={portal} setPortal={setPortal} fireToast={fireToast} onboarded={onboarded} go={go} /> */ : isGroup ? /*#__PURE__*/React.createElement(PortalClientGroupOverview, {
+    go: go,
+    onStartTour: startTour
+  }) : isGroup ? /*#__PURE__*/React.createElement(PortalClientGroupOverview, {
     portal: portal,
     go: go,
     fireToast: fireToast
@@ -114073,6 +117091,22 @@ const ClientPortalApp = () => {
     onClose: () => setActiveClient({
       signModalOpen: false
     })
+  }), /*#__PURE__*/React.createElement(PortalTourPrompt, {
+    open: tourPrompt,
+    onStart: startTour,
+    onDismiss: () => {
+      setTourPrompt(false);
+      markPortalTourSeen();
+    }
+  }), /*#__PURE__*/React.createElement(PortalTour, {
+    open: tour.open,
+    step: tour.step,
+    onStep: s => setTour(t => ({
+      ...t,
+      step: s
+    })),
+    onClose: closeTour,
+    go: go
   }), /*#__PURE__*/React.createElement(Toast, {
     toast: toast,
     onClose: () => setToast(null)
