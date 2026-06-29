@@ -574,6 +574,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   .sole-portal [data-hover="row"]:not(:disabled):hover { background: #F6F6FE; }
   /* r7: live presence ring pulse */
   @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
+  /* Quieter card shadows — single subtle brand-tinted shadow replaces multi-layer noise */
+  .sole-portal [data-card="stat"], .sole-portal [data-card="panel"] { box-shadow: 0 1px 4px rgba(74,63,190,0.07) !important; }
+  /* Date input picker icon — tone it toward T.muted so it matches custom selects */
+  .sole-portal input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; filter: grayscale(1); cursor: pointer; }
+  .sole-portal input[type="date"] { font-size: 13px; min-height: 36px; }
+  /* Completion quick-link tiles on the gradient hero */
+  .sole-portal .pt-tile-glass:hover { background: rgba(255,255,255,0.20) !important; border-color: rgba(255,255,255,0.45) !important; }
   /* Stepper steps read as clickable — hover lifts the dot + tints the label */
   .sole-portal [data-portal-step] { transition: background .12s; border-radius: 12px; }
   .sole-portal [data-portal-step]:hover { background: rgba(74,63,190,0.08); }
@@ -105102,7 +105109,7 @@ const ONBOARDING_SECTIONS = [{
 }, {
   id: 'software',
   num: 5,
-  title: 'Accounting software',
+  title: 'Accounting',
   icon: 'sliders',
   group: 'Accounting software'
 }, {
@@ -110352,7 +110359,7 @@ const PortalOnboardingOnePage = ({
   }, unlocked.map(u => /*#__PURE__*/React.createElement("button", {
     key: u.id,
     onClick: () => go(u.id),
-    className: "pt-lift",
+    className: "pt-lift pt-tile-glass",
     style: {
       textAlign: 'left',
       cursor: 'pointer',
@@ -111289,7 +111296,7 @@ const PortalOnboardingWizard = ({
     style: {
       fontSize: 10.5
     }
-  }, "Tap any step to jump there"))), atComplete ? /*#__PURE__*/React.createElement("div", {
+  }, "Tap any step to jump there"))), atComplete ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'relative',
       overflow: 'hidden',
@@ -111358,7 +111365,7 @@ const PortalOnboardingWizard = ({
       alignItems: 'center',
       gap: 8,
       padding: '10px 16px',
-      borderRadius: 10,
+      borderRadius: 8,
       border: 'none',
       background: '#fff',
       color: PT.brandDeep,
@@ -111378,7 +111385,7 @@ const PortalOnboardingWizard = ({
       alignItems: 'center',
       gap: 8,
       padding: '10px 16px',
-      borderRadius: 10,
+      borderRadius: 8,
       border: '1.5px solid rgba(255,255,255,0.65)',
       background: 'rgba(255,255,255,0.14)',
       color: '#fff',
@@ -111400,7 +111407,7 @@ const PortalOnboardingWizard = ({
   }, unlocked.map(u => /*#__PURE__*/React.createElement("button", {
     key: u.id,
     onClick: () => go(u.id),
-    className: "pt-lift",
+    className: "pt-lift pt-tile-glass",
     style: {
       textAlign: 'left',
       cursor: 'pointer',
@@ -111465,7 +111472,58 @@ const PortalOnboardingWizard = ({
       fontWeight: 700,
       cursor: 'pointer'
     }
-  }, "Review answers")))) : cur && /*#__PURE__*/React.createElement("div", {
+  }, "Review answers")))), onboarded && /*#__PURE__*/React.createElement(PanelCard, {
+    title: "What happens next",
+    icon: "clipboardCheck",
+    iconTone: "green",
+    bodyStyle: {
+      padding: '4px 16px 16px'
+    }
+  }, [{
+    icon: 'search',
+    tone: 'blue',
+    title: "We'll review your details",
+    detail: 'Your accountant will check everything and reach out if they need anything.'
+  }, {
+    icon: 'messageSquare',
+    tone: 'accent',
+    title: `Expect a note from ${PORTAL_TEAM[0].name.split(' ')[0]}`,
+    detail: 'Your lead accountant will be in touch within one business day.'
+  }, {
+    icon: 'calendar',
+    tone: 'amber',
+    title: 'Your next key date',
+    detail: 'BAS lodgement 28 Jul · Tax return due Oct 2026 · Super contribution 28 Jul.'
+  }].map((r, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 0',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: r.icon,
+    tone: r.tone,
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, r.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      marginTop: 2,
+      lineHeight: 1.4
+    }
+  }, r.detail)))))) : cur && /*#__PURE__*/React.createElement("div", {
     "data-card": "panel",
     style: {
       background: T.card,
@@ -111530,13 +111588,8 @@ const PortalOnboardingWizard = ({
     style: {
       marginLeft: 2
     }
-  }, "Complete")) : /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      fontWeight: 800,
-      color: PT.brand,
-      fontVariantNumeric: 'tabular-nums'
-    }
+  }, "Complete")) : /*#__PURE__*/React.createElement(Pill, {
+    color: "accent"
   }, cur.done, "/", cur.total)), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: '4px 18px 18px'
@@ -111551,20 +111604,20 @@ const PortalOnboardingWizard = ({
       padding: '16px 0',
       borderTop: j > 0 ? `1px solid ${T.borderSoft}` : 'none'
     }
-  }, item.detail && /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5,
-      marginBottom: 8,
-      lineHeight: 1.45
-    }
-  }, item.detail), /*#__PURE__*/React.createElement(ActionStepEditor, {
+  }, /*#__PURE__*/React.createElement(ActionStepEditor, {
     item: item,
     portal: activeClient,
     set: setClient,
     fireToast: fireToast,
     hideSave: true,
     advance: () => {}
-  })))), /*#__PURE__*/React.createElement("div", {
+  }), item.detail && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: 6,
+      lineHeight: 1.45
+    }
+  }, item.detail)))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -111937,21 +111990,16 @@ const RowDownload = ({
 // where a ratio reads better than a trend line). Pairs with MiniSpark in the same row.
 const KpiBar = ({
   pct,
-  color,
-  note
+  color
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
-    width: '100%'
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'flex-end'
   }
-}, note && /*#__PURE__*/React.createElement("div", {
-  style: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: T.mutedSoft,
-    marginBottom: 5,
-    letterSpacing: 0.2
-  }
-}, note), /*#__PURE__*/React.createElement("div", {
+}, /*#__PURE__*/React.createElement("div", {
   style: {
     height: 6,
     borderRadius: 99,
@@ -112236,11 +112284,11 @@ const PortalDashboardMock = ({
     style: {
       position: 'absolute',
       top: -70,
-      right: -30,
+      left: -50,
       width: 260,
       height: 260,
       borderRadius: '50%',
-      background: 'rgba(255,255,255,0.12)'
+      background: 'rgba(255,255,255,0.10)'
     }
   }), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -112350,20 +112398,19 @@ const PortalDashboardMock = ({
     tone: "green",
     label: "Compliance",
     value: "Up to date",
-    sub: "KYC verified \xB7 BAS current",
+    sub: "All obligations current",
     spark: /*#__PURE__*/React.createElement(KpiBar, {
       pct: 100,
-      color: "linear-gradient(90deg,#34D399,#059669)",
-      note: "All obligations current"
+      color: "linear-gradient(90deg,#34D399,#059669)"
     })
   }), /*#__PURE__*/React.createElement(StatCard, {
     icon: "dollar",
     tone: "accent",
-    label: "Estimated FY26 position",
-    value: "$3,180",
-    sub: "Projected refund",
+    label: "FY26 deductions found",
+    value: "$4,200",
+    sub: "Vehicle, home-office & depreciation",
     spark: /*#__PURE__*/React.createElement(MiniSpark, {
-      data: [8, 9, 7, 11, 10, 13, 12, 15],
+      data: [1.8, 2.4, 2.1, 3.0, 2.8, 3.5, 3.9, 4.2],
       h: 26,
       color: PT.brand,
       responsive: true
@@ -112373,11 +112420,12 @@ const PortalDashboardMock = ({
     tone: "amber",
     label: "Next key date",
     value: "28 Jul",
-    sub: "BAS lodgement",
-    spark: /*#__PURE__*/React.createElement(KpiBar, {
-      pct: 42,
-      color: "linear-gradient(90deg,#FBBF24,#D97706)",
-      note: "About 5 weeks away"
+    sub: "About 5 weeks away",
+    spark: /*#__PURE__*/React.createElement(MiniSpark, {
+      data: [3.8, 3.6, 3.3, 3.1, 2.8, 2.5, 2.1, 1.6],
+      h: 26,
+      color: T.amber,
+      responsive: true
     })
   }), /*#__PURE__*/React.createElement(StatCard, {
     icon: "fileText",
@@ -112396,7 +112444,7 @@ const PortalDashboardMock = ({
       display: 'grid',
       gridTemplateColumns: '1.5fr 1fr',
       gap: 14,
-      alignItems: 'stretch'
+      alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: `How ${firm} is adding value`,
@@ -112502,7 +112550,7 @@ const PortalDashboardMock = ({
       display: 'grid',
       gridTemplateColumns: '1.5fr 1fr',
       gap: 14,
-      alignItems: 'stretch'
+      alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "What's next",
@@ -112536,25 +112584,19 @@ const PortalDashboardMock = ({
     title: "Account & billing",
     icon: "creditCard",
     iconTone: "neutral"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(Helper, {
     style: {
-      display: 'flex',
-      alignItems: 'baseline',
-      justifyContent: 'space-between'
+      fontSize: 11.5
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      color: T.muted
-    }
-  }, "Due now"), /*#__PURE__*/React.createElement("span", {
+  }, "Due now"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 20,
       fontWeight: 800,
-      color: T.amber,
-      letterSpacing: -0.3
+      color: T.text,
+      letterSpacing: -0.3,
+      marginTop: 2
     }
-  }, "$800")), /*#__PURE__*/React.createElement(Helper, {
+  }, "$800"), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11.5,
       marginTop: 2
@@ -112596,12 +112638,22 @@ const PortalDocumentsMock = ({
 } = {}) => {
   // source: 'firm' = shared by your accountant · 'you' = uploaded by you.
   // memberId ties a doc to a family member ('group' = shared across the group).
+  // Single source of truth for tag → Pill color. amber=action needed, green=complete, neutral=informational.
+  const TAG_COLOR = {
+    'Awaiting signature': 'amber',
+    'Signed': 'green',
+    'Lodged': 'green',
+    'Reviewed': 'green',
+    'Shared': 'accent',
+    'Filed': 'neutral',
+    'Reference': 'neutral',
+    'Uploaded': 'neutral'
+  };
   const docs = [{
     name: 'Engagement Letter Addendum.pdf',
     date: '18 Jun 2026',
     size: '96 KB',
     tag: 'Awaiting signature',
-    tagColor: 'amber',
     cat: 'engagement',
     source: 'firm',
     memberId: 'group'
@@ -112610,7 +112662,6 @@ const PortalDocumentsMock = ({
     date: '10 Jun 2026',
     size: '180 KB',
     tag: 'Signed',
-    tagColor: 'green',
     cat: 'engagement',
     source: 'firm',
     memberId: 'group'
@@ -112619,7 +112670,6 @@ const PortalDocumentsMock = ({
     date: '05 Jun 2026',
     size: '142 KB',
     tag: 'Shared',
-    tagColor: 'accent',
     cat: 'engagement',
     source: 'firm',
     memberId: 'cl-1'
@@ -112628,7 +112678,6 @@ const PortalDocumentsMock = ({
     date: '04 Jun 2026',
     size: '58 KB',
     tag: 'Reference',
-    tagColor: 'neutral',
     cat: 'onboarding',
     source: 'firm',
     memberId: 'group'
@@ -112637,7 +112686,6 @@ const PortalDocumentsMock = ({
     date: '03 Jun 2026',
     size: '96 KB',
     tag: 'Reference',
-    tagColor: 'blue',
     cat: 'onboarding',
     source: 'you',
     memberId: 'group'
@@ -112646,7 +112694,6 @@ const PortalDocumentsMock = ({
     date: '02 Jun 2026',
     size: '88 KB',
     tag: 'Reviewed',
-    tagColor: 'blue',
     cat: 'financial',
     source: 'firm',
     memberId: 'cl-3'
@@ -112655,7 +112702,6 @@ const PortalDocumentsMock = ({
     date: '15 Mar 2026',
     size: '248 KB',
     tag: 'Lodged',
-    tagColor: 'green',
     cat: 'tax',
     source: 'firm',
     memberId: 'cl-1'
@@ -112664,7 +112710,6 @@ const PortalDocumentsMock = ({
     date: '01 Feb 2026',
     size: '512 KB',
     tag: 'Reviewed',
-    tagColor: 'blue',
     cat: 'financial',
     source: 'firm',
     memberId: 'cl-3'
@@ -112673,7 +112718,6 @@ const PortalDocumentsMock = ({
     date: '28 Jan 2026',
     size: '94 KB',
     tag: 'Filed',
-    tagColor: 'neutral',
     cat: 'tax',
     source: 'firm',
     memberId: 'cl-3'
@@ -112682,7 +112726,6 @@ const PortalDocumentsMock = ({
     date: '14 Jul 2025',
     size: '120 KB',
     tag: 'Reference',
-    tagColor: 'neutral',
     cat: 'payroll',
     source: 'firm',
     memberId: 'cl-2'
@@ -112691,7 +112734,6 @@ const PortalDocumentsMock = ({
     date: '12 Apr 2025',
     size: '236 KB',
     tag: 'Lodged',
-    tagColor: 'green',
     cat: 'tax',
     source: 'firm',
     memberId: 'cl-1'
@@ -112700,7 +112742,6 @@ const PortalDocumentsMock = ({
     date: '20 Feb 2025',
     size: '310 KB',
     tag: 'Uploaded',
-    tagColor: 'neutral',
     cat: 'other',
     source: 'you',
     memberId: 'cl-1'
@@ -112780,8 +112821,8 @@ const PortalDocumentsMock = ({
       gap: 16
     }
   }, /*#__PURE__*/React.createElement(IconChip, {
-    icon: "fileText",
-    tone: "accent",
+    icon: "archive",
+    tone: "blue",
     size: 40,
     gradient: true
   }), /*#__PURE__*/React.createElement("div", {
@@ -112930,7 +112971,7 @@ const PortalDocumentsMock = ({
     }, n, " file", n === 1 ? '' : 's')));
   })), /*#__PURE__*/React.createElement(PanelCard, {
     title: "Documents",
-    subtitle: cat ? `${types.find(t => t.key === cat).l} · ${shown.length} shown` : 'Every signed letter, statement and return',
+    subtitle: cat ? `${types.find(t => t.key === cat).l} · ${shown.length} shown` : `${docs.length} documents`,
     icon: "fileText",
     actions: cat ? /*#__PURE__*/React.createElement(Btn, {
       variant: "ghost",
@@ -113011,11 +113052,14 @@ const PortalDocumentsMock = ({
       fontSize: 12
     }
   }, d.date, " \xB7 ", d.size, members ? ` · ${memberName(d.memberId)}` : '')), /*#__PURE__*/React.createElement(Pill, {
-    color: d.tagColor,
-    style: {
-      fontSize: 10
-    }
-  }, d.tag), /*#__PURE__*/React.createElement(RowDownload, {
+    color: TAG_COLOR[d.tag] || 'neutral'
+  }, d.tag), d.tag === 'Awaiting signature' ? /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    onClick: () => fireToast && fireToast({
+      message: `Opening ${d.name} to sign…`
+    })
+  }, "Review & sign") : /*#__PURE__*/React.createElement(RowDownload, {
     name: d.name,
     fireToast: fireToast,
     compact: true
@@ -113277,30 +113321,27 @@ const PortalPaymentsMock = ({
     tone: outstanding ? 'amber' : 'green',
     label: "Outstanding",
     value: money(outstanding),
-    sub: `${outCount} invoice${outCount === 1 ? '' : 's'} to pay`,
+    sub: `${outCount} invoice${outCount === 1 ? '' : 's'} · of total billed`,
     spark: /*#__PURE__*/React.createElement(KpiBar, {
       pct: outstanding / (outstanding + paidYear || 1) * 100,
-      color: "linear-gradient(90deg,#FBBF24,#D97706)",
-      note: "of total billed"
+      color: "linear-gradient(90deg,#FBBF24,#D97706)"
     })
   }), /*#__PURE__*/React.createElement(StatCard, {
     icon: "alertTriangle",
     tone: overdue ? 'red' : 'neutral',
     label: "Overdue",
     value: money(overdue),
-    sub: `${overdueCount} invoice${overdueCount === 1 ? '' : 's'}`,
+    sub: `${overdueCount} invoice${overdueCount === 1 ? '' : 's'} · of outstanding`,
     spark: /*#__PURE__*/React.createElement(KpiBar, {
       pct: overdue / (outstanding || 1) * 100,
-      color: "linear-gradient(90deg,#F87171,#DC2626)",
-      note: "of outstanding"
+      color: "linear-gradient(90deg,#F87171,#DC2626)"
     })
   }), /*#__PURE__*/React.createElement(StatCard, {
     icon: "checkCircle",
     tone: "green",
     label: "Paid this year",
     value: money(paidYear),
-    sub: "across 5 invoices",
-    delta: "12%",
+    sub: `across ${invoices.filter(i => i.status === 'paid').length} invoice${invoices.filter(i => i.status === 'paid').length === 1 ? '' : 's'}`,
     spark: /*#__PURE__*/React.createElement(MiniSpark, {
       data: [2, 3, 2.6, 4, 3.4, 5, 4.6, 6],
       h: 26,
@@ -113424,17 +113465,12 @@ const PortalPaymentsMock = ({
       style: {
         fontWeight: 700,
         fontSize: 14,
-        color: unpaid ? T.text : T.muted
+        color: unpaid ? T.text : T.muted,
+        fontVariantNumeric: 'tabular-nums'
       }
-    }, money(inv.amt)), /*#__PURE__*/React.createElement("div", {
+    }, money(inv.amt)), /*#__PURE__*/React.createElement(Pill, {
+      color: inv.status === 'overdue' ? 'red' : inv.status === 'due' ? 'amber' : 'green',
       style: {
-        fontSize: 10,
-        fontWeight: 700,
-        color: m.tc,
-        background: m.bc,
-        borderRadius: 5,
-        padding: '1px 7px',
-        display: 'inline-block',
         marginTop: 3
       }
     }, m.l)), /*#__PURE__*/React.createElement("div", {
@@ -113545,17 +113581,12 @@ const PortalPaymentsMock = ({
       style: {
         fontWeight: 700,
         fontSize: 14,
-        color: failed ? T.red : T.text
+        color: failed ? T.red : T.text,
+        fontVariantNumeric: 'tabular-nums'
       }
-    }, money(h.amt)), /*#__PURE__*/React.createElement("div", {
+    }, money(h.amt)), /*#__PURE__*/React.createElement(Pill, {
+      color: failed ? 'red' : 'green',
       style: {
-        fontSize: 10,
-        fontWeight: 700,
-        color: failed ? T.red : T.greenDark,
-        background: failed ? T.redSoft : T.greenSoft,
-        borderRadius: 5,
-        padding: '1px 7px',
-        display: 'inline-block',
         marginTop: 3
       }
     }, failed ? 'Failed' : 'Paid')), /*#__PURE__*/React.createElement("div", {
@@ -113825,7 +113856,7 @@ const PortalRequestsMock = ({
       display: 'grid',
       gridTemplateColumns: '1.6fr 1fr',
       gap: 14,
-      alignItems: 'stretch'
+      alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "Open requests",
@@ -113870,15 +113901,16 @@ const PortalRequestsMock = ({
       fontSize: 12,
       color: r.tone === 'red' ? T.red : T.muted
     }
-  }, r.due)), /*#__PURE__*/React.createElement(Pill, {
-    color: r.priority === 'High' ? 'red' : r.priority === 'Medium' ? 'amber' : 'neutral',
+  }, r.due)), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 9.5,
-      width: 54,
-      justifyContent: 'center'
+      minWidth: 60,
+      display: 'flex',
+      justifyContent: 'flex-end'
     }
-  }, r.priority), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primaryOutline",
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: r.priority === 'High' ? 'red' : r.priority === 'Medium' ? 'amber' : 'neutral'
+  }, r.priority)), /*#__PURE__*/React.createElement(Btn, {
+    variant: r.tone === 'red' ? 'primary' : 'primaryOutline',
     size: "sm",
     onClick: () => complete(r),
     style: {
@@ -114119,12 +114151,12 @@ const PortalCommsMock = ({
     style: {
       padding: '9px 13px',
       borderRadius: mine ? '14px 4px 14px 14px' : '4px 14px 14px 14px',
-      background: mine ? T.primary : T.card,
+      background: mine ? PT.gradient : T.card,
       border: mine ? 'none' : `1px solid ${T.borderSoft}`,
       color: mine ? '#fff' : T.text,
       fontSize: 12.5,
       lineHeight: 1.55,
-      boxShadow: mine ? '0 1px 2px rgba(79,70,229,0.18)' : T.shadowXs,
+      boxShadow: mine ? '0 2px 6px -1px rgba(74,63,190,0.30)' : T.shadowXs,
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-word'
     }
@@ -114436,7 +114468,7 @@ const PortalCommsMock = ({
       height: 38,
       maxHeight: 120,
       padding: '9px 14px',
-      border: `1px solid ${T.border}`,
+      border: `1px solid ${T.borderSoft}`,
       borderRadius: 18,
       fontSize: 13,
       fontFamily: 'inherit',
@@ -114642,9 +114674,7 @@ const PortalPayrollMock = ({
       padding: '11px 16px',
       borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
     }
-  }, /*#__PURE__*/React.createElement(IconChip, {
-    icon: "receipt",
-    tone: "neutral",
+  }, /*#__PURE__*/React.createElement(PdfFileIcon, {
     size: 32
   }), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -114665,7 +114695,8 @@ const PortalPayrollMock = ({
       fontSize: 14,
       fontWeight: 700,
       minWidth: 64,
-      textAlign: 'right'
+      textAlign: 'right',
+      fontVariantNumeric: 'tabular-nums'
     }
   }, s.net), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -114743,17 +114774,17 @@ const PortalClientGroupOverview = ({
     value: `${verifiedCount}/${g.clientsTotal}`,
     sub: "AML / KYC"
   }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "fileText",
+    icon: "tag",
     tone: "neutral",
-    label: "Group documents",
-    value: String(docs.length),
-    sub: "shared with you"
+    label: "Group reference",
+    value: portal.group && portal.group.ref || PORTAL_GROUP.ref,
+    sub: "Your engagement ID"
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '1.6fr 1fr',
       gap: 16,
-      alignItems: 'start'
+      alignItems: 'stretch'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "Members",
@@ -116088,11 +116119,13 @@ const PortalSidebar = ({
     home,
     locked,
     active,
-    badge
+    badge,
+    badgeColor,
+    onClick: clickOverride
   }) => /*#__PURE__*/React.createElement("button", {
     "data-hover": "row",
     "data-tour": 'nav-' + id,
-    onClick: () => onNav(id),
+    onClick: clickOverride || (() => onNav(id)),
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -116127,7 +116160,7 @@ const PortalSidebar = ({
       fontSize: 10,
       fontWeight: 800,
       color: '#fff',
-      background: T.amber,
+      background: badgeColor || T.amber,
       borderRadius: 999,
       padding: '1px 6px',
       minWidth: 16,
@@ -116231,7 +116264,7 @@ const PortalSidebar = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: slim ? '18px 0 14px' : '18px 18px 14px',
-      borderBottom: `1px solid ${T.border}`,
+      borderBottom: '1px solid rgba(74,63,190,0.10)',
       display: 'flex',
       justifyContent: slim ? 'center' : 'flex-start'
     }
@@ -116347,7 +116380,7 @@ const PortalSidebar = ({
     });
   })), /*#__PURE__*/React.createElement("div", {
     style: {
-      borderTop: `1px solid ${T.border}`,
+      borderTop: '1px solid rgba(74,63,190,0.10)',
       padding: slim ? '10px 8px' : '10px 12px'
     }
   }, slim ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(IconRow, {
@@ -116370,83 +116403,29 @@ const PortalSidebar = ({
     onClick: () => onboarded ? onNav('settings') : fireToast({
       message: 'Settings unlock after onboarding'
     })
-  })) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    "data-hover": "row",
-    onClick: () => onboarded ? onNav('notifications') : fireToast({
+  })) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(NavRow, {
+    id: "notifications",
+    icon: "bell",
+    label: "Notifications",
+    locked: !onboarded,
+    active: activeSection === 'notifications',
+    badge: onboarded ? 3 : null,
+    badgeColor: T.red,
+    onClick: !onboarded ? () => fireToast({
       message: 'Notifications unlock after onboarding'
-    }),
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 11,
-      width: '100%',
-      padding: '9px 12px',
-      borderRadius: 9,
-      marginBottom: 2,
-      textAlign: 'left',
-      cursor: 'pointer',
-      border: 'none',
-      background: activeSection === 'notifications' ? PT.brandSoft : 'transparent',
-      color: activeSection === 'notifications' ? PT.brandDeep : onboarded ? T.textSoft : T.mutedSoft
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "bell",
-    size: 16,
-    color: activeSection === 'notifications' ? PT.brand : onboarded ? T.muted : T.mutedSoft
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
-      fontSize: 13,
-      fontWeight: activeSection === 'notifications' ? 600 : 500
-    }
-  }, "Notifications"), onboarded ? /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10,
-      fontWeight: 800,
-      color: '#fff',
-      background: '#EF4444',
-      borderRadius: 999,
-      padding: '1px 6px'
-    }
-  }, "3") : /*#__PURE__*/React.createElement(Icon, {
-    name: "lock",
-    size: 12,
-    color: T.mutedSoft
-  })), /*#__PURE__*/React.createElement("button", {
-    "data-hover": "row",
-    onClick: () => onboarded ? onNav('settings') : fireToast({
+    }) : undefined
+  }), /*#__PURE__*/React.createElement(NavRow, {
+    id: "settings",
+    icon: "sliders",
+    label: "Settings",
+    locked: !onboarded,
+    active: activeSection === 'settings',
+    onClick: !onboarded ? () => fireToast({
       message: 'Settings unlock after onboarding'
-    }),
+    }) : undefined
+  }))), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 11,
-      width: '100%',
-      padding: '9px 12px',
-      borderRadius: 9,
-      textAlign: 'left',
-      cursor: 'pointer',
-      border: 'none',
-      background: activeSection === 'settings' ? PT.brandSoft : 'transparent',
-      color: activeSection === 'settings' ? PT.brandDeep : onboarded ? T.textSoft : T.mutedSoft
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "sliders",
-    size: 16,
-    color: activeSection === 'settings' ? PT.brand : onboarded ? T.muted : T.mutedSoft
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
-      fontSize: 13,
-      fontWeight: activeSection === 'settings' ? 600 : 500
-    }
-  }, "Settings"), !onboarded && /*#__PURE__*/React.createElement(Icon, {
-    name: "lock",
-    size: 12,
-    color: T.mutedSoft
-  })))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      borderTop: `1px solid ${T.border}`,
+      borderTop: '1px solid rgba(74,63,190,0.10)',
       padding: slim ? '12px 0' : '12px 14px',
       display: 'flex',
       alignItems: 'center',
@@ -116839,7 +116818,7 @@ const PORTAL_ONBOARDING_VIEW = PortalOnboardingWizard;
 // The real client portal is an isolated, firm-branded surface with NO link back to SPM —
 // set this to false to strip every demo control for production. The "Tour" button is a
 // real product feature and stays regardless.
-const PORTAL_DEV_CONTROLS = true;
+const PORTAL_DEV_CONTROLS = false;
 
 // --- main app shell -----------------------------------------------------------
 const ClientPortalApp = () => {
@@ -116930,7 +116909,7 @@ const ClientPortalApp = () => {
       background: PT.pageBg,
       display: 'flex',
       position: 'relative',
-      overflow: 'hidden'
+      overflowX: 'clip'
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "pt-aurora",
@@ -117039,12 +117018,24 @@ const ClientPortalApp = () => {
     variant: "soft",
     size: "sm",
     icon: "sparkle",
-    onClick: startTour
-  }, "Tour"), PORTAL_DEV_CONTROLS && /*#__PURE__*/React.createElement(PortalDemoControls, {
+    onClick: startTour,
+    style: {
+      background: PT.brandSoft,
+      color: PT.brand,
+      borderColor: 'rgba(74,63,190,0.18)'
+    }
+  }, "Tour"), PORTAL_DEV_CONTROLS && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 1,
+      height: 22,
+      background: 'rgba(74,63,190,0.12)',
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement(PortalDemoControls, {
     portal: portal,
     setPortal: setPortal,
     fireToast: fireToast
-  }))), showGroupHeader && /*#__PURE__*/React.createElement("div", {
+  })))), showGroupHeader && /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 16
     }
