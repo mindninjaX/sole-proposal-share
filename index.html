@@ -377,6 +377,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     border-color: #C7C9FB;
     background: #F5F6FF;
   }
+  /* Practice-side card lift — opt-in via <Card hover>. The data-hover="tile" rules
+     above only match <button>; Card is a <div>, so it needs its own rule. */
+  [data-card="lift"]        { transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease; }
+  [data-card="lift"]:hover  { transform: translateY(-2px); border-color: #C7C9FB; box-shadow: 0 10px 24px -12px rgba(91,91,246,0.28), 0 1px 2px rgba(15,17,23,0.04); }
+  /* Onboarding builder rail/rows — hover affordance + reveal-on-hover delete. These
+     classes existed in the builder with no CSS, so the rail felt dead. Non-active
+     rows omit an inline background so this hover wins; active rows set it inline. */
+  [data-onb-row]                       { transition: background 0.1s; }
+  [data-onb-row]:hover                 { background: #F9FAFB; }
+  .onb-rowdel                          { opacity: 0; transition: opacity 0.12s; }
+  [data-onb-row]:hover .onb-rowdel     { opacity: 1; }
   a[data-hover="link"]                                  { transition: color 0.1s; }
   a[data-hover="link"]:hover                            { color: #4F46E5; }
   /* Inline link affordance for entity names in dashboard tables
@@ -2055,9 +2066,12 @@ const BrandMark = ({
 const Card = ({
   children,
   style,
-  padded = true
+  padded = true,
+  hover,
+  onClick
 }) => /*#__PURE__*/React.createElement("div", {
-  "data-card": "base",
+  "data-card": hover ? 'lift' : 'base',
+  onClick: onClick,
   style: {
     background: T.card,
     border: `1px solid ${T.borderSoft}`,
@@ -44595,6 +44609,18 @@ const COMP_ACTION_LABEL = {
   review_due: 'Re-verify',
   blocked: 'Resolve'
 };
+// Action-button variant by urgency, so the eye lands on what needs action (mirrors the
+// detail page's verdictBtn): blocked loudest (filled red) → review_due (filled) → outbound
+// send/resend (outline) → passive view/review (ghost).
+const ACTION_VARIANT = {
+  not_started: 'primaryOutline',
+  invited: 'primaryOutline',
+  in_progress: 'ghost',
+  submitted: 'ghost',
+  verified: 'ghost',
+  review_due: 'primary',
+  blocked: 'danger'
+};
 const goCompliance = id => {
   window.location.hash = '#/practice/compliance-detail/' + id;
 };
@@ -44605,12 +44631,20 @@ const ComplianceDashboardPage = ({
   const [riskFilter, setRiskFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
+  const {
+    isMobile,
+    isTablet
+  } = useViewport();
   const counts = {
     all: PRACTICE_COMPLIANCE.length
   };
   COMPLIANCE_STATUS_ORDER.forEach(k => {
     counts[k] = PRACTICE_COMPLIANCE.filter(r => r.status === k).length;
   });
+  // KPI strip derivations — health-at-a-glance above the table (counts double as filters).
+  const kpiToday = compDay(0);
+  const overdueCount = PRACTICE_COMPLIANCE.filter(r => r.reviewDue < kpiToday && ['verified', 'review_due'].includes(r.status)).length;
+  const highRiskCount = PRACTICE_COMPLIANCE.filter(r => effectiveRisk(r) === 'high').length;
   const needle = search.trim().toLowerCase();
   const rows = PRACTICE_COMPLIANCE.filter(r => (statusFilter === 'all' || r.status === statusFilter) && (riskFilter === 'all' || effectiveRisk(r) === riskFilter) && (!needle || (r.name + ' ' + r.entityType + ' ' + r.abn).toLowerCase().includes(needle)));
   const toggle = id => setSelected(s => {
@@ -44641,28 +44675,56 @@ const ComplianceDashboardPage = ({
       flex: 1,
       minWidth: 0,
       padding: '24px 28px 40px',
-      overflow: 'auto'
+      overflow: 'auto',
+      animation: 'fadein 0.25s ease'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(PageHead, {
+    title: "Clients Management",
+    subtitle: "Onboarding & AML/CTF verification across every client. Accountants are reporting entities under AUSTRAC from 1 Jul 2026 \u2014 track CDD, risk and review dates here.",
+    actions: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "sm",
+      icon: "download",
+      onClick: () => fireToast({
+        message: 'Client register exported (mock)'
+      })
+    }, "Export register")
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: 16,
-      flexWrap: 'wrap',
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+      gap: 12,
       marginBottom: 16
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 22,
-      fontWeight: 700,
-      letterSpacing: -0.3
-    }
-  }, "Clients Management"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      marginTop: 2
-    }
-  }, "Onboarding & AML/CTF verification across every client. Accountants are reporting entities under AUSTRAC from 1 Jul 2026 \u2014 track CDD, risk and review dates here."))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "shield",
+    tone: "green",
+    label: "Verified",
+    value: counts.verified || 0,
+    sub: "cleared to act",
+    onClick: () => setStatusFilter(statusFilter === 'verified' ? 'all' : 'verified')
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "calendar",
+    tone: overdueCount ? 'red' : 'amber',
+    label: "Review due",
+    value: counts.review_due || 0,
+    sub: overdueCount ? `${overdueCount} overdue` : 'all current',
+    onClick: () => setStatusFilter(statusFilter === 'review_due' ? 'all' : 'review_due')
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "alertTriangle",
+    tone: counts.blocked || 0 ? 'red' : 'neutral',
+    label: "Blocked",
+    value: counts.blocked || 0,
+    sub: "need resolution",
+    onClick: () => setStatusFilter(statusFilter === 'blocked' ? 'all' : 'blocked')
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "gauge",
+    tone: highRiskCount ? 'red' : 'neutral',
+    label: "High risk",
+    value: highRiskCount,
+    sub: "enhanced CDD",
+    onClick: () => setRiskFilter(riskFilter === 'high' ? 'all' : 'high')
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -44723,47 +44785,53 @@ const ComplianceDashboardPage = ({
       size: 14,
       color: T.muted
     })
-  }))), selected.size > 0 && /*#__PURE__*/React.createElement("div", {
+  }))), selected.size > 0 && /*#__PURE__*/React.createElement(Banner, {
+    tone: "accent",
+    icon: "check",
+    title: `${selected.size} selected`,
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '10px 14px',
-      background: T.primarySofter,
-      border: `1px solid #C7C9FB`,
-      borderRadius: 10,
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      fontWeight: 600,
-      color: T.primary
-    }
-  }, selected.size, " selected"), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    size: "sm",
-    icon: "shield",
-    onClick: () => {
-      fireToast({
-        message: `Verification requested for ${selected.size} client${selected.size === 1 ? '' : 's'}`
-      });
-      setSelected(new Set());
-    }
-  }, "Request verification"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setSelected(new Set()),
-    style: {
-      border: 'none',
-      background: 'transparent',
-      cursor: 'pointer',
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: T.muted
-    }
-  }, "Clear")), /*#__PURE__*/React.createElement(Card, {
+      marginBottom: 12,
+      animation: 'slidein 0.2s ease'
+    },
+    action: /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "shield",
+      onClick: () => {
+        fireToast({
+          message: `Verification requested for ${selected.size} client${selected.size === 1 ? '' : 's'}`
+        });
+        setSelected(new Set());
+      }
+    }, "Request verification"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setSelected(new Set()),
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.primary
+      }
+    }, "Clear"))
+  }), /*#__PURE__*/React.createElement(Card, {
     padded: false,
     style: {
       overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 820
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -44794,12 +44862,23 @@ const ComplianceDashboardPage = ({
       textTransform: 'uppercase',
       letterSpacing: 0.6
     }
-  }, h))), rows.length === 0 && /*#__PURE__*/React.createElement("div", {
+  }, h))), rows.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "search",
+    title: "No clients match",
+    hint: "Try a different status, risk band or search term.",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "sm",
+      onClick: () => {
+        setStatusFilter('all');
+        setRiskFilter('all');
+        setSearch('');
+      }
+    }, "Clear filters"),
     style: {
-      padding: '28px 16px',
-      textAlign: 'center'
+      padding: '40px 16px'
     }
-  }, /*#__PURE__*/React.createElement(Helper, null, "No clients match this filter.")), rows.map((rec, i) => {
+  }), rows.map((rec, i) => {
     // The portal-linked row mirrors the live client group's real progress so the
     // dashboard and the detail page agree (the rest use the seeded mock %).
     const pct = rec._portal ? groupProgress(buildPortalMirror()).pct : rec.onboarding.total ? Math.round(rec.onboarding.done / rec.onboarding.total * 100) : 0;
@@ -44881,7 +44960,8 @@ const ComplianceDashboardPage = ({
         height: '100%',
         width: `${pct}%`,
         background: pct === 100 ? T.green : T.primary,
-        borderRadius: 99
+        borderRadius: 99,
+        transition: 'width 0.3s ease'
       }
     })), /*#__PURE__*/React.createElement("span", {
       style: {
@@ -44905,11 +44985,11 @@ const ComplianceDashboardPage = ({
         textAlign: 'right'
       }
     }, /*#__PURE__*/React.createElement(Btn, {
-      variant: "ghost",
+      variant: ACTION_VARIANT[rec.status] || 'ghost',
       size: "sm",
       onClick: e => onAction(rec, e)
     }, COMP_ACTION_LABEL[rec.status])));
-  })));
+  })))));
 };
 
 // --- per-client verification detail ---
@@ -45153,7 +45233,8 @@ const ComplianceDetailPage = ({
       flex: 1,
       minWidth: 0,
       padding: '24px 28px 40px',
-      overflow: 'auto'
+      overflow: 'auto',
+      animation: 'fadein 0.25s ease'
     }
   }, /*#__PURE__*/React.createElement(BackLink, null), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -45186,7 +45267,7 @@ const ComplianceDetailPage = ({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: 800,
       letterSpacing: -0.3
     }
@@ -45353,7 +45434,8 @@ const ComplianceDetailPage = ({
         height: '100%',
         width: `${done ? 100 : cpct}%`,
         background: done ? T.green : T.primary,
-        borderRadius: 99
+        borderRadius: 99,
+        transition: 'width 0.3s ease'
       }
     })), /*#__PURE__*/React.createElement(Helper, {
       style: {
@@ -45573,33 +45655,13 @@ const ComplianceDetailPage = ({
     }
   }, b.note)), /*#__PURE__*/React.createElement(Pill, {
     color: RISK_PILL[b.level]
-  }, RISK_LABEL[b.level])))), rec.eddTriggered && /*#__PURE__*/React.createElement("div", {
+  }, RISK_LABEL[b.level])))), rec.eddTriggered && /*#__PURE__*/React.createElement(Banner, {
+    tone: "warn",
+    title: "Enhanced due diligence required",
     style: {
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: 9,
-      marginTop: 14,
-      padding: '11px 13px',
-      background: T.amberSoft,
-      border: '1px solid #FCD34D',
-      borderRadius: T.radius
+      marginTop: 14
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "alertTriangle",
-    size: 15,
-    color: T.amber
-  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 700,
-      color: '#92400E'
-    }
-  }, "Enhanced due diligence required"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5,
-      color: '#92400E'
-    }
-  }, rec.eddNote)))), /*#__PURE__*/React.createElement(PanelCard, {
+  }, rec.eddNote)), /*#__PURE__*/React.createElement(PanelCard, {
     title: "Compliance calendar",
     subtitle: "Review schedule, retention & full audit trail",
     icon: "calendar",
@@ -99795,26 +99857,40 @@ const CrmMetric = ({
   label,
   value,
   sub,
-  valueSize = 17
+  icon,
+  tone = 'accent',
+  valueSize = 19
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
     border: `1px solid ${T.border}`,
     borderRadius: 10,
     background: T.fieldBg,
-    padding: '9px 10px'
+    padding: '10px 11px',
+    minWidth: 0
   }
-}, /*#__PURE__*/React.createElement("div", {
+}, icon && /*#__PURE__*/React.createElement(IconChip, {
+  icon: icon,
+  tone: tone,
+  size: 26,
+  gradient: true,
+  style: {
+    marginBottom: 8
+  }
+}), /*#__PURE__*/React.createElement("div", {
   style: {
     fontSize: 10.5,
-    color: T.muted
+    fontWeight: 600,
+    color: T.muted,
+    letterSpacing: 0.2
   }
 }, label), /*#__PURE__*/React.createElement("div", {
   style: {
     fontSize: valueSize,
-    fontWeight: 700,
+    fontWeight: 800,
     letterSpacing: -0.3,
-    marginTop: 4,
-    color: T.text
+    marginTop: 2,
+    color: T.text,
+    fontVariantNumeric: 'tabular-nums'
   }
 }, value), sub && /*#__PURE__*/React.createElement("div", {
   style: {
@@ -99848,7 +99924,8 @@ const CrmRow = ({
   sub,
   badge,
   badgeColor = 'neutral',
-  onClick
+  onClick,
+  leading
 }) => /*#__PURE__*/React.createElement("div", {
   onClick: onClick,
   "data-hover": onClick ? 'row' : undefined,
@@ -99864,6 +99941,13 @@ const CrmRow = ({
     cursor: onClick ? 'pointer' : 'default'
   }
 }, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 9,
+    minWidth: 0
+  }
+}, leading, /*#__PURE__*/React.createElement("div", {
   style: {
     minWidth: 0
   }
@@ -99885,14 +99969,15 @@ const CrmRow = ({
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   }
-}, sub)), badge && /*#__PURE__*/React.createElement(Pill, {
+}, sub))), badge && /*#__PURE__*/React.createElement(Pill, {
   color: badgeColor
 }, badge));
 const CrmAlert = ({
   tone = 'accent',
   glyph = '!',
   title,
-  detail
+  detail,
+  gradient
 }) => {
   const map = {
     accent: T.primary,
@@ -99902,6 +99987,7 @@ const CrmAlert = ({
     green: T.green
   };
   const c = map[tone] || T.primary;
+  const gt = ICONCHIP_TONES[tone] || ICONCHIP_TONES.accent;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'relative',
@@ -99918,12 +100004,13 @@ const CrmAlert = ({
       width: 18,
       height: 18,
       borderRadius: '50%',
-      background: c,
+      background: gradient ? gt.grad : c,
       color: '#fff',
       display: 'grid',
       placeItems: 'center',
       fontSize: 10,
-      fontWeight: 800
+      fontWeight: 800,
+      boxShadow: gradient ? `0 4px 10px -4px ${gt.shadow}` : undefined
     }
   }, glyph), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -101104,16 +101191,24 @@ const ClientRelationshipMapPage = ({
       }, /*#__PURE__*/React.createElement(CrmMetricGrid, {
         items: [{
           label: 'Monthly value',
-          value: fmtMoneyCompact(e.revenue)
+          value: fmtMoneyCompact(e.revenue),
+          icon: 'dollar',
+          tone: 'accent'
         }, {
           label: 'Open jobs',
-          value: e.openJobs
+          value: e.openJobs,
+          icon: 'briefcase',
+          tone: 'blue'
         }, {
           label: 'WIP',
-          value: fmtMoneyCompact(e.wip)
+          value: fmtMoneyCompact(e.wip),
+          icon: 'clock',
+          tone: 'amber'
         }, {
           label: 'Receivables',
-          value: fmtMoneyCompact(e.ar)
+          value: fmtMoneyCompact(e.ar),
+          icon: 'wallet',
+          tone: 'red'
         }]
       })), /*#__PURE__*/React.createElement(CrmPanelCard, {
         title: "Compliance and authority"
@@ -101188,16 +101283,24 @@ const ClientRelationshipMapPage = ({
       }, /*#__PURE__*/React.createElement(CrmMetricGrid, {
         items: [{
           label: 'Entities',
-          value: ents.length
+          value: ents.length,
+          icon: 'building',
+          tone: 'accent'
         }, {
           label: 'Contact people',
-          value: contacts.size
+          value: contacts.size,
+          icon: 'users',
+          tone: 'blue'
         }, {
           label: 'Monthly value',
-          value: fmtMoneyCompact(revenue)
+          value: fmtMoneyCompact(revenue),
+          icon: 'dollar',
+          tone: 'accent'
         }, {
           label: 'Action flags',
-          value: flags
+          value: flags,
+          icon: 'alertTriangle',
+          tone: flags ? 'red' : 'neutral'
         }]
       })), /*#__PURE__*/React.createElement(CrmPanelCard, {
         title: "Client entities"
@@ -101295,22 +101398,34 @@ const ClientRelationshipMapPage = ({
     }, /*#__PURE__*/React.createElement(CrmMetricGrid, {
       items: [{
         label: 'Groups visible',
-        value: stats.groups
+        value: stats.groups,
+        icon: 'layers',
+        tone: 'accent'
       }, {
         label: 'Client entities',
-        value: stats.entities.length
+        value: stats.entities.length,
+        icon: 'briefcase',
+        tone: 'accent'
       }, {
         label: 'Contact people',
-        value: stats.contactsCount
+        value: stats.contactsCount,
+        icon: 'users',
+        tone: 'blue'
       }, {
         label: 'Monthly value',
-        value: fmtMoneyCompact(stats.revenue)
+        value: fmtMoneyCompact(stats.revenue),
+        icon: 'dollar',
+        tone: 'accent'
       }, {
         label: 'WIP',
-        value: fmtMoneyCompact(stats.wip)
+        value: fmtMoneyCompact(stats.wip),
+        icon: 'clock',
+        tone: 'amber'
       }, {
         label: 'Receivables',
-        value: fmtMoneyCompact(stats.ar)
+        value: fmtMoneyCompact(stats.ar),
+        icon: 'wallet',
+        tone: 'red'
       }]
     })), /*#__PURE__*/React.createElement(CrmPanelCard, {
       title: "Priority operating view"
@@ -101320,6 +101435,15 @@ const ClientRelationshipMapPage = ({
       sub: `${e.group.name} · ${e.next}`,
       badge: e.risk === 'high' ? 'High risk' : 'Action',
       badgeColor: e.risk === 'high' ? 'red' : 'amber',
+      leading: /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 9,
+          height: 9,
+          borderRadius: '50%',
+          background: crmStatusColour(e, mode),
+          flexShrink: 0
+        }
+      }),
       onClick: () => setSelection({
         type: 'entity',
         id: e.id,
@@ -101330,13 +101454,15 @@ const ClientRelationshipMapPage = ({
     }, /*#__PURE__*/React.createElement(CrmList, null, /*#__PURE__*/React.createElement(CrmAlert, {
       tone: "accent",
       glyph: "1",
+      gradient: true,
       title: "Relationship control",
-      detail: "Shows the real accounting structure \u2014 group \u2192 entity \u2192 contact \u2014 not a flat client list."
+      detail: "The real group \u2192 entity \u2192 contact structure, not a flat client list."
     }), /*#__PURE__*/React.createElement(CrmAlert, {
       tone: "blue",
       glyph: "2",
+      gradient: true,
       title: "Operational triage",
-      detail: "Surfaces missing authority, AML, BAS, bank feeds, WIP and receivables at a glance."
+      detail: "Missing authority, AML, BAS, bank feeds, WIP and receivables \u2014 at a glance."
     }))), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
@@ -101402,23 +101528,13 @@ const ClientRelationshipMapPage = ({
       flex: 1,
       minWidth: 0,
       padding: '24px 28px 56px',
-      overflow: 'auto'
+      overflow: 'auto',
+      animation: 'fadein 0.25s ease'
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginBottom: 14
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 22,
-      fontWeight: 700,
-      letterSpacing: -0.4
-    }
-  }, "Client relationship map"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      marginTop: 4
-    }
-  }, "Each dot is a client group. Click one to reveal the businesses inside it; click a business for its people. Drag any node to rearrange. Colour shows status.")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(PageHead, {
+    title: "Client relationship map",
+    subtitle: "Your client base as group \u2192 entity \u2192 contact. Click a node to expand it; drag to rearrange."
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 9,
@@ -101439,19 +101555,15 @@ const ClientRelationshipMapPage = ({
       name: "search",
       size: 15,
       color: T.muted
-    })
+    }),
+    style: {
+      height: 36
+    }
   })), /*#__PURE__*/React.createElement(Chip, {
     size: "sm",
     selected: quick === 'attention',
     onClick: () => setQuick(quick === 'attention' ? 'all' : 'attention')
-  }, "Needs attention"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12,
-      color: T.muted,
-      padding: '0 4px',
-      whiteSpace: 'nowrap'
-    }
-  }, "Click a group to open it \xB7 drag to arrange"), (expanded.size > 0 || Object.keys(override).length > 0) && /*#__PURE__*/React.createElement(Chip, {
+  }, "Needs attention"), (expanded.size > 0 || Object.keys(override).length > 0) && /*#__PURE__*/React.createElement(Chip, {
     size: "sm",
     onClick: () => {
       setExpanded(new Set());
@@ -101467,7 +101579,7 @@ const ClientRelationshipMapPage = ({
       border: `1px solid ${T.border}`,
       borderRadius: 8,
       background: T.card,
-      height: 34
+      height: 36
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
@@ -101503,7 +101615,10 @@ const ClientRelationshipMapPage = ({
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: activeFilterCount ? 'primaryOutline' : 'ghost',
     icon: "filter",
-    onClick: () => setFilterOpen(o => !o)
+    onClick: () => setFilterOpen(o => !o),
+    style: {
+      minHeight: 36
+    }
   }, "Filters", activeFilterCount ? ` · ${activeFilterCount}` : ''), filterOpen && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
     onClick: () => setFilterOpen(false),
     style: {
@@ -101880,27 +101995,29 @@ const ClientRelationshipMapPage = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      width: 300,
-      padding: 20,
-      border: `1px dashed ${T.borderStrong}`,
+      pointerEvents: 'auto',
       background: T.card,
+      border: `1px solid ${T.borderSoft}`,
       borderRadius: 14,
-      textAlign: 'center'
+      boxShadow: T.shadowMd
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "search",
+    title: "Nothing matches those filters",
+    hint: "Clear the search or filters to see more clients.",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "sm",
+      onClick: () => {
+        clearFilters();
+        setSearch('');
+      }
+    }, "Clear filters"),
     style: {
-      fontSize: 15,
-      fontWeight: 600,
-      color: T.text
+      padding: '28px 32px',
+      maxWidth: 320
     }
-  }, "Nothing matches those filters"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12,
-      color: T.muted,
-      marginTop: 7,
-      lineHeight: 1.35
-    }
-  }, "Clear the search or filters to see more clients."))), !drawerOpen && /*#__PURE__*/React.createElement("button", {
+  }))), !drawerOpen && /*#__PURE__*/React.createElement("button", {
     onClick: () => setDrawerOpen(true),
     style: {
       position: 'absolute',
@@ -117133,6 +117250,11 @@ const ONB_CAT_ICON = {
   Bookkeeping: 'receipt',
   Custom: 'sliders'
 };
+const ONB_CAT_TONE = {
+  Accounting: 'accent',
+  Bookkeeping: 'green',
+  Custom: 'neutral'
+};
 const onbSixDot = color => /*#__PURE__*/React.createElement("svg", {
   width: "9",
   height: "15",
@@ -117242,6 +117364,7 @@ const OnbFieldPicker = ({
     open: open,
     onClose: onClose,
     title: "Select a field type",
+    subtitle: "Choose how the client answers this question",
     width: 780
   }, /*#__PURE__*/React.createElement(Input, {
     value: q,
@@ -117680,6 +117803,10 @@ const OnbPreview = ({
 const OnboardingTemplatesPage = ({
   fireToast
 }) => {
+  const {
+    isMobile,
+    isCompact
+  } = useViewport();
   const [view, setView] = useState('gallery');
   const [builderMode, setBuilderMode] = useState('outline'); // 'outline' (MECE map) | 'edit'
   const [draft, setDraft] = useState(null);
@@ -117842,6 +117969,7 @@ const OnboardingTemplatesPage = ({
     }
   }, /*#__PURE__*/React.createElement("button", {
     onClick: newTemplate,
+    "data-hover": "tile",
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -117850,7 +117978,7 @@ const OnboardingTemplatesPage = ({
       gap: 8,
       minHeight: 168,
       border: `1.5px dashed ${T.borderStrong}`,
-      borderRadius: 12,
+      borderRadius: T.radiusLg,
       background: T.card,
       cursor: 'pointer',
       color: T.primary
@@ -117872,40 +118000,32 @@ const OnboardingTemplatesPage = ({
     const fc = onbTemplateFieldCount(t);
     return /*#__PURE__*/React.createElement(Card, {
       key: t.id,
+      hover: true,
       style: {
         padding: 0,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        minHeight: 168
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
         padding: 16,
-        flex: 1
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'flex-start',
-        gap: 11,
-        marginBottom: 10
+        gap: 11
       }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 38,
-        height: 38,
-        borderRadius: 9,
-        background: T.primarySoft,
-        color: T.primary,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: ONB_CAT_ICON[t.category] || 'clipboard',
-      size: 19
-    })), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: ONB_CAT_ICON[t.category] || 'clipboard',
+      tone: ONB_CAT_TONE[t.category] || 'accent',
+      size: 38
+    }), /*#__PURE__*/React.createElement("div", {
       style: {
         flex: 1,
         minWidth: 0
@@ -117922,17 +118042,19 @@ const OnboardingTemplatesPage = ({
         fontSize: 11.5,
         marginTop: 2
       }
-    }, t.serviceType || 'Custom', t.builtin ? '' : ' · Your template')), t.kyc && /*#__PURE__*/React.createElement(Pill, {
-      color: "blue",
-      title: "Includes a KYC / AML section"
-    }, "KYC/AML")), /*#__PURE__*/React.createElement("div", {
+    }, t.serviceType || 'Custom', t.builtin ? '' : ' · Your template'))), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         flexWrap: 'wrap',
+        alignItems: 'center',
         gap: 5,
-        marginBottom: 10
+        marginTop: 10,
+        minHeight: 22
       }
-    }, (t.entityTypes || []).slice(0, 4).map(e => /*#__PURE__*/React.createElement(Pill, {
+    }, t.kyc && /*#__PURE__*/React.createElement(Pill, {
+      color: "blue",
+      title: "Includes a KYC / AML section"
+    }, "KYC/AML"), (t.entityTypes || []).slice(0, 4).map(e => /*#__PURE__*/React.createElement(Pill, {
       key: e,
       color: "neutral",
       style: {
@@ -117940,7 +118062,9 @@ const OnboardingTemplatesPage = ({
       }
     }, e))), /*#__PURE__*/React.createElement(Helper, {
       style: {
-        fontSize: 11.5
+        fontSize: 11.5,
+        marginTop: 'auto',
+        paddingTop: 10
       }
     }, t.pages.length, " page", t.pages.length === 1 ? '' : 's', " \xB7 ", fc, " field", fc === 1 ? '' : 's')), /*#__PURE__*/React.createElement("div", {
       style: {
@@ -117966,13 +118090,13 @@ const OnboardingTemplatesPage = ({
         flex: 1
       }
     }), /*#__PURE__*/React.createElement(Btn, {
-      variant: "ghost",
+      variant: "iconOnly",
       size: "sm",
       icon: "copy",
       title: "Duplicate",
       onClick: () => duplicateTemplate(t)
     }), !t.builtin && /*#__PURE__*/React.createElement(Btn, {
-      variant: "ghost",
+      variant: "iconOnly",
       size: "sm",
       icon: "trash",
       title: "Delete",
@@ -117989,11 +118113,19 @@ const OnboardingTemplatesPage = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: 'center',
-      fontSize: 22,
-      fontWeight: 800,
       marginBottom: 24
     }
-  }, "Let's set up this onboarding request"), /*#__PURE__*/React.createElement(Card, {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800
+    }
+  }, "Let's set up this onboarding request"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13,
+      marginTop: 4
+    }
+  }, "Name it, pick who it's for, and we'll build the question set next.")), /*#__PURE__*/React.createElement(Card, {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -118008,7 +118140,7 @@ const OnboardingTemplatesPage = ({
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
       gap: 14
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Service type"), /*#__PURE__*/React.createElement(Input, {
@@ -118062,7 +118194,11 @@ const OnboardingTemplatesPage = ({
         enabled: v
       };
     })
-  })), draft.intro && draft.intro.enabled && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Welcome message"), /*#__PURE__*/React.createElement("textarea", {
+  })), draft.intro && draft.intro.enabled && /*#__PURE__*/React.createElement("div", {
+    style: {
+      animation: 'expand 0.15s ease'
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Welcome message"), /*#__PURE__*/React.createElement("textarea", {
     value: draft.intro.html || '',
     onChange: e => mutate(d => {
       d.intro = {
@@ -118196,7 +118332,7 @@ const OnboardingTemplatesPage = ({
   const renderBuilderEdit = () => /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '240px 1fr',
+      gridTemplateColumns: isCompact ? '1fr' : '240px 1fr',
       gap: 20,
       alignItems: 'start'
     }
@@ -118204,8 +118340,10 @@ const OnboardingTemplatesPage = ({
     style: {
       padding: 0,
       overflow: 'hidden',
-      position: 'sticky',
-      top: 16
+      ...(isCompact ? {} : {
+        position: 'sticky',
+        top: 16
+      })
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -118238,8 +118376,10 @@ const OnboardingTemplatesPage = ({
           padding: '8px 9px',
           borderRadius: 8,
           cursor: 'pointer',
-          background: active ? T.primarySofter : 'transparent',
-          marginBottom: 2
+          marginBottom: 2,
+          ...(active ? {
+            background: T.primarySofter
+          } : {})
         }
       }, /*#__PURE__*/React.createElement("button", _extends({}, grip, {
         title: "Drag to reorder",
@@ -118315,7 +118455,9 @@ const OnboardingTemplatesPage = ({
               borderRadius: 7,
               cursor: 'pointer',
               marginBottom: 1,
-              background: focused ? T.primarySofter : 'transparent'
+              ...(focused ? {
+                background: T.primarySofter
+              } : {})
             }
           }, /*#__PURE__*/React.createElement("button", _extends({}, sgrip, {
             onClick: e => e.stopPropagation(),
@@ -118466,12 +118608,27 @@ const OnboardingTemplatesPage = ({
     style: {
       padding: 14
     }
-  }, sec.fields.length === 0 && /*#__PURE__*/React.createElement(Helper, {
+  }, sec.fields.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12.5,
-      marginBottom: 12
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      padding: '18px 12px',
+      marginBottom: 10,
+      border: `1.5px dashed ${T.border}`,
+      borderRadius: 9
     }
-  }, "No fields yet \u2014 add one below."), /*#__PURE__*/React.createElement(OnbDraggableList, {
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "plus",
+    size: 16,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12
+    }
+  }, "No fields yet \u2014 add one below.")), /*#__PURE__*/React.createElement(OnbDraggableList, {
     items: sec.fields,
     onReorder: nf => mutate(d => {
       secOf(d, selPage.id, sec.id).fields = nf;
@@ -118524,21 +118681,19 @@ const OnboardingTemplatesPage = ({
           fontWeight: 600,
           color: T.text
         }
-      }, f.label)), f.kycFlag && /*#__PURE__*/React.createElement(Pill, {
-        color: "blue",
-        style: {
-          fontSize: 9.5
-        }
-      }, "KYC"), f.required && /*#__PURE__*/React.createElement("span", {
+      }, f.label, f.required && /*#__PURE__*/React.createElement("span", {
         title: "Required",
         style: {
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          background: T.amber,
-          flexShrink: 0
+          color: T.red,
+          marginLeft: 2,
+          fontWeight: 700
         }
-      }), /*#__PURE__*/React.createElement(Pill, {
+      }, "*"))), f.kycFlag && /*#__PURE__*/React.createElement(Pill, {
+        color: "blue",
+        style: {
+          fontSize: 10
+        }
+      }, "KYC"), /*#__PURE__*/React.createElement(Pill, {
         color: "neutral",
         style: {
           fontSize: 10
@@ -118794,7 +118949,7 @@ const OnboardingTemplatesPage = ({
       setPreviewKey(k => k + 1);
     },
     style: {
-      width: 170
+      width: isMobile ? '100%' : 170
     }
   }, (draft.entityTypes && draft.entityTypes.length ? draft.entityTypes : ENTITY_TYPES.map(x => x.v)).map(v => /*#__PURE__*/React.createElement("option", {
     key: v,
@@ -118832,21 +118987,12 @@ const OnboardingTemplatesPage = ({
         gap: 12,
         marginBottom: 14
       }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 42,
-        height: 42,
-        borderRadius: 10,
-        background: T.primarySoft,
-        color: T.primary,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: ONB_CAT_ICON[draft.category] || 'clipboard',
-      size: 20
-    })), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: ONB_CAT_ICON[draft.category] || 'clipboard',
+      tone: ONB_CAT_TONE[draft.category] || 'accent',
+      size: 42,
+      gradient: true
+    }), /*#__PURE__*/React.createElement("div", {
       style: {
         flex: 1
       }
@@ -118889,13 +119035,14 @@ const OnboardingTemplatesPage = ({
         if (!draft.builtin) persistDraft();
         window.open(`${window.location.pathname}?onbtpl=${draft.id}#/portal`, '_blank');
       }
-    }, "Open as client")), /*#__PURE__*/React.createElement(Helper, {
+    }, "Open as client")), /*#__PURE__*/React.createElement(Banner, {
+      tone: "info",
       style: {
-        fontSize: 11.5,
-        marginTop: 12
+        marginTop: 14
       }
     }, "Sending invites the client to their portal to complete this exact question set. When they sign, downstream jobs & tasks are created automatically (mocked).")));
   };
+  const curIdx = ONB_STEPS.findIndex(s => s.id === view);
   const stepActions = {
     gallery: null,
     essentials: /*#__PURE__*/React.createElement(Btn, {
@@ -118964,12 +119111,13 @@ const OnboardingTemplatesPage = ({
   }, ONB_STEPS.map((s, i) => {
     const active = s.id === view;
     const enabled = s.id === 'gallery' || !!draft;
+    const done = i < curIdx;
     return /*#__PURE__*/React.createElement(React.Fragment, {
       key: s.id
     }, i > 0 && /*#__PURE__*/React.createElement(Icon, {
       name: "chevronRight",
       size: 13,
-      color: T.mutedSoft
+      color: i <= curIdx ? T.green : T.mutedSoft
     }), /*#__PURE__*/React.createElement("button", {
       onClick: () => goStep(s.id),
       disabled: !enabled,
@@ -118982,7 +119130,7 @@ const OnboardingTemplatesPage = ({
         border: 'none',
         cursor: enabled ? 'pointer' : 'default',
         background: active ? T.primary : 'transparent',
-        color: active ? '#fff' : enabled ? T.textSoft : T.mutedSoft,
+        color: active ? '#fff' : done ? T.text : enabled ? T.textSoft : T.mutedSoft,
         fontWeight: active ? 700 : 600,
         fontSize: 12.5,
         opacity: enabled ? 1 : 0.5
@@ -118997,10 +119145,15 @@ const OnboardingTemplatesPage = ({
         justifyContent: 'center',
         fontSize: 10.5,
         fontWeight: 800,
-        background: active ? 'rgba(255,255,255,0.25)' : T.fieldBg,
-        color: active ? '#fff' : T.muted
+        background: active ? 'rgba(255,255,255,0.25)' : done ? T.greenSoft : T.fieldBg,
+        color: active ? '#fff' : done ? T.greenDark : T.muted
       }
-    }, i + 1), s.label));
+    }, done ? /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 11,
+      color: T.greenDark,
+      strokeWidth: 3
+    }) : i + 1), s.label));
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       marginLeft: 'auto',
@@ -119018,7 +119171,12 @@ const OnboardingTemplatesPage = ({
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap'
     }
-  }, draft.name), stepActions[view])), view === 'gallery' && renderGallery(), view === 'essentials' && draft && renderEssentials(), view === 'builder' && draft && renderBuilder(), view === 'preview' && draft && renderPreview(), view === 'finalize' && draft && renderFinalize(), /*#__PURE__*/React.createElement(OnbFieldPicker, {
+  }, draft.name), stepActions[view])), /*#__PURE__*/React.createElement("div", {
+    key: view,
+    style: {
+      animation: 'fadein 0.18s ease'
+    }
+  }, view === 'gallery' && renderGallery(), view === 'essentials' && draft && renderEssentials(), view === 'builder' && draft && renderBuilder(), view === 'preview' && draft && renderPreview(), view === 'finalize' && draft && renderFinalize()), /*#__PURE__*/React.createElement(OnbFieldPicker, {
     open: !!picker,
     onClose: () => setPicker(null),
     onPick: type => {
