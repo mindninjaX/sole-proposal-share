@@ -545,58 +545,56 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
      + aurora atmosphere. White-label ready (one accent drives it all).
      ============================================================================ */
   .sole-portal { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-  .sole-portal ::selection { background: rgba(74,63,190,0.16); }
-  .sole-portal input:focus, .sole-portal select:focus, .sole-portal textarea:focus { border-color: #4A3FBE !important; box-shadow: 0 0 0 3px rgba(74,63,190,0.13) !important; }
-  /* Grain + aurora atmosphere */
-  .pt-grain::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(90,79,207,0.05) 1px, transparent 1px); background-size: 22px 22px; pointer-events: none; z-index: 0; }
-  .pt-aurora { position: absolute; border-radius: 50%; filter: blur(70px); pointer-events: none; z-index: 0; }
-  /* Premium card depth (portal-only via the [data-card] hook on shared atoms) */
-  .sole-portal [data-card] { border-radius: 18px !important; border-color: #EAEAF6 !important; box-shadow: 0 4px 16px -4px rgba(28,27,71,0.08), 0 1px 4px -1px rgba(28,27,71,0.05) !important; }
-  .sole-portal [data-card="stat"] { transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s cubic-bezier(.22,1,.36,1); }
-  .sole-portal [data-card="stat"]:hover { transform: translateY(-3px); box-shadow: 0 18px 38px -16px rgba(74,63,190,0.34) !important; }
-  /* Brand the primary CTA into a deep-indigo gradient (via Btn's data-btn attr) */
-  .sole-portal [data-btn="primary"] { background: linear-gradient(135deg, #5A4FCF 0%, #4A3FBE 100%) !important; border-color: #463BB8 !important; box-shadow: 0 8px 18px -9px rgba(74,63,190,0.6) !important; transition: filter .15s, transform .15s, box-shadow .15s; }
-  .sole-portal [data-btn="primary"]:hover { filter: brightness(1.08); transform: translateY(-1px); }
-  .sole-portal [data-btn="primaryOutline"] { color: #4A3FBE !important; border-color: #C7C9FB !important; }
-  .sole-portal [data-chip][data-selected="true"] { background: #EEF0FF !important; border-color: #4A3FBE !important; color: #3C33A4 !important; }
-  /* Staggered load reveal */
-  @keyframes ptReveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-  .pt-reveal { animation: ptReveal .5s cubic-bezier(.22,1,.36,1) both; }
-  /* Gentle hover-lift utility (opt-in via style on a wrapping element when needed) */
-  .pt-lift { transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s cubic-bezier(.22,1,.36,1); }
+  .sole-portal ::selection { background: var(--pt-ring, rgba(74,63,190,0.14)); }
+  .sole-portal input:focus, .sole-portal select:focus, .sole-portal textarea:focus { border-color: var(--pt-brand, #4A3FBE) !important; box-shadow: 0 0 0 3px var(--pt-ring, rgba(74,63,190,0.13)) !important; }
+  /* Card surfaces — neutral hairline border + restrained single-layer shadow (B2B, brand-agnostic) */
+  .sole-portal [data-card] { border-radius: 12px !important; border-color: var(--pt-border, #E6E8EC) !important; box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05) !important; }
+  .sole-portal [data-card="stat"] { transition: transform .16s cubic-bezier(.22,1,.36,1), box-shadow .16s cubic-bezier(.22,1,.36,1); }
+  .sole-portal [data-card="stat"]:hover { transform: translateY(-2px); box-shadow: 0 6px 18px -8px rgba(16,24,40,0.13) !important; }
+  /* Primary CTA — solid brand fill (no gradient), hairline border, restrained shadow */
+  .sole-portal [data-btn="primary"] { background: var(--pt-brand, #4A3FBE) !important; border-color: var(--pt-brand-deep, #3C33A4) !important; box-shadow: 0 1px 2px rgba(16,24,40,0.10) !important; transition: filter .15s, box-shadow .15s; }
+  .sole-portal [data-btn="primary"]:hover { filter: brightness(0.95); }
+  .sole-portal [data-btn="primaryOutline"] { color: var(--pt-brand, #4A3FBE) !important; border-color: var(--pt-brand-border, #C7C9FB) !important; }
+  .sole-portal [data-chip][data-selected="true"] { background: var(--pt-brand-soft, #EEF0FF) !important; border-color: var(--pt-brand, #4A3FBE) !important; color: var(--pt-brand-deep, #3C33A4) !important; }
+  /* Staggered load reveal (subtle) */
+  @keyframes ptReveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .pt-reveal { animation: ptReveal .45s cubic-bezier(.22,1,.36,1) both; }
+  .pt-lift { transition: transform .16s cubic-bezier(.22,1,.36,1), box-shadow .16s cubic-bezier(.22,1,.36,1); }
   .pt-lift:hover { transform: translateY(-2px); }
   /* One-class staggered page-load reveal — add .pt-stagger to a screen's root column */
-  .sole-portal .pt-stagger > * { animation: ptReveal .5s cubic-bezier(.22,1,.36,1) both; }
+  .sole-portal .pt-stagger > * { animation: ptReveal .45s cubic-bezier(.22,1,.36,1) both; }
   .sole-portal .pt-stagger > *:nth-child(1) { animation-delay: .02s; }
-  .sole-portal .pt-stagger > *:nth-child(2) { animation-delay: .08s; }
-  .sole-portal .pt-stagger > *:nth-child(3) { animation-delay: .14s; }
-  .sole-portal .pt-stagger > *:nth-child(4) { animation-delay: .20s; }
-  .sole-portal .pt-stagger > *:nth-child(5) { animation-delay: .26s; }
-  .sole-portal .pt-stagger > *:nth-child(n+6) { animation-delay: .30s; }
-  /* r7: richer non-gradient icon tiles (subtle tone-tinted gradient + inset ring; icon colour stays inline) */
-  .sole-portal [data-iconchip]:not([data-grad]) { box-shadow: inset 0 0 0 1px rgba(28,27,71,0.04); }
-  .sole-portal [data-iconchip][data-tone="accent"]:not([data-grad]) { background: linear-gradient(140deg, #EEF0FF 0%, #E3E4FF 100%) !important; }
-  /* r7: soft/ghost/icon buttons pick up a faint brand tint on hover */
+  .sole-portal .pt-stagger > *:nth-child(2) { animation-delay: .07s; }
+  .sole-portal .pt-stagger > *:nth-child(3) { animation-delay: .12s; }
+  .sole-portal .pt-stagger > *:nth-child(4) { animation-delay: .17s; }
+  .sole-portal .pt-stagger > *:nth-child(5) { animation-delay: .22s; }
+  .sole-portal .pt-stagger > *:nth-child(n+6) { animation-delay: .26s; }
+  /* Icon tiles — flat neutral tint + hairline inset ring (no gradient) */
+  .sole-portal [data-iconchip]:not([data-grad]) { box-shadow: inset 0 0 0 1px rgba(16,24,40,0.05); }
+  .sole-portal [data-iconchip][data-tone="accent"]:not([data-grad]) { background: var(--pt-brand-soft, #EEF0FF) !important; }
+  /* White-label: ACCENT icon tiles follow the client brand (gradient bg keeps its white
+     icon; flat tiles get a brand-soft bg + brand icon stroke — CSS overrides the inline
+     stroke attribute). Semantic tones (green/amber/red/blue) intentionally stay fixed. */
+  .sole-portal [data-iconchip][data-grad][data-tone="accent"] { background: linear-gradient(135deg, var(--pt-brand-mid, #5A4FCF) 0%, var(--pt-brand, #4A3FBE) 100%) !important; }
+  .sole-portal [data-iconchip][data-tone="accent"]:not([data-grad]) svg { stroke: var(--pt-brand, #4A3FBE) !important; }
+  /* Soft/ghost/icon buttons — faint brand tint on hover */
   .sole-portal [data-btn="soft"]:not(:disabled), .sole-portal [data-btn="ghost"]:not(:disabled), .sole-portal [data-btn="iconOnly"]:not(:disabled) { transition: border-color .12s, color .12s, background .12s; }
-  .sole-portal [data-btn="soft"]:not(:disabled):hover, .sole-portal [data-btn="ghost"]:not(:disabled):hover, .sole-portal [data-btn="iconOnly"]:not(:disabled):hover { border-color: #C7C9FB !important; color: #4A3FBE !important; }
-  .sole-portal [data-btn="iconOnly"]:not(:disabled):hover { background: #F5F6FF !important; }
-  /* r7: list-row hover gets a soft brand tint + hairline lift */
+  .sole-portal [data-btn="soft"]:not(:disabled):hover, .sole-portal [data-btn="ghost"]:not(:disabled):hover, .sole-portal [data-btn="iconOnly"]:not(:disabled):hover { border-color: var(--pt-brand-border, #C7C9FB) !important; color: var(--pt-brand, #4A3FBE) !important; }
+  .sole-portal [data-btn="iconOnly"]:not(:disabled):hover { background: var(--pt-brand-softer, #F5F6FF) !important; }
+  /* List-row hover — soft neutral tint */
   .sole-portal [data-hover="row"]:not(:disabled) { transition: background .12s; }
-  .sole-portal [data-hover="row"]:not(:disabled):hover { background: #F6F6FE; }
-  /* r7: live presence ring pulse */
+  .sole-portal [data-hover="row"]:not(:disabled):hover { background: var(--pt-row-hover, #F6F6FE); }
+  /* Live presence ring pulse */
   @keyframes pulseRing { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
-  /* Quieter card shadows — single subtle brand-tinted shadow replaces multi-layer noise */
-  .sole-portal [data-card="stat"], .sole-portal [data-card="panel"] { box-shadow: 0 1px 4px rgba(74,63,190,0.07) !important; }
-  /* Date input picker icon — tone it toward T.muted so it matches custom selects */
+  .sole-portal [data-card="stat"], .sole-portal [data-card="panel"] { box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05) !important; }
+  /* Date input picker icon — tone it toward muted so it matches custom selects */
   .sole-portal input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; filter: grayscale(1); cursor: pointer; }
   .sole-portal input[type="date"] { font-size: 13px; min-height: 36px; }
-  /* Completion quick-link tiles on the gradient hero */
-  .sole-portal .pt-tile-glass:hover { background: rgba(255,255,255,0.20) !important; border-color: rgba(255,255,255,0.45) !important; }
-  /* Stepper steps read as clickable — hover lifts the dot + tints the label */
-  .sole-portal [data-portal-step] { transition: background .12s; border-radius: 12px; }
-  .sole-portal [data-portal-step]:hover { background: rgba(74,63,190,0.08); }
-  .sole-portal [data-portal-step]:hover .pps-dot { border-color: #4A3FBE !important; color: #4A3FBE; box-shadow: 0 6px 14px -6px rgba(74,63,190,0.5) !important; transform: translateY(-1px); }
-  .sole-portal [data-portal-step]:hover .pps-label { color: #3C33A4; }
+  /* Stepper steps read as clickable — hover tints subtly */
+  .sole-portal [data-portal-step] { transition: background .12s; border-radius: 10px; }
+  .sole-portal [data-portal-step]:hover { background: var(--pt-brand-softer, rgba(74,63,190,0.06)); }
+  .sole-portal [data-portal-step]:hover .pps-dot { border-color: var(--pt-brand, #4A3FBE) !important; color: var(--pt-brand, #4A3FBE); transform: translateY(-1px); }
+  .sole-portal [data-portal-step]:hover .pps-label { color: var(--pt-brand-deep, #3C33A4); }
 </style>
 </head>
 <body>
@@ -644,38 +642,157 @@ const T = {
   radius: 10,
   radiusLg: 14,
   radiusXl: 18,
+  // Card radius — unified across practice + portal (was 14 practice / 12 portal).
+  // Repoint card-like atoms here; leave radiusLg for anything that still wants 14.
+  radiusCard: 12,
   shadowXs: '0 1px 2px rgba(16,24,40,0.04)',
   shadowSm: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)',
   shadowMd: '0 2px 4px -1px rgba(16,24,40,0.05), 0 4px 12px -2px rgba(16,24,40,0.08)',
-  shadowLg: '0 8px 24px -6px rgba(16,24,40,0.12)'
+  shadowLg: '0 8px 24px -6px rgba(16,24,40,0.12)',
+  // --- spacing scale (Jun-30) — the ONE source of spacing truth across the SPM.
+  // Stakeholder direction: "low but uniform — cards should look connected."
+  // Canonical card-to-card gap = md (12); card inner padding = lg (16);
+  // section-internal stack gap = sm (8). Matches PT.space numerically so the
+  // portal shares the contract. Adopt surface-by-surface (replace ad-hoc literals).
+  space: {
+    xxs: 2,
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    xxl: 32
+  }
 };
 
-// --- client-portal premium theme (PT) — on-brand with the marketing site.
-// Scoped to portal components only (the practice side keeps T). One `brand`
-// accent drives everything, so per-accountant white-labelling is a one-liner.
-const PT = {
-  brand: '#4A3FBE',
-  // brand-600 — primary strong (live-site brand)
-  brandMid: '#5A4FCF',
-  // brand-500
-  brandDeep: '#3C33A4',
-  // brand-700 — headings/deep
-  brandSoft: '#EEF0FF',
-  // brand-50
-  brandSofter: '#F5F6FF',
-  accent: '#F97316',
-  // orange spark
-  accentDeep: '#EA580C',
-  accentSoft: '#FFEDD5',
-  ink: '#1E1B4B',
-  // near-black indigo for hero text
-  gradient: 'linear-gradient(135deg, #5A4FCF 0%, #4A3FBE 100%)',
-  gradientHero: 'linear-gradient(135deg, #2F2880 0%, #4A3FBE 55%, #5A4FCF 100%)',
-  pageBg: 'linear-gradient(160deg, #F8F9FF 0%, #EEF0FF 48%, #F5F3FF 100%)',
-  shadowSoft: '0 4px 16px -4px rgba(28,27,71,0.08), 0 1px 4px -1px rgba(28,27,71,0.05)',
-  shadowLift: '0 18px 40px -12px rgba(74,63,190,0.22)',
-  shadowPop: '0 28px 60px -20px rgba(74,63,190,0.34)',
-  radius: 18
+// --- client-portal theme (PT) — B2B / professional, white-label-ready.
+// Scoped to portal components only (the practice side keeps T). The whole portal
+// is driven by ONE brand hex: every shade/tint/border/soft-shadow is *derived*
+// from it via makePortalTheme(), so the portal recolours cleanly for any client
+// brand — not just the original indigo. Direction: Ramp/Wise/Mixpanel — neutral
+// surfaces, hairline borders, restrained shadows, brand used as a sharp accent
+// (buttons, active nav, links, small tints) rather than big gradient fills.
+//
+// White-label seam: PT holds REAL hex (so SVG <Icon stroke={...}> works); the
+// static .sole-portal CSS block reads matching --pt-* CSS variables which
+// ClientPortalApp sets on its root from PT. Switch brand via ?brand=<key|hex>
+// or localStorage 'sole.portal.brand' (the in-portal switcher sets + reloads).
+const _ptHex2rgb = h => {
+  h = String(h || '').replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const n = parseInt(h || '4A3FBE', 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255];
+};
+const _ptClamp = x => Math.max(0, Math.min(255, Math.round(x)));
+const _ptRgb2hex = (r, g, b) => '#' + [r, g, b].map(x => _ptClamp(x).toString(16).padStart(2, '0')).join('');
+const _ptMix = (hex, target, amt) => {
+  const [r, g, b] = _ptHex2rgb(hex);
+  const [tr, tg, tb] = _ptHex2rgb(target);
+  return _ptRgb2hex(r + (tr - r) * amt, g + (tg - g) * amt, b + (tb - b) * amt);
+};
+const ptLighten = (hex, amt) => _ptMix(hex, '#FFFFFF', amt);
+const ptDarken = (hex, amt) => _ptMix(hex, '#000000', amt);
+const ptRgba = (hex, a) => {
+  const [r, g, b] = _ptHex2rgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+};
+const makePortalTheme = brand => ({
+  brandRaw: brand,
+  brand,
+  // primary — buttons, active nav, links
+  brandMid: ptLighten(brand, 0.12),
+  brandDeep: ptDarken(brand, 0.18),
+  // deep brand — emphasis text on tints
+  brandSoft: ptLighten(brand, 0.90),
+  // very light brand tint — soft backgrounds
+  brandSofter: ptLighten(brand, 0.95),
+  brandBorder: ptLighten(brand, 0.74),
+  // hairline brand-tinted border
+  accent: '#E8833A',
+  // warm spark — used sparingly
+  accentDeep: '#C76A26',
+  accentSoft: '#FBEFE4',
+  ink: '#16181D',
+  // neutral charcoal — headings (was indigo)
+  inkSoft: '#3A3D45',
+  // Gradients de-emphasised for B2B: resolve to SOLID brand so every legacy
+  // `background: PT.gradient` reads as a clean flat brand fill, not a loud sweep.
+  gradient: brand,
+  gradientHero: brand,
+  pageBg: '#F6F7F9',
+  // clean neutral page background
+  surface: '#FFFFFF',
+  border: '#E6E8EC',
+  // neutral hairline
+  borderSoft: '#EDEEF1',
+  muted: '#6B7280',
+  shadowSoft: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05)',
+  shadowLift: '0 4px 14px -4px rgba(16,24,40,0.10)',
+  shadowPop: '0 12px 32px -12px rgba(16,24,40,0.16)',
+  radius: 12,
+  // consistent spacing scale (P3) — use instead of ad-hoc literals as we touch each surface
+  space: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    xxl: 32
+  }
+});
+
+// Named demo presets (a brand can also be any raw hex via ?brand=#RRGGBB).
+const PORTAL_BRAND_PRESETS = {
+  indigo: {
+    label: 'Sole indigo',
+    hex: '#4A3FBE'
+  },
+  blue: {
+    label: 'Harbour blue',
+    hex: '#1F6FEB'
+  },
+  teal: {
+    label: 'Evergreen',
+    hex: '#0F766E'
+  },
+  slate: {
+    label: 'Graphite',
+    hex: '#3B4252'
+  }
+};
+const _resolvePortalBrand = () => {
+  try {
+    const qp = new URLSearchParams(window.location.search).get('brand');
+    const stored = (() => {
+      try {
+        return localStorage.getItem('sole.portal.brand');
+      } catch (_) {
+        return null;
+      }
+    })();
+    const v = qp || stored;
+    if (!v) return PORTAL_BRAND_PRESETS.indigo.hex;
+    if (v[0] === '#') return v;
+    return PORTAL_BRAND_PRESETS[v] && PORTAL_BRAND_PRESETS[v].hex || PORTAL_BRAND_PRESETS.indigo.hex;
+  } catch (_) {
+    return PORTAL_BRAND_PRESETS.indigo.hex;
+  }
+};
+const PORTAL_BRAND = _resolvePortalBrand();
+const PT = makePortalTheme(PORTAL_BRAND);
+// CSS-variable map for the static .sole-portal block — set on the portal root.
+const PT_CSS_VARS = {
+  '--pt-brand': PT.brand,
+  '--pt-brand-mid': PT.brandMid,
+  '--pt-brand-deep': PT.brandDeep,
+  '--pt-brand-soft': PT.brandSoft,
+  '--pt-brand-softer': PT.brandSofter,
+  '--pt-brand-border': PT.brandBorder,
+  '--pt-ink': PT.ink,
+  '--pt-border': PT.border,
+  '--pt-page-bg': PT.pageBg,
+  '--pt-ring': ptRgba(PT.brand, 0.14),
+  '--pt-row-hover': ptLighten(PT.brand, 0.95)
 };
 
 // --- proposal templates ---
@@ -890,11 +1007,13 @@ const useViewport = () => {
 };
 
 // --- icons ---
+// Single shared icon set for the whole app (Lucide-style). Default weight bumped
+// 1.6 → 2.0 (Lucide's own default) so glyphs read bolder/crisper, not thin.
 const Icon = ({
   name,
   size = 18,
   color = 'currentColor',
-  strokeWidth = 1.6
+  strokeWidth = 2
 }) => {
   const paths = {
     proposal: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
@@ -1024,6 +1143,22 @@ const Icon = ({
       d: "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
     }), /*#__PURE__*/React.createElement("path", {
       d: "M13.7 21a1.5 1.5 0 0 1-3.4 0"
+    })),
+    menu: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("line", {
+      x1: "3",
+      y1: "6",
+      x2: "21",
+      y2: "6"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "3",
+      y1: "12",
+      x2: "21",
+      y2: "12"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "3",
+      y1: "18",
+      x2: "21",
+      y2: "18"
     })),
     edit: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
       d: "M12 20h9"
@@ -2075,9 +2210,9 @@ const Card = ({
   style: {
     background: T.card,
     border: `1px solid ${T.borderSoft}`,
-    borderRadius: T.radiusLg,
+    borderRadius: T.radiusCard,
     boxShadow: T.shadowSm,
-    padding: padded ? 18 : 0,
+    padding: padded ? T.space.lg : 0,
     ...style
   }
 }, children);
@@ -2216,7 +2351,7 @@ const StatCard = ({
   style: {
     background: T.card,
     border: `1px solid ${T.borderSoft}`,
-    borderRadius: T.radiusLg,
+    borderRadius: T.radiusCard,
     boxShadow: T.shadowSm,
     padding: '13px 15px',
     display: 'flex',
@@ -2294,7 +2429,7 @@ const PanelCard = ({
   style: {
     background: T.card,
     border: `1px solid ${T.borderSoft}`,
-    borderRadius: T.radiusLg,
+    borderRadius: T.radiusCard,
     boxShadow: T.shadowSm,
     overflow: 'hidden',
     ...style
@@ -2559,6 +2694,220 @@ const EmptyState = ({
     marginTop: 14
   }
 }, action));
+
+// --- DataTable — the ONE table primitive (Jun-30) -----------------------------
+// Every tabular list in the SPM renders through this so they look identical. It's
+// CSS-grid based (keeps the minmax(px, Nfr) column flex the surfaces already use)
+// and composes existing atoms (RowCheckbox, Pill, ClientMark…) via column render()
+// fns — it owns LAYOUT, not domain cells. All spacing/border metrics live in the
+// DT_* constants so they never drift between surfaces.
+//
+//   columns: [{ key, header, width, align('left'|'right'|'center'), sortable,
+//               sortValue(row), render(row, ctx), defaultVisible, alwaysVisible,
+//               headerStyle, cellStyle }]
+//   rows, rowKey(row)=row.id, onRowClick(row), rowStyle(row, ctx)
+//   selectable + selectedIds(Set) + onSelectionChange(Set)   (omit → no checkbox col)
+//   columnVisibility {key:bool}  (absent keys fall back to defaultVisible !== false)
+//   defaultSort {key,dir:1|-1} + onSortChange(next)   (sorting is internal)
+//   toolbar (above card) · bulkBar (above card when selection non-empty) ·
+//   empty (EmptyState props) · footer (inside card, bottom)
+//   rowHeight · density('standard'|'compact') · minWidth · zebra
+const DT_ROW_H = 48;
+const DT_ROW_H_COMPACT = 44;
+const DT_HEADER_PAD = '10px 16px';
+const DT_CELL_PAD = '8px 16px';
+const DT_HEADER_TXT = {
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: T.muted,
+  textTransform: 'uppercase',
+  letterSpacing: 0.6
+};
+const DataTable = ({
+  columns,
+  rows,
+  rowKey,
+  onRowClick,
+  rowStyle,
+  selectable,
+  selectedIds,
+  onSelectionChange,
+  columnVisibility,
+  defaultSort,
+  onSortChange,
+  toolbar,
+  bulkBar,
+  empty,
+  footer,
+  rowHeight,
+  density = 'standard',
+  minWidth,
+  zebra,
+  style,
+  cardStyle
+}) => {
+  const keyOf = rowKey || (r => r.id);
+  const [sort, setSort] = useState(defaultSort || null);
+  const rh = rowHeight || (density === 'compact' ? DT_ROW_H_COMPACT : DT_ROW_H);
+  const visibleColumns = columns.filter(c => {
+    if (c.alwaysVisible) return true;
+    if (columnVisibility && c.key in columnVisibility) return columnVisibility[c.key];
+    return c.defaultVisible !== false;
+  });
+  const widthOf = w => typeof w === 'number' ? `${w}px` : w || 'minmax(0,1fr)';
+  const template = [selectable ? '34px' : null, ...visibleColumns.map(c => widthOf(c.width))].filter(Boolean).join(' ');
+  let displayRows = rows;
+  if (sort && sort.key) {
+    const col = columns.find(c => c.key === sort.key);
+    if (col) {
+      const val = col.sortValue || (r => r[sort.key]);
+      displayRows = [...rows].sort((a, b) => {
+        const av = val(a),
+          bv = val(b);
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv));
+        return sort.dir === -1 ? -cmp : cmp;
+      });
+    }
+  }
+  const clickSort = col => {
+    if (!col.sortable) return;
+    setSort(prev => {
+      const next = !prev || prev.key !== col.key ? {
+        key: col.key,
+        dir: 1
+      } : prev.dir === 1 ? {
+        key: col.key,
+        dir: -1
+      } : null;
+      onSortChange && onSortChange(next);
+      return next;
+    });
+  };
+  const sel = selectedIds || new Set();
+  const allSelected = selectable && displayRows.length > 0 && displayRows.every(r => sel.has(keyOf(r)));
+  const someSelected = selectable && displayRows.some(r => sel.has(keyOf(r)));
+  const toggleAll = () => {
+    if (!onSelectionChange) return;
+    const n = new Set(sel);
+    if (allSelected) displayRows.forEach(r => n.delete(keyOf(r)));else displayRows.forEach(r => n.add(keyOf(r)));
+    onSelectionChange(n);
+  };
+  const toggleRow = r => {
+    if (!onSelectionChange) return;
+    const id = keyOf(r);
+    const n = new Set(sel);
+    n.has(id) ? n.delete(id) : n.add(id);
+    onSelectionChange(n);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: style
+  }, toolbar, selectable && sel.size > 0 && bulkBar, /*#__PURE__*/React.createElement("div", {
+    "data-card": "base",
+    style: {
+      background: T.card,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: T.radiusCard,
+      boxShadow: T.shadowSm,
+      overflow: 'hidden',
+      ...cardStyle
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: minWidth || 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: template,
+      gap: T.space.md,
+      padding: DT_HEADER_PAD,
+      background: T.fieldBg,
+      borderBottom: `1px solid ${T.border}`,
+      alignItems: 'center'
+    }
+  }, selectable && /*#__PURE__*/React.createElement(RowCheckbox, {
+    checked: allSelected,
+    indeterminate: !allSelected && someSelected,
+    onChange: toggleAll,
+    ariaLabel: "Select all"
+  }), visibleColumns.map(c => {
+    const active = sort && sort.key === c.key;
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.key,
+      onClick: () => clickSort(c),
+      style: {
+        ...DT_HEADER_TXT,
+        color: active ? T.text : T.muted,
+        cursor: c.sortable ? 'pointer' : 'default',
+        userSelect: 'none',
+        textAlign: c.align || 'left',
+        whiteSpace: 'nowrap',
+        ...(c.headerStyle || {})
+      }
+    }, c.header, c.sortable && active && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 8,
+        marginLeft: 4
+      }
+    }, sort.dir === -1 ? '▲' : '▼'));
+  })), displayRows.length === 0 ? empty ? /*#__PURE__*/React.createElement(EmptyState, _extends({}, empty, {
+    style: {
+      padding: '40px 16px',
+      ...(empty.style || {})
+    }
+  })) : null : displayRows.map((r, i) => {
+    const id = keyOf(r);
+    const selected = selectable && sel.has(id);
+    const ctx = {
+      selected,
+      index: i
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      key: id,
+      "data-hover": onRowClick ? 'row' : undefined,
+      onClick: onRowClick ? () => onRowClick(r) : undefined,
+      style: {
+        display: 'grid',
+        gridTemplateColumns: template,
+        gap: T.space.md,
+        padding: DT_CELL_PAD,
+        minHeight: rh,
+        alignItems: 'center',
+        borderBottom: i < displayRows.length - 1 ? `1px solid ${T.border}` : 'none',
+        fontSize: 13,
+        cursor: onRowClick ? 'pointer' : 'default',
+        background: selected ? T.primarySofter : zebra && i % 2 ? T.surface : undefined,
+        ...(rowStyle ? rowStyle(r, ctx) : {})
+      }
+    }, selectable && /*#__PURE__*/React.createElement(RowCheckbox, {
+      checked: selected,
+      onChange: () => toggleRow(r),
+      ariaLabel: "Select row"
+    }), visibleColumns.map(c => /*#__PURE__*/React.createElement("div", {
+      key: c.key,
+      style: {
+        minWidth: 0,
+        textAlign: c.align || 'left',
+        ...(c.cellStyle || {})
+      }
+    }, c.render ? c.render(r, ctx) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.textSoft,
+        display: 'block',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, r[c.key]))));
+  }))), footer));
+};
 const Input = ({
   value,
   onChange,
@@ -3954,6 +4303,12 @@ const ClientPicker = ({
   });
   const [abnQuery, setAbnQuery] = useState('');
   const [abnDropdownOpen, setAbnDropdownOpen] = useState(false);
+  // Onboarding template + client group (Jun-30). Template auto-selects the default
+  // for the chosen entity type; group attaches the client to a family.
+  const [templateId, setTemplateId] = useState(null);
+  const [groupMode, setGroupMode] = useState('existing'); // 'existing' | 'new'
+  const [groupSel, setGroupSel] = useState('');
+  const [newGroupName, setNewGroupName] = useState('');
   useEffect(() => {
     if (open) {
       setView('list');
@@ -3963,6 +4318,15 @@ const ClientPicker = ({
       }, 60);
     }
   }, [open]);
+
+  // When the entity type changes (or the create view opens), default the onboarding
+  // template to the firm's default for that type (the stakeholder's auto-attach rule).
+  useEffect(() => {
+    if (view === 'create') {
+      const def = defaultTemplateFor(entityType);
+      setTemplateId(def ? def.id : null);
+    }
+  }, [entityType, view]);
   const startCreate = type => {
     setEntityType(type || 'Sole Trader');
     setForm({
@@ -3994,6 +4358,9 @@ const ClientPicker = ({
     setShowMore(false);
     setAbnQuery('');
     setAbnDropdownOpen(false);
+    setGroupMode('existing');
+    setGroupSel('');
+    setNewGroupName('');
     setView('create');
   };
   const filtered = CLIENTS.filter(c => {
@@ -4098,8 +4465,40 @@ const ClientPicker = ({
   const canCreate = effectiveName.length > 0 && contacts.length > 0 && !!primary;
   const onCreate = () => {
     if (!canCreate) return;
+    const newId = 'cmp-new-' + Date.now();
+    const def = defaultTemplateFor(entityType);
+    const resolvedTpl = templateId || (def ? def.id : null);
+    const groupName = groupMode === 'new' ? newGroupName.trim() || effectiveName : groupSel || effectiveName;
+    const existingRec = groupMode === 'existing' && groupSel ? PRACTICE_COMPLIANCE.find(r => r.groupName === groupSel) : null;
+    // Register a full client record so the new client appears in Clients Management
+    // immediately (mock pattern, like USERS.push for new people).
+    try {
+      const rec = mkComp({
+        id: newId,
+        name: effectiveName,
+        abn: form.abn || '—',
+        entityType,
+        status: 'not_started',
+        suggestedRating: 'low',
+        color: 'accent',
+        domain: primaryUser && primaryUser.email ? primaryUser.email.split('@')[1] : undefined,
+        templateId: resolvedTpl
+      });
+      rec.groupName = groupName;
+      rec.groupId = existingRec ? existingRec.groupId : null;
+      if (primaryUser) rec.primaryContact = {
+        name: fullName(primaryUser),
+        email: primaryUser.email || rec.primaryContact.email,
+        phone: primaryUser.phone || rec.primaryContact.phone
+      };
+      PRACTICE_COMPLIANCE.unshift(rec);
+      const cnt = PRACTICE_COMPLIANCE.filter(r => r.groupName === rec.groupName).length;
+      PRACTICE_COMPLIANCE.forEach(r => {
+        if (r.groupName === rec.groupName) r.groupSize = cnt;
+      });
+    } catch (_) {}
     onSelect({
-      id: Date.now(),
+      id: newId,
       name: effectiveName,
       type: entityType,
       abn: form.abn,
@@ -4112,10 +4511,16 @@ const ClientPicker = ({
         userId: c.userId,
         role: c.role,
         isPrimary: c.isPrimary
-      }))
+      })),
+      templateId: resolvedTpl,
+      groupId: existingRec ? existingRec.groupId : null,
+      groupName
     });
     onClose();
-    fireToast?.(`Created "${effectiveName}" · ${contacts.length} contact${contacts.length === 1 ? '' : 's'}`);
+    const tplName = resolvedTpl ? (findOnbTemplate(resolvedTpl) || {}).name : null;
+    fireToast?.({
+      message: `Created "${effectiveName}"${tplName ? ` · ${tplName}` : ''} · ${groupName}`
+    });
   };
   const availableUsers = USERS.filter(u => {
     if (contacts.some(c => c.userId === u.id)) return false;
@@ -5148,7 +5553,100 @@ const ClientPicker = ({
     style: {
       color: T.primary
     }
-  }, "+ New"))), /*#__PURE__*/React.createElement("div", {
+  }, "+ New"))), (() => {
+    const applic = templatesForEntity(entityType);
+    const def = defaultTemplateFor(entityType);
+    const isDef = def && templateId === def.id;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 16,
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        marginBottom: 16,
+        background: T.card
+      }
+    }, /*#__PURE__*/React.createElement(Label, {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Onboarding template"), isDef && /*#__PURE__*/React.createElement(Pill, {
+      color: "green",
+      style: {
+        fontSize: 10
+      }
+    }, "Default for ", entityType)), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11.5,
+        marginTop: -2,
+        marginBottom: 8
+      }
+    }, def ? `A default template exists for ${entityType} — it's pre-selected. Change it or create your own.` : `No default for ${entityType} — pick a template or create your own.`, " The client gets an onboarding invite once added."), /*#__PURE__*/React.createElement(Select, {
+      value: templateId || '',
+      onChange: e => setTemplateId(e.target.value || null)
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "No onboarding template"), applic.map(t => /*#__PURE__*/React.createElement("option", {
+      key: t.id,
+      value: t.id
+    }, t.name, def && t.id === def.id ? '  (default)' : ''))), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        onClose();
+        window.location.hash = '#/practice/questionnaires-forms';
+      },
+      style: {
+        marginTop: 8,
+        border: 'none',
+        background: 'transparent',
+        color: T.primary,
+        fontSize: 12,
+        fontWeight: 600,
+        cursor: 'pointer',
+        padding: 0
+      }
+    }, "+ Create your own template"));
+  })(), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 16,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      marginBottom: 4,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Client group"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: -2,
+      marginBottom: 8
+    }
+  }, "Group related entities into a family. A group can have a single entity."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: groupMode === 'existing',
+    onClick: () => setGroupMode('existing')
+  }, "Existing group"), /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: groupMode === 'new',
+    onClick: () => setGroupMode('new')
+  }, "New group")), groupMode === 'existing' ? /*#__PURE__*/React.createElement(Select, {
+    value: groupSel,
+    onChange: e => setGroupSel(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Select a group\u2026"), Array.from(new Set(PRACTICE_COMPLIANCE.map(r => r.groupName))).sort().map(g => /*#__PURE__*/React.createElement("option", {
+    key: g,
+    value: g
+  }, g))) : /*#__PURE__*/React.createElement(Input, {
+    value: newGroupName,
+    onChange: e => setNewGroupName(e.target.value),
+    placeholder: "e.g. Sharma Family Group"
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -34449,6 +34947,78 @@ const COMP_EXTRA = [{
   status: 'not_started',
   suggestedRating: 'medium'
 }];
+
+// Client groups (families) — every client belongs to a group; a group can hold a
+// single entity. A few multi-entity families demo "N entities under a family", and
+// their groupId points at a REAL Relationship-Map group so the group link opens a
+// focused, populated graph (single-entity own-groups open the map root). See 1H /
+// ClientRelationshipMapPage. (The three client sources — CLIENTS, PRACTICE_COMPLIANCE,
+// RELATIONSHIP_GROUPS — stay separate and are linked by id, not merged. See MEMORY.)
+const COMP_GROUP = {
+  'cl-portal': {
+    id: 'g-smith',
+    name: 'Sharma Family Group'
+  },
+  'cmp-rosa': {
+    id: 'g-smith',
+    name: 'Sharma Family Group'
+  },
+  'c-greenleaf': {
+    id: 'g-williams',
+    name: 'Greenleaf Holdings Group'
+  },
+  'cmp-harbour': {
+    id: 'g-williams',
+    name: 'Greenleaf Holdings Group'
+  },
+  'cmp-koru': {
+    id: 'g-williams',
+    name: 'Greenleaf Holdings Group'
+  },
+  'c-marlow': {
+    id: 'g-brown',
+    name: 'Marlow Group'
+  },
+  'cmp-vista': {
+    id: 'g-brown',
+    name: 'Marlow Group'
+  }
+};
+const COMP_LIFECYCLE = {
+  not_started: 'prospect',
+  invited: 'prospect',
+  in_progress: 'onboarding',
+  submitted: 'onboarding',
+  verified: 'active',
+  review_due: 'active',
+  blocked: 'active'
+};
+const LIFECYCLE_META = {
+  prospect: {
+    label: 'Prospect',
+    color: 'blue'
+  },
+  onboarding: {
+    label: 'Onboarding',
+    color: 'amber'
+  },
+  active: {
+    label: 'Active',
+    color: 'green'
+  }
+};
+const COMP_BILLING = ['Monthly retainer', 'Fixed-fee plan', 'Per service', 'Annual plan'];
+const COMP_BILL_CADENCE = {
+  'Monthly retainer': 'Monthly',
+  'Fixed-fee plan': 'Quarterly',
+  'Per service': 'On completion',
+  'Annual plan': 'Yearly'
+};
+const COMP_TAGS_POOL = ['VIP', 'Tax', 'Bookkeeping', 'Advisory', 'Payroll', 'SMSF', 'Watch'];
+const COMP_SOFTWARE = ['Xero', 'MYOB', 'QuickBooks Online', 'Sage'];
+const COMP_STREETS = ['George', 'Pitt', 'Collins', 'Queen', 'Adelaide', 'Elizabeth'];
+const COMP_CITIES = [['Sydney', 'NSW', 2000], ['Melbourne', 'VIC', 3000], ['Brisbane', 'QLD', 4000], ['Gold Coast', 'QLD', 4217]];
+const compEmail = (person, domain) => `${(String(person).split(' ')[0] || 'hello').toLowerCase()}@${domain}`;
 const mkComp = base => {
   const h = compHash(base.id);
   const status = base.status;
@@ -34566,6 +35136,94 @@ const mkComp = base => {
   const contact = isEntity ? owners[0] ? owners[0].name : base.name : base.name;
   const advisor = COMP_ADVISORS[h % COMP_ADVISORS.length];
   const eddNote = base.eddTriggered ? base.offshore ? 'Beneficial owner resident in a high-risk jurisdiction — enhanced CDD + senior approval required before service delivery.' : 'High residual risk — enhanced due diligence required before service delivery.' : '';
+
+  // ---- Full client record (Jun-30) — the list/detail show the whole client, not
+  // just verification. All derived from compHash(id) so every record is populated.
+  const lifecycle = COMP_LIFECYCLE[status] || 'prospect';
+  const group = COMP_GROUP[base.id] || {
+    id: null,
+    name: base.name
+  };
+  const domain = base.domain || (String(base.name).toLowerCase().replace(/[^a-z0-9]+/g, '') || 'client') + '.com.au';
+  const primaryContact = {
+    name: contact,
+    email: compEmail(contact, domain),
+    phone: `+61 4${10 + h % 80} ${String(100 + h % 900)} ${String(100 + h * 7 % 900)}`
+  };
+  const billingType = COMP_BILLING[h % COMP_BILLING.length];
+  const billing = {
+    type: billingType,
+    cadence: COMP_BILL_CADENCE[billingType]
+  };
+  const createdAt = compDay(-(120 + h % 260));
+  const updatedAt = compDay(-(h % 18));
+  const createdBy = advisor;
+  const updatedBy = COMP_ADVISORS[(h + 2) % COMP_ADVISORS.length];
+  const indiv = !isEntity;
+  const hasAddr = submittedPlus;
+  const city = COMP_CITIES[h % COMP_CITIES.length];
+  const residential = hasAddr ? `${10 + h % 90} ${COMP_STREETS[h % COMP_STREETS.length]} St, ${city[0]} ${city[1]} ${city[2] + h % 99}` : null;
+  const postal = hasAddr && h % 2 ? `PO Box ${100 + h % 900}, ${city[0]} ${city[1]} ${city[2] + h % 99}` : null;
+  const addrMissing = [];
+  if (!residential) addrMissing.push('Residential address');
+  if (isEntity && !postal) addrMissing.push('Principal place of business');
+  if (indiv && !postal) addrMissing.push('Postal address');
+  const people = isEntity ? owners.map((o, i) => ({
+    name: o.name,
+    role: o.role,
+    email: compEmail(o.name, domain),
+    primary: i === 0
+  })) : [{
+    name: base.name,
+    role: 'Individual',
+    email: primaryContact.email,
+    primary: true
+  }];
+  const tags = h % 3 === 0 ? [] : [COMP_TAGS_POOL[h % COMP_TAGS_POOL.length], ...(h % 2 ? [COMP_TAGS_POOL[(h + 3) % COMP_TAGS_POOL.length]] : [])];
+  const tfn = indiv && !early ? `${100 + h % 800} ${100 + h * 3 % 800} ${100 + h * 7 % 800}` : null;
+  const dob = indiv ? `${1 + h % 28} ${['Jan', 'Mar', 'Jun', 'Sep', 'Nov'][h % 5]} ${1968 + h % 32}` : null;
+  const taxReturns = submittedPlus ? [{
+    year: 'FY2024',
+    status: 'Lodged',
+    at: compDay(-(190 + h % 60))
+  }].concat(h % 2 ? [{
+    year: 'FY2023',
+    status: 'Lodged',
+    at: compDay(-(540 + h % 60))
+  }] : []) : [];
+  const documents = submittedPlus ? [{
+    name: 'Engagement letter.pdf',
+    at: compDay(-(40 + h % 80))
+  }, ...(h % 2 ? [{
+    name: `${base.entityType} setup pack.pdf`,
+    at: compDay(-(30 + h % 60))
+  }] : [])] : [];
+  const financials = {
+    profitLoss: submittedPlus && h % 2 ? {
+      label: 'FY2024 P&L',
+      at: compDay(-(120 + h % 90))
+    } : null,
+    balanceSheet: submittedPlus && h % 3 === 0 ? {
+      label: 'FY2024 Balance Sheet',
+      at: compDay(-(120 + h % 90))
+    } : null
+  };
+  const software = status === 'verified' || !early && h % 3 === 0 ? [{
+    name: COMP_SOFTWARE[h % COMP_SOFTWARE.length],
+    status: 'Connected',
+    connectedAt: compDay(-(30 + h % 200))
+  }] : [];
+  const declSigned = submittedPlus;
+  const declarant = isEntity ? people[0] ? people[0].name : base.name : base.name;
+  const declaration = {
+    taxpayerName: declarant,
+    date: declSigned ? compDay(-(10 + h % 30)) : null,
+    signed: declSigned,
+    signedAt: declSigned ? compDay(-(10 + h % 30)) : null,
+    text: 'I declare that the information provided in this form is true and correct, and I authorise the tax agent(s) named above to act on my behalf for taxation matters.',
+    signatureName: declSigned ? declarant : null,
+    privacyNote: 'You do not have to quote your tax file number, but not quoting it may increase the risk of administrative error and/or delay processing. The ATO is authorised by the Income Tax Assessment Act 1936 and the Income Tax Assessment Act 1997 to ask for this information.'
+  };
   return {
     ...base,
     isEntity,
@@ -34581,13 +35239,63 @@ const mkComp = base => {
     advisor,
     eddNote,
     suggestedRating: base.suggestedRating,
-    overrideRating: base.overrideRating || null
+    overrideRating: base.overrideRating || null,
+    // full-client fields
+    lifecycle,
+    groupId: group.id,
+    groupName: group.name,
+    domain,
+    primaryContact,
+    billing,
+    createdAt,
+    updatedAt,
+    createdBy,
+    updatedBy,
+    templateId: base.templateId || null,
+    details: {
+      fullName: base.name,
+      australianResident: indiv ? h % 4 !== 0 ? 'Yes' : 'No' : null,
+      tags,
+      partner: null,
+      manager: advisor,
+      tfn,
+      dob,
+      contactDetails: {
+        emails: [primaryContact.email],
+        phones: [primaryContact.phone],
+        websites: base.domain ? [base.domain] : []
+      },
+      addresses: {
+        residential,
+        postal,
+        missing: addrMissing
+      },
+      people,
+      taxReturns,
+      financials,
+      additionalIncomeExpenses: [],
+      documents
+    },
+    access: {
+      software
+    },
+    declaration
   };
 };
 const PRACTICE_COMPLIANCE = [...PRACTICE_CLIENTS.filter(c => COMP_CORE[c.id]).map(c => ({
   ...c,
   ...COMP_CORE[c.id]
 })), ...COMP_EXTRA].map(mkComp);
+// Group sizes ("N entities under a family") — count compliance siblings sharing a group.
+(() => {
+  const n = {};
+  PRACTICE_COMPLIANCE.forEach(r => {
+    n[r.groupName] = (n[r.groupName] || 0) + 1;
+  });
+  PRACTICE_COMPLIANCE.forEach(r => {
+    r.groupSize = n[r.groupName];
+  });
+})();
 const complianceById = id => PRACTICE_COMPLIANCE.find(c => c.id === id);
 
 // =================================================================
@@ -44627,13 +45335,17 @@ const goCompliance = id => {
 const ComplianceDashboardPage = ({
   fireToast
 }) => {
+  const [lifecycleFilter, setLifecycleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [riskFilter, setRiskFilter] = useState('all');
+  const [entityFilter, setEntityFilter] = useState('all');
+  const [groupFilter, setGroupFilter] = useState('all');
+  const [billingFilter, setBillingFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
   const {
-    isMobile,
-    isTablet
+    isMobile
   } = useViewport();
   const counts = {
     all: PRACTICE_COMPLIANCE.length
@@ -44641,25 +45353,34 @@ const ComplianceDashboardPage = ({
   COMPLIANCE_STATUS_ORDER.forEach(k => {
     counts[k] = PRACTICE_COMPLIANCE.filter(r => r.status === k).length;
   });
-  // KPI strip derivations — health-at-a-glance above the table (counts double as filters).
+  const lcCounts = {
+    all: PRACTICE_COMPLIANCE.length,
+    prospect: 0,
+    onboarding: 0,
+    active: 0
+  };
+  PRACTICE_COMPLIANCE.forEach(r => {
+    lcCounts[r.lifecycle] = (lcCounts[r.lifecycle] || 0) + 1;
+  });
   const kpiToday = compDay(0);
   const overdueCount = PRACTICE_COMPLIANCE.filter(r => r.reviewDue < kpiToday && ['verified', 'review_due'].includes(r.status)).length;
   const highRiskCount = PRACTICE_COMPLIANCE.filter(r => effectiveRisk(r) === 'high').length;
+  const entityTypes = Array.from(new Set(PRACTICE_COMPLIANCE.map(r => r.entityType))).sort();
+  const groupNames = Array.from(new Set(PRACTICE_COMPLIANCE.map(r => r.groupName))).sort();
   const needle = search.trim().toLowerCase();
-  const rows = PRACTICE_COMPLIANCE.filter(r => (statusFilter === 'all' || r.status === statusFilter) && (riskFilter === 'all' || effectiveRisk(r) === riskFilter) && (!needle || (r.name + ' ' + r.entityType + ' ' + r.abn).toLowerCase().includes(needle)));
-  const toggle = id => setSelected(s => {
-    const n = new Set(s);
-    n.has(id) ? n.delete(id) : n.add(id);
-    return n;
-  });
-  const allVisibleSelected = rows.length > 0 && rows.every(r => selected.has(r.id));
-  const toggleAll = () => setSelected(s => {
-    const n = new Set(s);
-    if (allVisibleSelected) rows.forEach(r => n.delete(r.id));else rows.forEach(r => n.add(r.id));
-    return n;
-  });
+  const rows = PRACTICE_COMPLIANCE.filter(r => (lifecycleFilter === 'all' || r.lifecycle === lifecycleFilter) && (statusFilter === 'all' || r.status === statusFilter) && (riskFilter === 'all' || effectiveRisk(r) === riskFilter) && (entityFilter === 'all' || r.entityType === entityFilter) && (groupFilter === 'all' || r.groupName === groupFilter) && (billingFilter === 'all' || r.billing.type === billingFilter) && (!needle || (r.name + ' ' + r.entityType + ' ' + r.abn + ' ' + r.groupName + ' ' + r.primaryContact.email).toLowerCase().includes(needle)));
+  const anyFilter = [lifecycleFilter, statusFilter, riskFilter, entityFilter, groupFilter, billingFilter].some(f => f !== 'all') || !!needle;
+  const clearFilters = () => {
+    setLifecycleFilter('all');
+    setStatusFilter('all');
+    setRiskFilter('all');
+    setEntityFilter('all');
+    setGroupFilter('all');
+    setBillingFilter('all');
+    setSearch('');
+  };
   const onAction = (rec, e) => {
-    e.stopPropagation();
+    e && e.stopPropagation();
     if (rec.status === 'not_started' || rec.status === 'invited') return fireToast({
       message: `Verification request sent to ${rec.name}`
     });
@@ -44668,8 +45389,265 @@ const ComplianceDashboardPage = ({
     });
     goCompliance(rec.id);
   };
-  const today = compDay(0);
-  const cols = '34px minmax(190px,1.5fr) 0.9fr 1.15fr 1fr 0.8fr 1fr 96px';
+  const sendReminder = (rec, e) => {
+    e && e.stopPropagation();
+    fireToast({
+      message: `Reminder sent to ${rec.primaryContact.name} · ${rec.name}`
+    });
+  };
+  const goGroup = (rec, e) => {
+    e && e.stopPropagation();
+    window.location.hash = '#/practice/client-relationship-map' + (rec.groupId ? '/' + rec.groupId : '');
+  };
+  const selStyle = {
+    width: 'auto',
+    minWidth: 130,
+    fontSize: 12.5,
+    padding: '7px 30px 7px 11px'
+  };
+  const columns = [{
+    key: 'lifecycle',
+    header: 'Status',
+    width: 'minmax(96px,0.7fr)',
+    sortable: true,
+    sortValue: r => r.lifecycle,
+    render: r => /*#__PURE__*/React.createElement(Pill, {
+      color: LIFECYCLE_META[r.lifecycle].color
+    }, LIFECYCLE_META[r.lifecycle].label)
+  }, {
+    key: 'name',
+    header: 'Client',
+    width: 'minmax(190px,1.6fr)',
+    sortable: true,
+    sortValue: r => r.name,
+    render: r => /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement(ClientMark, {
+      client: r,
+      size: 28
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 600,
+        color: T.text,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, r.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, r.entityType, r.abn && r.abn !== '—' ? ' · ' + r.abn : '')))
+  }, {
+    key: 'primaryContact',
+    header: 'Primary contact',
+    width: 'minmax(150px,1.2fr)',
+    render: r => /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.textSoft,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, r.primaryContact.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, r.primaryContact.email))
+  }, {
+    key: 'entityType',
+    header: 'Type',
+    width: 'minmax(86px,0.7fr)',
+    sortable: true,
+    render: r => /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.textSoft
+      }
+    }, r.entityType)
+  }, {
+    key: 'groupName',
+    header: 'Client group',
+    width: 'minmax(140px,1.1fr)',
+    render: r => /*#__PURE__*/React.createElement("button", {
+      onClick: e => goGroup(r, e),
+      title: "Open in Relationship Map",
+      style: {
+        border: 'none',
+        background: 'transparent',
+        padding: 0,
+        cursor: 'pointer',
+        textAlign: 'left',
+        minWidth: 0,
+        maxWidth: '100%'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.primary,
+        fontWeight: 600,
+        fontSize: 12.5,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        display: 'block'
+      }
+    }, r.groupName), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.muted
+      }
+    }, r.groupSize, " ", r.groupSize === 1 ? 'entity' : 'entities'))
+  }, {
+    key: 'billing',
+    header: 'Billing',
+    width: 'minmax(108px,0.9fr)',
+    render: r => /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.textSoft,
+        fontSize: 12.5,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, r.billing.type), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: T.muted
+      }
+    }, r.billing.cadence))
+  }, {
+    key: 'onboarding',
+    header: 'Onboarding',
+    width: 'minmax(120px,1fr)',
+    render: r => {
+      const pct = r._portal ? groupProgress(buildPortalMirror()).pct : r.onboarding.total ? Math.round(r.onboarding.done / r.onboarding.total * 100) : 0;
+      const missing = r.details.addresses.missing.length;
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          height: 5,
+          background: T.fieldBg,
+          borderRadius: 99,
+          minWidth: 36
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          height: '100%',
+          width: `${pct}%`,
+          background: pct === 100 ? T.green : T.primary,
+          borderRadius: 99,
+          transition: 'width 0.3s ease'
+        }
+      })), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 11,
+          fontWeight: 600,
+          color: T.muted,
+          fontVariantNumeric: 'tabular-nums'
+        }
+      }, r.onboarding.done, "/", r.onboarding.total)), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: missing ? T.amber : T.muted,
+          marginTop: 2,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }
+      }, missing ? `${missing} item${missing === 1 ? '' : 's'} missing` : 'Nothing outstanding'));
+    }
+  }, {
+    key: 'status',
+    header: 'Verification',
+    width: 'minmax(96px,0.8fr)',
+    sortable: true,
+    sortValue: r => COMPLIANCE_STATUS_ORDER.indexOf(r.status),
+    render: r => /*#__PURE__*/React.createElement(Pill, {
+      color: COMPLIANCE_STATUS[r.status].color
+    }, COMPLIANCE_STATUS[r.status].label)
+  }, {
+    key: 'createdAt',
+    header: 'Created',
+    width: 'minmax(88px,0.6fr)',
+    sortable: true,
+    sortValue: r => r.createdAt,
+    render: r => /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontVariantNumeric: 'tabular-nums',
+        color: T.textSoft,
+        fontSize: 12.5
+      }
+    }, fmtDate(new Date(r.createdAt)))
+  }, {
+    key: '_actions',
+    header: '',
+    width: '156px',
+    align: 'right',
+    render: r => /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        justifyContent: 'flex-end'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: e => sendReminder(r, e),
+      title: "Send reminder",
+      style: {
+        width: 28,
+        height: 28,
+        borderRadius: 7,
+        border: `1px solid ${T.border}`,
+        background: T.card,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "bell",
+      size: 14,
+      color: T.muted
+    })), /*#__PURE__*/React.createElement(Btn, {
+      variant: ACTION_VARIANT[r.status] || 'ghost',
+      size: "sm",
+      onClick: e => onAction(r, e)
+    }, COMP_ACTION_LABEL[r.status]))
+  }];
   return /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -44680,21 +45658,26 @@ const ComplianceDashboardPage = ({
     }
   }, /*#__PURE__*/React.createElement(PageHead, {
     title: "Clients Management",
-    subtitle: "Onboarding & AML/CTF verification across every client. Accountants are reporting entities under AUSTRAC from 1 Jul 2026 \u2014 track CDD, risk and review dates here.",
-    actions: /*#__PURE__*/React.createElement(Btn, {
-      variant: "primaryOutline",
+    subtitle: "Every client across your practice \u2014 status, group, billing, onboarding and AML/CTF verification in one register.",
+    actions: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
       size: "sm",
       icon: "download",
       onClick: () => fireToast({
         message: 'Client register exported (mock)'
       })
-    }, "Export register")
+    }, "Export"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "userPlus",
+      onClick: () => setPickerOpen(true)
+    }, "New client"))
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
-      gap: 12,
-      marginBottom: 16
+      gap: T.space.md,
+      marginBottom: T.space.md
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
     icon: "shield",
@@ -44731,28 +45714,64 @@ const ComplianceDashboardPage = ({
       gap: 2,
       flexWrap: 'wrap',
       borderBottom: `1px solid ${T.border}`,
-      marginBottom: 14
+      marginBottom: T.space.md
     }
   }, /*#__PURE__*/React.createElement(TabChip, {
-    active: statusFilter === 'all',
+    active: lifecycleFilter === 'all',
     label: "All",
-    count: counts.all,
-    onClick: () => setStatusFilter('all')
-  }), COMPLIANCE_STATUS_ORDER.map(k => /*#__PURE__*/React.createElement(TabChip, {
+    count: lcCounts.all,
+    onClick: () => setLifecycleFilter('all')
+  }), ['prospect', 'onboarding', 'active'].map(k => /*#__PURE__*/React.createElement(TabChip, {
     key: k,
-    active: statusFilter === k,
-    label: COMPLIANCE_STATUS[k].label,
-    count: counts[k],
-    onClick: () => setStatusFilter(statusFilter === k ? 'all' : k)
+    active: lifecycleFilter === k,
+    label: LIFECYCLE_META[k].label,
+    count: lcCounts[k],
+    onClick: () => setLifecycleFilter(lifecycleFilter === k ? 'all' : k)
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 12,
-      marginBottom: 14,
+      gap: T.space.sm,
+      marginBottom: T.space.md,
       flexWrap: 'wrap'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: entityFilter,
+    onChange: e => setEntityFilter(e.target.value),
+    style: selStyle
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All types"), entityTypes.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t,
+    value: t
+  }, t))), /*#__PURE__*/React.createElement(Select, {
+    value: groupFilter,
+    onChange: e => setGroupFilter(e.target.value),
+    style: selStyle
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All groups"), groupNames.map(g => /*#__PURE__*/React.createElement("option", {
+    key: g,
+    value: g
+  }, g))), /*#__PURE__*/React.createElement(Select, {
+    value: statusFilter,
+    onChange: e => setStatusFilter(e.target.value),
+    style: selStyle
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All verification"), COMPLIANCE_STATUS_ORDER.map(k => /*#__PURE__*/React.createElement("option", {
+    key: k,
+    value: k
+  }, COMPLIANCE_STATUS[k].label))), /*#__PURE__*/React.createElement(Select, {
+    value: billingFilter,
+    onChange: e => setBillingFilter(e.target.value),
+    style: selStyle
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All billing"), COMP_BILLING.map(b => /*#__PURE__*/React.createElement("option", {
+    key: b,
+    value: b
+  }, b))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -44772,8 +45791,8 @@ const ComplianceDashboardPage = ({
   }, r === 'all' ? 'All' : RISK_LABEL[r]))), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
-      minWidth: 180,
-      maxWidth: 320,
+      minWidth: 170,
+      maxWidth: 300,
       marginLeft: 'auto'
     }
   }, /*#__PURE__*/React.createElement(Input, {
@@ -44785,211 +45804,72 @@ const ComplianceDashboardPage = ({
       size: 14,
       color: T.muted
     })
-  }))), selected.size > 0 && /*#__PURE__*/React.createElement(Banner, {
-    tone: "accent",
-    icon: "check",
-    title: `${selected.size} selected`,
-    style: {
-      marginBottom: 12,
-      animation: 'slidein 0.2s ease'
+  }))), /*#__PURE__*/React.createElement(DataTable, {
+    columns: columns,
+    rows: rows,
+    rowKey: r => r.id,
+    onRowClick: rec => goCompliance(rec.id),
+    selectable: true,
+    selectedIds: selected,
+    onSelectionChange: setSelected,
+    minWidth: 1240,
+    bulkBar: /*#__PURE__*/React.createElement(Banner, {
+      tone: "accent",
+      icon: "check",
+      title: `${selected.size} selected`,
+      style: {
+        marginBottom: T.space.md,
+        animation: 'slidein 0.2s ease'
+      },
+      action: /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
+        }
+      }, /*#__PURE__*/React.createElement(Btn, {
+        variant: "primary",
+        size: "sm",
+        icon: "shield",
+        onClick: () => {
+          fireToast({
+            message: `Verification requested for ${selected.size} client${selected.size === 1 ? '' : 's'}`
+          });
+          setSelected(new Set());
+        }
+      }, "Request verification"), /*#__PURE__*/React.createElement("button", {
+        onClick: () => setSelected(new Set()),
+        style: {
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: T.primary
+        }
+      }, "Clear"))
+    }),
+    empty: {
+      icon: 'search',
+      title: 'No clients match',
+      hint: 'Try a different status, group, risk band or search term.',
+      action: anyFilter ? /*#__PURE__*/React.createElement(Btn, {
+        variant: "primaryOutline",
+        size: "sm",
+        onClick: clearFilters
+      }, "Clear filters") : null
+    }
+  }), /*#__PURE__*/React.createElement(ClientPicker, {
+    open: pickerOpen,
+    onClose: () => setPickerOpen(false),
+    onSelect: c => {
+      setPickerOpen(false);
+      if (c && c.id && complianceById(c.id)) goCompliance(c.id);else if (c) fireToast({
+        message: `${c.name} added to clients`
+      });
     },
-    action: /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10
-      }
-    }, /*#__PURE__*/React.createElement(Btn, {
-      variant: "primary",
-      size: "sm",
-      icon: "shield",
-      onClick: () => {
-        fireToast({
-          message: `Verification requested for ${selected.size} client${selected.size === 1 ? '' : 's'}`
-        });
-        setSelected(new Set());
-      }
-    }, "Request verification"), /*#__PURE__*/React.createElement("button", {
-      onClick: () => setSelected(new Set()),
-      style: {
-        border: 'none',
-        background: 'transparent',
-        cursor: 'pointer',
-        fontSize: 12.5,
-        fontWeight: 600,
-        color: T.primary
-      }
-    }, "Clear"))
-  }), /*#__PURE__*/React.createElement(Card, {
-    padded: false,
-    style: {
-      overflow: 'hidden'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      overflowX: 'auto'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      minWidth: 820
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: cols,
-      padding: '10px 16px',
-      background: T.fieldBg,
-      borderBottom: `1px solid ${T.border}`,
-      alignItems: 'center',
-      gap: 12
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: allVisibleSelected,
-    onChange: toggleAll,
-    style: {
-      accentColor: T.primary,
-      width: 15,
-      height: 15,
-      cursor: 'pointer'
-    }
-  }), ['Client', 'Entity', 'Onboarding', 'Verification', 'Risk', 'Review due', ''].map((h, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      fontSize: 10.5,
-      fontWeight: 700,
-      color: T.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.6
-    }
-  }, h))), rows.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
-    icon: "search",
-    title: "No clients match",
-    hint: "Try a different status, risk band or search term.",
-    action: /*#__PURE__*/React.createElement(Btn, {
-      variant: "primaryOutline",
-      size: "sm",
-      onClick: () => {
-        setStatusFilter('all');
-        setRiskFilter('all');
-        setSearch('');
-      }
-    }, "Clear filters"),
-    style: {
-      padding: '40px 16px'
-    }
-  }), rows.map((rec, i) => {
-    // The portal-linked row mirrors the live client group's real progress so the
-    // dashboard and the detail page agree (the rest use the seeded mock %).
-    const pct = rec._portal ? groupProgress(buildPortalMirror()).pct : rec.onboarding.total ? Math.round(rec.onboarding.done / rec.onboarding.total * 100) : 0;
-    const risk = effectiveRisk(rec);
-    const pastReview = rec.reviewDue < today && ['verified', 'review_due'].includes(rec.status);
-    return /*#__PURE__*/React.createElement("div", {
-      key: rec.id,
-      "data-hover": "row",
-      onClick: () => goCompliance(rec.id),
-      style: {
-        display: 'grid',
-        gridTemplateColumns: cols,
-        padding: '12px 16px',
-        alignItems: 'center',
-        gap: 12,
-        borderBottom: i < rows.length - 1 ? `1px solid ${T.border}` : 'none',
-        fontSize: 13,
-        cursor: 'pointer'
-      }
-    }, /*#__PURE__*/React.createElement("input", {
-      type: "checkbox",
-      checked: selected.has(rec.id),
-      onClick: e => e.stopPropagation(),
-      onChange: () => toggle(rec.id),
-      style: {
-        accentColor: T.primary,
-        width: 15,
-        height: 15,
-        cursor: 'pointer'
-      }
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement(ClientMark, {
-      client: rec,
-      size: 28
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontWeight: 600,
-        color: T.text,
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis'
-      }
-    }, rec.name), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 11.5,
-        color: T.muted,
-        fontVariantNumeric: 'tabular-nums'
-      }
-    }, rec.abn))), /*#__PURE__*/React.createElement("div", {
-      style: {
-        color: T.textSoft
-      }
-    }, rec.entityType), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1,
-        height: 5,
-        background: T.fieldBg,
-        borderRadius: 99,
-        minWidth: 40
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        height: '100%',
-        width: `${pct}%`,
-        background: pct === 100 ? T.green : T.primary,
-        borderRadius: 99,
-        transition: 'width 0.3s ease'
-      }
-    })), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 11,
-        fontWeight: 600,
-        color: T.muted,
-        fontVariantNumeric: 'tabular-nums'
-      }
-    }, rec.onboarding.done, "/", rec.onboarding.total))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Pill, {
-      color: COMPLIANCE_STATUS[rec.status].color
-    }, COMPLIANCE_STATUS[rec.status].label)), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Pill, {
-      color: RISK_PILL[risk]
-    }, RISK_LABEL[risk])), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontVariantNumeric: 'tabular-nums',
-        color: pastReview ? T.red : T.textSoft,
-        fontWeight: pastReview ? 600 : 400
-      }
-    }, fmtDate(new Date(rec.reviewDue))), /*#__PURE__*/React.createElement("div", {
-      style: {
-        textAlign: 'right'
-      }
-    }, /*#__PURE__*/React.createElement(Btn, {
-      variant: ACTION_VARIANT[rec.status] || 'ghost',
-      size: "sm",
-      onClick: e => onAction(rec, e)
-    }, COMP_ACTION_LABEL[rec.status])));
-  })))));
+    fireToast: fireToast
+  }));
 };
 
 // --- per-client verification detail ---
@@ -45076,6 +45956,83 @@ const ComplianceTimeline = ({
     }, fmtDate(new Date(ev.at)))));
   }));
 };
+
+// --- client-detail helpers (Details / Access / Declaration tabs) ---
+const CDRow = ({
+  label,
+  value,
+  icon,
+  req,
+  first
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '9px 0',
+    borderTop: first ? 'none' : `1px solid ${T.borderSoft}`
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12.5,
+    color: T.muted,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0
+  }
+}, icon && /*#__PURE__*/React.createElement(Icon, {
+  name: icon,
+  size: 14,
+  color: T.mutedSoft
+}), /*#__PURE__*/React.createElement("span", {
+  style: {
+    whiteSpace: 'nowrap'
+  }
+}, label)), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: req ? T.red : T.text,
+    textAlign: 'right',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  }
+}, value, req && /*#__PURE__*/React.createElement("span", {
+  style: {
+    color: T.red,
+    marginLeft: 6
+  }
+}, "\u25CF")));
+const CDReq = ({
+  label,
+  onClick
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  style: {
+    width: '100%',
+    padding: '11px 12px',
+    border: `1px dashed ${T.borderStrong}`,
+    borderRadius: 10,
+    background: T.card,
+    color: T.textSoft,
+    fontSize: 12.5,
+    fontWeight: 600,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "plus",
+  size: 14,
+  color: T.muted
+}), label);
 const ComplianceDetailPage = ({
   clientId,
   fireToast
@@ -45085,6 +46042,7 @@ const ComplianceDetailPage = ({
     isCompact
   } = useViewport();
   const [override, setOverride] = useState(rec ? rec.overrideRating : null);
+  const [tab, setTab] = useState('details');
   const backToList = () => {
     window.location.hash = '#/practice/clients-management';
   };
@@ -45228,6 +46186,31 @@ const ComplianceDetailPage = ({
       c: 'neutral'
     };
   };
+  const d = rec.details,
+    decl = rec.declaration;
+  const detailsGaps = d.addresses.missing.length + (!rec.isEntity && !d.tfn ? 1 : 0) + (!rec.isEntity && !d.dob ? 1 : 0) + (d.taxReturns.length === 0 ? 1 : 0);
+  const tabs = [{
+    id: 'details',
+    label: 'Details',
+    icon: 'users',
+    badge: detailsGaps
+  }, {
+    id: 'access',
+    label: 'Access',
+    icon: 'link',
+    badge: 0
+  }, {
+    id: 'declaration',
+    label: 'Declaration',
+    icon: 'edit',
+    badge: decl.signed ? 0 : 1
+  }, {
+    id: 'verification',
+    label: 'Verification',
+    icon: 'shield',
+    badge: rec.status === 'verified' ? 0 : 1
+  }];
+  const twoCol = isCompact ? '1fr' : '1fr 1fr';
   return /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -45243,7 +46226,7 @@ const ComplianceDetailPage = ({
       justifyContent: 'space-between',
       gap: 16,
       flexWrap: 'wrap',
-      marginBottom: 16
+      marginBottom: 14
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -45263,7 +46246,8 @@ const ComplianceDetailPage = ({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 10
+      gap: 10,
+      flexWrap: 'wrap'
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
@@ -45272,12 +46256,14 @@ const ComplianceDetailPage = ({
       letterSpacing: -0.3
     }
   }, rec.name), /*#__PURE__*/React.createElement(Pill, {
+    color: LIFECYCLE_META[rec.lifecycle].color
+  }, LIFECYCLE_META[rec.lifecycle].label), /*#__PURE__*/React.createElement(Pill, {
     color: COMPLIANCE_STATUS[rec.status].color
   }, COMPLIANCE_STATUS[rec.status].label)), /*#__PURE__*/React.createElement(Helper, {
     style: {
       marginTop: 2
     }
-  }, rec.entityType, " \xB7 ", rec.abn, " \xB7 Advisor: ", rec.advisor))), /*#__PURE__*/React.createElement("div", {
+  }, rec.entityType, rec.abn && rec.abn !== '—' ? ` · ${rec.abn}` : '', " \xB7 ", rec.groupName, " \xB7 Advisor: ", rec.advisor))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -45294,25 +46280,25 @@ const ComplianceDetailPage = ({
   }, "Open portal"), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
-    icon: "refresh",
+    icon: "bell",
     onClick: () => fireToast({
-      message: 'Verification results refreshed (mock)'
+      message: `Reminder sent to ${rec.primaryContact.name}`
     })
-  }, "Refresh results"), /*#__PURE__*/React.createElement(Btn, {
+  }, "Send reminder"), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
     icon: "copy",
     onClick: () => fireToast({
-      message: 'Verification link copied'
+      message: 'Client link copied'
     })
   }, "Copy link"), /*#__PURE__*/React.createElement(Btn, {
     variant: "primaryOutline",
     size: "sm",
-    icon: "download",
+    icon: "edit",
     onClick: () => fireToast({
-      message: 'Session report downloaded (mock)'
+      message: 'Edit client (mock)'
     })
-  }, "Session report"))), /*#__PURE__*/React.createElement(Banner, {
+  }, "Edit client"))), /*#__PURE__*/React.createElement(Banner, {
     tone: verdict.tone,
     title: verdict.title,
     action: verdict.cta && /*#__PURE__*/React.createElement(Btn, {
@@ -45325,7 +46311,410 @@ const ComplianceDetailPage = ({
     style: {
       marginBottom: 14
     }
-  }, verdict.text), mirror && /*#__PURE__*/React.createElement(PanelCard, {
+  }, verdict.text), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      borderRadius: T.radiusCard,
+      padding: 5,
+      marginBottom: 16,
+      boxShadow: T.shadowXs
+    }
+  }, tabs.map(t => {
+    const on = tab === t.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: t.id,
+      onClick: () => setTab(t.id),
+      style: {
+        flex: 1,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        padding: '10px 12px',
+        borderRadius: 9,
+        border: 'none',
+        cursor: 'pointer',
+        background: on ? T.fieldBg : 'transparent',
+        color: on ? T.text : T.muted,
+        fontSize: 13,
+        fontWeight: on ? 700 : 600,
+        transition: 'background 0.12s, color 0.12s'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: t.icon,
+      size: 15,
+      color: on ? T.text : T.muted
+    }), t.label, t.badge > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: '#fff',
+        background: T.amber,
+        borderRadius: 999,
+        minWidth: 17,
+        height: 17,
+        padding: '0 5px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, t.badge));
+  })), tab === 'details' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: twoCol,
+      gap: 16,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: `${rec.entityType} details`,
+    icon: "users",
+    iconTone: "accent"
+  }, /*#__PURE__*/React.createElement(CDRow, {
+    first: true,
+    label: "Full name",
+    value: d.fullName
+  }), d.australianResident != null && /*#__PURE__*/React.createElement(CDRow, {
+    label: "Australian resident",
+    value: d.australianResident
+  }), /*#__PURE__*/React.createElement(CDRow, {
+    label: "Tags",
+    value: d.tags.length ? d.tags.join(', ') : 'No tags'
+  }), /*#__PURE__*/React.createElement(CDRow, {
+    label: "Manager",
+    value: d.manager
+  }), !rec.isEntity && /*#__PURE__*/React.createElement(CDRow, {
+    label: "TFN",
+    value: d.tfn || 'Required',
+    req: !d.tfn
+  }), !rec.isEntity && /*#__PURE__*/React.createElement(CDRow, {
+    label: "Date of birth",
+    value: d.dob || 'Required',
+    req: !d.dob
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Contact details",
+    icon: "mail",
+    iconTone: "blue"
+  }, /*#__PURE__*/React.createElement(CDRow, {
+    first: true,
+    icon: "mail",
+    label: "Emails",
+    value: d.contactDetails.emails.join(', ') || '—'
+  }), /*#__PURE__*/React.createElement(CDRow, {
+    icon: "phone",
+    label: "Phones",
+    value: d.contactDetails.phones.join(', ') || '—'
+  }), /*#__PURE__*/React.createElement(CDRow, {
+    icon: "link",
+    label: "Websites",
+    value: d.contactDetails.websites.join(', ') || '—'
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Address",
+    icon: "location",
+    iconTone: "amber"
+  }, d.addresses.missing.length > 0 && /*#__PURE__*/React.createElement(Banner, {
+    tone: "warn",
+    title: "Required actions",
+    style: {
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("ul", {
+    style: {
+      margin: '4px 0 0',
+      paddingLeft: 16
+    }
+  }, d.addresses.missing.map((m, i) => /*#__PURE__*/React.createElement("li", {
+    key: i
+  }, m, " required")))), d.addresses.residential || d.addresses.postal ? /*#__PURE__*/React.createElement(React.Fragment, null, d.addresses.residential && /*#__PURE__*/React.createElement(CDRow, {
+    first: true,
+    label: "Residential",
+    value: d.addresses.residential
+  }), d.addresses.postal && /*#__PURE__*/React.createElement(CDRow, {
+    first: !d.addresses.residential,
+    label: "Postal",
+    value: d.addresses.postal
+  })) : /*#__PURE__*/React.createElement(Helper, null, "No addresses associated."), /*#__PURE__*/React.createElement(CDReq, {
+    label: "Add address",
+    onClick: () => fireToast({
+      message: 'Add address (mock)'
+    })
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "People and roles",
+    icon: "users",
+    iconTone: "green"
+  }, d.people.map((p, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      padding: '9px 0',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: p.name,
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, p.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, p.email)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: "neutral"
+  }, p.role), p.primary && /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, "Primary")))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Tax returns",
+    icon: "fileText",
+    iconTone: "accent"
+  }, d.taxReturns.length ? d.taxReturns.map((tr, i) => /*#__PURE__*/React.createElement(CDRow, {
+    key: i,
+    first: i === 0,
+    label: `${tr.year} tax return`,
+    value: `${tr.status} · ${fmtDate(new Date(tr.at))}`
+  })) : /*#__PURE__*/React.createElement(Banner, {
+    tone: "warn"
+  }, "Most recent completed tax return required."), /*#__PURE__*/React.createElement(CDReq, {
+    label: "Request or upload tax return",
+    onClick: () => fireToast({
+      message: 'Tax return requested (mock)'
+    })
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Profit & Loss and Balance Sheet",
+    icon: "receipt",
+    iconTone: "blue"
+  }, d.financials.profitLoss && /*#__PURE__*/React.createElement(CDRow, {
+    first: true,
+    label: d.financials.profitLoss.label,
+    value: fmtDate(new Date(d.financials.profitLoss.at))
+  }), d.financials.balanceSheet && /*#__PURE__*/React.createElement(CDRow, {
+    first: !d.financials.profitLoss,
+    label: d.financials.balanceSheet.label,
+    value: fmtDate(new Date(d.financials.balanceSheet.at))
+  }), !d.financials.profitLoss && !d.financials.balanceSheet && /*#__PURE__*/React.createElement(Helper, null, "No Profit & Loss or Balance Sheet uploaded."), /*#__PURE__*/React.createElement(CDReq, {
+    label: "Request or upload P&L / Balance Sheet",
+    onClick: () => fireToast({
+      message: 'P&L requested (mock)'
+    })
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Additional income & expenses",
+    icon: "dollar",
+    iconTone: "green"
+  }, d.additionalIncomeExpenses.length ? d.additionalIncomeExpenses.map((x, i) => /*#__PURE__*/React.createElement(CDRow, {
+    key: i,
+    first: i === 0,
+    label: x.label,
+    value: x.value
+  })) : /*#__PURE__*/React.createElement(Helper, null, "No associated documents."), /*#__PURE__*/React.createElement(CDReq, {
+    label: "Request or upload income & expenses",
+    onClick: () => fireToast({
+      message: 'Requested (mock)'
+    })
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Documents",
+    icon: "archive",
+    iconTone: "amber"
+  }, d.documents.length ? d.documents.map((doc, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '9px 0',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "fileText",
+    size: 15,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: 12.5,
+      color: T.text,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis'
+    }
+  }, doc.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, fmtDate(new Date(doc.at))))) : /*#__PURE__*/React.createElement(Helper, null, "No documents associated."), /*#__PURE__*/React.createElement(CDReq, {
+    label: "Request or upload document",
+    onClick: () => fireToast({
+      message: 'Document requested (mock)'
+    })
+  })), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Metadata",
+    icon: "info",
+    iconTone: "neutral"
+  }, /*#__PURE__*/React.createElement(CDRow, {
+    first: true,
+    label: "Created",
+    value: `${fmtDate(new Date(rec.createdAt))} · ${rec.createdBy}`
+  }), /*#__PURE__*/React.createElement(CDRow, {
+    label: "Last updated",
+    value: `${fmtDate(new Date(rec.updatedAt))} · ${rec.updatedBy}`
+  })))), tab === 'access' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: twoCol,
+      gap: 16,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Accounting software",
+    icon: "link",
+    iconTone: "accent"
+  }, rec.access.software.length ? rec.access.software.map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      padding: '10px 0',
+      borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "link",
+    tone: "blue",
+    size: 32
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600
+    }
+  }, s.name), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, "Connected ", fmtDate(new Date(s.connectedAt)))), /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, s.status))) : /*#__PURE__*/React.createElement(Helper, null, "No software information available."), /*#__PURE__*/React.createElement(CDReq, {
+    label: "Add software details",
+    onClick: () => fireToast({
+      message: 'Add software (mock)'
+    })
+  }))), tab === 'declaration' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: twoCol,
+      gap: 16,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Declaration",
+    icon: "edit",
+    iconTone: "accent"
+  }, /*#__PURE__*/React.createElement(Banner, {
+    tone: "warn",
+    title: "This card is relevant to your client only.",
+    style: {
+      marginBottom: 12
+    }
+  }, "We're displaying this card to you for reference only."), /*#__PURE__*/React.createElement(CDRow, {
+    first: true,
+    icon: "user",
+    label: "Tax payer name",
+    value: decl.taxpayerName
+  }), /*#__PURE__*/React.createElement(CDRow, {
+    icon: "calendar",
+    label: "Declaration date",
+    value: decl.date ? fmtDate(new Date(decl.date)) : 'Not yet signed',
+    req: !decl.date
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      padding: '9px 0',
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.muted
+    }
+  }, "Declaration signed"), /*#__PURE__*/React.createElement(Pill, {
+    color: decl.signed ? 'green' : 'amber'
+  }, decl.signed ? 'Signed' : 'Awaiting signature')), decl.signedAt && /*#__PURE__*/React.createElement(CDRow, {
+    label: "Signed at",
+    value: fmtDate(new Date(decl.signedAt))
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.textSoft,
+      lineHeight: 1.5,
+      marginTop: 12
+    }
+  }, decl.text), decl.signed ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Signature"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      padding: '12px 14px',
+      fontFamily: 'Georgia, serif',
+      fontStyle: 'italic',
+      fontSize: 18,
+      color: T.text
+    }
+  }, decl.signatureName)) : /*#__PURE__*/React.createElement(Btn, {
+    variant: "primaryOutline",
+    size: "sm",
+    icon: "send",
+    style: {
+      marginTop: 12
+    },
+    onClick: () => fireToast({
+      message: `Declaration sent to ${decl.taxpayerName} for signature`
+    })
+  }, "Send for signature"), /*#__PURE__*/React.createElement(Banner, {
+    tone: "info",
+    title: "Privacy",
+    style: {
+      marginTop: 14
+    }
+  }, decl.privacyNote))), tab === 'verification' && /*#__PURE__*/React.createElement(React.Fragment, null, mirror && /*#__PURE__*/React.createElement(PanelCard, {
     title: "Client portal \u2014 onboarding status",
     subtitle: "Exactly what the client sees in their portal \u2014 live, read-only",
     icon: "users",
@@ -45587,7 +46976,7 @@ const ComplianceDetailPage = ({
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "Risk & sign-off",
-    subtitle: "Provider rating + your manual assessment",
+    subtitle: "Provider rating, your assessment + review schedule",
     icon: "gauge",
     iconTone: "amber"
   }, /*#__PURE__*/React.createElement("div", {
@@ -45661,11 +47050,12 @@ const ComplianceDetailPage = ({
     style: {
       marginTop: 14
     }
-  }, rec.eddNote)), /*#__PURE__*/React.createElement(PanelCard, {
-    title: "Compliance calendar",
-    subtitle: "Review schedule, retention & full audit trail",
-    icon: "calendar",
-    iconTone: "blue"
+  }, rec.eddNote), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      paddingTop: 14,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -45704,26 +47094,9 @@ const ComplianceDetailPage = ({
   }, fmtDate(new Date(rec.retainUntil)))), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 11,
-      marginTop: 4,
-      marginBottom: 14
+      marginTop: 4
     }
-  }, "AML/CTF records are kept for 7 years after the relationship ends (AUSTRAC)."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      paddingTop: 14,
-      borderTop: `1px solid ${T.borderSoft}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700,
-      color: T.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 12
-    }
-  }, "Audit timeline"), /*#__PURE__*/React.createElement(ComplianceTimeline, {
-    audit: rec.audit
-  }))))));
+  }, "AML/CTF records are kept for 7 years after the relationship ends (AUSTRAC).")))))));
 };
 const OverviewPage = ({
   fireToast
@@ -100583,7 +101956,8 @@ const CrmOrbNode = React.memo(({
   }
 }, crmClip(label, 22))));
 const ClientRelationshipMapPage = ({
-  fireToast
+  fireToast,
+  focusGroupId
 }) => {
   const {
     isCompact
@@ -100974,6 +102348,27 @@ const ClientRelationshipMapPage = ({
     });
     /* eslint-disable-next-line */
   }, [layout]);
+
+  // Deep-link focus: arriving via a group link from Clients Management
+  // (#/practice/client-relationship-map/<groupId>) expands + frames that group,
+  // mirroring a user click. Deferred so the initial fit-to-content runs first.
+  useEffect(() => {
+    if (!focusGroupId || !crmGetGroup(focusGroupId)) return;
+    const t = setTimeout(() => {
+      setSelection({
+        type: 'group',
+        id: focusGroupId
+      });
+      setExpanded(s => {
+        const n = new Set(s);
+        n.add(focusGroupId);
+        return n;
+      });
+      expandAnimTarget.current = focusGroupId;
+    }, 140);
+    return () => clearTimeout(t);
+    /* eslint-disable-next-line */
+  }, []);
 
   // Frame the constellation, centred. Size-aware: a SMALL practice opens zoomed-in
   // enough to read the logos (density 2); a big one opens as a calm hub overview
@@ -104644,7 +106039,8 @@ const PracticeApp = () => {
         });
       case 'client-relationship-map':
         return /*#__PURE__*/React.createElement(ClientRelationshipMapPage, {
-          fireToast: fireToast
+          fireToast: fireToast,
+          focusGroupId: route.id
         });
       case 'team-management':
         return /*#__PURE__*/React.createElement(StubPage, {
@@ -104915,7 +106311,8 @@ const PORTAL_NAV = [{
 }, {
   id: 'communications',
   icon: 'messageSquare',
-  label: 'Communications'
+  label: 'Communications',
+  open: true
 }, {
   id: 'payroll',
   icon: 'briefcase',
@@ -105590,6 +106987,7 @@ const BUILTIN_ONBOARDING_TEMPLATES = [{
   category: 'Accounting',
   serviceType: 'Individual Tax Return',
   entityTypes: ['Individual', 'Sole Trader'],
+  defaultFor: ['Individual', 'Sole Trader'],
   kyc: true,
   builtin: true,
   intro: {
@@ -105745,6 +107143,7 @@ const BUILTIN_ONBOARDING_TEMPLATES = [{
   category: 'Accounting',
   serviceType: 'Company / Business Tax',
   entityTypes: ['Company', 'Trust', 'Partnership', 'SMSF', 'Sole Trader'],
+  defaultFor: ['Company', 'Partnership'],
   kyc: true,
   builtin: true,
   intro: {
@@ -106068,6 +107467,7 @@ const BUILTIN_ONBOARDING_TEMPLATES = [{
   category: 'Accounting',
   serviceType: 'SMSF',
   entityTypes: ['SMSF'],
+  defaultFor: ['SMSF'],
   kyc: true,
   builtin: true,
   intro: {
@@ -106235,6 +107635,7 @@ const BUILTIN_ONBOARDING_TEMPLATES = [{
   category: 'Accounting',
   serviceType: 'Trust',
   entityTypes: ['Trust'],
+  defaultFor: ['Trust'],
   kyc: true,
   builtin: true,
   intro: {
@@ -106305,6 +107706,17 @@ const findOnbTemplate = id => id ? onbAllTemplates().find(t => t.id === id) || n
 // saved); otherwise resolve by the client's assigned templateId.
 const resolveTemplate = c => c ? c._template || (c.templateId ? findOnbTemplate(c.templateId) : null) : null;
 
+// Default onboarding template per entity type — auto-attached when a client of that
+// type is created (stakeholder: "default templates auto-attach when a specific type
+// is added"). One default per type; a user-set default wins over the built-in seed.
+// "Other" intentionally has no default — those clients must pick or create one.
+const ONB_DEFAULTABLE_TYPES = ['Sole Trader', 'Individual', 'Company', 'Trust', 'Partnership', 'SMSF'];
+const templatesForEntity = entityType => onbAllTemplates().filter(t => !entityType || (t.entityTypes || []).includes(entityType));
+const defaultTemplateFor = entityType => {
+  const all = onbAllTemplates();
+  return all.find(t => !t.builtin && (t.defaultFor || []).includes(entityType)) || all.find(t => (t.defaultFor || []).includes(entityType)) || null;
+};
+
 // ---- template authoring helpers (used by the builder) -----------------------
 const onbUid = p => p + '-' + Math.random().toString(36).slice(2, 8);
 const onbTemplateFieldCount = t => (t.pages || []).reduce((n, p) => n + (p.sections || []).reduce((m, s) => m + (s.fields || []).length, 0), 0);
@@ -106336,6 +107748,7 @@ const onbBlankTemplate = () => ({
   entityTypes: ['Individual', 'Company'],
   kyc: false,
   builtin: false,
+  brandColor: '#4A3FBE',
   intro: {
     enabled: true,
     html: "Hi! We're delighted to have you on board. Please complete the questionnaire below — everything saves as you go."
@@ -108777,7 +110190,7 @@ const PortalRing = ({
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const off = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
-  const color = done ? T.green : colorProp || T.primary;
+  const color = done ? T.green : colorProp || PT.brand;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'relative',
@@ -110409,7 +111822,7 @@ const PortalOnboardingOnePage = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14,
+      gap: 12,
       minWidth: 0
     }
   }, clientDone ? /*#__PURE__*/React.createElement("div", {
@@ -110579,7 +111992,7 @@ const PortalOnboardingOnePage = ({
         borderRadius: 18,
         border: `1px solid ${open ? PT.brand : T.borderSoft}`,
         overflow: 'hidden',
-        boxShadow: open ? '0 12px 32px -16px rgba(74,63,190,0.4)' : undefined,
+        boxShadow: open ? `0 12px 32px -16px ${ptRgba(PT.brand, 0.4)}` : undefined,
         transition: 'border-color .15s, box-shadow .15s'
       }
     }, /*#__PURE__*/React.createElement("button", {
@@ -110966,6 +112379,9 @@ const PortalOnboardingOnePage = ({
 // Portal-styled horizontal stepper (copies the global Stepper idiom but on PT.brand
 // tokens, clickable, with a per-step required count + a KYC shield). Scrolls
 // horizontally so a template with many pages never overflows.
+// Section navigation as a clean tab bar (was a numbered stepper) — each section is
+// a tab with a number/check chip; the active tab carries a brand underline. The
+// row's bottom hairline doubles as the divider above the section content.
 const PortalStepper = ({
   steps,
   activeIdx,
@@ -110973,82 +112389,59 @@ const PortalStepper = ({
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
     display: 'flex',
-    alignItems: 'flex-start',
+    gap: 2,
     overflowX: 'auto',
-    padding: '8px 2px 4px'
+    borderBottom: `1px solid ${T.border}`
   }
 }, steps.map((s, i) => {
   const done = s.complete,
-    current = i === activeIdx;
-  return /*#__PURE__*/React.createElement(React.Fragment, {
-    key: s.id || i
-  }, /*#__PURE__*/React.createElement("button", {
-    "data-portal-step": "1",
+    active = i === activeIdx;
+  return /*#__PURE__*/React.createElement("button", {
+    key: s.id || i,
     onClick: () => onStep(i),
     title: `Go to ${s.title}`,
     style: {
-      display: 'flex',
-      flexDirection: 'column',
+      display: 'inline-flex',
       alignItems: 'center',
-      gap: 6,
+      gap: 7,
+      flexShrink: 0,
+      whiteSpace: 'nowrap',
+      padding: '10px 13px',
       background: 'none',
       border: 'none',
       cursor: 'pointer',
-      flexShrink: 0,
-      width: 96,
-      padding: '5px 4px'
+      marginBottom: -1,
+      borderBottom: active ? `2px solid ${PT.brand}` : '2px solid transparent',
+      color: active ? PT.brand : done ? T.text : T.muted,
+      fontWeight: active ? 700 : 600,
+      fontSize: 12.5,
+      transition: 'color .12s, border-color .12s'
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "pps-dot",
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      width: 34,
-      height: 34,
+      width: 18,
+      height: 18,
       borderRadius: '50%',
-      display: 'flex',
+      display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: 13,
+      fontSize: 10,
       fontWeight: 800,
       flexShrink: 0,
-      background: done ? PT.gradient : '#fff',
-      color: done ? '#fff' : current ? PT.brand : T.muted,
-      border: current ? `2px solid ${PT.brand}` : done ? 'none' : `1.5px solid ${T.borderStrong}`,
-      boxShadow: current ? '0 6px 14px -6px rgba(74,63,190,0.6)' : done ? '0 4px 10px -4px rgba(74,63,190,0.45)' : '0 1px 3px rgba(28,27,71,0.1)',
-      transition: 'all .15s'
+      background: done ? PT.brand : active ? PT.brandSoft : T.fieldBg,
+      color: done ? '#fff' : active ? PT.brand : T.muted,
+      border: done ? 'none' : `1px solid ${active ? PT.brandBorder : T.border}`
     }
   }, done ? /*#__PURE__*/React.createElement(Icon, {
     name: "check",
-    size: 16,
+    size: 11,
     color: "#fff",
     strokeWidth: 3
-  }) : i + 1), /*#__PURE__*/React.createElement("span", {
-    className: "pps-label",
-    style: {
-      fontSize: 11,
-      fontWeight: current ? 700 : 600,
-      color: current ? PT.brandDeep : done ? T.text : T.muted,
-      textAlign: 'center',
-      lineHeight: 1.25,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 3,
-      justifyContent: 'center',
-      transition: 'color .12s'
-    }
-  }, s.kyc && /*#__PURE__*/React.createElement(Icon, {
+  }) : i + 1), s.kyc && /*#__PURE__*/React.createElement(Icon, {
     name: "shield",
     size: 11,
-    color: current ? PT.brand : T.muted
-  }), s.title)), i < steps.length - 1 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: '1 1 16px',
-      minWidth: 16,
-      height: 2,
-      borderRadius: 2,
-      background: done ? PT.brand : T.border,
-      marginTop: 17
-    }
-  }));
+    color: active ? PT.brand : T.muted
+  }), s.title);
 }));
 
 // Which section a client is currently "on" (first incomplete required section).
@@ -111065,10 +112458,15 @@ const memberCurrentStep = c => {
 // said was missing. Lists every incomplete REQUIRED item, grouped by member, each
 // row jumping straight to the step that fixes it. Reused on the accountant side
 // (read-only) so both sides see exactly what the client still owes.
+// First-actions checklist. Reads as a PERMANENT to-do (not a transient warning):
+// a neutral brand-accented header, a progress bar, and clear rows — each with a
+// "Mark as done" tick (hollow circle → fills the item) and an "Open" jump to fill
+// it properly. readOnly (accountant mirror) shows the same list without controls.
 const PortalOutstandingList = ({
   clients,
   onJump,
-  title = 'Still to complete',
+  onMarkDone,
+  title = 'Your first actions',
   readOnly
 }) => {
   const groups = (clients || []).map(c => {
@@ -111089,12 +112487,14 @@ const PortalOutstandingList = ({
   }).filter(g => g.rows.length);
   const total = groups.reduce((s, g) => s + g.rows.length, 0);
   if (!total) return null;
+  const allTotal = (clients || []).reduce((s, c) => s + clientProgress(c).total, 0);
+  const done = Math.max(0, allTotal - total);
+  const pct = allTotal ? Math.round(done / allTotal * 100) : 0;
   const multi = (clients || []).length > 1;
   return /*#__PURE__*/React.createElement("div", {
     "data-card": "panel",
     style: {
       background: T.card,
-      borderRadius: 18,
       padding: 16,
       border: `1px solid ${T.borderSoft}`
     }
@@ -111102,31 +112502,31 @@ const PortalOutstandingList = ({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 10,
-      marginBottom: 12
+      gap: 10
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       width: 30,
       height: 30,
       borderRadius: 9,
-      background: T.amberSoft,
+      background: PT.brandSoft,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: "alertTriangle",
+    name: "list",
     size: 15,
-    color: T.amber
+    color: PT.brand
   })), /*#__PURE__*/React.createElement("div", {
     style: {
-      minWidth: 0
+      minWidth: 0,
+      flex: 1
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12.5,
+      fontSize: 13,
       fontWeight: 700,
       color: T.text
     }
@@ -111134,11 +112534,28 @@ const PortalOutstandingList = ({
     style: {
       fontSize: 11
     }
-  }, total, " item", total === 1 ? '' : 's', " still needed"))), /*#__PURE__*/React.createElement("div", {
+  }, readOnly ? `${total} item${total === 1 ? '' : 's'} outstanding` : `${done} of ${allTotal} done — these are next`))), !readOnly && allTotal > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: 6,
+      background: T.fieldBg,
+      borderRadius: 99,
+      overflow: 'hidden',
+      margin: '10px 0 12px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: '100%',
+      width: `${pct}%`,
+      background: PT.brand,
+      borderRadius: 99,
+      transition: 'width .3s'
+    }
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: multi ? 11 : 3
+      gap: multi ? 12 : 0,
+      marginTop: readOnly ? 10 : 0
     }
   }, groups.map(g => /*#__PURE__*/React.createElement("div", {
     key: g.client.id
@@ -111147,7 +112564,7 @@ const PortalOutstandingList = ({
       display: 'flex',
       alignItems: 'center',
       gap: 7,
-      marginBottom: 4
+      marginBottom: 5
     }
   }, /*#__PURE__*/React.createElement(Avatar, {
     name: g.client.name,
@@ -111165,65 +112582,99 @@ const PortalOutstandingList = ({
     style: {
       fontSize: 10,
       fontWeight: 700,
-      color: T.amber,
-      background: T.amberSoft,
+      color: PT.brand,
+      background: PT.brandSoft,
       borderRadius: 99,
       padding: '0 6px'
     }
-  }, g.rows.length)), g.rows.map((r, j) => {
-    const inner = /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 6,
-        height: 6,
-        borderRadius: '50%',
-        background: T.amber,
-        flexShrink: 0
-      }
-    }), /*#__PURE__*/React.createElement("span", {
-      style: {
-        flex: 1,
-        minWidth: 0,
-        fontSize: 11.5,
-        color: T.textSoft,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
-      }
-    }, r.item.title, /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: T.mutedSoft
-      }
-    }, " \xB7 ", r.secTitle)), !readOnly && /*#__PURE__*/React.createElement(Icon, {
-      name: "arrow",
-      size: 12,
-      color: T.muted
-    }));
-    return readOnly ? /*#__PURE__*/React.createElement("div", {
-      key: r.item.id || j,
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '5px 8px'
-      }
-    }, inner) : /*#__PURE__*/React.createElement("button", {
-      key: r.item.id || j,
-      "data-hover": "row",
-      onClick: () => onJump && onJump(g.client.id, r.secId),
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        width: '100%',
-        textAlign: 'left',
-        cursor: 'pointer',
-        border: 'none',
-        background: 'transparent',
-        padding: '6px 8px',
-        borderRadius: 8
-      }
-    }, inner);
-  })))));
+  }, g.rows.length)), g.rows.map((r, j) => /*#__PURE__*/React.createElement("div", {
+    key: r.item.id || j,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '8px 4px',
+      borderTop: j > 0 ? `1px solid ${T.borderSoft}` : 'none'
+    }
+  }, readOnly || !onMarkDone ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+      background: T.amber,
+      flexShrink: 0
+    }
+  }) : /*#__PURE__*/React.createElement("button", {
+    title: "Mark as done",
+    "aria-label": `Mark "${r.item.title}" as done`,
+    onClick: () => onMarkDone(g.client.id, r.item),
+    style: {
+      width: 20,
+      height: 20,
+      borderRadius: '50%',
+      border: `2px solid ${PT.brandBorder}`,
+      background: '#fff',
+      cursor: 'pointer',
+      flexShrink: 0,
+      padding: 0
+    }
+  }), readOnly ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 12,
+      color: T.textSoft,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, r.item.title, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft
+    }
+  }, " \xB7 ", r.secTitle)) : /*#__PURE__*/React.createElement("button", {
+    "data-hover": "row",
+    onClick: () => onJump && onJump(g.client.id, r.secId),
+    style: {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      textAlign: 'left',
+      cursor: 'pointer',
+      border: 'none',
+      background: 'transparent',
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 12,
+      fontWeight: 500,
+      color: T.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, r.item.title, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft,
+      fontWeight: 400
+    }
+  }, " \xB7 ", r.secTitle)), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: PT.brand,
+      flexShrink: 0
+    }
+  }, "Open"), /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 12,
+    color: PT.brand
+  }))))))));
 };
 const PortalOnboardingWizard = ({
   portal,
@@ -111302,6 +112753,36 @@ const PortalOnboardingWizard = ({
   };
   const atComplete = stepIdx >= dataSections.length;
   const cur = atComplete ? null : stepMeta[stepIdx];
+  // Mark the current section's items done, then advance. Item ids don't always match
+  // answer keys (e.g. "prevAccountant" → c.prevAccountants), so we pick whichever
+  // done-values actually flip this section's items to done rather than guessing keys.
+  const markSectionDone = () => {
+    if (!cur) return;
+    const ids = new Set((cur.items || []).map(i => i.id));
+    const dv = clientAllDoneValues(activeClient);
+    const incompleteIn = cl => computeClientActions(cl).filter(i => ids.has(i.id) && !i.done).length;
+    let working = {
+      ...activeClient
+    };
+    const patch = {};
+    Object.keys(dv).forEach(key => {
+      const before = incompleteIn(working);
+      if (before === 0) return;
+      const trial = {
+        ...working,
+        [key]: dv[key]
+      };
+      if (incompleteIn(trial) < before) {
+        patch[key] = dv[key];
+        working = trial;
+      }
+    });
+    setClient(Object.keys(patch).length ? patch : dv);
+    fireToast({
+      message: `${cur.title} marked as done`
+    });
+    continueStep();
+  };
   const g = groupProgress(portal);
   const nextMember = clients.find(c => c.id !== activeClient.id && !isClientOnboarded(c));
   const pickMember = id => setPortal(p => ({
@@ -111350,7 +112831,7 @@ const PortalOnboardingWizard = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14,
+      gap: 12,
       minWidth: 0
     }
   }, !started && !clientDone && stepIdx === firstIncompleteIdx && /*#__PURE__*/React.createElement("div", {
@@ -111385,59 +112866,19 @@ const PortalOnboardingWizard = ({
       maxWidth: 560,
       lineHeight: 1.5
     }
-  }, "A few quick steps and you're done \u2014 your answers save automatically and you can change them anytime.")), !atComplete && /*#__PURE__*/React.createElement("div", {
-    "data-card": "panel",
-    style: {
-      background: T.card,
-      borderRadius: 16,
-      border: `1px solid ${T.borderSoft}`,
-      padding: '8px 14px 10px'
-    }
-  }, /*#__PURE__*/React.createElement(PortalStepper, {
+  }, "A few quick steps and you're done \u2014 your answers save automatically and you can change them anytime.")), !atComplete && /*#__PURE__*/React.createElement(PortalStepper, {
     steps: stepMeta,
     activeIdx: stepIdx,
     onStep: goStep
-  }), /*#__PURE__*/React.createElement("div", {
+  }), atComplete ? clientDone ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 5,
-      marginTop: 4
+      borderRadius: 12,
+      padding: '22px 24px',
+      background: PT.surface,
+      border: `1px solid ${T.border}`,
+      boxShadow: PT.shadowSoft
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 11,
-    color: T.mutedSoft
-  }), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 10.5
-    }
-  }, "Tap any step to jump there"))), atComplete ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'relative',
-      overflow: 'hidden',
-      borderRadius: 20,
-      padding: '24px 26px',
-      background: PT.gradientHero,
-      color: '#fff',
-      boxShadow: PT.shadowPop
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      top: -60,
-      right: -20,
-      width: 210,
-      height: 210,
-      borderRadius: '50%',
-      background: 'rgba(255,255,255,0.12)'
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'relative'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -111445,24 +112886,25 @@ const PortalOnboardingWizard = ({
       fontSize: 11,
       fontWeight: 700,
       textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      color: 'rgba(255,255,255,0.85)',
+      letterSpacing: 0.6,
+      color: T.greenDark,
       marginBottom: 9
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "checkCircle",
     size: 14,
-    color: "#A7F3D0"
+    color: T.green
   }), " ", multi ? `${activeClient.name} complete` : 'Onboarding complete'), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 24,
+      fontSize: 22,
       fontWeight: 800,
-      letterSpacing: -0.5
+      letterSpacing: -0.4,
+      color: PT.ink
     }
-  }, onboarded ? `You're all set, ${firstName}!` : `Nice work, ${firstName}!`), /*#__PURE__*/React.createElement("div", {
+  }, onboarded ? `You're all set, ${firstName}.` : `Nice work, ${firstName}.`), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
-      color: 'rgba(255,255,255,0.84)',
+      color: T.muted,
       marginTop: 7,
       maxWidth: 520,
       lineHeight: 1.5
@@ -111474,77 +112916,45 @@ const PortalOnboardingWizard = ({
       gap: 9,
       marginTop: 16
     }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => onStartTour ? onStartTour() : go('dashboard'),
-    className: "pt-lift",
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '10px 16px',
-      borderRadius: 8,
-      border: 'none',
-      background: '#fff',
-      color: PT.brandDeep,
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: 'pointer',
-      boxShadow: '0 8px 20px -8px rgba(0,0,0,0.35)'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "sparkle",
-    size: 15,
-    color: PT.brand
-  }), " Take a quick tour"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => go('dashboard'),
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '10px 16px',
-      borderRadius: 8,
-      border: '1.5px solid rgba(255,255,255,0.65)',
-      background: 'rgba(255,255,255,0.14)',
-      color: '#fff',
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: 'pointer'
-    }
-  }, "Go to dashboard ", /*#__PURE__*/React.createElement(Icon, {
-    name: "arrow",
-    size: 14,
-    color: "#fff"
-  }))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "sparkle",
+    onClick: () => onStartTour ? onStartTour() : go('dashboard')
+  }, "Take a quick tour"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    iconRight: "arrow",
+    onClick: () => go('dashboard')
+  }, "Go to dashboard")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
       gap: 9,
       marginTop: 16
     }
   }, unlocked.map(u => /*#__PURE__*/React.createElement("button", {
     key: u.id,
     onClick: () => go(u.id),
-    className: "pt-lift pt-tile-glass",
+    className: "pt-lift",
     style: {
       textAlign: 'left',
       cursor: 'pointer',
-      border: '1px solid rgba(255,255,255,0.18)',
-      borderRadius: 12,
-      background: 'rgba(255,255,255,0.1)',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.card,
       padding: '11px 12px',
       display: 'flex',
       flexDirection: 'column',
-      gap: 8,
-      color: '#fff'
+      gap: 8
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: u.icon,
     size: 17,
-    color: "#fff"
+    color: PT.brand
   }), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12,
-      fontWeight: 700
+      fontWeight: 700,
+      color: T.text
     }
   }, u.label))))) : /*#__PURE__*/React.createElement("div", {
     style: {
@@ -111553,42 +112963,13 @@ const PortalOnboardingWizard = ({
       gap: 9,
       marginTop: 16
     }
-  }, nextMember && /*#__PURE__*/React.createElement("button", {
-    onClick: () => pickMember(nextMember.id),
-    className: "pt-lift",
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '10px 16px',
-      borderRadius: 10,
-      border: 'none',
-      background: '#fff',
-      color: PT.brandDeep,
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: 'pointer',
-      boxShadow: '0 8px 20px -8px rgba(0,0,0,0.35)'
-    }
-  }, "Onboard ", (nextMember.name || '').split(' ')[0], " ", /*#__PURE__*/React.createElement(Icon, {
-    name: "arrow",
-    size: 14,
-    color: PT.brand
-  })), /*#__PURE__*/React.createElement("button", {
-    onClick: () => goStep(0),
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '10px 16px',
-      borderRadius: 10,
-      border: '1.5px solid rgba(255,255,255,0.65)',
-      background: 'rgba(255,255,255,0.14)',
-      color: '#fff',
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: 'pointer'
-    }
+  }, nextMember && /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: () => pickMember(nextMember.id)
+  }, "Onboard ", (nextMember.name || '').split(' ')[0]), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    onClick: () => goStep(0)
   }, "Review answers")))), onboarded && /*#__PURE__*/React.createElement(PanelCard, {
     title: "What happens next",
     icon: "clipboardCheck",
@@ -111640,7 +113021,60 @@ const PortalOnboardingWizard = ({
       marginTop: 2,
       lineHeight: 1.4
     }
-  }, r.detail)))))) : cur && /*#__PURE__*/React.createElement("div", {
+  }, r.detail)))))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderRadius: 12,
+      padding: '22px 24px',
+      background: PT.surface,
+      border: `1px solid ${T.border}`,
+      boxShadow: PT.shadowSoft
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      fontSize: 11,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+      color: T.amber,
+      marginBottom: 9
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "alertTriangle",
+    size: 14,
+    color: T.amber
+  }), " ", pct, "% complete"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      letterSpacing: -0.4,
+      color: PT.ink
+    }
+  }, "Almost there, ", firstName, "."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: T.muted,
+      marginTop: 7,
+      maxWidth: 520,
+      lineHeight: 1.5
+    }
+  }, "You've still got ", Math.max(0, cprog.total - cprog.done), " required item", cprog.total - cprog.done === 1 ? '' : 's', " to complete", multi ? ` for ${activeClient.name}` : ' before your portal unlocks', ". They're listed under \u201CYour first actions\u201D on the right."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 9,
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "arrow",
+    onClick: () => goStep(firstIncompleteIdx >= 0 ? firstIncompleteIdx : 0)
+  }, "Complete remaining details"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    onClick: () => goStep(0)
+  }, "Review from start"))) : cur && /*#__PURE__*/React.createElement("div", {
     "data-card": "panel",
     style: {
       background: T.card,
@@ -111744,12 +113178,23 @@ const PortalOnboardingWizard = ({
       borderTop: `1px solid ${T.borderSoft}`,
       background: T.fieldBg
     }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     icon: "arrowLeft",
     onClick: () => goStep(stepIdx - 1),
     disabled: stepIdx === 0
-  }, "Back"), /*#__PURE__*/React.createElement("div", {
+  }, "Back"), !cur.complete && cur.items.length > 0 && /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "check",
+    onClick: markSectionDone
+  }, "Mark as done")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -112045,18 +113490,35 @@ const PortalOnboardingWizard = ({
     }
   }, "Message your team")));
 
-  // "Still to complete" — solo: this person's outstanding; group: every incomplete member.
+  // "Your first actions" — solo: this person's outstanding; group: every incomplete member.
   const outstandingClients = multi ? clients.filter(c => !isClientOnboarded(c)) : clientDone ? [] : [activeClient];
+  const markItemDone = (clientId, item) => {
+    setPortal(p => ({
+      ...p,
+      clients: p.clients.map(c => {
+        if (c.id !== clientId) return c;
+        const dv = clientAllDoneValues(c);
+        return item && item.id in dv ? {
+          ...c,
+          [item.id]: dv[item.id]
+        } : c;
+      })
+    }));
+    fireToast({
+      message: `Marked done — ${item.title}`
+    });
+  };
   const outstandingCard = outstandingClients.length ? /*#__PURE__*/React.createElement(PortalOutstandingList, {
     clients: outstandingClients,
-    onJump: jumpTo
+    onJump: jumpTo,
+    onMarkDone: markItemDone
   }) : null;
   if (isTablet) {
     return /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         flexDirection: 'column',
-        gap: 14
+        gap: 12
       }
     }, wizardBody, multi && memberPanel, progressCard, outstandingCard, helpCards);
   }
@@ -112342,6 +113804,9 @@ const PortalDashboardMock = ({
   fireToast
 } = {}) => {
   const [bookOpen, setBookOpen] = useState(false);
+  const {
+    isMobile
+  } = useViewport();
   const first = (PORTAL_CLIENT.name || '').split(' ')[0];
   const firm = PORTAL_CLIENT.firm || 'your accountant';
   const insights = [{
@@ -112385,47 +113850,20 @@ const PortalDashboardMock = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      position: 'relative',
-      overflow: 'hidden',
-      borderRadius: 20,
-      padding: '26px 28px',
-      background: PT.gradientHero,
-      color: '#fff',
-      boxShadow: PT.shadowPop
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      top: -70,
-      left: -50,
-      width: 260,
-      height: 260,
-      borderRadius: '50%',
-      background: 'rgba(255,255,255,0.10)'
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      bottom: -90,
-      right: 140,
-      width: 200,
-      height: 200,
-      borderRadius: '50%',
-      background: 'rgba(249,115,22,0.26)',
-      filter: 'blur(30px)'
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'relative',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 22,
-      flexWrap: 'wrap'
+      flexWrap: 'wrap',
+      background: PT.surface,
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      padding: isMobile ? '18px 18px' : '22px 24px',
+      boxShadow: PT.shadowSoft
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -112438,55 +113876,57 @@ const PortalDashboardMock = ({
       gap: 7,
       fontSize: 11,
       fontWeight: 700,
-      letterSpacing: 0.8,
+      letterSpacing: 0.6,
       textTransform: 'uppercase',
-      color: 'rgba(255,255,255,0.95)',
-      marginBottom: 11
+      color: T.greenDark,
+      marginBottom: 9
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
       width: 7,
       height: 7,
       borderRadius: '50%',
-      background: '#6EE7B7',
-      display: 'inline-block',
-      animation: 'pulseDot 1.8s ease-in-out infinite'
+      background: T.green,
+      display: 'inline-block'
     }
   }), " Everything on track"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 26,
+      fontSize: isMobile ? 20 : 22,
       fontWeight: 800,
-      letterSpacing: -0.6,
-      lineHeight: 1.1
+      letterSpacing: -0.4,
+      lineHeight: 1.15,
+      color: PT.ink
     }
   }, "You're in good shape, ", first, "."), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13.5,
-      color: 'rgba(255,255,255,0.94)',
-      marginTop: 9,
+      fontSize: 13,
+      color: T.muted,
+      marginTop: 8,
       maxWidth: 520,
       lineHeight: 1.55
     }
   }, firm, " has your compliance up to date and your FY26 return on track \u2014 here's the value working quietly in the background for you.")), /*#__PURE__*/React.createElement("div", {
     style: {
-      background: 'rgba(255,255,255,0.18)',
-      border: '1px solid rgba(255,255,255,0.32)',
-      borderRadius: 16,
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
       padding: '14px 18px',
-      minWidth: 176
+      minWidth: 176,
+      flex: isMobile ? '1 1 100%' : '0 0 auto'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11,
-      color: 'rgba(255,255,255,0.95)',
+      color: T.muted,
       fontWeight: 700
     }
   }, "Estimated FY26 refund"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 27,
+      fontSize: 26,
       fontWeight: 800,
-      letterSpacing: -0.6,
-      marginTop: 3
+      letterSpacing: -0.5,
+      marginTop: 3,
+      color: PT.ink
     }
   }, "$3,180"), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -112495,19 +113935,19 @@ const PortalDashboardMock = ({
   }, /*#__PURE__*/React.createElement(MiniSpark, {
     data: [8, 9, 7, 11, 10, 13, 12, 15],
     h: 22,
-    color: "#C7D2FE",
+    color: PT.brand,
     responsive: true
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11,
-      color: '#A7F3D0',
+      color: T.greenDark,
       fontWeight: 700,
       marginTop: 4
     }
-  }, "\u25B2 On track to lodge")))), /*#__PURE__*/React.createElement("div", {
+  }, "\u25B2 On track to lodge"))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
@@ -112559,8 +113999,8 @@ const PortalDashboardMock = ({
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '1.5fr 1fr',
-      gap: 14,
+      gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr',
+      gap: 12,
       alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
@@ -112666,7 +114106,7 @@ const PortalDashboardMock = ({
     style: {
       display: 'grid',
       gridTemplateColumns: '1.5fr 1fr',
-      gap: 14,
+      gap: 12,
       alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
@@ -112924,7 +114364,7 @@ const PortalDocumentsMock = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     "data-card": "panel",
@@ -113021,7 +114461,7 @@ const PortalDocumentsMock = ({
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
-        boxShadow: active ? '0 12px 28px -14px rgba(74,63,190,0.5)' : undefined
+        boxShadow: active ? `0 12px 28px -14px ${ptRgba(PT.brand, 0.5)}` : undefined
       }
     }, active && /*#__PURE__*/React.createElement("span", {
       style: {
@@ -113035,7 +114475,7 @@ const PortalDocumentsMock = ({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: '0 3px 8px -2px rgba(74,63,190,0.6)'
+        boxShadow: `0 3px 8px -2px ${ptRgba(PT.brand, 0.6)}`
       }
     }, /*#__PURE__*/React.createElement(Icon, {
       name: "check",
@@ -113412,7 +114852,7 @@ const PortalPaymentsMock = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement(SegToggle, {
     options: [{
@@ -113430,7 +114870,7 @@ const PortalPaymentsMock = ({
   }), view === 'invoices' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
@@ -113613,7 +115053,7 @@ const PortalPaymentsMock = ({
   }))), view === 'history' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
@@ -113935,6 +115375,9 @@ const PortalRequestsMock = ({
       }
     });
   };
+  const {
+    isMobile
+  } = useViewport();
   const overdueOpen = open.filter(r => r.due === 'Due today').length;
   const dueThisWeek = open.filter(r => /today|3 days|7 days/.test(r.due)).length;
   return /*#__PURE__*/React.createElement("div", {
@@ -113942,12 +115385,12 @@ const PortalRequestsMock = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
@@ -113971,8 +115414,8 @@ const PortalRequestsMock = ({
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '1.6fr 1fr',
-      gap: 14,
+      gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr',
+      gap: 12,
       alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
@@ -114273,7 +115716,7 @@ const PortalCommsMock = ({
       color: mine ? '#fff' : T.text,
       fontSize: 12.5,
       lineHeight: 1.55,
-      boxShadow: mine ? '0 2px 6px -1px rgba(74,63,190,0.30)' : T.shadowXs,
+      boxShadow: mine ? `0 2px 6px -1px ${ptRgba(PT.brand, 0.30)}` : T.shadowXs,
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-word'
     }
@@ -114427,7 +115870,7 @@ const PortalCommsMock = ({
         lineHeight: '17px',
         textAlign: 'center',
         padding: '0 5px',
-        boxShadow: '0 3px 8px -2px rgba(74,63,190,0.5)'
+        boxShadow: `0 3px 8px -2px ${ptRgba(PT.brand, 0.5)}`
       }
     }, c.unread))));
   })));
@@ -114677,12 +116120,12 @@ const PortalPayrollMock = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(3, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
@@ -114835,6 +116278,9 @@ const PortalClientGroupOverview = ({
   go,
   fireToast
 }) => {
+  const {
+    isMobile
+  } = useViewport();
   const g = groupProgress(portal);
   const clients = portal.clients || [];
   const docs = portal.groupDocs || [];
@@ -114864,12 +116310,12 @@ const PortalClientGroupOverview = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 16
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
       gap: 12
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
@@ -114899,8 +116345,8 @@ const PortalClientGroupOverview = ({
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: '1.6fr 1fr',
-      gap: 16,
+      gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr',
+      gap: 12,
       alignItems: 'stretch'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
@@ -115029,7 +116475,7 @@ const PortalClientGroupOverview = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 16
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "Group documents",
@@ -115128,6 +116574,9 @@ const PortalNotificationsMock = ({
   go,
   fireToast
 } = {}) => {
+  const {
+    isMobile
+  } = useViewport();
   const [items, setItems] = useState([{
     id: 'n1',
     type: 'action',
@@ -115322,8 +116771,8 @@ const PortalNotificationsMock = ({
       borderRadius: 16,
       overflow: 'hidden',
       display: 'grid',
-      gridTemplateColumns: '360px 1fr',
-      height: 'calc(100vh - 230px)',
+      gridTemplateColumns: isMobile ? '1fr' : '360px 1fr',
+      height: isMobile ? 'auto' : 'calc(100vh - 230px)',
       minHeight: 440
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -115369,7 +116818,7 @@ const PortalNotificationsMock = ({
         border: 'none',
         padding: '12px 14px',
         borderTop: i > 0 ? `1px solid ${T.borderSoft}` : 'none',
-        background: isSel ? PT.brandSofter : n.unread ? 'rgba(74,63,190,0.03)' : 'transparent'
+        background: isSel ? PT.brandSofter : n.unread ? ptRgba(PT.brand, 0.03) : 'transparent'
       }
     }, n.unread && /*#__PURE__*/React.createElement("span", {
       style: {
@@ -115511,7 +116960,7 @@ const PortalSettingsMock = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 14
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement(SegToggle, {
     options: [{
@@ -115800,6 +117249,7 @@ const PORTAL_TAB_MOCKS = {
   settings: PortalSettingsMock,
   payroll: PortalPayrollMock
 };
+const PORTAL_DEMO_UNLOCK = true; // demo-only: let a reviewer preview a locked section pre-onboarding
 const PortalLockedContent = ({
   tab,
   portal,
@@ -115812,7 +117262,17 @@ const PortalLockedContent = ({
   const remaining = g.clientsTotal - g.clientsComplete;
   const pct = g.pct;
   const MockComponent = PORTAL_TAB_MOCKS[tab] || PortalDashboardMock;
-  if (onboarded) {
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    setRevealed(false);
+  }, [tab]);
+  // Messaging is always available — clients can reach their team even mid-onboarding.
+  if (tab === 'communications') return /*#__PURE__*/React.createElement(MockComponent, {
+    go: go,
+    fireToast: fireToast,
+    portal: portal
+  });
+  if (onboarded || revealed) {
     // Communications/Notifications/Settings are real portal features (not "preview" data) — no preview strip.
     if (tab === 'communications' || tab === 'notifications' || tab === 'settings') return /*#__PURE__*/React.createElement(MockComponent, {
       go: go,
@@ -115893,7 +117353,7 @@ const PortalLockedContent = ({
       width: 52,
       height: 52,
       borderRadius: '50%',
-      background: T.primarySoft,
+      background: PT.brandSoft,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -115902,7 +117362,7 @@ const PortalLockedContent = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "lock",
     size: 22,
-    color: T.primary
+    color: PT.brand
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 17,
@@ -115934,7 +117394,7 @@ const PortalLockedContent = ({
     style: {
       height: '100%',
       width: `${pct}%`,
-      background: T.primary,
+      background: PT.brand,
       borderRadius: 999,
       transition: 'width 0.3s'
     }
@@ -115942,7 +117402,7 @@ const PortalLockedContent = ({
     style: {
       fontSize: 12,
       fontWeight: 700,
-      color: T.primary,
+      color: PT.brand,
       minWidth: 32
     }
   }, pct, "%")), /*#__PURE__*/React.createElement(Helper, {
@@ -115956,7 +117416,21 @@ const PortalLockedContent = ({
     size: "md",
     iconRight: "arrow",
     onClick: () => go('onboarding')
-  }, "Complete your details"))));
+  }, "Complete your details"), PORTAL_DEMO_UNLOCK && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setRevealed(true),
+    style: {
+      display: 'block',
+      margin: '14px auto 0',
+      background: 'none',
+      border: 'none',
+      color: T.mutedSoft,
+      fontSize: 11.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      textDecoration: 'underline',
+      textUnderlineOffset: 2
+    }
+  }, "Preview this section (demo)"))));
 };
 
 // Demo-only controls (clearly framed as a demo so a reviewer doesn't read them as
@@ -116224,7 +117698,10 @@ const PortalSidebar = ({
   onboarded,
   activeSection,
   onNav,
-  fireToast
+  fireToast,
+  isMobile,
+  mobileOpen,
+  onClose
 }) => {
   const g = groupProgress(portal);
   const slim = false; // never collapse to the icon-only rail (was: !onboarded)
@@ -116254,9 +117731,9 @@ const PortalSidebar = ({
       textAlign: 'left',
       cursor: 'pointer',
       border: 'none',
-      background: active ? PT.gradient : 'transparent',
+      background: active ? PT.brand : 'transparent',
       color: active ? '#fff' : locked ? T.mutedSoft : T.textSoft,
-      boxShadow: active ? '0 8px 18px -8px rgba(74,63,190,0.55)' : 'none',
+      boxShadow: 'none',
       transition: 'background 0.12s, box-shadow 0.12s'
     }
   }, /*#__PURE__*/React.createElement(Icon, {
@@ -116360,13 +117837,34 @@ const PortalSidebar = ({
       padding: '0 3px'
     }
   }, badge));
-  return /*#__PURE__*/React.createElement("aside", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, isMobile && mobileOpen && /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
     style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,0.42)',
+      zIndex: 59
+    }
+  }), /*#__PURE__*/React.createElement("aside", {
+    style: isMobile ? {
+      width: 272,
+      background: PT.surface,
+      borderRight: `1px solid ${PT.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      height: '100vh',
+      overflowY: 'auto',
+      zIndex: 60,
+      transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
+      transition: 'transform 0.22s ease',
+      boxShadow: mobileOpen ? '0 16px 48px rgba(16,24,40,0.22)' : 'none'
+    } : {
       width: slim ? 68 : 248,
-      background: 'rgba(255,255,255,0.78)',
-      backdropFilter: 'blur(14px)',
-      WebkitBackdropFilter: 'blur(14px)',
-      borderRight: `1px solid rgba(74,63,190,0.10)`,
+      background: PT.surface,
+      borderRight: `1px solid ${PT.border}`,
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
@@ -116381,9 +117879,10 @@ const PortalSidebar = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       padding: slim ? '18px 0 14px' : '18px 18px 14px',
-      borderBottom: '1px solid rgba(74,63,190,0.10)',
+      borderBottom: `1px solid ${PT.border}`,
       display: 'flex',
-      justifyContent: slim ? 'center' : 'flex-start'
+      alignItems: 'center',
+      justifyContent: isMobile ? 'space-between' : slim ? 'center' : 'flex-start'
     }
   }, slim ? /*#__PURE__*/React.createElement("div", {
     style: {
@@ -116394,58 +117893,63 @@ const PortalSidebar = ({
   }, /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 18,
-      fontWeight: 700,
-      letterSpacing: -0.5
+      fontWeight: 800,
+      letterSpacing: -0.5,
+      color: PT.ink
     }
   }, "S"), /*#__PURE__*/React.createElement("span", {
     style: {
       display: 'inline-block',
-      width: 9,
-      height: 9,
+      width: 7,
+      height: 7,
       borderRadius: '50%',
-      background: `radial-gradient(circle at 30% 30%, ${T.primary}, ${T.primaryDark})`,
-      transform: 'translateY(1px)'
+      background: PT.brand,
+      transform: 'translateY(-1px)'
     }
   })) : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
-      alignItems: 'baseline',
-      gap: 5
+      alignItems: 'center',
+      gap: 7
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 20,
+      fontSize: 19,
       fontWeight: 800,
-      letterSpacing: -0.5,
+      letterSpacing: -0.4,
       color: PT.ink
     }
-  }, "S"), /*#__PURE__*/React.createElement("span", {
+  }, "Sole"), /*#__PURE__*/React.createElement("span", {
     style: {
-      display: 'inline-block',
-      width: 11,
-      height: 11,
-      borderRadius: '50%',
-      background: `radial-gradient(circle at 30% 30%, ${PT.brandMid}, ${PT.brandDeep})`,
-      transform: 'translateY(2px)',
-      boxShadow: '0 2px 6px -1px rgba(74,63,190,0.5)'
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 20,
-      fontWeight: 800,
-      letterSpacing: -0.5,
-      color: PT.ink
-    }
-  }, "le"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 9,
+      fontSize: 9.5,
       color: PT.brand,
-      fontWeight: 800,
-      marginLeft: 3,
-      letterSpacing: 1,
-      textTransform: 'uppercase'
+      fontWeight: 700,
+      letterSpacing: 1.2,
+      textTransform: 'uppercase',
+      padding: '2px 6px',
+      borderRadius: 5,
+      background: PT.brandSoft,
+      border: `1px solid ${PT.brandBorder}`
     }
-  }, "Portal"))), /*#__PURE__*/React.createElement("div", {
+  }, "Portal")), isMobile && /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    "aria-label": "Close menu",
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      border: `1px solid ${PT.border}`,
+      background: PT.surface,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 17,
+    color: PT.ink
+  }))), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: slim ? '12px 8px' : '12px 12px',
       flex: 1
@@ -116497,7 +118001,7 @@ const PortalSidebar = ({
     });
   })), /*#__PURE__*/React.createElement("div", {
     style: {
-      borderTop: '1px solid rgba(74,63,190,0.10)',
+      borderTop: `1px solid ${PT.border}`,
       padding: slim ? '10px 8px' : '10px 12px'
     }
   }, slim ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(IconRow, {
@@ -116542,7 +118046,7 @@ const PortalSidebar = ({
     }) : undefined
   }))), /*#__PURE__*/React.createElement("div", {
     style: {
-      borderTop: '1px solid rgba(74,63,190,0.10)',
+      borderTop: `1px solid ${PT.border}`,
       padding: slim ? '12px 0' : '12px 14px',
       display: 'flex',
       alignItems: 'center',
@@ -116569,7 +118073,7 @@ const PortalSidebar = ({
     style: {
       fontSize: 10
     }
-  }, PORTAL_CLIENT.email))));
+  }, PORTAL_CLIENT.email)))));
 };
 
 // ============================================================================
@@ -116937,11 +118441,57 @@ const PORTAL_ONBOARDING_VIEW = PortalOnboardingWizard;
 // real product feature and stays regardless.
 const PORTAL_DEV_CONTROLS = false;
 
+// Demo-only brand switcher — preview the white-labeled portal in different client
+// brand colours. Sets localStorage + reloads; PT is recomputed from the brand at load.
+const PORTAL_BRAND_SWITCHER = true;
+const PortalBrandSwitcher = () => {
+  let active = 'indigo';
+  try {
+    active = localStorage.getItem('sole.portal.brand') || 'indigo';
+  } catch (_) {}
+  const pick = key => {
+    try {
+      localStorage.setItem('sole.portal.brand', key);
+    } catch (_) {}
+    window.location.reload();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    title: "Preview brand colour",
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, Object.entries(PORTAL_BRAND_PRESETS).map(([key, p]) => {
+    const on = key === active || String(active)[0] === '#' && p.hex.toLowerCase() === String(active).toLowerCase();
+    return /*#__PURE__*/React.createElement("button", {
+      key: key,
+      onClick: () => pick(key),
+      title: p.label,
+      "aria-label": p.label,
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        cursor: 'pointer',
+        padding: 0,
+        background: p.hex,
+        border: on ? '2px solid #fff' : '2px solid transparent',
+        boxShadow: on ? `0 0 0 2px ${p.hex}` : 'inset 0 0 0 1px rgba(0,0,0,0.12)'
+      }
+    });
+  }));
+};
+
 // --- main app shell -----------------------------------------------------------
 const ClientPortalApp = () => {
   const [portal, setPortal] = useState(seedPortal);
   const [route, setRoute] = useState(() => parsePortalHash(window.location.hash));
   const [toast, setToast] = useState(null);
+  const [navOpen, setNavOpen] = useState(false);
+  const {
+    isMobile
+  } = useViewport();
   const fireToast = t => {
     setToast(t);
     const dur = typeof t === 'object' && t && t.action ? 5000 : 2400;
@@ -116950,6 +118500,7 @@ const ClientPortalApp = () => {
   useEffect(() => {
     const target = `#/portal/${route.section}`;
     if (window.location.hash !== target) window.history.replaceState(null, '', target);
+    setNavOpen(false); // close the mobile drawer on navigation
   }, [route.section]);
   useEffect(() => {
     const onHash = () => setRoute(parsePortalHash(window.location.hash));
@@ -117020,38 +118571,24 @@ const ClientPortalApp = () => {
   // wizard owns its own member/group chrome (and shows none at all for a solo client).
   const showGroupHeader = isOnb && PORTAL_ONBOARDING_VIEW === PortalOnboardingOnePage;
   return /*#__PURE__*/React.createElement("div", {
-    className: "sole-portal pt-grain",
+    className: "sole-portal",
     style: {
       minHeight: '100vh',
       background: PT.pageBg,
       display: 'flex',
       position: 'relative',
-      overflowX: 'clip'
+      overflowX: 'clip',
+      ...PT_CSS_VARS
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "pt-aurora",
-    style: {
-      top: -180,
-      right: -60,
-      width: 540,
-      height: 540,
-      background: 'rgba(124,131,247,0.32)'
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "pt-aurora",
-    style: {
-      top: 60,
-      left: 220,
-      width: 460,
-      height: 460,
-      background: 'rgba(249,115,22,0.10)'
-    }
-  }), /*#__PURE__*/React.createElement(PortalSidebar, {
+  }, /*#__PURE__*/React.createElement(PortalSidebar, {
     portal: portal,
     onboarded: onboarded,
     activeSection: route.section,
     onNav: go,
-    fireToast: fireToast
+    fireToast: fireToast,
+    isMobile: isMobile,
+    mobileOpen: navOpen,
+    onClose: () => setNavOpen(false)
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
@@ -117063,10 +118600,8 @@ const ClientPortalApp = () => {
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      background: 'rgba(255,255,255,0.72)',
-      backdropFilter: 'blur(14px)',
-      WebkitBackdropFilter: 'blur(14px)',
-      borderBottom: `1px solid rgba(74,63,190,0.10)`,
+      background: PT.surface,
+      borderBottom: `1px solid ${PT.border}`,
       position: 'sticky',
       top: 0,
       zIndex: 10
@@ -117077,7 +118612,7 @@ const ClientPortalApp = () => {
       margin: '0 auto',
       width: '100%',
       boxSizing: 'border-box',
-      padding: showGroupHeader ? '18px 32px 16px' : '18px 32px'
+      padding: showGroupHeader ? `18px ${isMobile ? 16 : 32}px 16px` : `18px ${isMobile ? 16 : 32}px`
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -117090,16 +118625,35 @@ const ClientPortalApp = () => {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 13,
+      gap: 12,
       minWidth: 0
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, isMobile && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setNavOpen(true),
+    "aria-label": "Open menu",
     style: {
-      width: 42,
-      height: 42,
-      borderRadius: 13,
-      background: PT.gradient,
-      boxShadow: '0 8px 18px -8px rgba(74,63,190,0.6)',
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      border: `1px solid ${PT.border}`,
+      background: PT.surface,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "menu",
+    size: 20,
+    color: PT.ink
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 40,
+      height: 40,
+      borderRadius: 11,
+      background: PT.brandSoft,
+      border: `1px solid ${PT.brandBorder}`,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -117107,20 +118661,20 @@ const ClientPortalApp = () => {
     }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: meta.icon || 'clipboard',
-    size: 21,
-    color: "#fff"
+    size: 20,
+    color: PT.brand
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 21,
-      fontWeight: 800,
+      fontSize: isMobile ? 18 : 21,
+      fontWeight: 700,
       color: PT.ink,
-      letterSpacing: -0.4
+      letterSpacing: -0.3
     }
-  }, title), /*#__PURE__*/React.createElement(Helper, {
+  }, title), !!subtitle && /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 12.5,
       marginTop: 1
@@ -117129,9 +118683,9 @@ const ClientPortalApp = () => {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 8
+      gap: 10
     }
-  }, onboarded && /*#__PURE__*/React.createElement(Btn, {
+  }, PORTAL_BRAND_SWITCHER && !isMobile && /*#__PURE__*/React.createElement(PortalBrandSwitcher, null), onboarded && /*#__PURE__*/React.createElement(Btn, {
     variant: "soft",
     size: "sm",
     icon: "sparkle",
@@ -117139,13 +118693,13 @@ const ClientPortalApp = () => {
     style: {
       background: PT.brandSoft,
       color: PT.brand,
-      borderColor: 'rgba(74,63,190,0.18)'
+      borderColor: PT.brandBorder
     }
   }, "Tour"), PORTAL_DEV_CONTROLS && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       width: 1,
       height: 22,
-      background: 'rgba(74,63,190,0.12)',
+      background: PT.border,
       flexShrink: 0
     }
   }), /*#__PURE__*/React.createElement(PortalDemoControls, {
@@ -117172,7 +118726,7 @@ const ClientPortalApp = () => {
       margin: '0 auto',
       width: '100%',
       boxSizing: 'border-box',
-      padding: route.section === 'communications' ? '14px 22px 16px' : '24px 32px 48px'
+      padding: route.section === 'communications' ? `14px ${isMobile ? 14 : 22}px 16px` : `24px ${isMobile ? 16 : 32}px 48px`
     }
   }, isOnb
   /* REVERT onboarding: PORTAL_ONBOARDING_VIEW (defined above) selects wizard vs. one-page. */ ? /*#__PURE__*/React.createElement(PORTAL_ONBOARDING_VIEW, {
@@ -118054,7 +119608,13 @@ const OnboardingTemplatesPage = ({
     }, t.kyc && /*#__PURE__*/React.createElement(Pill, {
       color: "blue",
       title: "Includes a KYC / AML section"
-    }, "KYC/AML"), (t.entityTypes || []).slice(0, 4).map(e => /*#__PURE__*/React.createElement(Pill, {
+    }, "KYC/AML"), t.defaultFor && t.defaultFor.length > 0 && /*#__PURE__*/React.createElement(Pill, {
+      color: "green",
+      title: `Auto-attaches for: ${t.defaultFor.join(', ')}`,
+      style: {
+        fontSize: 10
+      }
+    }, "\u2605 Default \xB7 ", t.defaultFor.length === 1 ? t.defaultFor[0] : `${t.defaultFor.length} types`), (t.entityTypes || []).slice(0, 4).map(e => /*#__PURE__*/React.createElement(Pill, {
       key: e,
       color: "neutral",
       style: {
@@ -118174,7 +119734,113 @@ const OnboardingTemplatesPage = ({
         d.entityTypes = cur.includes(e.v) ? cur.filter(x => x !== e.v) : [...cur, e.v];
       })
     }, e.v);
-  }))), /*#__PURE__*/React.createElement("label", {
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Default for these entity types"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: -2,
+      marginBottom: 8
+    }
+  }, "When set, this template ", /*#__PURE__*/React.createElement("strong", null, "auto-attaches"), " to a new client of that type. One default per type \u2014 picking it here makes it the firm's go-to for that entity."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 6
+    }
+  }, (draft.entityTypes || []).length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "Pick entity types above first.") : (draft.entityTypes || []).map(v => {
+    const on = (draft.defaultFor || []).includes(v);
+    return /*#__PURE__*/React.createElement(Chip, {
+      key: v,
+      size: "sm",
+      selected: on,
+      onClick: () => mutate(d => {
+        const cur = d.defaultFor || [];
+        d.defaultFor = cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v];
+      })
+    }, v);
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Client portal brand colour"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: -2,
+      marginBottom: 8
+    }
+  }, "Sets the look of this client's portal \u2014 pick a preset or the firm's exact hex. The portal recolours to match (open it to preview)."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, Object.entries(PORTAL_BRAND_PRESETS).map(([key, p]) => {
+    const on = (draft.brandColor || '#4A3FBE').toLowerCase() === p.hex.toLowerCase();
+    return /*#__PURE__*/React.createElement("button", {
+      key: key,
+      type: "button",
+      title: p.label,
+      onClick: () => {
+        mutate(d => {
+          d.brandColor = p.hex;
+        });
+        try {
+          localStorage.setItem('sole.portal.brand', p.hex);
+        } catch (_) {}
+      },
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '6px 10px',
+        borderRadius: 8,
+        cursor: 'pointer',
+        background: on ? T.primarySoft : T.card,
+        border: `1px solid ${on ? T.primary : T.border}`,
+        fontSize: 12,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 13,
+        height: 13,
+        borderRadius: '50%',
+        background: p.hex,
+        flexShrink: 0
+      }
+    }), p.label);
+  }), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.muted,
+      cursor: 'pointer',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      padding: '4px 8px'
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "color",
+    value: draft.brandColor || '#4A3FBE',
+    onChange: e => {
+      const v = e.target.value;
+      mutate(d => {
+        d.brandColor = v;
+      });
+      try {
+        localStorage.setItem('sole.portal.brand', v);
+      } catch (_) {}
+    },
+    style: {
+      width: 24,
+      height: 24,
+      border: 'none',
+      borderRadius: 5,
+      background: 'none',
+      cursor: 'pointer',
+      padding: 0
+    }
+  }), " Custom hex"))), /*#__PURE__*/React.createElement("label", {
     style: {
       display: 'flex',
       alignItems: 'center',
