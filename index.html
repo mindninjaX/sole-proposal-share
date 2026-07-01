@@ -107716,6 +107716,31 @@ const portalFamilyMode = () => {
     return false;
   }
 };
+// Extra entities beyond the seed family — lets the "Entities" dev control scale the
+// group past 3 so we can demo a larger family / multi-entity structure.
+const PORTAL_EXTRA_ENTITIES = [{
+  id: 'cl-4',
+  name: 'Arjun Sharma',
+  kind: 'individual',
+  service: 'Individual Tax Return 2026'
+}, {
+  id: 'cl-5',
+  name: 'Sharma Property Trust',
+  kind: 'business',
+  service: 'Trust Tax Return 2026'
+}, {
+  id: 'cl-6',
+  name: 'Sharma Holdings Pty Ltd',
+  kind: 'business',
+  service: 'Company Tax Return 2026'
+}, {
+  id: 'cl-7',
+  name: 'Nisha Sharma',
+  kind: 'individual',
+  service: 'Individual Tax Return 2026'
+}];
+// Full ordered pool the dev control draws from (logged-in individual first).
+const portalEntityPool = () => [...PORTAL_CLIENTS_SEED, ...PORTAL_EXTRA_ENTITIES];
 
 // Vertical sidebar nav (mirrors the onboarded reference). `home` is always
 // accessible (the Client Group / onboarding surface); everything else LOCKS
@@ -118978,6 +119003,100 @@ const PortalDemoControls = ({
   }, "Reset"));
 };
 
+// Dev-only: scale the portal group up/down between 1 and many entities on the fly
+// (the family/multi-entity case). Appends/removes real entities so the whole
+// portal — onboarding checklists, Client Group, docs — reflects the new group size.
+const PORTAL_ENTITY_DEV = true; // set false to strip from production
+const PortalEntityDevControl = ({
+  portal,
+  setPortal,
+  fireToast
+}) => {
+  const clients = portal.clients || [];
+  const count = clients.length;
+  const pool = portalEntityPool();
+  const asGroup = (p, list) => ({
+    ...p,
+    clients: list,
+    activeClientId: list.some(c => c.id === p.activeClientId) ? p.activeClientId : list[0].id,
+    family: list.length > 1,
+    group: list.length > 1 ? {
+      ...PORTAL_GROUP
+    } : {
+      name: list[0].name,
+      ref: PORTAL_GROUP.ref,
+      firm: PORTAL_GROUP.firm,
+      solo: true
+    }
+  });
+  const addEntity = () => setPortal(p => {
+    const used = new Set((p.clients || []).map(c => c.id));
+    const next = pool.find(c => !used.has(c.id)) || {
+      id: 'cl-x' + ((p.clients || []).length + 1),
+      name: 'New entity ' + ((p.clients || []).length + 1),
+      kind: 'individual',
+      service: 'Individual Tax Return 2026'
+    };
+    const list = [...(p.clients || []), seedClient(next)];
+    fireToast({
+      message: `Added ${next.name} — group now has ${list.length} entities`
+    });
+    return asGroup(p, list);
+  });
+  const removeEntity = () => setPortal(p => {
+    if ((p.clients || []).length <= 1) return p;
+    const list = p.clients.slice(0, -1);
+    fireToast({
+      message: list.length === 1 ? 'Back to a solo client' : `Removed an entity — ${list.length} remaining`
+    });
+    return asGroup(p, list);
+  });
+  const stepBtn = (label, onClick, disabled) => /*#__PURE__*/React.createElement("button", {
+    onClick: onClick,
+    disabled: disabled,
+    title: label,
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      border: `1px solid ${PT.brandBorder}`,
+      background: disabled ? 'transparent' : PT.surface,
+      color: disabled ? PT.mutedSoft : PT.brand,
+      cursor: disabled ? 'default' : 'pointer',
+      fontSize: 14,
+      fontWeight: 700,
+      lineHeight: 1,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      opacity: disabled ? 0.4 : 1
+    }
+  }, label === 'Add entity' ? '+' : '−');
+  return /*#__PURE__*/React.createElement("div", {
+    title: "Demo control \u2014 number of entities (clients) in this portal group",
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '4px 6px 4px 10px',
+      borderRadius: 999,
+      border: '1px dashed #B9BCF5',
+      background: PT.brandSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "users",
+    size: 13,
+    color: PT.brand
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: PT.brandDeep,
+      whiteSpace: 'nowrap'
+    }
+  }, count, " ", count === 1 ? 'entity' : 'entities'), stepBtn('Remove entity', removeEntity, count <= 1), stepBtn('Add entity', addEntity, count >= pool.length));
+};
+
 // --- declaration signing modal (own copy; never touches the proposal SignModal)
 const PortalSignModal = ({
   portal,
@@ -120139,7 +120258,11 @@ const ClientPortalApp = () => {
       alignItems: 'center',
       gap: 10
     }
-  }, PORTAL_BRAND_SWITCHER && !isMobile && /*#__PURE__*/React.createElement(PortalBrandSwitcher, null), onboarded && /*#__PURE__*/React.createElement(Btn, {
+  }, PORTAL_BRAND_SWITCHER && !isMobile && /*#__PURE__*/React.createElement(PortalBrandSwitcher, null), PORTAL_ENTITY_DEV && !isMobile && /*#__PURE__*/React.createElement(PortalEntityDevControl, {
+    portal: portal,
+    setPortal: setPortal,
+    fireToast: fireToast
+  }), onboarded && /*#__PURE__*/React.createElement(Btn, {
     variant: "soft",
     size: "sm",
     icon: "sparkle",
