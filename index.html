@@ -353,6 +353,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
      a Btn-atom variant (e.g. table row actions, kebab triggers, list rows). */
   [data-hover="row"]:not(:disabled)                     { transition: background 0.1s; }
   [data-hover="row"]:not(:disabled):hover               { background: #F9FAFB; }
+  /* Canonical section-navigation tabs (<Tabs>): inactive tab darkens its label
+     on hover so it reads as clickable without painting a background block. */
+  [data-tab]:not([data-active="true"]):not(:disabled):hover { color: #1F2937 !important; }
+  [data-tab]::-webkit-scrollbar, .tab-scroll::-webkit-scrollbar { height: 0; }
   /* Relationship-map node cards: gentle lift on hover (the branch-highlight is JS-driven). */
   [data-crm-card]:hover { box-shadow: 0 12px 26px rgba(17,17,23,.16) !important; }
   /* Notification rows: quick-action strip stays hidden until the row is hovered,
@@ -2714,11 +2718,12 @@ const EmptyState = ({
 //   rowHeight · density('standard'|'compact') · minWidth · zebra
 const DT_ROW_H = 48;
 const DT_ROW_H_COMPACT = 44;
-const DT_HEADER_PAD = '10px 16px';
-const DT_CELL_PAD = '8px 16px';
+const DT_HEADER_PAD = '11px 16px';
+const DT_CELL_PAD = '12px 16px';
+// Minimal/Notion header: no fill, just a quiet uppercase micro-label over a hairline divider.
 const DT_HEADER_TXT = {
   fontSize: 10.5,
-  fontWeight: 700,
+  fontWeight: 600,
   color: T.muted,
   textTransform: 'uppercase',
   letterSpacing: 0.6
@@ -2810,7 +2815,7 @@ const DataTable = ({
       background: T.card,
       border: `1px solid ${T.borderSoft}`,
       borderRadius: T.radiusCard,
-      boxShadow: T.shadowSm,
+      boxShadow: T.shadowXs,
       overflow: 'hidden',
       ...cardStyle
     }
@@ -2828,7 +2833,7 @@ const DataTable = ({
       gridTemplateColumns: template,
       gap: T.space.md,
       padding: DT_HEADER_PAD,
-      background: T.fieldBg,
+      background: T.card,
       borderBottom: `1px solid ${T.border}`,
       alignItems: 'center'
     }
@@ -2880,7 +2885,7 @@ const DataTable = ({
         padding: DT_CELL_PAD,
         minHeight: rh,
         alignItems: 'center',
-        borderBottom: i < displayRows.length - 1 ? `1px solid ${T.border}` : 'none',
+        borderBottom: i < displayRows.length - 1 ? `1px solid ${T.borderSoft}` : 'none',
         fontSize: 13,
         cursor: onRowClick ? 'pointer' : 'default',
         background: selected ? T.primarySofter : zebra && i % 2 ? T.surface : undefined,
@@ -3241,6 +3246,129 @@ const Chip = ({
     ...style
   }
 }, children);
+
+// --- Tabs (canonical section navigation) ---
+// ONE underline tab pattern used across the whole app, so section navigation
+// always looks identical (the old mix of boxed / segmented / pill strips was the
+// inconsistency users called out). Active = dark label + a 2px brand underline;
+// inactive = muted. Reads visually distinct from filter chips (pills) by design.
+//   tabs:    [{ id, label, icon?, count?, badgeTone?, tooltip?, disabled? }]
+//   accent:  override the underline/badge colour (e.g. portal PT.brand)
+//   right:   node pinned to the right of the strip (e.g. a readiness pill)
+//   size:    'sm' | 'md'
+// count + badgeTone render a small badge: 'neutral' (quiet), 'alert' (amber,
+// e.g. profile gaps), 'hot' (red, e.g. unread) — all three exist in the app today.
+const TabBadge = ({
+  count,
+  tone = 'neutral',
+  active,
+  accent
+}) => {
+  const acc = accent || T.primary;
+  const solid = tone === 'alert' ? T.amber : tone === 'hot' ? T.red : null;
+  const st = solid ? {
+    background: solid,
+    color: '#fff',
+    minWidth: 17,
+    height: 17,
+    padding: '0 5px'
+  } : {
+    background: active ? ptRgba(acc, 0.12) : T.fieldBg,
+    color: active ? acc : T.muted,
+    minWidth: 18,
+    padding: '1px 7px'
+  };
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      borderRadius: 999,
+      textAlign: 'center',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      lineHeight: 1,
+      ...st
+    }
+  }, count);
+};
+const Tabs = ({
+  tabs,
+  value,
+  onChange,
+  accent,
+  right,
+  size = 'md',
+  style
+}) => {
+  const acc = accent || T.primary;
+  const pad = size === 'sm' ? '8px 12px' : '10px 14px';
+  const fs = size === 'sm' ? 12.5 : 13;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      borderBottom: `1px solid ${T.border}`,
+      marginBottom: 16,
+      ...style
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "tab-scroll",
+    style: {
+      display: 'flex',
+      gap: 2,
+      overflowX: 'auto',
+      flex: 1,
+      minWidth: 0
+    }
+  }, tabs.map(t => {
+    const active = value === t.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: t.id,
+      "data-tab": true,
+      "data-active": active ? 'true' : 'false',
+      disabled: t.disabled,
+      onClick: () => !t.disabled && onChange(t.id),
+      title: t.tooltip || undefined,
+      style: {
+        border: 'none',
+        background: 'transparent',
+        padding: pad,
+        marginBottom: -1,
+        flexShrink: 0,
+        borderBottom: `2px solid ${active ? acc : 'transparent'}`,
+        color: active ? T.text : T.muted,
+        fontWeight: active ? 700 : 500,
+        fontSize: fs,
+        cursor: t.disabled ? 'not-allowed' : 'pointer',
+        opacity: t.disabled ? 0.5 : 1,
+        whiteSpace: 'nowrap',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        transition: 'color .12s ease, border-color .12s ease'
+      }
+    }, t.icon && /*#__PURE__*/React.createElement(Icon, {
+      name: t.icon,
+      size: size === 'sm' ? 14 : 15,
+      color: active ? acc : T.mutedSoft
+    }), t.label, t.count != null && /*#__PURE__*/React.createElement(TabBadge, {
+      count: t.count,
+      tone: t.badgeTone,
+      active: active,
+      accent: acc
+    }), t.tooltip && /*#__PURE__*/React.createElement(Icon, {
+      name: "info",
+      size: 13,
+      color: active ? acc : T.mutedSoft
+    }));
+  })), right && /*#__PURE__*/React.createElement("div", {
+    style: {
+      flexShrink: 0
+    }
+  }, right));
+};
 
 // Star rating — read-only display by default (no `onChange`); pass `onChange`
 // for an interactive 1–max picker (the client feedback flow uses this). Filled
@@ -5936,7 +6064,10 @@ const ClientBody = ({
       clientBilling: c.billingType || '',
       clientGst: !!c.gst,
       clientEmail: c.email || '',
-      clientContacts: c.contacts || []
+      clientContacts: c.contacts || [],
+      // Attach the firm's default onboarding template for this entity type — sent
+      // automatically when the proposal is accepted (the proposal↔onboarding link).
+      onboardingTemplateId: c.templateId || (defaultTemplateFor(c.type) || {}).id || null
     });
   };
   const onClearClient = () => {
@@ -6077,7 +6208,67 @@ const ClientBody = ({
   }, /*#__PURE__*/React.createElement(Icon, {
     name: "close",
     size: 14
-  })))), clientContacts.length > 0 && /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10,
+      paddingTop: 10,
+      borderTop: `1px solid ${T.border}`
+    }
+  }, (() => {
+    const def = defaultTemplateFor(state.clientType);
+    const applic = templatesForEntity(state.clientType);
+    const selId = state.onboardingTemplateId != null ? state.onboardingTemplateId : def ? def.id : null;
+    const sel = selId ? findOnbTemplate(selId) : null;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "clipboardCheck",
+      size: 15,
+      color: T.muted
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 600,
+        color: T.textSoft
+      }
+    }, "Onboarding"), /*#__PURE__*/React.createElement("select", {
+      value: selId || '',
+      onChange: e => set({
+        onboardingTemplateId: e.target.value || null
+      }),
+      style: {
+        flex: 1,
+        minWidth: 150,
+        padding: '7px 10px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        fontSize: 12.5,
+        background: T.card,
+        color: T.text,
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "No onboarding"), applic.map(t => /*#__PURE__*/React.createElement("option", {
+      key: t.id,
+      value: t.id
+    }, t.name, def && t.id === def.id ? ' (default)' : ''))), sel && def && sel.id === def.id && /*#__PURE__*/React.createElement(Pill, {
+      color: "green",
+      style: {
+        fontSize: 10
+      }
+    }, "Default"));
+  })(), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11,
+      marginTop: 5
+    }
+  }, "The client gets an onboarding invite automatically when they accept this proposal \u2014 onboarding happens once per client.")), clientContacts.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 10,
       paddingTop: 10,
@@ -25379,6 +25570,10 @@ const StatusPill = ({
     color: s.color
   }, s.label);
 };
+
+// Per-tab building block for the lifecycle/payroll/proposal filter strips. Shares
+// the exact visuals of the canonical <Tabs> (dark active label + 2px brand
+// underline + neutral count badge) so every section-nav strip reads identically.
 const TabChip = ({
   active,
   label,
@@ -25386,33 +25581,28 @@ const TabChip = ({
   onClick
 }) => /*#__PURE__*/React.createElement("button", {
   onClick: onClick,
-  "data-hover": active ? undefined : 'row',
+  "data-tab": true,
+  "data-active": active ? 'true' : 'false',
   style: {
-    padding: '8px 12px',
+    padding: '10px 14px',
     border: 'none',
     background: 'transparent',
+    marginBottom: -1,
     borderBottom: `2px solid ${active ? T.primary : 'transparent'}`,
     color: active ? T.text : T.muted,
-    fontWeight: active ? 600 : 500,
+    fontWeight: active ? 700 : 500,
+    whiteSpace: 'nowrap',
     fontSize: 13,
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
-    transition: 'color 0.1s, border-color 0.1s'
+    gap: 7,
+    transition: 'color 0.12s, border-color 0.12s'
   }
-}, label, /*#__PURE__*/React.createElement("span", {
-  style: {
-    fontSize: 11,
-    fontWeight: 600,
-    background: active ? T.primarySoft : T.fieldBg,
-    color: active ? T.primary : T.muted,
-    padding: '1px 7px',
-    borderRadius: 999,
-    minWidth: 18,
-    textAlign: 'center'
-  }
-}, count));
+}, label, count != null && /*#__PURE__*/React.createElement(TabBadge, {
+  count: count,
+  active: active
+}));
 
 // Inline icon-only action button used in the proposal row. Notion-style: subtle by
 // default, brightens on hover. Stops click propagation so clicking it doesn't also
@@ -25457,35 +25647,38 @@ const RowAction = ({
   size: 14
 }));
 
-// Kebab now only carries the *secondary* actions. Edit & Preview are surfaced
-// inline on the row, so this menu is shorter.
+// Reusable row kebab — the canonical "⋯ secondary actions" menu for any list row.
+// Pass `items` ([{ id, label, icon, danger?, divider? }]) to customise; defaults to
+// the proposal-list set for back-compat. The quiet trigger keeps tables calm at scale.
+const PROPOSAL_KEBAB_ITEMS = [{
+  id: 'review',
+  label: 'Review',
+  icon: 'list'
+}, {
+  id: 'addDeal',
+  label: 'Add to Deal',
+  icon: 'plus'
+}, {
+  id: 'duplicate',
+  label: 'Duplicate',
+  icon: 'docs'
+}, {
+  id: 'lost',
+  label: 'Mark as Lost',
+  icon: 'close'
+}, {
+  id: 'delete',
+  label: 'Delete',
+  icon: 'trash',
+  danger: true,
+  divider: true
+}];
 const RowKebab = ({
-  onAction
+  onAction,
+  items = PROPOSAL_KEBAB_ITEMS,
+  menuWidth = 200
 }) => {
   const [open, setOpen] = useState(false);
-  const items = [{
-    id: 'review',
-    label: 'Review',
-    icon: 'list'
-  }, {
-    id: 'addDeal',
-    label: 'Add to Deal',
-    icon: 'plus'
-  }, {
-    id: 'duplicate',
-    label: 'Duplicate',
-    icon: 'docs'
-  }, {
-    id: 'lost',
-    label: 'Mark as Lost',
-    icon: 'close'
-  }, {
-    id: 'delete',
-    label: 'Delete',
-    icon: 'trash',
-    danger: true,
-    divider: true
-  }];
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'relative'
@@ -25499,9 +25692,9 @@ const RowKebab = ({
       width: 28,
       height: 28,
       borderRadius: 7,
-      border: `1px solid transparent`,
-      background: 'transparent',
-      color: T.muted,
+      border: `1px solid ${open ? T.border : 'transparent'}`,
+      background: open ? T.fieldBg : 'transparent',
+      color: open ? T.text : T.muted,
       cursor: 'pointer',
       display: 'inline-flex',
       alignItems: 'center',
@@ -25514,6 +25707,7 @@ const RowKebab = ({
       e.currentTarget.style.color = T.text;
     },
     onMouseLeave: e => {
+      if (open) return;
       e.currentTarget.style.background = 'transparent';
       e.currentTarget.style.borderColor = 'transparent';
       e.currentTarget.style.color = T.muted;
@@ -25543,7 +25737,7 @@ const RowKebab = ({
       borderRadius: 10,
       boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
       padding: 6,
-      minWidth: 200,
+      minWidth: menuWidth,
       animation: 'expand 0.12s ease'
     }
   }, items.map(it => /*#__PURE__*/React.createElement(Fragment, {
@@ -33672,11 +33866,11 @@ const EmployeesPage = ({
         display: 'grid',
         gridTemplateColumns,
         columnGap: 20,
-        padding: '10px 18px',
-        background: T.fieldBg,
+        padding: '11px 18px',
+        background: T.card,
         borderBottom: `1px solid ${T.border}`,
-        fontSize: 10,
-        fontWeight: 700,
+        fontSize: 10.5,
+        fontWeight: 600,
         color: T.muted,
         textTransform: 'uppercase',
         letterSpacing: 0.6,
@@ -33733,7 +33927,7 @@ const EmployeesPage = ({
           padding: '0 18px',
           height: EMPLOYEE_ROW_HEIGHT,
           background: isSelected ? T.primarySofter : T.card,
-          borderBottom: i < pageRows.length - 1 ? `1px solid ${T.border}` : 'none',
+          borderBottom: i < pageRows.length - 1 ? `1px solid ${T.borderSoft}` : 'none',
           cursor: 'pointer',
           transition: 'background 0.1s',
           position: 'relative'
@@ -35326,7 +35520,8 @@ const REP_ALL_UPDATES = ['Job started', 'Information requested', 'Job in review'
 const REPUTATION_SETTINGS_DEFAULT = {
   enabled: true,
   googleUrl: 'https://g.page/r/sole-practice/review',
-  facebookUrl: 'https://facebook.com/solepractice/reviews',
+  shareSocials: true,
+  // offer "Share on your socials" (LinkedIn) — Facebook removed per feedback
   sendAfterCompletion: true,
   delayHours: 24,
   sendByEmail: true,
@@ -35594,7 +35789,7 @@ const REPUTATION_JOBS = [{
   category: null,
   wantsContact: false,
   routedPublic: true,
-  publicChannel: 'facebook',
+  publicChannel: 'google',
   googleReviewClicked: true
 }, {
   id: 'rj-04',
@@ -35690,7 +35885,7 @@ const REPUTATION_JOBS = [{
   category: null,
   wantsContact: false,
   routedPublic: true,
-  publicChannel: 'facebook',
+  publicChannel: 'google',
   googleReviewClicked: true
 }, {
   id: 'rj-08',
@@ -41769,11 +41964,11 @@ const PayrunsPage = ({
         display: 'grid',
         gridTemplateColumns: gridCols,
         columnGap: 14,
-        padding: '10px 18px',
-        background: T.fieldBg,
+        padding: '11px 18px',
+        background: T.card,
         borderBottom: `1px solid ${T.border}`,
-        fontSize: 10,
-        fontWeight: 700,
+        fontSize: 10.5,
+        fontWeight: 600,
         color: T.muted,
         textTransform: 'uppercase',
         letterSpacing: 0.6,
@@ -41837,7 +42032,7 @@ const PayrunsPage = ({
           padding: '8px 18px',
           height: 49,
           background: isSelected ? T.primarySofter : T.card,
-          borderBottom: i < pageRows.length - 1 ? `1px solid ${T.border}` : 'none',
+          borderBottom: i < pageRows.length - 1 ? `1px solid ${T.borderSoft}` : 'none',
           cursor: 'pointer',
           transition: 'background 0.1s',
           position: 'relative'
@@ -42487,11 +42682,11 @@ const PayrollPage = ({
         display: 'grid',
         gridTemplateColumns: gridCols,
         columnGap: 14,
-        padding: '10px 18px',
-        background: T.fieldBg,
+        padding: '11px 18px',
+        background: T.card,
         borderBottom: `1px solid ${T.border}`,
-        fontSize: 10,
-        fontWeight: 700,
+        fontSize: 10.5,
+        fontWeight: 600,
         color: T.muted,
         textTransform: 'uppercase',
         letterSpacing: 0.6,
@@ -42549,7 +42744,7 @@ const PayrollPage = ({
           alignItems: 'center',
           padding: '10px 18px',
           background: isSelected ? T.primarySofter : T.card,
-          borderBottom: i < pageRows.length - 1 ? `1px solid ${T.border}` : 'none',
+          borderBottom: i < pageRows.length - 1 ? `1px solid ${T.borderSoft}` : 'none',
           cursor: 'pointer',
           transition: 'background 0.1s',
           position: 'relative'
@@ -45308,27 +45503,6 @@ const SidePanel = ({
 // table) so the surface feels at home in the module.
 // =================================================================
 // --- Compliance / KYC-AML dashboard (fills the Clients Management surface) ---
-const COMP_ACTION_LABEL = {
-  not_started: 'Send request',
-  invited: 'Resend',
-  in_progress: 'View',
-  submitted: 'Review',
-  verified: 'View',
-  review_due: 'Re-verify',
-  blocked: 'Resolve'
-};
-// Action-button variant by urgency, so the eye lands on what needs action (mirrors the
-// detail page's verdictBtn): blocked loudest (filled red) → review_due (filled) → outbound
-// send/resend (outline) → passive view/review (ghost).
-const ACTION_VARIANT = {
-  not_started: 'primaryOutline',
-  invited: 'primaryOutline',
-  in_progress: 'ghost',
-  submitted: 'ghost',
-  verified: 'ghost',
-  review_due: 'primary',
-  blocked: 'danger'
-};
 const goCompliance = id => {
   window.location.hash = '#/practice/compliance-detail/' + id;
 };
@@ -45405,10 +45579,52 @@ const ComplianceDashboardPage = ({
     fontSize: 12.5,
     padding: '7px 30px 7px 11px'
   };
+
+  // Per-row "⋯" actions — verification is just one item among general client actions.
+  const clientKebabItems = r => {
+    const items = [{
+      id: 'open',
+      label: 'Open client',
+      icon: 'eye'
+    }, {
+      id: 'reminder',
+      label: 'Send reminder',
+      icon: 'bell'
+    }];
+    if (r.status === 'not_started' || r.status === 'invited') items.push({
+      id: 'verify',
+      label: 'Request verification',
+      icon: 'shield'
+    });else if (r.status === 'review_due') items.push({
+      id: 'verify',
+      label: 'Re-verify',
+      icon: 'shield'
+    });else if (r.status === 'blocked') items.push({
+      id: 'verify',
+      label: 'Resolve verification',
+      icon: 'shield'
+    });
+    items.push({
+      id: 'group',
+      label: 'View client group',
+      icon: 'users',
+      divider: true
+    });
+    return items;
+  };
+  const onKebab = (r, id) => {
+    if (id === 'open') return goCompliance(r.id);
+    if (id === 'reminder') return sendReminder(r);
+    if (id === 'verify') return onAction(r);
+    if (id === 'group') return goGroup(r);
+  };
+
+  // Lean register columns — Status · Client · Contact · Group · Billing · Onboarding (+ ⋯).
+  // Verification has its own column-free home on the client's Verification tab.
   const columns = [{
     key: 'lifecycle',
     header: 'Status',
-    width: 'minmax(96px,0.7fr)',
+    width: 'minmax(100px,0.7fr)',
     sortable: true,
     sortValue: r => r.lifecycle,
     render: r => /*#__PURE__*/React.createElement(Pill, {
@@ -45417,7 +45633,7 @@ const ComplianceDashboardPage = ({
   }, {
     key: 'name',
     header: 'Client',
-    width: 'minmax(190px,1.6fr)',
+    width: 'minmax(210px,1.8fr)',
     sortable: true,
     sortValue: r => r.name,
     render: r => /*#__PURE__*/React.createElement("div", {
@@ -45454,7 +45670,7 @@ const ComplianceDashboardPage = ({
   }, {
     key: 'primaryContact',
     header: 'Primary contact',
-    width: 'minmax(150px,1.2fr)',
+    width: 'minmax(160px,1.3fr)',
     render: r => /*#__PURE__*/React.createElement("div", {
       style: {
         minWidth: 0
@@ -45476,19 +45692,9 @@ const ComplianceDashboardPage = ({
       }
     }, r.primaryContact.email))
   }, {
-    key: 'entityType',
-    header: 'Type',
-    width: 'minmax(86px,0.7fr)',
-    sortable: true,
-    render: r => /*#__PURE__*/React.createElement("span", {
-      style: {
-        color: T.textSoft
-      }
-    }, r.entityType)
-  }, {
     key: 'groupName',
     header: 'Client group',
-    width: 'minmax(140px,1.1fr)',
+    width: 'minmax(150px,1.2fr)',
     render: r => /*#__PURE__*/React.createElement("button", {
       onClick: e => goGroup(r, e),
       title: "Open in Relationship Map",
@@ -45502,6 +45708,7 @@ const ComplianceDashboardPage = ({
         maxWidth: '100%'
       }
     }, /*#__PURE__*/React.createElement("span", {
+      "data-hover": "link",
       style: {
         color: T.primary,
         fontWeight: 600,
@@ -45520,7 +45727,7 @@ const ComplianceDashboardPage = ({
   }, {
     key: 'billing',
     header: 'Billing',
-    width: 'minmax(108px,0.9fr)',
+    width: 'minmax(120px,0.9fr)',
     render: r => /*#__PURE__*/React.createElement("div", {
       style: {
         minWidth: 0
@@ -45542,7 +45749,7 @@ const ComplianceDashboardPage = ({
   }, {
     key: 'onboarding',
     header: 'Onboarding',
-    width: 'minmax(120px,1fr)',
+    width: 'minmax(150px,1.1fr)',
     render: r => {
       const pct = r._portal ? groupProgress(buildPortalMirror()).pct : r.onboarding.total ? Math.round(r.onboarding.done / r.onboarding.total * 100) : 0;
       const missing = r.details.addresses.missing.length;
@@ -45591,62 +45798,20 @@ const ComplianceDashboardPage = ({
       }, missing ? `${missing} item${missing === 1 ? '' : 's'} missing` : 'Nothing outstanding'));
     }
   }, {
-    key: 'status',
-    header: 'Verification',
-    width: 'minmax(96px,0.8fr)',
-    sortable: true,
-    sortValue: r => COMPLIANCE_STATUS_ORDER.indexOf(r.status),
-    render: r => /*#__PURE__*/React.createElement(Pill, {
-      color: COMPLIANCE_STATUS[r.status].color
-    }, COMPLIANCE_STATUS[r.status].label)
-  }, {
-    key: 'createdAt',
-    header: 'Created',
-    width: 'minmax(88px,0.6fr)',
-    sortable: true,
-    sortValue: r => r.createdAt,
-    render: r => /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontVariantNumeric: 'tabular-nums',
-        color: T.textSoft,
-        fontSize: 12.5
-      }
-    }, fmtDate(new Date(r.createdAt)))
-  }, {
     key: '_actions',
     header: '',
-    width: '156px',
+    width: '52px',
     align: 'right',
     render: r => /*#__PURE__*/React.createElement("div", {
       style: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
+        display: 'flex',
         justifyContent: 'flex-end'
       }
-    }, /*#__PURE__*/React.createElement("button", {
-      onClick: e => sendReminder(r, e),
-      title: "Send reminder",
-      style: {
-        width: 28,
-        height: 28,
-        borderRadius: 7,
-        border: `1px solid ${T.border}`,
-        background: T.card,
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: "bell",
-      size: 14,
-      color: T.muted
-    })), /*#__PURE__*/React.createElement(Btn, {
-      variant: ACTION_VARIANT[r.status] || 'ghost',
-      size: "sm",
-      onClick: e => onAction(r, e)
-    }, COMP_ACTION_LABEL[r.status]))
+    }, /*#__PURE__*/React.createElement(RowKebab, {
+      onAction: id => onKebab(r, id),
+      items: clientKebabItems(r),
+      menuWidth: 210
+    }))
   }];
   return /*#__PURE__*/React.createElement("main", {
     style: {
@@ -45658,7 +45823,7 @@ const ComplianceDashboardPage = ({
     }
   }, /*#__PURE__*/React.createElement(PageHead, {
     title: "Clients Management",
-    subtitle: "Every client across your practice \u2014 status, group, billing, onboarding and AML/CTF verification in one register.",
+    subtitle: "Every client across your practice \u2014 status, group, billing and onboarding in one register.",
     actions: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Btn, {
       variant: "ghost",
       size: "sm",
@@ -45680,12 +45845,19 @@ const ComplianceDashboardPage = ({
       marginBottom: T.space.md
     }
   }, /*#__PURE__*/React.createElement(StatCard, {
-    icon: "shield",
+    icon: "users",
     tone: "green",
-    label: "Verified",
-    value: counts.verified || 0,
-    sub: "cleared to act",
-    onClick: () => setStatusFilter(statusFilter === 'verified' ? 'all' : 'verified')
+    label: "Active clients",
+    value: lcCounts.active || 0,
+    sub: "currently engaged",
+    onClick: () => setLifecycleFilter(lifecycleFilter === 'active' ? 'all' : 'active')
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "userPlus",
+    tone: "accent",
+    label: "In onboarding",
+    value: lcCounts.onboarding || 0,
+    sub: "being set up",
+    onClick: () => setLifecycleFilter(lifecycleFilter === 'onboarding' ? 'all' : 'onboarding')
   }), /*#__PURE__*/React.createElement(StatCard, {
     icon: "calendar",
     tone: overdueCount ? 'red' : 'amber',
@@ -45694,18 +45866,11 @@ const ComplianceDashboardPage = ({
     sub: overdueCount ? `${overdueCount} overdue` : 'all current',
     onClick: () => setStatusFilter(statusFilter === 'review_due' ? 'all' : 'review_due')
   }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "alertTriangle",
-    tone: counts.blocked || 0 ? 'red' : 'neutral',
-    label: "Blocked",
-    value: counts.blocked || 0,
-    sub: "need resolution",
-    onClick: () => setStatusFilter(statusFilter === 'blocked' ? 'all' : 'blocked')
-  }), /*#__PURE__*/React.createElement(StatCard, {
     icon: "gauge",
     tone: highRiskCount ? 'red' : 'neutral',
     label: "High risk",
     value: highRiskCount,
-    sub: "enhanced CDD",
+    sub: "enhanced due diligence",
     onClick: () => setRiskFilter(riskFilter === 'high' ? 'all' : 'high')
   })), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -45735,7 +45900,22 @@ const ComplianceDashboardPage = ({
       marginBottom: T.space.md,
       flexWrap: 'wrap'
     }
-  }, /*#__PURE__*/React.createElement(Select, {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 200,
+      maxWidth: 340
+    }
+  }, /*#__PURE__*/React.createElement(Input, {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search clients\u2026",
+    prefix: /*#__PURE__*/React.createElement(Icon, {
+      name: "search",
+      size: 14,
+      color: T.muted
+    })
+  })), /*#__PURE__*/React.createElement(Select, {
     value: entityFilter,
     onChange: e => setEntityFilter(e.target.value),
     style: selStyle
@@ -45754,15 +45934,6 @@ const ComplianceDashboardPage = ({
     key: g,
     value: g
   }, g))), /*#__PURE__*/React.createElement(Select, {
-    value: statusFilter,
-    onChange: e => setStatusFilter(e.target.value),
-    style: selStyle
-  }, /*#__PURE__*/React.createElement("option", {
-    value: "all"
-  }, "All verification"), COMPLIANCE_STATUS_ORDER.map(k => /*#__PURE__*/React.createElement("option", {
-    key: k,
-    value: k
-  }, COMPLIANCE_STATUS[k].label))), /*#__PURE__*/React.createElement(Select, {
     value: billingFilter,
     onChange: e => setBillingFilter(e.target.value),
     style: selStyle
@@ -45771,40 +45942,21 @@ const ComplianceDashboardPage = ({
   }, "All billing"), COMP_BILLING.map(b => /*#__PURE__*/React.createElement("option", {
     key: b,
     value: b
-  }, b))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11.5,
-      fontWeight: 600,
-      color: T.muted
-    }
-  }, "Risk"), ['all', 'low', 'medium', 'high'].map(r => /*#__PURE__*/React.createElement(Chip, {
+  }, b))), /*#__PURE__*/React.createElement(Select, {
+    value: riskFilter,
+    onChange: e => setRiskFilter(e.target.value),
+    style: selStyle
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "all"
+  }, "All risk"), ['low', 'medium', 'high'].map(r => /*#__PURE__*/React.createElement("option", {
     key: r,
+    value: r
+  }, RISK_LABEL[r], " risk"))), anyFilter && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
     size: "sm",
-    selected: riskFilter === r,
-    onClick: () => setRiskFilter(r)
-  }, r === 'all' ? 'All' : RISK_LABEL[r]))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 170,
-      maxWidth: 300,
-      marginLeft: 'auto'
-    }
-  }, /*#__PURE__*/React.createElement(Input, {
-    value: search,
-    onChange: e => setSearch(e.target.value),
-    placeholder: "Search clients\u2026",
-    prefix: /*#__PURE__*/React.createElement(Icon, {
-      name: "search",
-      size: 14,
-      color: T.muted
-    })
-  }))), /*#__PURE__*/React.createElement(DataTable, {
+    icon: "close",
+    onClick: clearFilters
+  }, "Clear")), /*#__PURE__*/React.createElement(DataTable, {
     columns: columns,
     rows: rows,
     rowKey: r => r.id,
@@ -45812,7 +45964,7 @@ const ComplianceDashboardPage = ({
     selectable: true,
     selectedIds: selected,
     onSelectionChange: setSelected,
-    minWidth: 1240,
+    minWidth: 980,
     bulkBar: /*#__PURE__*/React.createElement(Banner, {
       tone: "accent",
       icon: "check",
@@ -46007,32 +46159,88 @@ const CDRow = ({
     marginLeft: 6
   }
 }, "\u25CF")));
+// Quiet secondary "request / upload" action. Was a loud full-width dashed block in
+// every card — now a calm, left-aligned soft button so content leads, not the CTAs.
 const CDReq = ({
   label,
   onClick
 }) => /*#__PURE__*/React.createElement("button", {
   onClick: onClick,
+  "data-hover": "surface",
   style: {
-    width: '100%',
-    padding: '11px 12px',
-    border: `1px dashed ${T.borderStrong}`,
-    borderRadius: 10,
+    padding: '7px 11px',
+    border: `1px solid ${T.border}`,
+    borderRadius: 8,
     background: T.card,
     color: T.textSoft,
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8
+    gap: 6,
+    marginTop: 10
   }
 }, /*#__PURE__*/React.createElement(Icon, {
   name: "plus",
-  size: 14,
+  size: 13,
   color: T.muted
 }), label);
+// Compact at-a-glance fact tile for the client-detail summary band (portal stat-tile language).
+const CDSummaryTile = ({
+  icon,
+  tone = 'neutral',
+  label,
+  value,
+  sub
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    background: T.card,
+    border: `1px solid ${T.borderSoft}`,
+    borderRadius: T.radiusCard,
+    boxShadow: T.shadowXs,
+    padding: '12px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 11,
+    minWidth: 0
+  }
+}, /*#__PURE__*/React.createElement(IconChip, {
+  icon: icon,
+  tone: tone,
+  size: 34
+}), /*#__PURE__*/React.createElement("div", {
+  style: {
+    minWidth: 0
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 10.5,
+    fontWeight: 600,
+    color: T.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4
+  }
+}, label), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: T.text,
+    marginTop: 2,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, value), sub && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11,
+    color: T.muted,
+    marginTop: 1,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  }
+}, sub)));
 const ComplianceDetailPage = ({
   clientId,
   fireToast
@@ -46287,93 +46495,75 @@ const ComplianceDetailPage = ({
   }, "Send reminder"), /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
-    icon: "copy",
-    onClick: () => fireToast({
-      message: 'Client link copied'
-    })
-  }, "Copy link"), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primaryOutline",
-    size: "sm",
     icon: "edit",
     onClick: () => fireToast({
       message: 'Edit client (mock)'
     })
-  }, "Edit client"))), /*#__PURE__*/React.createElement(Banner, {
+  }, "Edit client"), verdict.cta && /*#__PURE__*/React.createElement(Btn, {
+    variant: verdictBtn,
+    size: "sm",
+    onClick: () => fireToast({
+      message: `${verdict.cta} (mock)`
+    })
+  }, verdict.cta))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isCompact ? '1fr 1fr' : 'repeat(4, 1fr)',
+      gap: 12,
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement(CDSummaryTile, {
+    icon: "gauge",
+    tone: "accent",
+    label: "Onboarding",
+    value: `${rec._portal && mg ? mg.pct : rec.onboarding.total ? Math.round(rec.onboarding.done / rec.onboarding.total * 100) : 0}%`,
+    sub: detailsGaps ? `${detailsGaps} item${detailsGaps === 1 ? '' : 's'} outstanding` : 'Nothing outstanding'
+  }), /*#__PURE__*/React.createElement(CDSummaryTile, {
+    icon: "shield",
+    tone: COMPLIANCE_STATUS[rec.status].color,
+    label: "Verification",
+    value: COMPLIANCE_STATUS[rec.status].label,
+    sub: rec.status === 'verified' ? 'Cleared to act' : 'In progress'
+  }), /*#__PURE__*/React.createElement(CDSummaryTile, {
+    icon: "calendar",
+    tone: pastReview ? 'red' : 'neutral',
+    label: "Next review",
+    value: fmtDate(new Date(rec.reviewDue)),
+    sub: pastReview ? 'Overdue' : 'Scheduled'
+  }), /*#__PURE__*/React.createElement(CDSummaryTile, {
+    icon: "flag",
+    tone: risk === 'high' ? 'red' : risk === 'medium' ? 'amber' : 'green',
+    label: "Risk rating",
+    value: RISK_LABEL[risk] || '—',
+    sub: rec.eddTriggered ? 'EDD required' : 'Standard CDD'
+  })), (verdict.tone === 'danger' || verdict.tone === 'warn') && /*#__PURE__*/React.createElement(Banner, {
     tone: verdict.tone,
     title: verdict.title,
-    action: verdict.cta && /*#__PURE__*/React.createElement(Btn, {
-      variant: verdictBtn,
-      size: "sm",
-      onClick: () => fireToast({
-        message: `${verdict.cta} (mock)`
-      })
-    }, verdict.cta),
     style: {
       marginBottom: 14
     }
-  }, verdict.text), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 6,
-      border: `1px solid ${T.border}`,
-      background: T.card,
-      borderRadius: T.radiusCard,
-      padding: 5,
-      marginBottom: 16,
-      boxShadow: T.shadowXs
-    }
-  }, tabs.map(t => {
-    const on = tab === t.id;
-    return /*#__PURE__*/React.createElement("button", {
-      key: t.id,
-      onClick: () => setTab(t.id),
-      style: {
-        flex: 1,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        padding: '10px 12px',
-        borderRadius: 9,
-        border: 'none',
-        cursor: 'pointer',
-        background: on ? T.fieldBg : 'transparent',
-        color: on ? T.text : T.muted,
-        fontSize: 13,
-        fontWeight: on ? 700 : 600,
-        transition: 'background 0.12s, color 0.12s'
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: t.icon,
-      size: 15,
-      color: on ? T.text : T.muted
-    }), t.label, t.badge > 0 && /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 10,
-        fontWeight: 700,
-        color: '#fff',
-        background: T.amber,
-        borderRadius: 999,
-        minWidth: 17,
-        height: 17,
-        padding: '0 5px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }
-    }, t.badge));
-  })), tab === 'details' && /*#__PURE__*/React.createElement("div", {
+  }, verdict.text), /*#__PURE__*/React.createElement(Tabs, {
+    value: tab,
+    onChange: setTab,
+    tabs: tabs.map(t => ({
+      id: t.id,
+      label: t.label,
+      icon: t.icon,
+      count: t.badge > 0 ? t.badge : undefined,
+      badgeTone: 'alert'
+    }))
+  }), tab === 'details' && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: twoCol,
-      gap: 16,
+      gap: 12,
       alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 16
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: `${rec.entityType} details`,
@@ -46491,7 +46681,7 @@ const ComplianceDetailPage = ({
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 16
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "Tax returns",
@@ -46590,7 +46780,7 @@ const ComplianceDetailPage = ({
     style: {
       display: 'grid',
       gridTemplateColumns: twoCol,
-      gap: 16,
+      gap: 12,
       alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
@@ -46635,7 +46825,7 @@ const ComplianceDetailPage = ({
     style: {
       display: 'grid',
       gridTemplateColumns: twoCol,
-      gap: 16,
+      gap: 12,
       alignItems: 'start'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
@@ -70606,12 +70796,16 @@ const WorkManagementPage = ({
   // doesn't reset when other projects toggle open/closed.
   const [inlineDrafts, setInlineDrafts] = useState({});
   const [inlineFocusedProject, setInlineFocusedProject] = useState(null);
+  const [inlineSurvey, setInlineSurvey] = useState({}); // per-project: NPS survey to send when the task completes
+  const activeSurveys = REP_SURVEYS_SEED.filter(s => s.active);
   const addInlineTask = projectId => {
     const text = (inlineDrafts[projectId] || '').trim();
     if (!text) return;
     const proj = projects.find(p => p.id === projectId);
     if (!proj) return;
     const newId = `wm-${Date.now()}`;
+    const svId = inlineSurvey[projectId] || '';
+    const sv = svId ? activeSurveys.find(s => s.id === svId) : null;
     const newTask = {
       id: newId,
       name: text,
@@ -70620,7 +70814,9 @@ const WorkManagementPage = ({
       status: 'Assigned',
       estimated: '2h',
       desc: '',
-      comments: 0
+      comments: 0,
+      npsSurveyId: svId || null,
+      npsSurveyName: sv ? sv.name : null
     };
     const prev = projects;
     setProjects(prev.map(p => p.id === projectId ? {
@@ -70632,7 +70828,7 @@ const WorkManagementPage = ({
       [projectId]: ''
     }));
     fireToast({
-      message: `Added "${text}" to ${proj.name}`,
+      message: `Added "${text}" to ${proj.name}${sv ? ` · NPS survey "${sv.name}" on completion` : ''}`,
       action: {
         label: 'Undo',
         onClick: () => {
@@ -71834,8 +72030,10 @@ const WorkManagementPage = ({
     }), (inlineDrafts[project.id] || '').trim() && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
+        alignItems: 'center',
         gap: 6,
-        marginTop: 4
+        marginTop: 6,
+        flexWrap: 'wrap'
       }
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => addInlineTask(project.id),
@@ -71863,7 +72061,37 @@ const WorkManagementPage = ({
         fontSize: 11,
         cursor: 'pointer'
       }
-    }, "Cancel"))));
+    }, "Cancel"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }), /*#__PURE__*/React.createElement(Icon, {
+      name: "star",
+      size: 12,
+      color: T.muted
+    }), /*#__PURE__*/React.createElement("select", {
+      value: inlineSurvey[project.id] || '',
+      onChange: e => setInlineSurvey(s => ({
+        ...s,
+        [project.id]: e.target.value
+      })),
+      title: "Send an NPS survey when this task completes",
+      style: {
+        padding: '3px 6px',
+        borderRadius: 5,
+        border: `1px solid ${T.border}`,
+        fontSize: 11,
+        background: T.card,
+        color: T.text,
+        cursor: 'pointer',
+        maxWidth: 190
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "No NPS survey"), activeSurveys.map(s => /*#__PURE__*/React.createElement("option", {
+      key: s.id,
+      value: s.id
+    }, "Survey: ", s.name))))));
   })), /*#__PURE__*/React.createElement(Card, {
     padded: false
   }, /*#__PURE__*/React.createElement("div", {
@@ -74800,50 +75028,9 @@ const spmExportCsv = (name, columns, rows, getCell) => {
   a.remove();
 };
 
-// Underlined tab strip — the canonical "section navigation" pattern that
-// reads visually distinct from filter chips below. Active tab sits on the
-// hairline border with its own 2px indigo bottom border; inactive tabs
-// keep the hairline showing.
-const SpmTabs = ({
-  tabs,
-  value,
-  onChange
-}) => /*#__PURE__*/React.createElement("div", {
-  style: {
-    display: 'flex',
-    gap: 4,
-    borderBottom: `1px solid ${T.border}`,
-    marginBottom: 16,
-    overflowX: 'auto'
-  }
-}, tabs.map(t => {
-  const active = value === t.id;
-  return /*#__PURE__*/React.createElement("button", {
-    key: t.id,
-    onClick: () => onChange(t.id),
-    title: t.tooltip || undefined,
-    style: {
-      border: 'none',
-      background: 'transparent',
-      padding: '10px 14px',
-      marginBottom: -1,
-      borderBottom: `2px solid ${active ? T.primary : 'transparent'}`,
-      color: active ? T.primary : T.muted,
-      fontWeight: active ? 700 : 500,
-      fontSize: 13,
-      cursor: 'pointer',
-      whiteSpace: 'nowrap',
-      transition: 'color .12s ease, border-color .12s ease',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6
-    }
-  }, t.label, t.tooltip && /*#__PURE__*/React.createElement(Icon, {
-    name: "info",
-    size: 13,
-    color: active ? T.primary : T.mutedSoft
-  }));
-}));
+// Thin wrapper kept for the SPM dashboards — delegates to the canonical <Tabs>
+// so those strips render identically to every other section-nav in the app.
+const SpmTabs = props => /*#__PURE__*/React.createElement(Tabs, props);
 
 // Shared filter toolbar — service select + period select + (optional)
 // Weighted/Full scenario toggle. Returns a flex row of atoms so each
@@ -103735,7 +103922,8 @@ const ClientFeedbackFlow = ({
   settings,
   firmName,
   onComplete,
-  initialRating
+  initialRating,
+  alreadyReviewed
 }) => {
   const [step, setStep] = useState('rate');
   const [rating, setRating] = useState(0);
@@ -103744,8 +103932,10 @@ const ClientFeedbackFlow = ({
   const [category, setCategory] = useState('');
   const [comment, setComment] = useState('');
   const [wantsContact, setWantsContact] = useState(null);
+  const [copied, setCopied] = useState(false);
   const jobName = job && job.jobName || 'your recent job';
-  const hasPublicLink = !!(settings.googleUrl || settings.facebookUrl);
+  const hasGoogle = !!settings.googleUrl; // Google only (Facebook removed per feedback)
+
   const finish = extra => {
     if (onComplete) onComplete({
       rating,
@@ -103759,36 +103949,67 @@ const ClientFeedbackFlow = ({
   const pickRating = n => {
     setRating(n);
     const positive = n >= (settings.publicThreshold || 4);
-    if (positive && hasPublicLink) {
+    if (positive) {
       setRoute('public');
       setStep('public');
-    } else if (positive) {
-      setRoute('public');
-      finish({
-        rating: n,
-        route: 'public',
-        googleClicked: false
-      });
-      setStep('done');
-    } else {
+    } // public step offers Google + socials (or just socials if already reviewed)
+    else {
       setRoute('private');
       setStep('private');
-    }
+    } // 1–3★ → private form → routes to a senior follow-up
   };
   // The email/SMS link can land with a rating already chosen (spec §3/§4).
   useEffect(() => {
     if (initialRating) pickRating(initialRating);
   }, []);
-  const openPublic = channel => {
-    const url = channel === 'google' ? settings.googleUrl : settings.facebookUrl;
-    if (url && typeof window !== 'undefined') window.open(url, '_blank', 'noopener');
+  const openGoogle = () => {
+    if (settings.googleUrl && typeof window !== 'undefined') window.open(settings.googleUrl, '_blank', 'noopener');
     finish({
       rating,
       route: 'public',
-      publicChannel: channel,
+      publicChannel: 'google',
       googleClicked: true
     });
     setStep('done');
+  };
+  const openSocial = () => setStep('socials'); // let the client pick a network (better UX than jumping to LinkedIn)
+  const shareUrl = settings.shareUrl || settings.googleUrl || 'https://soleapp.com.au';
+  const shareText = `Really happy with ${firmName} — great accounting support.`;
+  const SOCIAL_TARGETS = [{
+    id: 'linkedin',
+    label: 'LinkedIn',
+    color: '#0A66C2',
+    url: 'https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(shareUrl)
+  }, {
+    id: 'x',
+    label: 'X',
+    color: '#0F1419',
+    url: 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl)
+  }, {
+    id: 'facebook',
+    label: 'Facebook',
+    color: '#1877F2',
+    url: 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(shareUrl)
+  }, {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    color: '#25D366',
+    url: 'https://wa.me/?text=' + encodeURIComponent(shareText + ' ' + shareUrl)
+  }];
+  const shareTo = s => {
+    if (typeof window !== 'undefined') window.open(s.url, '_blank', 'noopener');
+    finish({
+      rating,
+      route: 'public',
+      sharedSocial: s.id
+    });
+    setStep('done');
+  };
+  const copyLink = () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(shareUrl);
+    } catch (e) {}
+    setCopied(true);
   };
   const wrap = {
     display: 'flex',
@@ -103859,25 +104080,19 @@ const ClientFeedbackFlow = ({
   } else if (step === 'public') {
     body = /*#__PURE__*/React.createElement("div", {
       style: wrap
-    }, /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
       style: {
-        width: 52,
-        height: 52,
-        borderRadius: '50%',
-        background: T.greenSoft,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center'
+        margin: '2px 0'
       }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: "thumbsUp",
-      size: 26,
-      color: T.greenDark
+    }, /*#__PURE__*/React.createElement(StarRating, {
+      value: rating || 5,
+      size: 30,
+      gap: 5
     })), /*#__PURE__*/React.createElement("div", {
       style: h
-    }, "Thanks, we\u2019re glad you had a good experience."), /*#__PURE__*/React.createElement("div", {
+    }, alreadyReviewed ? 'Thanks again — you’re the best!' : 'Thanks, we’re glad you had a good experience.'), /*#__PURE__*/React.createElement("div", {
       style: sub
-    }, "Would you be willing to leave a quick review for ", firmName, "? It helps other businesses find the right accounting support."), /*#__PURE__*/React.createElement("div", {
+    }, alreadyReviewed ? `You’ve already left ${firmName} a Google review — no need to do it twice. If you’d like, share the love on your socials instead.` : `Would you be willing to leave a quick review for ${firmName}? It helps other businesses find the right accounting support.`), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -103886,23 +104101,23 @@ const ClientFeedbackFlow = ({
         maxWidth: 320,
         marginTop: 4
       }
-    }, settings.googleUrl && /*#__PURE__*/React.createElement(Btn, {
+    }, hasGoogle && !alreadyReviewed && /*#__PURE__*/React.createElement(Btn, {
       variant: "primary",
       size: "lg",
       icon: "star",
-      onClick: () => openPublic('google'),
+      onClick: openGoogle,
       style: {
         justifyContent: 'center'
       }
-    }, "Leave a Google review"), settings.facebookUrl && /*#__PURE__*/React.createElement(Btn, {
-      variant: "primaryOutline",
+    }, "Leave a Google review"), /*#__PURE__*/React.createElement(Btn, {
+      variant: alreadyReviewed ? 'primary' : 'primaryOutline',
       size: "lg",
-      icon: "thumbsUp",
-      onClick: () => openPublic('facebook'),
+      icon: "share",
+      onClick: openSocial,
       style: {
         justifyContent: 'center'
       }
-    }, "Leave a Facebook review"), /*#__PURE__*/React.createElement(Btn, {
+    }, "Share on your socials"), /*#__PURE__*/React.createElement(Btn, {
       variant: "ghost",
       size: "md",
       onClick: () => {
@@ -103917,6 +104132,87 @@ const ClientFeedbackFlow = ({
         justifyContent: 'center'
       }
     }, "No thanks")));
+  } else if (step === 'socials') {
+    body = /*#__PURE__*/React.createElement("div", {
+      style: wrap
+    }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
+      style: h
+    }, "Where would you like to share?"), /*#__PURE__*/React.createElement("div", {
+      style: sub
+    }, "Give ", firmName, " a shout-out on your favourite network \u2014 it means a lot."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 10,
+        width: '100%',
+        maxWidth: 340,
+        marginTop: 4
+      }
+    }, SOCIAL_TARGETS.map(s => /*#__PURE__*/React.createElement("button", {
+      key: s.id,
+      onClick: () => shareTo(s),
+      "data-hover": "surface",
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '11px 13px',
+        borderRadius: 10,
+        border: `1px solid ${T.border}`,
+        background: T.card,
+        cursor: 'pointer',
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 26,
+        height: 26,
+        borderRadius: 7,
+        background: s.color,
+        color: '#fff',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 13,
+        fontWeight: 800,
+        flexShrink: 0
+      }
+    }, s.label[0]), s.label))), /*#__PURE__*/React.createElement("button", {
+      onClick: copyLink,
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: copied ? T.greenDark : T.primary,
+        fontWeight: 600,
+        fontSize: 12.5,
+        marginTop: 2
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: copied ? 'check' : 'copy',
+      size: 14
+    }), copied ? 'Link copied to clipboard' : 'Copy a link instead'), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        finish({
+          rating,
+          route: 'public',
+          googleClicked: false
+        });
+        setStep('done');
+      },
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: T.muted,
+        fontSize: 12.5
+      }
+    }, "Maybe later"));
   } else if (step === 'private') {
     const canSubmit = !!category;
     body = /*#__PURE__*/React.createElement("div", {
@@ -104559,9 +104855,696 @@ const EmailWebPreview = ({
     onComplete: () => {}
   }))));
 };
+
+// Survey templates — the firm builds multiple surveys for different purposes and
+// attaches one to a task/job in Job Management. Each has its own questions, always
+// including a free-text "what did they say". Managed in the Reputation → Surveys tab.
+const REP_SURVEY_QTYPES = ['Star rating', 'Free text', 'Yes / No', 'Scale 0–10'];
+const REP_SURVEYS_SEED = [{
+  id: 'sv-eoj',
+  name: 'End of job — standard',
+  purpose: 'After any completed job',
+  active: true,
+  questions: [{
+    id: 'q1',
+    type: 'Star rating',
+    label: 'How would you rate this job overall?'
+  }, {
+    id: 'q2',
+    type: 'Free text',
+    label: 'What did they say? (anything we could improve?)'
+  }]
+}, {
+  id: 'sv-tax',
+  name: 'Annual tax return',
+  purpose: 'Tax return engagements',
+  active: true,
+  questions: [{
+    id: 'q1',
+    type: 'Star rating',
+    label: 'How was your tax return experience?'
+  }, {
+    id: 'q2',
+    type: 'Scale 0–10',
+    label: 'How likely are you to recommend us?'
+  }, {
+    id: 'q3',
+    type: 'Free text',
+    label: 'Anything we could do better next year?'
+  }]
+}, {
+  id: 'sv-advisory',
+  name: 'Advisory engagement',
+  purpose: 'Advisory / cashflow / planning jobs',
+  active: true,
+  questions: [{
+    id: 'q1',
+    type: 'Star rating',
+    label: 'How valuable was this advisory work?'
+  }, {
+    id: 'q2',
+    type: 'Yes / No',
+    label: 'Did we explain things clearly?'
+  }, {
+    id: 'q3',
+    type: 'Free text',
+    label: 'What did they say?'
+  }]
+}, {
+  id: 'sv-onboard',
+  name: 'Post-onboarding check-in',
+  purpose: 'After a new client is onboarded',
+  active: false,
+  questions: [{
+    id: 'q1',
+    type: 'Star rating',
+    label: 'How smooth was getting set up with us?'
+  }, {
+    id: 'q2',
+    type: 'Free text',
+    label: 'What did they say?'
+  }]
+}];
+const RepSurveyEditor = ({
+  survey,
+  onSave,
+  onClose
+}) => {
+  const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(survey)));
+  const upd = patch => setDraft(d => ({
+    ...d,
+    ...patch
+  }));
+  const updQ = (qid, patch) => setDraft(d => ({
+    ...d,
+    questions: d.questions.map(q => q.id === qid ? {
+      ...q,
+      ...patch
+    } : q)
+  }));
+  const addQ = () => setDraft(d => ({
+    ...d,
+    questions: [...d.questions, {
+      id: 'q' + Date.now(),
+      type: 'Free text',
+      label: ''
+    }]
+  }));
+  const delQ = qid => setDraft(d => ({
+    ...d,
+    questions: d.questions.filter(q => q.id !== qid)
+  }));
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: true,
+    onClose: onClose,
+    title: survey._isNew ? 'New survey' : 'Edit survey',
+    subtitle: "Pick the questions clients answer after a job \u2014 keep a free-text \u201Cwhat did they say\u201D.",
+    width: 640
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 22,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Survey name"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.name,
+    onChange: e => upd({
+      name: e.target.value
+    }),
+    placeholder: "e.g. End of job \u2014 standard"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "When to use it"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.purpose,
+    onChange: e => upd({
+      purpose: e.target.value
+    }),
+    placeholder: "e.g. After any completed job"
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement(Label, {
+    style: {
+      margin: 0
+    }
+  }, "Questions ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft,
+      fontWeight: 600
+    }
+  }, "\xB7 ", draft.questions.length)), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    onClick: addQ
+  }, "Add question")), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      maxHeight: 360,
+      overflowY: 'auto'
+    }
+  }, draft.questions.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: 'center',
+      padding: '26px 16px',
+      border: `1px dashed ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Helper, null, "No questions yet \u2014 add your first one.")), draft.questions.map((q, i) => /*#__PURE__*/React.createElement("div", {
+    key: q.id,
+    style: {
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: 10,
+      padding: 12,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 9
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 20,
+      height: 20,
+      borderRadius: 6,
+      background: T.primarySofter,
+      color: T.primary,
+      fontSize: 10.5,
+      fontWeight: 800,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.mutedSoft,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4
+    }
+  }, "Question ", i + 1), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), draft.questions.length > 1 && /*#__PURE__*/React.createElement("button", {
+    onClick: () => delQ(q.id),
+    title: "Remove question",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.mutedSoft,
+      padding: 3,
+      display: 'flex'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 14
+  }))), /*#__PURE__*/React.createElement(Input, {
+    value: q.label,
+    onChange: e => updQ(q.id, {
+      label: e.target.value
+    }),
+    placeholder: "Question text (e.g. How would you rate this job?)",
+    style: {
+      background: T.card
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      marginTop: 9
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Answer type"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 180
+    }
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: q.type,
+    onChange: e => updQ(q.id, {
+      type: e.target.value
+    }),
+    style: {
+      background: T.card
+    }
+  }, REP_SURVEY_QTYPES.map(t => /*#__PURE__*/React.createElement("option", {
+    key: t,
+    value: t
+  }, t))))))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end',
+      gap: 8,
+      borderTop: `1px solid ${T.borderSoft}`,
+      paddingTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "check",
+    onClick: () => onSave(draft),
+    disabled: !draft.name.trim()
+  }, "Save survey"))));
+};
+
+// NPS gauge (RightSuccess-style) — a semicircular −100..+100 gauge + promoter/
+// passive/detractor breakdown. NPS = %promoters(5★) − %detractors(≤3★).
+const RepNpsGauge = ({
+  jobs
+}) => {
+  const rated = jobs.filter(j => j.rating != null);
+  const n = rated.length || 1;
+  const promoters = rated.filter(j => j.rating === 5).length;
+  const passives = rated.filter(j => j.rating === 4).length;
+  const detractors = rated.filter(j => j.rating <= 3).length;
+  const nps = Math.round((promoters / n - detractors / n) * 100);
+  const band = nps >= 50 ? {
+    c: T.greenDark,
+    l: 'Excellent',
+    tone: 'green'
+  } : nps >= 20 ? {
+    c: T.green,
+    l: 'Good',
+    tone: 'green'
+  } : nps >= 0 ? {
+    c: T.amber,
+    l: 'Fair',
+    tone: 'amber'
+  } : {
+    c: T.red,
+    l: 'Needs work',
+    tone: 'red'
+  };
+  // Semicircle gauge, swept 180°(left) → 360°(right) over the top. y-down coords.
+  const cx = 110,
+    cy = 104,
+    R = 86,
+    sw = 15;
+  const f = Math.max(0, Math.min(1, (nps + 100) / 200));
+  const endDeg = 180 + f * 180;
+  const P = deg => {
+    const a = deg * Math.PI / 180;
+    return [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+  };
+  const [lx, ly] = P(180),
+    [rx, ry] = P(360),
+    [mx, my] = P(endDeg);
+  const dist = [{
+    label: 'Promoters',
+    count: promoters,
+    color: T.greenDark
+  }, {
+    label: 'Passives',
+    count: passives,
+    color: T.amber
+  }, {
+    label: 'Detractors',
+    count: detractors,
+    color: T.red
+  }];
+  return /*#__PURE__*/React.createElement(Card, {
+    style: {
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Net Promoter Score"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      marginTop: 2
+    }
+  }, "% promoters \u2212 % detractors \xB7 \u2212100 to +100"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      width: 220,
+      height: 126,
+      margin: '8px auto 0'
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: 220,
+    height: 126,
+    viewBox: "0 0 220 126"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: `M ${lx.toFixed(1)} ${ly.toFixed(1)} A ${R} ${R} 0 0 1 ${rx.toFixed(1)} ${ry.toFixed(1)}`,
+    fill: "none",
+    stroke: T.fieldBg,
+    strokeWidth: sw,
+    strokeLinecap: "round"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: `M ${lx.toFixed(1)} ${ly.toFixed(1)} A ${R} ${R} 0 0 1 ${mx.toFixed(1)} ${my.toFixed(1)}`,
+    fill: "none",
+    stroke: band.c,
+    strokeWidth: sw,
+    strokeLinecap: "round"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: mx.toFixed(1),
+    cy: my.toFixed(1),
+    r: 6.5,
+    fill: "#fff",
+    stroke: band.c,
+    strokeWidth: 3
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 46,
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 42,
+      fontWeight: 800,
+      color: band.c,
+      lineHeight: 1,
+      letterSpacing: -1.5,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, nps > 0 ? '+' : '', nps), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: band.tone
+  }, band.l))), /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      left: 6,
+      bottom: 2,
+      fontSize: 10,
+      color: T.mutedSoft,
+      fontWeight: 600
+    }
+  }, "\u2212100"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      right: 6,
+      bottom: 2,
+      fontSize: 10,
+      color: T.mutedSoft,
+      fontWeight: 600
+    }
+  }, "+100")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      height: 10,
+      borderRadius: 999,
+      overflow: 'hidden',
+      background: T.fieldBg
+    }
+  }, dist.map(d => d.count > 0 && /*#__PURE__*/React.createElement("div", {
+    key: d.label,
+    style: {
+      width: `${(d.count / n * 100).toFixed(1)}%`,
+      background: d.color
+    },
+    title: `${d.label}: ${d.count}`
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 12
+    }
+  }, dist.map(d => /*#__PURE__*/React.createElement("div", {
+    key: d.label,
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 8,
+      height: 8,
+      borderRadius: 3,
+      background: d.color,
+      flexShrink: 0,
+      alignSelf: 'center'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 17,
+      fontWeight: 800,
+      color: T.text,
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, d.count), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, Math.round(d.count / n * 100), "%")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      marginTop: 2
+    }
+  }, d.label))))));
+};
+
+// Word cloud — the stakeholder asked to "come in and see the keywords to focus on,
+// positive or negative." Curated aggregate themes from client feedback (a prototype
+// stand-in for NLP); size = frequency, colour = sentiment, filterable.
+const REP_KEYWORDS = [{
+  word: 'Responsive',
+  n: 18,
+  sentiment: 'pos'
+}, {
+  word: 'On time',
+  n: 15,
+  sentiment: 'pos'
+}, {
+  word: 'Thorough',
+  n: 12,
+  sentiment: 'pos'
+}, {
+  word: 'Knowledgeable',
+  n: 11,
+  sentiment: 'pos'
+}, {
+  word: 'Helpful',
+  n: 10,
+  sentiment: 'pos'
+}, {
+  word: 'Friendly',
+  n: 9,
+  sentiment: 'pos'
+}, {
+  word: 'Reliable',
+  n: 8,
+  sentiment: 'pos'
+}, {
+  word: 'Proactive',
+  n: 8,
+  sentiment: 'pos'
+}, {
+  word: 'Clear advice',
+  n: 7,
+  sentiment: 'pos'
+}, {
+  word: 'Tax savings',
+  n: 6,
+  sentiment: 'pos'
+}, {
+  word: 'Great value',
+  n: 6,
+  sentiment: 'pos'
+}, {
+  word: 'Patient',
+  n: 5,
+  sentiment: 'pos'
+}, {
+  word: 'Slow replies',
+  n: 9,
+  sentiment: 'neg'
+}, {
+  word: 'Communication',
+  n: 8,
+  sentiment: 'neg'
+}, {
+  word: 'Delays',
+  n: 6,
+  sentiment: 'neg'
+}, {
+  word: 'Fees unclear',
+  n: 5,
+  sentiment: 'neg'
+}, {
+  word: 'Hard to reach',
+  n: 4,
+  sentiment: 'neg'
+}, {
+  word: 'Missed deadline',
+  n: 3,
+  sentiment: 'neg'
+}, {
+  word: 'Portal',
+  n: 4,
+  sentiment: 'neu'
+}, {
+  word: 'Reports',
+  n: 4,
+  sentiment: 'neu'
+}];
+// Themes clients mention most — split into what's working vs what needs attention,
+// each ranked with a proportional bar. Replaces the old free-floating word cloud
+// (hard to scan) with a focused, sortable read of where to double-down / fix.
+const RepWordCloud = ({
+  words
+}) => {
+  const {
+    isCompact
+  } = useViewport();
+  const top = (s, k) => words.filter(w => w.sentiment === s).sort((a, b) => b.n - a.n).slice(0, k);
+  const pos = top('pos', 7),
+    neg = top('neg', 6);
+  const ThemeCol = ({
+    title,
+    items,
+    color,
+    tone,
+    icon
+  }) => {
+    const max = Math.max(...items.map(w => w.n), 1);
+    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: icon,
+      tone: tone,
+      size: 26
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, title), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11.5,
+        color: T.mutedSoft,
+        fontWeight: 600
+      }
+    }, items.length)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 11
+      }
+    }, items.map(w => /*#__PURE__*/React.createElement("div", {
+      key: w.word,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 110,
+        flexShrink: 0,
+        fontSize: 12.5,
+        fontWeight: 500,
+        color: T.textSoft,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }
+    }, w.word), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        height: 8,
+        background: T.fieldBg,
+        borderRadius: 999,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: `${Math.round(w.n / max * 100)}%`,
+        height: '100%',
+        background: color,
+        borderRadius: 999
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 20,
+        flexShrink: 0,
+        textAlign: 'right',
+        fontSize: 11.5,
+        fontWeight: 700,
+        color: T.muted,
+        fontVariantNumeric: 'tabular-nums'
+      }
+    }, w.n)))));
+  };
+  return /*#__PURE__*/React.createElement(PanelCard, {
+    title: "What clients are saying",
+    subtitle: "Themes mentioned most across client feedback",
+    icon: "sparkle",
+    iconTone: "accent"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isCompact ? '1fr' : '1fr 1fr',
+      gap: isCompact ? 22 : 32
+    }
+  }, /*#__PURE__*/React.createElement(ThemeCol, {
+    title: "What's working",
+    items: pos,
+    color: T.greenDark,
+    tone: "green",
+    icon: "checkCircle"
+  }), /*#__PURE__*/React.createElement(ThemeCol, {
+    title: "Needs attention",
+    items: neg,
+    color: T.red,
+    tone: "red",
+    icon: "alertTriangle"
+  })));
+};
 const ReputationPage = ({
   fireToast
 }) => {
+  const {
+    isCompact
+  } = useViewport();
   const [tab, setTab] = useState('overview');
   const [settings, setSettings] = useState(() => ({
     ...REPUTATION_SETTINGS_DEFAULT
@@ -104581,6 +105564,11 @@ const ReputationPage = ({
     });
   };
   const [fbFilter, setFbFilter] = useState('all'); // all | promoters | passives | detractors
+  const [reqStatus, setReqStatus] = useState('all'); // requests-tab status filter
+  const [surveys, setSurveys] = useState(() => REP_SURVEYS_SEED.map(s => ({
+    ...s
+  })));
+  const [editSurvey, setEditSurvey] = useState(null); // survey being created/edited
   // Client-facing copy uses the name the client actually sees in their portal.
   const firmName = typeof PORTAL_GROUP !== 'undefined' && PORTAL_GROUP.firm || WF_GLOBAL_SETTINGS && WF_GLOBAL_SETTINGS.fromName || 'Sole Practice';
   const setS = patch => setSettings(s => ({
@@ -104683,6 +105671,9 @@ const ReputationPage = ({
     value: 'requests',
     label: 'Requests'
   }, {
+    value: 'surveys',
+    label: 'Surveys'
+  }, {
     value: 'settings',
     label: 'Settings'
   }];
@@ -104741,19 +105732,21 @@ const ReputationPage = ({
       setPreviewMenu(false);
       openPreview('email');
     }
-  }, "Email & web review page"))))), /*#__PURE__*/React.createElement("div", {
+  }, "Email & web review page"))))), /*#__PURE__*/React.createElement(Tabs, {
+    value: tab,
+    onChange: setTab,
     style: {
       marginBottom: 18
-    }
-  }, /*#__PURE__*/React.createElement(SegToggle, {
-    options: tabs,
-    value: tab,
-    onChange: setTab
-  })), tab === 'overview' && /*#__PURE__*/React.createElement("div", {
+    },
+    tabs: tabs.map(t => ({
+      id: t.value,
+      label: t.label
+    }))
+  }), tab === 'overview' && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 16
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -104789,18 +105782,26 @@ const ReputationPage = ({
   })), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-      gap: 16
+      gridTemplateColumns: isCompact ? '1fr' : '1fr 1fr',
+      gap: 12,
+      alignItems: 'stretch'
     }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+  }, /*#__PURE__*/React.createElement(RepNpsGauge, {
+    jobs: jobs
+  }), /*#__PURE__*/React.createElement(Card, {
     style: {
-      marginBottom: 14
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 16
     }
   }, "Client experience by band"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 12
+      gap: 15
     }
   }, REP_BANDS.map(b => {
     const n = bandCounts[b.label];
@@ -104812,11 +105813,12 @@ const ReputationPage = ({
         display: 'flex',
         justifyContent: 'space-between',
         fontSize: 12.5,
-        marginBottom: 4
+        marginBottom: 5
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
-        color: T.textSoft
+        color: T.textSoft,
+        fontWeight: 500
       }
     }, b.label), /*#__PURE__*/React.createElement("span", {
       style: {
@@ -104829,9 +105831,8 @@ const ReputationPage = ({
     }));
   })), /*#__PURE__*/React.createElement(Helper, {
     style: {
-      marginTop: 14,
-      paddingTop: 12,
-      borderTop: `1px solid ${T.border}`
+      marginTop: 'auto',
+      paddingTop: 16
     }
   }, "Survey-style NPS lives on your ", /*#__PURE__*/React.createElement("button", {
     onClick: () => {
@@ -104846,15 +105847,15 @@ const ReputationPage = ({
       padding: 0,
       fontSize: 12
     }
-  }, "Practice Dashboard"), ".")), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+  }, "Practice Dashboard"), "."))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
     style: {
-      marginBottom: 14
+      marginBottom: 16
     }
   }, "Public review funnel"), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10
+      display: 'grid',
+      gridTemplateColumns: isCompact ? '1fr' : 'repeat(3, 1fr)',
+      gap: isCompact ? 14 : 28
     }
   }, [{
     label: 'Positive ratings (4–5★)',
@@ -104869,49 +105870,48 @@ const ReputationPage = ({
     n: funnel.clicked,
     color: T.greenDark
   }].map((s, i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
+    key: i
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 12
+      gap: 10,
+      marginBottom: 9
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
+      width: 30,
+      height: 30,
+      borderRadius: 9,
       background: withAlpha(s.color, 0.12),
       color: s.color,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontWeight: 700,
-      fontSize: 13,
-      flexShrink: 0
+      fontWeight: 800,
+      fontSize: 14,
+      flexShrink: 0,
+      fontVariantNumeric: 'tabular-nums'
     }
-  }, s.n), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1
-    }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, s.n), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 12.5,
-      color: T.textSoft
+      color: T.textSoft,
+      fontWeight: 500
     }
-  }, s.label), /*#__PURE__*/React.createElement(ProgressBar, {
+  }, s.label)), /*#__PURE__*/React.createElement(ProgressBar, {
     pct: funnel.positive ? Math.round(s.n / funnel.positive * 100) : 0,
     color: s.color,
-    height: 6
-  }))))))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 12
-    }
-  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Needs follow-up"), /*#__PURE__*/React.createElement(Pill, {
-    color: followups.length ? 'red' : 'green'
-  }, followups.length, " open")), followups.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No low ratings need attention. \uD83C\uDF89") : /*#__PURE__*/React.createElement("div", {
+    height: 8
+  }))))), /*#__PURE__*/React.createElement(PanelCard, {
+    title: "Needs follow-up",
+    subtitle: "Low ratings to make right \u2014 reach out and recover the relationship",
+    icon: "alertTriangle",
+    iconTone: followups.length ? 'red' : 'green',
+    actions: /*#__PURE__*/React.createElement(Pill, {
+      color: followups.length ? 'red' : 'green'
+    }, followups.length, " open")
+  }, followups.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No low ratings need attention right now. \uD83C\uDF89") : /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -104919,13 +105919,14 @@ const ReputationPage = ({
     }
   }, followups.map(job => /*#__PURE__*/React.createElement("div", {
     key: job.id,
+    "data-hover": "row",
     style: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 12,
-      padding: '8px 10px',
-      border: `1px solid ${T.border}`,
+      padding: '10px 12px',
+      border: `1px solid ${T.borderSoft}`,
       borderRadius: 10
     }
   }, /*#__PURE__*/React.createElement(ClientRow, {
@@ -104947,82 +105948,349 @@ const ReputationPage = ({
     variant: "primaryOutline",
     size: "sm",
     onClick: () => startRecovery(job)
-  }, "Start service recovery"))))))), tab === 'feedback' && (() => {
+  }, "Start service recovery")))))), /*#__PURE__*/React.createElement(RepWordCloud, {
+    words: REP_KEYWORDS
+  })), tab === 'feedback' && (() => {
     const inBucket = j => fbFilter === 'all' ? true : fbFilter === 'promoters' ? j.rating === 5 : fbFilter === 'passives' ? j.rating === 4 : j.rating != null && j.rating <= 3;
     const rated = repRatedJobs(jobs).filter(inBucket);
-    return /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14
+    const fbCols = [{
+      key: 'client',
+      header: 'Client',
+      width: 'minmax(200px,1.7fr)',
+      render: j => /*#__PURE__*/React.createElement(ClientRow, {
+        job: j
+      })
+    }, {
+      key: 'rating',
+      header: 'Rating',
+      width: 'minmax(108px,0.8fr)',
+      sortable: true,
+      sortValue: j => j.rating || 0,
+      render: j => /*#__PURE__*/React.createElement(StarRating, {
+        value: j.rating,
+        size: 14
+      })
+    }, {
+      key: 'score',
+      header: 'Score',
+      width: 'minmax(110px,0.9fr)',
+      sortable: true,
+      sortValue: j => computeClientExperienceScore(j, settings).total,
+      render: j => {
+        const sc = computeClientExperienceScore(j, settings);
+        return /*#__PURE__*/React.createElement(Pill, {
+          color: sc.band.tone
+        }, sc.total, " \xB7 ", sc.band.label);
       }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        gap: 6,
-        flexWrap: 'wrap'
-      }
-    }, [['all', 'All'], ['promoters', 'Promoters (5★)'], ['passives', 'Passives (4★)'], ['detractors', 'Detractors (≤3★)']].map(([v, l]) => /*#__PURE__*/React.createElement(Chip, {
-      key: v,
-      size: "sm",
-      selected: fbFilter === v,
-      onClick: () => setFbFilter(v)
-    }, l))), /*#__PURE__*/React.createElement(Card, {
-      padded: false
-    }, rated.length === 0 ? /*#__PURE__*/React.createElement("div", {
-      style: {
-        padding: 18
-      }
-    }, /*#__PURE__*/React.createElement(Helper, null, "No feedback in this view yet.")) : rated.map((job, i) => {
-      const sc = computeClientExperienceScore(job, settings);
-      return /*#__PURE__*/React.createElement("div", {
-        key: job.id,
-        onClick: () => setDetailJob(job),
-        "data-hover": "row",
+    }, {
+      key: 'routed',
+      header: 'Routed',
+      width: 'minmax(96px,0.7fr)',
+      render: j => /*#__PURE__*/React.createElement(Pill, {
+        color: j.routedPublic ? 'green' : 'neutral'
+      }, j.routedPublic ? 'Public · Google' : 'Internal')
+    }, {
+      key: 'status',
+      header: 'Status',
+      width: 'minmax(110px,0.8fr)',
+      align: 'right',
+      render: j => /*#__PURE__*/React.createElement(StatusPillFor, {
+        status: j.status
+      })
+    }];
+    return /*#__PURE__*/React.createElement(DataTable, {
+      columns: fbCols,
+      rows: rated,
+      rowKey: j => j.id,
+      onRowClick: setDetailJob,
+      minWidth: 780,
+      toolbar: /*#__PURE__*/React.createElement("div", {
         style: {
           display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '12px 16px',
-          borderTop: i ? `1px solid ${T.border}` : 'none',
-          cursor: 'pointer'
+          gap: 6,
+          flexWrap: 'wrap',
+          marginBottom: 12
+        }
+      }, [['all', 'All', null], ['promoters', 'Promoters', '5'], ['passives', 'Passives', '4'], ['detractors', 'Detractors', '≤3']].map(([v, l, stars]) => /*#__PURE__*/React.createElement(Chip, {
+        key: v,
+        size: "sm",
+        selected: fbFilter === v,
+        onClick: () => setFbFilter(v)
+      }, l, stars && /*#__PURE__*/React.createElement("span", {
+        style: {
+          marginLeft: 5,
+          fontWeight: 700,
+          whiteSpace: 'nowrap'
+        }
+      }, stars, /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: T.amber,
+          marginLeft: 1
+        }
+      }, "\u2605"))))),
+      empty: {
+        icon: 'inbox',
+        title: 'No feedback in this view yet',
+        hint: 'Feedback appears here as clients respond to requests.'
+      }
+    });
+  })(), tab === 'requests' && (() => {
+    const statuses = Array.from(new Set(jobs.map(j => j.status)));
+    const sorted = [...jobs].filter(j => reqStatus === 'all' || j.status === reqStatus).sort((a, b) => (b.sentDate || 0) - (a.sentDate || 0));
+    const reqCols = [{
+      key: 'client',
+      header: 'Client',
+      width: 'minmax(200px,1.7fr)',
+      render: j => /*#__PURE__*/React.createElement(ClientRow, {
+        job: j
+      })
+    }, {
+      key: 'channels',
+      header: 'Channels',
+      width: 'minmax(90px,0.6fr)',
+      render: () => /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 5,
+          color: T.muted
+        }
+      }, settings.sendByEmail && /*#__PURE__*/React.createElement(Icon, {
+        name: "mail",
+        size: 14
+      }), settings.sendBySms && /*#__PURE__*/React.createElement(Icon, {
+        name: "messageSquare",
+        size: 14
+      }), settings.showInPortal && /*#__PURE__*/React.createElement(Icon, {
+        name: "inbox",
+        size: 14
+      }))
+    }, {
+      key: 'sent',
+      header: 'Sent',
+      width: 'minmax(90px,0.6fr)',
+      sortable: true,
+      sortValue: j => j.sentDate || 0,
+      render: j => /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 12,
+          color: T.muted,
+          fontVariantNumeric: 'tabular-nums'
+        }
+      }, j.sentDate ? fmtDate(j.sentDate) : '—')
+    }, {
+      key: 'status',
+      header: 'Status',
+      width: 'minmax(120px,0.9fr)',
+      render: j => /*#__PURE__*/React.createElement(StatusPillFor, {
+        status: j.status
+      })
+    }, {
+      key: '_act',
+      header: '',
+      width: '96px',
+      align: 'right',
+      render: j => j.rating == null ? /*#__PURE__*/React.createElement(Btn, {
+        variant: "ghost",
+        size: "sm",
+        onClick: e => {
+          e.stopPropagation();
+          sendForJob(j);
+        }
+      }, j.status === 'Scheduled' ? 'Send now' : 'Resend') : null
+    }];
+    return /*#__PURE__*/React.createElement(DataTable, {
+      columns: reqCols,
+      rows: sorted,
+      rowKey: j => j.id,
+      minWidth: 780,
+      toolbar: /*#__PURE__*/React.createElement("div", {
+        style: {
+          marginBottom: 12
         }
       }, /*#__PURE__*/React.createElement("div", {
         style: {
-          flex: '1 1 220px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap'
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: T.muted
+        }
+      }, "Status"), /*#__PURE__*/React.createElement(Chip, {
+        size: "sm",
+        selected: reqStatus === 'all',
+        onClick: () => setReqStatus('all')
+      }, "All"), statuses.map(s => /*#__PURE__*/React.createElement(Chip, {
+        key: s,
+        size: "sm",
+        selected: reqStatus === s,
+        onClick: () => setReqStatus(s)
+      }, s))), /*#__PURE__*/React.createElement(Btn, {
+        variant: "primary",
+        size: "sm",
+        icon: "send",
+        style: {
+          flexShrink: 0
+        },
+        onClick: () => {
+          const j = jobs.find(x => x.rating == null) || jobs[0];
+          sendForJob(j);
+        }
+      }, "Send review request")), /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          fontSize: 11.5,
+          marginTop: 9
+        }
+      }, "Auto-sent ", settings.delayHours, "h after completion", settings.enabled ? '' : ' (paused)', ".")),
+      empty: {
+        icon: 'inbox',
+        title: 'No requests match',
+        hint: 'Try a different status.'
+      }
+    });
+  })(), tab === 'surveys' && (() => {
+    const svCols = [{
+      key: 'name',
+      header: 'Survey',
+      width: 'minmax(220px,2fr)',
+      sortable: true,
+      sortValue: sv => sv.name,
+      render: sv => /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 11,
           minWidth: 0
         }
-      }, /*#__PURE__*/React.createElement(ClientRow, {
-        job: job
-      })), /*#__PURE__*/React.createElement("div", {
+      }, /*#__PURE__*/React.createElement(IconChip, {
+        icon: "star",
+        tone: "accent",
+        size: 32
+      }), /*#__PURE__*/React.createElement("div", {
         style: {
-          flexShrink: 0
+          minWidth: 0
         }
-      }, /*#__PURE__*/React.createElement(StarRating, {
-        value: job.rating,
-        size: 14
-      })), /*#__PURE__*/React.createElement(Pill, {
-        color: sc.band.tone,
+      }, /*#__PURE__*/React.createElement("div", {
         style: {
-          flexShrink: 0
+          fontSize: 13,
+          fontWeight: 600,
+          color: T.text,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
         }
-      }, sc.total, " \xB7 ", sc.band.label), /*#__PURE__*/React.createElement(Pill, {
-        color: job.routedPublic ? 'green' : 'neutral',
+      }, sv.name || 'Untitled survey'), /*#__PURE__*/React.createElement("div", {
         style: {
-          flexShrink: 0
+          fontSize: 11.5,
+          color: T.muted,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
         }
-      }, job.routedPublic ? `Public · ${job.publicChannel === 'facebook' ? 'Facebook' : 'Google'}` : 'Internal'), /*#__PURE__*/React.createElement("div", {
+      }, sv.purpose || 'No description')))
+    }, {
+      key: 'questions',
+      header: 'Questions',
+      width: 'minmax(170px,1.4fr)',
+      sortable: true,
+      sortValue: sv => sv.questions.length,
+      render: sv => {
+        const types = Array.from(new Set(sv.questions.map(q => q.type)));
+        return /*#__PURE__*/React.createElement("div", {
+          style: {
+            minWidth: 0
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            fontSize: 12.5,
+            color: T.textSoft,
+            fontWeight: 500
+          }
+        }, sv.questions.length, " ", sv.questions.length === 1 ? 'question' : 'questions'), /*#__PURE__*/React.createElement("div", {
+          style: {
+            fontSize: 11,
+            color: T.mutedSoft,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }
+        }, types.join(' · ')));
+      }
+    }, {
+      key: 'status',
+      header: 'Status',
+      width: 'minmax(90px,0.6fr)',
+      sortable: true,
+      sortValue: sv => sv.active ? 0 : 1,
+      render: sv => /*#__PURE__*/React.createElement(Pill, {
+        color: sv.active ? 'green' : 'neutral'
+      }, sv.active ? 'Active' : 'Draft')
+    }, {
+      key: '_act',
+      header: '',
+      width: '148px',
+      align: 'right',
+      render: sv => /*#__PURE__*/React.createElement("div", {
         style: {
-          flexShrink: 0,
-          width: 130,
-          textAlign: 'right'
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 8
         }
-      }, /*#__PURE__*/React.createElement(StatusPillFor, {
-        status: job.status
-      })));
-    })));
-  })(), tab === 'requests' && (() => {
-    const sorted = [...jobs].sort((a, b) => (b.sentDate || 0) - (a.sentDate || 0));
+      }, /*#__PURE__*/React.createElement("span", {
+        onClick: e => e.stopPropagation(),
+        style: {
+          display: 'inline-flex'
+        }
+      }, /*#__PURE__*/React.createElement(Toggle, {
+        size: "sm",
+        on: sv.active,
+        onChange: v => setSurveys(s => s.map(x => x.id === sv.id ? {
+          ...x,
+          active: v
+        } : x))
+      })), /*#__PURE__*/React.createElement(Btn, {
+        variant: "soft",
+        size: "sm",
+        icon: "edit",
+        onClick: e => {
+          e.stopPropagation();
+          setEditSurvey(sv);
+        }
+      }, "Edit"), /*#__PURE__*/React.createElement(RowKebab, {
+        menuWidth: 170,
+        items: [{
+          id: 'duplicate',
+          label: 'Duplicate',
+          icon: 'copy'
+        }, {
+          id: 'delete',
+          label: 'Delete',
+          icon: 'trash',
+          danger: true,
+          divider: true
+        }],
+        onAction: id => {
+          if (id === 'duplicate') setSurveys(s => [...s, {
+            ...JSON.parse(JSON.stringify(sv)),
+            id: 'sv-' + Date.now(),
+            name: sv.name + ' (copy)'
+          }]);else if (id === 'delete') setSurveys(s => s.filter(x => x.id !== sv.id));
+        }
+      }))
+    }];
     return /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
@@ -105033,83 +106301,97 @@ const ReputationPage = ({
       style: {
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'flex-start',
+        flexWrap: 'wrap',
+        gap: 12
       }
-    }, /*#__PURE__*/React.createElement(Helper, null, "Automatic requests fire ", settings.delayHours, "h after a job is completed", settings.enabled ? '' : ' (currently paused)', ". Send one manually anytime."), /*#__PURE__*/React.createElement(Btn, {
-      variant: "primary",
-      icon: "send",
+    }, /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        maxWidth: 620
+      }
+    }, "Build the surveys clients answer after a job. Attach one to a task or job in ", /*#__PURE__*/React.createElement("button", {
       onClick: () => {
-        const j = jobs.find(x => x.rating == null) || jobs[0];
-        sendForJob(j);
-      }
-    }, "Send review request")), /*#__PURE__*/React.createElement(Card, {
-      padded: false
-    }, sorted.map((job, i) => /*#__PURE__*/React.createElement("div", {
-      key: job.id,
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 16px',
-        borderTop: i ? `1px solid ${T.border}` : 'none'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: '1 1 220px',
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement(ClientRow, {
-      job: job
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flexShrink: 0,
-        display: 'flex',
-        gap: 4,
-        color: T.muted
+        window.location.hash = '#/practice/work-management';
       },
-      title: "Delivery channels"
-    }, settings.sendByEmail && /*#__PURE__*/React.createElement(Icon, {
-      name: "mail",
-      size: 14
-    }), settings.sendBySms && /*#__PURE__*/React.createElement(Icon, {
-      name: "messageSquare",
-      size: 14
-    }), settings.showInPortal && /*#__PURE__*/React.createElement(Icon, {
-      name: "inbox",
-      size: 14
-    })), /*#__PURE__*/React.createElement("div", {
       style: {
-        flexShrink: 0,
-        width: 90,
-        fontSize: 12,
-        color: T.muted,
-        textAlign: 'right'
+        border: 'none',
+        background: 'none',
+        color: T.primary,
+        fontWeight: 600,
+        cursor: 'pointer',
+        padding: 0,
+        fontSize: 12
       }
-    }, job.sentDate ? fmtDate(job.sentDate) : '—'), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flexShrink: 0,
-        width: 130,
-        textAlign: 'right'
-      }
-    }, /*#__PURE__*/React.createElement(StatusPillFor, {
-      status: job.status
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flexShrink: 0,
-        width: 96,
-        textAlign: 'right'
-      }
-    }, job.rating == null && /*#__PURE__*/React.createElement(Btn, {
-      variant: "ghost",
+    }, "Job Management"), " \u2014 one project can use several, task- or job-level."), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
       size: "sm",
-      onClick: () => sendForJob(job)
-    }, job.status === 'Scheduled' ? 'Send now' : 'Resend'))))));
+      icon: "plus",
+      style: {
+        flexShrink: 0
+      },
+      onClick: () => setEditSurvey({
+        id: 'sv-' + Date.now(),
+        name: '',
+        purpose: '',
+        active: true,
+        _isNew: true,
+        questions: [{
+          id: 'q1',
+          type: 'Star rating',
+          label: 'How would you rate this job overall?'
+        }, {
+          id: 'q2',
+          type: 'Free text',
+          label: 'What did they say?'
+        }]
+      })
+    }, "New survey")), /*#__PURE__*/React.createElement(DataTable, {
+      columns: svCols,
+      rows: surveys,
+      rowKey: sv => sv.id,
+      onRowClick: sv => setEditSurvey(sv),
+      minWidth: 720,
+      empty: {
+        icon: 'star',
+        title: 'No surveys yet',
+        hint: 'Create one clients answer after a job.',
+        action: /*#__PURE__*/React.createElement(Btn, {
+          variant: "primaryOutline",
+          size: "sm",
+          icon: "plus",
+          onClick: () => setEditSurvey({
+            id: 'sv-' + Date.now(),
+            name: '',
+            purpose: '',
+            active: true,
+            _isNew: true,
+            questions: []
+          })
+        }, "New survey")
+      }
+    }));
   })(), tab === 'settings' && /*#__PURE__*/React.createElement(RepSettingsTab, {
     settings: settings,
     setS: setS,
     fireToast: fireToast,
     goTemplates: goTemplates,
     firmName: firmName
+  }), editSurvey && /*#__PURE__*/React.createElement(RepSurveyEditor, {
+    survey: editSurvey,
+    onClose: () => setEditSurvey(null),
+    onSave: d => {
+      setSurveys(s => s.some(x => x.id === d.id) ? s.map(x => x.id === d.id ? {
+        ...d,
+        _isNew: undefined
+      } : x) : [...s, {
+        ...d,
+        _isNew: undefined
+      }]);
+      setEditSurvey(null);
+      fireToast({
+        message: `Saved “${d.name}”`
+      });
+    }
   }), /*#__PURE__*/React.createElement(Modal, {
     open: !!detailJob,
     onClose: () => setDetailJob(null),
@@ -105256,7 +106538,7 @@ const ReputationPage = ({
     },
     settings: settings,
     firmName: firmName,
-    onComplete: r => fireToast(r.route === 'public' ? r.googleClicked ? `Client clicked through to a ${r.publicChannel === 'facebook' ? 'Facebook' : 'Google'} review` : 'Client rated positively' : 'Private feedback captured')
+    onComplete: r => fireToast(r.route === 'public' ? r.googleClicked ? 'Client clicked through to a Google review' : r.sharedSocial ? 'Client shared on their socials 🎉' : 'Client rated positively' : settings.createFollowupTask ? 'Private feedback captured — a follow-up task was created for a senior to make it right' : 'Private feedback captured')
   })) : /*#__PURE__*/React.createElement(EmailWebPreview, {
     key: previewKey,
     settings: settings,
@@ -105582,12 +106864,14 @@ const RepSettingsTab = ({
     style: {
       marginTop: 4
     }
-  }, "Where 4\u20135\u2605 clients are sent. If blank, they\u2019ll only see a thank-you screen.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Facebook review link"), /*#__PURE__*/React.createElement(Input, {
-    value: settings.facebookUrl,
-    onChange: e => setS({
-      facebookUrl: e.target.value
-    }),
-    placeholder: "https://facebook.com/\u2026/reviews"
+  }, "Where 4\u20135\u2605 clients are sent. If blank, they\u2019ll only see a thank-you screen.")), /*#__PURE__*/React.createElement(Row, {
+    label: "Offer \u201CShare on your socials\u201D",
+    hint: "After a happy rating \u2014 and for clients who\u2019ve already left a Google review \u2014 let them share on LinkedIn, X, Facebook or WhatsApp (their choice)."
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: settings.shareSocials !== false,
+    onChange: v => setS({
+      shareSocials: v
+    })
   })))), /*#__PURE__*/React.createElement(Card, {
     style: dim
   }, /*#__PURE__*/React.createElement(SectionTitle, {
@@ -105642,7 +106926,7 @@ const RepSettingsTab = ({
     })
   })), /*#__PURE__*/React.createElement(Row, {
     label: "Star threshold for public review",
-    hint: "Ratings at or above this go to Google/Facebook; below go to the private form."
+    hint: "Ratings at or above this go to a Google review; below go to the private form + a senior follow-up."
   }, /*#__PURE__*/React.createElement(SegToggle, {
     options: [{
       value: 4,
@@ -112331,7 +113615,7 @@ const PortalOnboardingOnePage = ({
       fontWeight: 700,
       marginBottom: 8
     }
-  }, "Need a hand?"), /*#__PURE__*/React.createElement("div", {
+  }, "Your accounting team"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -112382,67 +113666,79 @@ const PortalOnboardingOnePage = ({
 // Section navigation as a clean tab bar (was a numbered stepper) — each section is
 // a tab with a number/check chip; the active tab carries a brand underline. The
 // row's bottom hairline doubles as the divider above the section content.
+// On desktop the tabs DISTRIBUTE to fill the row (flex:1 each) so all are visible
+// without scrolling; on narrow viewports (<1024) they fall back to a horizontal
+// scroll so labels stay legible rather than crushing 7 tabs into a phone width.
 const PortalStepper = ({
   steps,
   activeIdx,
   onStep
-}) => /*#__PURE__*/React.createElement("div", {
-  style: {
-    display: 'flex',
-    gap: 2,
-    overflowX: 'auto',
-    borderBottom: `1px solid ${T.border}`
-  }
-}, steps.map((s, i) => {
-  const done = s.complete,
-    active = i === activeIdx;
-  return /*#__PURE__*/React.createElement("button", {
-    key: s.id || i,
-    onClick: () => onStep(i),
-    title: `Go to ${s.title}`,
+}) => {
+  const {
+    isCompact
+  } = useViewport();
+  return /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 7,
-      flexShrink: 0,
-      whiteSpace: 'nowrap',
-      padding: '10px 13px',
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      marginBottom: -1,
-      borderBottom: active ? `2px solid ${PT.brand}` : '2px solid transparent',
-      color: active ? PT.brand : done ? T.text : T.muted,
-      fontWeight: active ? 700 : 600,
-      fontSize: 12.5,
-      transition: 'color .12s, border-color .12s'
+      display: 'flex',
+      gap: 0,
+      overflowX: isCompact ? 'auto' : 'visible',
+      borderBottom: `1px solid ${T.border}`
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 18,
-      height: 18,
-      borderRadius: '50%',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 10,
-      fontWeight: 800,
-      flexShrink: 0,
-      background: done ? PT.brand : active ? PT.brandSoft : T.fieldBg,
-      color: done ? '#fff' : active ? PT.brand : T.muted,
-      border: done ? 'none' : `1px solid ${active ? PT.brandBorder : T.border}`
-    }
-  }, done ? /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
-    size: 11,
-    color: "#fff",
-    strokeWidth: 3
-  }) : i + 1), s.kyc && /*#__PURE__*/React.createElement(Icon, {
-    name: "shield",
-    size: 11,
-    color: active ? PT.brand : T.muted
-  }), s.title);
-}));
+  }, steps.map((s, i) => {
+    const done = s.complete,
+      active = i === activeIdx;
+    return /*#__PURE__*/React.createElement("button", {
+      key: s.id || i,
+      onClick: () => onStep(i),
+      title: s.title,
+      style: {
+        flex: isCompact ? '0 0 auto' : '1 1 auto',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        whiteSpace: 'nowrap',
+        padding: '10px 7px',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        marginBottom: -1,
+        borderBottom: active ? `2px solid ${PT.brand}` : '2px solid transparent',
+        color: active ? PT.brand : done ? T.text : T.muted,
+        fontWeight: active ? 700 : 600,
+        fontSize: 12,
+        transition: 'color .12s, border-color .12s'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 17,
+        height: 17,
+        borderRadius: '50%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 9.5,
+        fontWeight: 800,
+        flexShrink: 0,
+        background: done ? PT.brand : active ? PT.brandSoft : T.fieldBg,
+        color: done ? '#fff' : active ? PT.brand : T.muted,
+        border: done ? 'none' : `1px solid ${active ? PT.brandBorder : T.border}`
+      }
+    }, done ? /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 10,
+      color: "#fff",
+      strokeWidth: 3
+    }) : i + 1), s.kyc && /*#__PURE__*/React.createElement(Icon, {
+      name: "shield",
+      size: 11,
+      color: active ? PT.brand : T.muted,
+      style: {
+        flexShrink: 0
+      }
+    }), /*#__PURE__*/React.createElement("span", null, s.title));
+  }));
+};
 
 // Which section a client is currently "on" (first incomplete required section).
 const memberCurrentStep = c => {
@@ -113456,7 +114752,7 @@ const PortalOnboardingWizard = ({
       fontWeight: 700,
       marginBottom: 8
     }
-  }, "Need a hand?"), /*#__PURE__*/React.createElement("div", {
+  }, "Your accounting team"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -114001,7 +115297,7 @@ const PortalDashboardMock = ({
       display: 'grid',
       gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr',
       gap: 12,
-      alignItems: 'start'
+      alignItems: 'stretch'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: `How ${firm} is adding value`,
@@ -114107,7 +115403,7 @@ const PortalDashboardMock = ({
       display: 'grid',
       gridTemplateColumns: '1.5fr 1fr',
       gap: 12,
-      alignItems: 'start'
+      alignItems: 'stretch'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "What's next",
@@ -115416,7 +116712,7 @@ const PortalRequestsMock = ({
       display: 'grid',
       gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr',
       gap: 12,
-      alignItems: 'start'
+      alignItems: 'stretch'
     }
   }, /*#__PURE__*/React.createElement(PanelCard, {
     title: "Open requests",
@@ -116554,7 +117850,7 @@ const PortalClientGroupOverview = ({
       fontSize: 11.5
     }
   }, PORTAL_CLIENT.advisorTitle, " \xB7 ", PORTAL_GROUP.firm))), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
+    variant: "soft",
     size: "sm",
     icon: "messageSquare",
     onClick: () => go('communications'),
@@ -116563,7 +117859,7 @@ const PortalClientGroupOverview = ({
       width: '100%',
       justifyContent: 'center'
     }
-  }, "Message your advisor")))));
+  }, "Message your team")))));
 };
 
 // Notifications inbox (tabs: All / Unread / Action required) — matches the old
@@ -119308,6 +120604,7 @@ const OnbPreview = ({
   entityType,
   fireToast
 }) => {
+  const totalFields = (template.pages || []).reduce((n, p) => n + (p.sections || []).reduce((m, s) => m + (s.fields || []).length, 0), 0);
   const [portal, setPortal] = useState(() => ({
     group: {
       name: 'Preview group',
@@ -119346,6 +120643,56 @@ const OnbPreview = ({
       size: '96 KB'
     }]
   }));
+  // A blank/empty draft renders a degenerate wizard ("Page 1 · 0/0 complete") — show a
+  // friendly empty state instead until the builder has at least one field.
+  if (totalFields === 0) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 360
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        maxWidth: 430,
+        textAlign: 'center',
+        background: T.card,
+        border: `1px solid ${T.borderSoft}`,
+        borderRadius: T.radiusCard,
+        boxShadow: T.shadowSm,
+        padding: '38px 30px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 56,
+        height: 56,
+        borderRadius: 16,
+        background: T.primarySofter,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "eye",
+      size: 26,
+      color: T.primary
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 16,
+        fontWeight: 800,
+        color: T.text,
+        letterSpacing: -0.2
+      }
+    }, "Nothing to preview yet"), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 13,
+        marginTop: 6,
+        lineHeight: 1.5
+      }
+    }, "Add a page with a few fields in the Builder and this preview will show it exactly as your client sees it.")));
+  }
   return /*#__PURE__*/React.createElement(PortalGetStarted, {
     portal: portal,
     setPortal: setPortal,
@@ -119362,7 +120709,8 @@ const OnboardingTemplatesPage = ({
     isCompact
   } = useViewport();
   const [view, setView] = useState('gallery');
-  const [builderMode, setBuilderMode] = useState('outline'); // 'outline' (MECE map) | 'edit'
+  const [builderMode, setBuilderMode] = useState('outline'); // legacy (toggle removed; always edit)
+  const [pagePicker, setPagePicker] = useState(false); // add-page-from-library modal
   const [draft, setDraft] = useState(null);
   const [userTpls, setUserTpls] = useState(() => loadOnboardingTemplates());
   const [cat, setCat] = useState('All');
@@ -119454,215 +120802,243 @@ const OnboardingTemplatesPage = ({
     setView(id);
   };
 
-  // ---- gallery ----
-  const renderGallery = () => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'flex-end',
-      justifyContent: 'space-between',
-      gap: 16,
-      marginBottom: 18,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 22,
-      fontWeight: 800,
-      color: T.text
-    }
-  }, "Onboarding templates"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 13.5,
-      marginTop: 4
-    }
-  }, "The question sets your clients complete during onboarding. Pick one per service type \u2014 or build your own.")), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    icon: "plus",
-    size: "lg",
-    onClick: newTemplate
-  }, "New template")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      marginBottom: 18,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 7,
-      flexWrap: 'wrap'
-    }
-  }, cats.map(c => /*#__PURE__*/React.createElement(Chip, {
-    key: c,
-    size: "sm",
-    selected: cat === c,
-    onClick: () => setCat(c)
-  }, c))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 180,
-      maxWidth: 320,
-      marginLeft: 'auto'
-    }
-  }, /*#__PURE__*/React.createElement(Input, {
-    value: q,
-    onChange: e => setQ(e.target.value),
-    placeholder: "Search templates\u2026",
-    prefix: /*#__PURE__*/React.createElement(Icon, {
-      name: "search",
-      size: 14,
-      color: T.muted
-    })
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-      gap: 14
-    }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: newTemplate,
-    "data-hover": "tile",
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      minHeight: 168,
-      border: `1.5px dashed ${T.borderStrong}`,
-      borderRadius: T.radiusLg,
-      background: T.card,
-      cursor: 'pointer',
-      color: T.primary
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "plus",
-    size: 24,
-    color: T.primary
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13.5,
-      fontWeight: 700
-    }
-  }, "Start from scratch"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5
-    }
-  }, "Build a template with drag & drop")), visible.map(t => {
-    const fc = onbTemplateFieldCount(t);
-    return /*#__PURE__*/React.createElement(Card, {
-      key: t.id,
-      hover: true,
-      style: {
-        padding: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        minHeight: 168
+  // ---- gallery (list view — same minimal DataTable as the rest of the app) ----
+  const renderGallery = () => {
+    const columns = [{
+      key: 'name',
+      header: 'Template',
+      width: 'minmax(240px,2fr)',
+      sortable: true,
+      sortValue: t => t.name,
+      render: t => /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 11,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement(IconChip, {
+        icon: ONB_CAT_ICON[t.category] || 'clipboard',
+        tone: ONB_CAT_TONE[t.category] || 'accent',
+        size: 32
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 13,
+          fontWeight: 600,
+          color: T.text,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }
+      }, t.name), t.kyc && /*#__PURE__*/React.createElement(Pill, {
+        color: "blue",
+        title: "Includes a KYC / AML section",
+        style: {
+          fontSize: 9.5,
+          padding: '1px 6px'
+        }
+      }, "KYC/AML")), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11.5,
+          color: T.muted,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis'
+        }
+      }, t.serviceType || 'Custom', t.builtin ? '' : ' · Your template')))
+    }, {
+      key: 'entity',
+      header: 'Entity types',
+      width: 'minmax(180px,1.5fr)',
+      render: t => {
+        const es = t.entityTypes || [];
+        return /*#__PURE__*/React.createElement("div", {
+          style: {
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 5
+          }
+        }, es.slice(0, 4).map(e => /*#__PURE__*/React.createElement(Pill, {
+          key: e,
+          color: "neutral",
+          style: {
+            fontSize: 10
+          }
+        }, e)), es.length > 4 && /*#__PURE__*/React.createElement(Pill, {
+          color: "neutral",
+          style: {
+            fontSize: 10
+          }
+        }, "+", es.length - 4), es.length === 0 && /*#__PURE__*/React.createElement("span", {
+          style: {
+            fontSize: 12,
+            color: T.mutedSoft
+          }
+        }, "\u2014"));
       }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        padding: 16,
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column'
+    }, {
+      key: 'default',
+      header: 'Default',
+      width: 'minmax(110px,0.9fr)',
+      render: t => t.defaultFor && t.defaultFor.length > 0 ? /*#__PURE__*/React.createElement(Pill, {
+        color: "green",
+        title: `Auto-attaches for: ${t.defaultFor.join(', ')}`,
+        style: {
+          fontSize: 10
+        }
+      }, "\u2605 ", t.defaultFor.length === 1 ? t.defaultFor[0] : `${t.defaultFor.length} types`) : /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 12,
+          color: T.mutedSoft
+        }
+      }, "\u2014")
+    }, {
+      key: 'size',
+      header: 'Pages · fields',
+      width: 'minmax(110px,0.7fr)',
+      align: 'right',
+      sortable: true,
+      sortValue: t => onbTemplateFieldCount(t),
+      render: t => {
+        const fc = onbTemplateFieldCount(t);
+        return /*#__PURE__*/React.createElement("span", {
+          style: {
+            fontSize: 12,
+            color: T.muted,
+            fontVariantNumeric: 'tabular-nums'
+          }
+        }, t.pages.length, " \xB7 ", fc);
       }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 11
-      }
-    }, /*#__PURE__*/React.createElement(IconChip, {
-      icon: ONB_CAT_ICON[t.category] || 'clipboard',
-      tone: ONB_CAT_TONE[t.category] || 'accent',
-      size: 38
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1,
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 14,
-        fontWeight: 700,
-        color: T.text,
-        lineHeight: 1.3
-      }
-    }, t.name), /*#__PURE__*/React.createElement(Helper, {
-      style: {
-        fontSize: 11.5,
-        marginTop: 2
-      }
-    }, t.serviceType || 'Custom', t.builtin ? '' : ' · Your template'))), /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: 5,
-        marginTop: 10,
-        minHeight: 22
-      }
-    }, t.kyc && /*#__PURE__*/React.createElement(Pill, {
-      color: "blue",
-      title: "Includes a KYC / AML section"
-    }, "KYC/AML"), t.defaultFor && t.defaultFor.length > 0 && /*#__PURE__*/React.createElement(Pill, {
-      color: "green",
-      title: `Auto-attaches for: ${t.defaultFor.join(', ')}`,
-      style: {
-        fontSize: 10
-      }
-    }, "\u2605 Default \xB7 ", t.defaultFor.length === 1 ? t.defaultFor[0] : `${t.defaultFor.length} types`), (t.entityTypes || []).slice(0, 4).map(e => /*#__PURE__*/React.createElement(Pill, {
-      key: e,
-      color: "neutral",
-      style: {
-        fontSize: 10
-      }
-    }, e))), /*#__PURE__*/React.createElement(Helper, {
-      style: {
-        fontSize: 11.5,
-        marginTop: 'auto',
-        paddingTop: 10
-      }
-    }, t.pages.length, " page", t.pages.length === 1 ? '' : 's', " \xB7 ", fc, " field", fc === 1 ? '' : 's')), /*#__PURE__*/React.createElement("div", {
+    }, {
+      key: '_actions',
+      header: '',
+      width: '128px',
+      align: 'right',
+      render: t => /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement(Btn, {
+        variant: "soft",
+        size: "sm",
+        icon: "send",
+        onClick: e => {
+          e.stopPropagation();
+          useTemplate(t);
+        }
+      }, "Use"), /*#__PURE__*/React.createElement(RowKebab, {
+        menuWidth: 190,
+        items: [{
+          id: 'edit',
+          label: 'Edit template',
+          icon: 'edit'
+        }, {
+          id: 'duplicate',
+          label: 'Duplicate',
+          icon: 'copy'
+        }, ...(!t.builtin ? [{
+          id: 'delete',
+          label: 'Delete',
+          icon: 'trash',
+          danger: true,
+          divider: true
+        }] : [])],
+        onAction: id => {
+          if (id === 'edit') editTemplate(t);else if (id === 'duplicate') duplicateTemplate(t);else if (id === 'delete') removeTemplate(t);
+        }
+      }))
+    }];
+    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '10px 14px',
-        borderTop: `1px solid ${T.border}`,
-        background: T.fieldBg
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        gap: 16,
+        marginBottom: 18,
+        flexWrap: 'wrap'
       }
-    }, /*#__PURE__*/React.createElement(Btn, {
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 22,
+        fontWeight: 800,
+        color: T.text
+      }
+    }, "Onboarding templates"), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 13.5,
+        marginTop: 4
+      }
+    }, "The question sets your clients complete during onboarding. Pick one per service type \u2014 or build your own.")), /*#__PURE__*/React.createElement(Btn, {
       variant: "primary",
-      size: "sm",
-      icon: "send",
-      onClick: () => useTemplate(t)
-    }, "Use"), /*#__PURE__*/React.createElement(Btn, {
-      variant: "ghost",
-      size: "sm",
-      icon: "edit",
-      onClick: () => editTemplate(t)
-    }, "Edit"), /*#__PURE__*/React.createElement("div", {
+      icon: "plus",
+      onClick: newTemplate
+    }, "New template")), /*#__PURE__*/React.createElement("div", {
       style: {
-        flex: 1
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: T.space.md,
+        flexWrap: 'wrap'
       }
-    }), /*#__PURE__*/React.createElement(Btn, {
-      variant: "iconOnly",
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 200,
+        maxWidth: 320
+      }
+    }, /*#__PURE__*/React.createElement(Input, {
+      value: q,
+      onChange: e => setQ(e.target.value),
+      placeholder: "Search templates\u2026",
+      prefix: /*#__PURE__*/React.createElement(Icon, {
+        name: "search",
+        size: 14,
+        color: T.muted
+      })
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 7,
+        flexWrap: 'wrap'
+      }
+    }, cats.map(c => /*#__PURE__*/React.createElement(Chip, {
+      key: c,
       size: "sm",
-      icon: "copy",
-      title: "Duplicate",
-      onClick: () => duplicateTemplate(t)
-    }), !t.builtin && /*#__PURE__*/React.createElement(Btn, {
-      variant: "iconOnly",
-      size: "sm",
-      icon: "trash",
-      title: "Delete",
-      onClick: () => removeTemplate(t)
-    })));
-  })));
+      selected: cat === c,
+      onClick: () => setCat(c)
+    }, c)))), /*#__PURE__*/React.createElement(DataTable, {
+      columns: columns,
+      rows: visible,
+      rowKey: t => t.id,
+      onRowClick: t => editTemplate(t),
+      minWidth: 820,
+      empty: {
+        icon: 'search',
+        title: 'No templates match',
+        hint: 'Try another category or search term.',
+        action: /*#__PURE__*/React.createElement(Btn, {
+          variant: "primaryOutline",
+          size: "sm",
+          icon: "plus",
+          onClick: newTemplate
+        }, "New template")
+      }
+    }));
+  };
 
   // ---- essentials ----
   const renderEssentials = () => /*#__PURE__*/React.createElement("div", {
@@ -119919,6 +121295,29 @@ const OnboardingTemplatesPage = ({
     };
     d.pages.push(p);
   });
+  // Add-page-from-library: reuse a page (with all its sections/fields) from any other
+  // template so users don't rebuild common pages from scratch. Cloned with fresh ids.
+  const libraryPages = () => onbAllTemplates().filter(t => t.id !== draft.id).flatMap(t => (t.pages || []).map(p => ({
+    tpl: t.name,
+    page: p
+  })));
+  const addPageFrom = srcPage => {
+    mutate(d => {
+      d.pages.push({
+        ...srcPage,
+        id: onbUid('p'),
+        sections: (srcPage.sections || []).map(s => ({
+          ...s,
+          id: onbUid('s'),
+          fields: (s.fields || []).map(f => ({
+            ...f,
+            id: onbUid('f')
+          }))
+        }))
+      });
+    });
+    setPagePicker(false);
+  };
   const removePage = pid => mutate(d => {
     d.pages = d.pages.filter(p => p.id !== pid);
   });
@@ -120173,264 +121572,367 @@ const OnboardingTemplatesPage = ({
     variant: "ghost",
     size: "sm",
     icon: "plus",
-    onClick: addPage,
+    onClick: () => setPagePicker(true),
     style: {
       width: '100%',
       marginTop: 6
     }
-  }, "Add a page"))), selPage && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16
-    }
-  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(Label, null, "Page title"), /*#__PURE__*/React.createElement(Input, {
-    value: selPage.title,
-    onChange: e => mutate(d => {
-      pageOf(d, selPage.id).title = e.target.value;
-    }),
-    style: {
-      fontWeight: 700
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 12
-    }
-  }, /*#__PURE__*/React.createElement(Label, null, "Page instructions (optional)"), /*#__PURE__*/React.createElement("textarea", {
-    value: selPage.instructions || '',
-    onChange: e => mutate(d => {
-      pageOf(d, selPage.id).instructions = e.target.value;
-    }),
-    rows: 2,
-    style: {
-      width: '100%',
-      padding: '9px 12px',
-      border: `1px solid ${T.border}`,
-      borderRadius: 8,
-      fontSize: 13,
-      fontFamily: 'inherit',
-      resize: 'vertical',
-      boxSizing: 'border-box'
-    },
-    placeholder: "Shown at the top of this step"
-  })), /*#__PURE__*/React.createElement("label", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 9,
-      marginTop: 12,
-      cursor: 'pointer'
-    }
-  }, /*#__PURE__*/React.createElement(Toggle, {
-    size: "sm",
-    on: !!selPage.kycSection,
-    onChange: v => mutate(d => {
-      pageOf(d, selPage.id).kycSection = v;
-    })
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12.5,
-      color: T.textSoft
-    }
-  }, "This is a KYC / AML compliance step"))), selPage.sections.map(sec => /*#__PURE__*/React.createElement("div", {
-    key: sec.id,
-    ref: el => {
-      sectionRefs.current[sec.id] = el;
-    },
-    style: {
-      borderRadius: 12,
-      animation: sec.id === focusSectionId ? 'flash 1.1s ease' : undefined
-    }
-  }, /*#__PURE__*/React.createElement(Card, {
-    style: {
-      padding: 0,
-      overflow: 'hidden'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '12px 14px',
-      borderBottom: `1px solid ${T.border}`,
-      background: T.fieldBg
-    }
-  }, /*#__PURE__*/React.createElement(Input, {
-    value: sec.title,
-    onChange: e => mutate(d => {
-      secOf(d, selPage.id, sec.id).title = e.target.value;
-    }),
-    style: {
-      fontWeight: 700,
-      background: T.card
-    }
-  }), selPage.sections.length > 1 && /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    size: "sm",
-    icon: "trash",
-    title: "Delete section",
-    onClick: () => removeSection(selPage.id, sec.id)
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 14
-    }
-  }, sec.fields.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      padding: '18px 12px',
-      marginBottom: 10,
-      border: `1.5px dashed ${T.border}`,
-      borderRadius: 9
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "plus",
-    size: 16,
-    color: T.mutedSoft
-  }), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 12
-    }
-  }, "No fields yet \u2014 add one below.")), /*#__PURE__*/React.createElement(OnbDraggableList, {
-    items: sec.fields,
-    onReorder: nf => mutate(d => {
-      secOf(d, selPage.id, sec.id).fields = nf;
-    }),
-    renderItem: (f, i, grip) => {
-      const def = ONB_FIELD_TYPES[f.type] || {};
-      return /*#__PURE__*/React.createElement("div", {
-        "data-onb-row": true,
-        style: {
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          padding: '9px 11px',
-          border: `1px solid ${T.border}`,
-          borderRadius: 9,
-          background: T.card,
-          marginBottom: 7
-        }
-      }, /*#__PURE__*/React.createElement("button", _extends({}, grip, {
-        title: "Drag to reorder",
-        style: {
-          cursor: 'grab',
-          border: 'none',
-          background: 'transparent',
-          padding: 0,
-          display: 'flex'
-        }
-      }), onbSixDot(T.mutedSoft)), /*#__PURE__*/React.createElement(Icon, {
-        name: f.icon || def.icon || 'edit',
-        size: 15,
-        color: T.primary
-      }), /*#__PURE__*/React.createElement("button", {
-        onClick: () => setDrawerRef({
-          pageId: selPage.id,
-          sectionId: sec.id,
-          fieldId: f.id
-        }),
-        style: {
-          flex: 1,
-          minWidth: 0,
-          textAlign: 'left',
-          border: 'none',
-          background: 'transparent',
-          cursor: 'pointer',
-          padding: 0
-        }
-      }, /*#__PURE__*/React.createElement("span", {
-        style: {
-          fontSize: 13,
-          fontWeight: 600,
-          color: T.text
-        }
-      }, f.label, f.required && /*#__PURE__*/React.createElement("span", {
-        title: "Required",
-        style: {
-          color: T.red,
-          marginLeft: 2,
-          fontWeight: 700
-        }
-      }, "*"))), f.kycFlag && /*#__PURE__*/React.createElement(Pill, {
-        color: "blue",
-        style: {
-          fontSize: 10
-        }
-      }, "KYC"), /*#__PURE__*/React.createElement(Pill, {
-        color: "neutral",
-        style: {
-          fontSize: 10
-        }
-      }, def.label || f.type), /*#__PURE__*/React.createElement("button", {
-        onClick: () => setDrawerRef({
-          pageId: selPage.id,
-          sectionId: sec.id,
-          fieldId: f.id
-        }),
-        title: "Settings",
-        style: {
-          border: 'none',
-          background: 'transparent',
-          cursor: 'pointer',
-          color: T.muted,
-          padding: 2,
-          display: 'flex'
-        }
-      }, /*#__PURE__*/React.createElement(Icon, {
-        name: "sliders",
-        size: 13
-      })), /*#__PURE__*/React.createElement("button", {
-        onClick: () => removeField(selPage.id, sec.id, f.id),
-        title: "Delete",
-        style: {
-          border: 'none',
-          background: 'transparent',
-          cursor: 'pointer',
-          color: T.mutedSoft,
-          padding: 2,
-          display: 'flex'
-        }
-      }, /*#__PURE__*/React.createElement(Icon, {
-        name: "trash",
-        size: 13
-      })));
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 8,
-      marginTop: 6
-    }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    variant: "primaryOutline",
-    size: "sm",
-    icon: "plus",
-    onClick: () => setPicker({
-      pageId: selPage.id,
-      sectionId: sec.id
-    })
-  }, "Add a field"), /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    size: "sm",
-    icon: "sparkle",
-    onClick: () => {
-      setAi({
+  }, "Add a page"))), selPage && (() => {
+    const pageIdx = draft.pages.findIndex(p => p.id === selPage.id);
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14
+      }
+    }, /*#__PURE__*/React.createElement(Card, {
+      style: {
+        padding: 18
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: selPage.kycSection ? 'shield' : 'fileText',
+      tone: selPage.kycSection ? 'blue' : 'accent',
+      size: 40
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10.5,
+        fontWeight: 700,
+        color: T.mutedSoft,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6
+      }
+    }, "Page ", pageIdx + 1, " of ", draft.pages.length), /*#__PURE__*/React.createElement("input", {
+      value: selPage.title,
+      onChange: e => mutate(d => {
+        pageOf(d, selPage.id).title = e.target.value;
+      }),
+      placeholder: "Page title",
+      style: {
+        width: '100%',
+        border: 'none',
+        outline: 'none',
+        background: 'transparent',
+        fontSize: 19,
+        fontWeight: 800,
+        color: T.text,
+        letterSpacing: -0.3,
+        padding: '1px 0',
+        marginTop: 1
+      }
+    })), /*#__PURE__*/React.createElement("label", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        cursor: 'pointer',
+        flexShrink: 0,
+        padding: '6px 11px',
+        border: `1px solid ${selPage.kycSection ? '#BFDBFE' : T.border}`,
+        borderRadius: 8,
+        background: selPage.kycSection ? T.blueSoft : T.card
+      }
+    }, /*#__PURE__*/React.createElement(Toggle, {
+      size: "sm",
+      on: !!selPage.kycSection,
+      onChange: v => mutate(d => {
+        pageOf(d, selPage.id).kycSection = v;
+      })
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 600,
+        color: selPage.kycSection ? T.blue : T.muted
+      }
+    }, "KYC / AML step"))), /*#__PURE__*/React.createElement("textarea", {
+      value: selPage.instructions || '',
+      onChange: e => mutate(d => {
+        pageOf(d, selPage.id).instructions = e.target.value;
+      }),
+      rows: 2,
+      placeholder: "Add instructions shown to the client at the top of this page (optional)",
+      style: {
+        width: '100%',
+        marginTop: 12,
+        padding: '9px 12px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        fontSize: 12.5,
+        color: T.textSoft,
+        fontFamily: 'inherit',
+        resize: 'vertical',
+        boxSizing: 'border-box',
+        background: T.fieldBg
+      }
+    })), selPage.sections.map((sec, si) => /*#__PURE__*/React.createElement("div", {
+      key: sec.id,
+      ref: el => {
+        sectionRefs.current[sec.id] = el;
+      },
+      style: {
+        borderRadius: 12,
+        animation: sec.id === focusSectionId ? 'flash 1.1s ease' : undefined
+      }
+    }, /*#__PURE__*/React.createElement(Card, {
+      style: {
+        padding: 0,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '11px 14px',
+        borderBottom: `1px solid ${T.borderSoft}`
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 24,
+        height: 24,
+        borderRadius: 7,
+        background: T.primarySofter,
+        color: T.primary,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 11,
+        fontWeight: 800,
+        flexShrink: 0
+      }
+    }, si + 1), /*#__PURE__*/React.createElement("input", {
+      value: sec.title,
+      onChange: e => mutate(d => {
+        secOf(d, selPage.id, sec.id).title = e.target.value;
+      }),
+      placeholder: "Section name",
+      style: {
+        flex: 1,
+        minWidth: 0,
+        border: 'none',
+        outline: 'none',
+        background: 'transparent',
+        fontSize: 14,
+        fontWeight: 700,
+        color: T.text,
+        padding: 0
+      }
+    }), /*#__PURE__*/React.createElement(Pill, {
+      color: "neutral",
+      style: {
+        fontSize: 10.5
+      }
+    }, sec.fields.length, " field", sec.fields.length === 1 ? '' : 's'), selPage.sections.length > 1 && /*#__PURE__*/React.createElement("button", {
+      onClick: () => removeSection(selPage.id, sec.id),
+      title: "Delete section",
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: T.mutedSoft,
+        padding: 4,
+        display: 'flex'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "trash",
+      size: 14
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 12
+      }
+    }, sec.fields.length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        padding: '18px 12px',
+        marginBottom: 10,
+        border: `1.5px dashed ${T.border}`,
+        borderRadius: 9
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "plus",
+      size: 16,
+      color: T.mutedSoft
+    }), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12
+      }
+    }, "No fields yet \u2014 add one below.")), /*#__PURE__*/React.createElement(OnbDraggableList, {
+      items: sec.fields,
+      onReorder: nf => mutate(d => {
+        secOf(d, selPage.id, sec.id).fields = nf;
+      }),
+      renderItem: (f, i, grip) => {
+        const def = ONB_FIELD_TYPES[f.type] || {};
+        return /*#__PURE__*/React.createElement("div", {
+          "data-onb-row": true,
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '8px 10px',
+            border: `1px solid ${T.borderSoft}`,
+            borderRadius: 9,
+            background: T.card,
+            marginBottom: 7
+          }
+        }, /*#__PURE__*/React.createElement("button", _extends({}, grip, {
+          title: "Drag to reorder",
+          style: {
+            cursor: 'grab',
+            border: 'none',
+            background: 'transparent',
+            padding: 0,
+            display: 'flex',
+            flexShrink: 0
+          }
+        }), onbSixDot(T.mutedSoft)), /*#__PURE__*/React.createElement("span", {
+          style: {
+            width: 26,
+            height: 26,
+            borderRadius: 7,
+            background: T.fieldBg,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }
+        }, /*#__PURE__*/React.createElement(Icon, {
+          name: f.icon || def.icon || 'edit',
+          size: 14,
+          color: T.primary
+        })), /*#__PURE__*/React.createElement("button", {
+          onClick: () => setDrawerRef({
+            pageId: selPage.id,
+            sectionId: sec.id,
+            fieldId: f.id
+          }),
+          style: {
+            flex: 1,
+            minWidth: 0,
+            textAlign: 'left',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            padding: 0,
+            overflow: 'hidden'
+          }
+        }, /*#__PURE__*/React.createElement("span", {
+          style: {
+            fontSize: 13,
+            fontWeight: 600,
+            color: T.text,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: 'block'
+          }
+        }, f.label, f.required && /*#__PURE__*/React.createElement("span", {
+          title: "Required",
+          style: {
+            color: T.red,
+            marginLeft: 2,
+            fontWeight: 700
+          }
+        }, "*"))), f.kycFlag && /*#__PURE__*/React.createElement(Pill, {
+          color: "blue",
+          style: {
+            fontSize: 10
+          }
+        }, "KYC"), /*#__PURE__*/React.createElement("span", {
+          style: {
+            fontSize: 11,
+            color: T.mutedSoft,
+            flexShrink: 0
+          }
+        }, def.label || f.type), /*#__PURE__*/React.createElement("span", {
+          className: "onb-rowdel",
+          style: {
+            display: 'inline-flex',
+            gap: 2,
+            flexShrink: 0
+          }
+        }, /*#__PURE__*/React.createElement("button", {
+          onClick: () => setDrawerRef({
+            pageId: selPage.id,
+            sectionId: sec.id,
+            fieldId: f.id
+          }),
+          title: "Settings",
+          style: {
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: T.muted,
+            padding: 3,
+            display: 'flex'
+          }
+        }, /*#__PURE__*/React.createElement(Icon, {
+          name: "sliders",
+          size: 13
+        })), /*#__PURE__*/React.createElement("button", {
+          onClick: () => removeField(selPage.id, sec.id, f.id),
+          title: "Delete",
+          style: {
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            color: T.mutedSoft,
+            padding: 3,
+            display: 'flex'
+          }
+        }, /*#__PURE__*/React.createElement(Icon, {
+          name: "trash",
+          size: 13
+        }))));
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        marginTop: sec.fields.length ? 4 : 0
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "primaryOutline",
+      size: "sm",
+      icon: "plus",
+      onClick: () => setPicker({
         pageId: selPage.id,
         sectionId: sec.id
-      });
-      setAiText('');
-    }
-  }, "Add fields from AI prompt")))))), /*#__PURE__*/React.createElement(Btn, {
-    variant: "ghost",
-    icon: "plus",
-    onClick: () => addSection(selPage.id),
-    style: {
-      alignSelf: 'flex-start'
-    }
-  }, "Add a section")));
+      })
+    }, "Add a field"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "sparkle",
+      onClick: () => {
+        setAi({
+          pageId: selPage.id,
+          sectionId: sec.id
+        });
+        setAiText('');
+      }
+    }, "Add fields from AI prompt")))))), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      icon: "plus",
+      onClick: () => addSection(selPage.id),
+      style: {
+        alignSelf: 'flex-start'
+      }
+    }, "Add a section"));
+  })());
 
   // ---- builder: Outline (MECE map — every page→sections→field count at a glance) ----
   const renderBuilderOutline = () => /*#__PURE__*/React.createElement("div", {
@@ -120547,39 +122049,149 @@ const OnboardingTemplatesPage = ({
     const kycCount = draft.pages.flatMap(p => p.sections || []).flatMap(s => s.fields || []).filter(f => f.kycFlag).length;
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       style: {
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        gap: 12,
         marginBottom: 16,
-        flexWrap: 'wrap'
+        maxWidth: 520
       }
+    }, /*#__PURE__*/React.createElement(Label, null, "Template name"), /*#__PURE__*/React.createElement(Input, {
+      value: draft.name || '',
+      onChange: e => mutate(d => {
+        d.name = e.target.value;
+      }),
+      placeholder: "Name this onboarding template",
+      style: {
+        fontWeight: 700,
+        fontSize: 15
+      }
+    }), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 12,
+        marginTop: 6
+      }
+    }, draft.pages.length, " page", draft.pages.length === 1 ? '' : 's', " \xB7 ", fc, " field", fc === 1 ? '' : 's', kycCount ? ` · ${kycCount} KYC/AML` : '', " \xB7 drag pages or sections in the rail to reorder")), renderBuilderEdit(), pagePicker && /*#__PURE__*/React.createElement(Modal, {
+      open: true,
+      onClose: () => setPagePicker(false),
+      title: "Add a page",
+      subtitle: "Start blank, or reuse a page from another template.",
+      width: 620
     }, /*#__PURE__*/React.createElement("div", {
       style: {
+        padding: 20
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        addPage();
+        setPagePicker(false);
+      },
+      style: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '13px 14px',
+        border: `1px solid ${T.primary}`,
+        borderRadius: 10,
+        background: T.primarySofter,
+        cursor: 'pointer',
+        textAlign: 'left',
+        marginBottom: 18
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: "plus",
+      tone: "accent",
+      size: 34,
+      gradient: true
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
         minWidth: 0
       }
     }, /*#__PURE__*/React.createElement("div", {
       style: {
-        fontSize: 16,
-        fontWeight: 800,
+        fontSize: 13.5,
+        fontWeight: 700,
         color: T.text
       }
-    }, draft.name || 'Untitled template'), /*#__PURE__*/React.createElement(Helper, {
+    }, "Blank page"), /*#__PURE__*/React.createElement(Helper, {
       style: {
-        fontSize: 12,
-        marginTop: 2
+        fontSize: 12
       }
-    }, draft.pages.length, " page", draft.pages.length === 1 ? '' : 's', " \xB7 ", fc, " field", fc === 1 ? '' : 's', kycCount ? ` · ${kycCount} KYC/AML` : '', " \xB7 ", builderMode === 'outline' ? 'see the whole shape, then edit a step' : 'editing a step')), /*#__PURE__*/React.createElement(SegToggle, {
-      options: [{
-        value: 'outline',
-        label: 'Outline'
-      }, {
-        value: 'edit',
-        label: 'Edit'
-      }],
-      value: builderMode,
-      onChange: setBuilderMode
-    })), builderMode === 'outline' ? renderBuilderOutline() : renderBuilderEdit());
+    }, "Start from an empty page and add your own sections + fields.")), /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronRight",
+      size: 16,
+      color: T.primary
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10.5,
+        fontWeight: 700,
+        color: T.muted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 10
+      }
+    }, "Reuse a page from your templates"), /*#__PURE__*/React.createElement("div", {
+      className: "scroll-area",
+      style: {
+        maxHeight: 340,
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8
+      }
+    }, libraryPages().length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'center',
+        padding: '24px 16px',
+        border: `1px solid ${T.borderSoft}`,
+        borderRadius: 10,
+        background: T.fieldBg
+      }
+    }, /*#__PURE__*/React.createElement(Helper, null, "No other templates to borrow pages from yet.")), libraryPages().map(({
+      tpl,
+      page
+    }, idx) => {
+      const sc = (page.sections || []).length;
+      const fcp = (page.sections || []).reduce((n, s) => n + (s.fields || []).length, 0);
+      return /*#__PURE__*/React.createElement("button", {
+        key: page.id + '-' + idx,
+        "data-hover": "row",
+        onClick: () => addPageFrom(page),
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 11,
+          width: '100%',
+          textAlign: 'left',
+          border: `1px solid ${T.borderSoft}`,
+          borderRadius: 10,
+          background: T.card,
+          padding: '11px 12px',
+          cursor: 'pointer'
+        }
+      }, /*#__PURE__*/React.createElement(IconChip, {
+        icon: page.kycSection ? 'shield' : 'fileText',
+        tone: page.kycSection ? 'blue' : 'neutral',
+        size: 32
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 13,
+          fontWeight: 600,
+          color: T.text
+        }
+      }, page.title), /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          fontSize: 11.5
+        }
+      }, tpl, " \xB7 ", sc, " section", sc === 1 ? '' : 's', " \xB7 ", fcp, " field", fcp === 1 ? '' : 's')), /*#__PURE__*/React.createElement(Icon, {
+        name: "plus",
+        size: 15,
+        color: T.mutedSoft
+      }));
+    })))));
   };
 
   // ---- preview ----
@@ -120741,7 +122353,7 @@ const OnboardingTemplatesPage = ({
     style: {
       padding: '24px 32px 64px'
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, view !== 'gallery' && /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
