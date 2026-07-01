@@ -69933,7 +69933,9 @@ const WM_PROJECTS = [{
     status: 'In Progress',
     estimated: '8h',
     desc: 'Pull trial balance, reconcile bank, prepare lodgement pack.',
-    comments: 2
+    comments: 2,
+    npsSurveyId: 'sv-eoj',
+    npsSurveyName: 'End of job — standard'
   }, {
     id: 'wm14',
     name: 'Review BAS draft with partner',
@@ -69961,7 +69963,9 @@ const WM_PROJECTS = [{
     status: 'Reviewed',
     estimated: '12h',
     desc: '',
-    comments: 0
+    comments: 0,
+    npsSurveyId: 'sv-tax',
+    npsSurveyName: 'Annual tax return'
   }, {
     id: 'wm15',
     name: 'Send to client for signing',
@@ -70796,7 +70800,10 @@ const WorkManagementPage = ({
   // doesn't reset when other projects toggle open/closed.
   const [inlineDrafts, setInlineDrafts] = useState({});
   const [inlineFocusedProject, setInlineFocusedProject] = useState(null);
-  const [inlineSurvey, setInlineSurvey] = useState({}); // per-project: NPS survey to send when the task completes
+  const [inlineSurvey, setInlineSurvey] = useState({
+    'bas-q2': 'sv-eoj',
+    'itr-cycle': 'sv-tax'
+  }); // per-job NPS survey (sent on job completion + default for its tasks)
   const activeSurveys = REP_SURVEYS_SEED.filter(s => s.active);
   const addInlineTask = projectId => {
     const text = (inlineDrafts[projectId] || '').trim();
@@ -70836,6 +70843,32 @@ const WorkManagementPage = ({
           fireToast('Task removed');
         }
       }
+    });
+  };
+  // Enable/disable + choose the NPS survey that fires when a TASK completes (editable on any task).
+  const setTaskSurvey = (taskId, svId) => {
+    const sv = svId ? activeSurveys.find(s => s.id === svId) : null;
+    setProjects(ps => ps.map(p => ({
+      ...p,
+      tasks: p.tasks.map(t => t.id === taskId ? {
+        ...t,
+        npsSurveyId: svId || null,
+        npsSurveyName: sv ? sv.name : null
+      } : t)
+    })));
+    fireToast({
+      message: sv ? `NPS survey “${sv.name}” will send when this task completes` : 'NPS survey turned off for this task'
+    });
+  };
+  // Job-level NPS survey (reuses inlineSurvey[projectId]) — sent when the job completes + default for its tasks.
+  const setJobSurvey = (projectId, svId) => {
+    const sv = svId ? activeSurveys.find(s => s.id === svId) : null;
+    setInlineSurvey(s => ({
+      ...s,
+      [projectId]: svId
+    }));
+    fireToast({
+      message: sv ? `Job NPS survey set: “${sv.name}”` : 'Job NPS survey turned off'
     });
   };
 
@@ -71828,10 +71861,21 @@ const WorkManagementPage = ({
     const health = WM_HEALTH_TONE[project.health] || WM_HEALTH_TONE['on-track'];
     return /*#__PURE__*/React.createElement("div", {
       key: project.id
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        paddingRight: 12,
+        borderBottom: `1px solid ${T.border}`,
+        borderLeft: `3px solid ${project.color}`,
+        background: '#FAFAFB'
+      }
     }, /*#__PURE__*/React.createElement("button", {
       onClick: () => toggleProject(project.id),
       style: {
-        width: '100%',
+        flex: 1,
+        minWidth: 0,
         textAlign: 'left',
         background: 'transparent',
         border: 'none',
@@ -71842,10 +71886,7 @@ const WorkManagementPage = ({
         gap: 8,
         fontSize: 12.5,
         fontWeight: 700,
-        color: T.text,
-        borderBottom: `1px solid ${T.border}`,
-        borderLeft: `3px solid ${project.color}`,
-        background: '#FAFAFB'
+        color: T.text
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
@@ -71871,7 +71912,43 @@ const WorkManagementPage = ({
       name: project.icon,
       size: 11,
       color: "#fff"
-    })), /*#__PURE__*/React.createElement("span", null, project.name)), isOpen && sortedTasks.map(t => {
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, project.name)), /*#__PURE__*/React.createElement("div", {
+      title: "NPS survey sent when this job completes (also the default for its tasks)",
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "star",
+      size: 12,
+      color: inlineSurvey[project.id] ? T.amber : T.mutedSoft
+    }), /*#__PURE__*/React.createElement("select", {
+      value: inlineSurvey[project.id] || '',
+      onChange: e => setJobSurvey(project.id, e.target.value),
+      style: {
+        padding: '3px 6px',
+        borderRadius: 5,
+        border: `1px solid ${T.border}`,
+        fontSize: 11,
+        background: T.card,
+        color: inlineSurvey[project.id] ? T.text : T.muted,
+        cursor: 'pointer',
+        maxWidth: 170
+      }
+    }, /*#__PURE__*/React.createElement("option", {
+      value: ""
+    }, "NPS survey: off"), activeSurveys.map(s => /*#__PURE__*/React.createElement("option", {
+      key: s.id,
+      value: s.id
+    }, "NPS: ", s.name))))), isOpen && sortedTasks.map(t => {
       const isActive = t.id === selectedId;
       const assignee = ISD_STAFF.find(s => s.id === t.assignee) || ISD_STAFF[0];
       const done = isCompleted(t.id);
@@ -71961,7 +72038,24 @@ const WorkManagementPage = ({
             flexShrink: 0
           }
         }, sp.label);
-      })()), /*#__PURE__*/React.createElement("div", {
+      })(), t.npsSurveyId && /*#__PURE__*/React.createElement("span", {
+        title: `NPS survey on completion: ${t.npsSurveyName || 'survey'}`,
+        style: {
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 2,
+          marginLeft: 4,
+          flexShrink: 0,
+          fontSize: 9.5,
+          fontWeight: 800,
+          color: T.amber,
+          letterSpacing: 0.2
+        }
+      }, /*#__PURE__*/React.createElement(Icon, {
+        name: "star",
+        size: 10,
+        color: T.amber
+      }), "NPS")), /*#__PURE__*/React.createElement("div", {
         style: {
           fontSize: 11.5,
           color: T.muted,
@@ -73245,7 +73339,71 @@ const WorkManagementPage = ({
         color: sp.fg
       }
     }, sp.label));
-  })()), hasReviewer(selected) && (() => {
+  })(), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "NPS survey"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 10,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "star",
+    size: 13,
+    color: selected.npsSurveyId ? T.amber : T.mutedSoft
+  }), /*#__PURE__*/React.createElement("select", {
+    value: selected.npsSurveyId || '',
+    onChange: e => setTaskSurvey(selected.id, e.target.value),
+    style: {
+      padding: '5px 8px',
+      borderRadius: 7,
+      border: `1px solid ${T.border}`,
+      fontSize: 12,
+      background: T.card,
+      color: selected.npsSurveyId ? T.text : T.muted,
+      cursor: 'pointer',
+      maxWidth: 240
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Off \u2014 no survey on completion"), activeSurveys.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s.id,
+    value: s.id
+  }, s.name)))), selected.npsSurveyId ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.greenDark,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 12,
+    color: T.greenDark
+  }), "Sends when this task is completed") : /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = '#/practice/reputation';
+    },
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.primary,
+      fontSize: 11.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      padding: 0
+    }
+  }, "Manage survey templates"))), hasReviewer(selected) && (() => {
     const r = taskReviewer(selected);
     const st = reviewState(selected);
     const slot = wmReviewSlot(selected.id);
