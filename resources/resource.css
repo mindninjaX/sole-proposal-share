@@ -1,0 +1,308 @@
+/* =============================================================================
+   Sole white-label resource styles  —  resource.css
+   -----------------------------------------------------------------------------
+   Every brand-coloured surface uses var(--brand-*), set by brand.js applyBrand().
+   The defaults below let a page render correctly BEFORE applyBrand runs, and are
+   overridden the instant it does. Neutrals follow the Sole `T` tokens.
+   ========================================================================== */
+:root {
+  --brand-primary: #5B5BF6;
+  --brand-primary-hover: #4F46E5;
+  --brand-primary-deep: #3F3AB0;
+  --brand-primary-soft: #EEF0FF;
+  --brand-primary-softer: #F5F6FF;
+  --brand-primary-border: #C7C9FB;
+  --brand-on-primary: #FFFFFF;
+  --brand-accent: #F5C518;
+  --brand-accent-soft: #FEF7DA;
+  --brand-on-accent: #1F2937;
+  --brand-ring: rgba(91, 91, 246, 0.16);
+  --brand-font: 'Inter', system-ui, -apple-system, sans-serif;
+
+  --ink: #0F1117;
+  --ink-soft: #1F2937;
+  --muted: #6B7280;
+  --muted-soft: #9CA3AF;
+  --page: #F5F4F8;
+  --card: #FFFFFF;
+  --border: #E5E7EB;
+  --border-soft: #ECEDF2;
+  --field: #F9FAFB;
+  --radius: 12px;
+}
+
+* , *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--brand-font);
+  color: var(--ink);
+  background: var(--page);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--brand-primary-deep); }
+
+/* ---- document container ------------------------------------------------- */
+.r-doc {
+  max-width: 860px;
+  margin: 28px auto 64px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 12px 40px -18px rgba(16,24,40,0.14);
+  overflow: hidden;
+}
+
+/* ---- header lockup ------------------------------------------------------ */
+.r-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 18px 30px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--card);
+}
+.r-brandlock { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.r-logo { max-height: 40px; max-width: 190px; width: auto; object-fit: contain; display: block; }
+.r-wordmark {
+  font-size: 21px; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--brand-primary-deep); white-space: nowrap;
+}
+.r-brandlock:has(.r-logo:not([hidden])) .r-wordmark { display: none; }
+.r-head-cta { flex: 0 0 auto; }
+
+/* ---- hero --------------------------------------------------------------- */
+.r-hero {
+  padding: 34px 30px 26px;
+  background: linear-gradient(180deg, var(--brand-primary-softer), var(--card));
+  border-bottom: 1px solid var(--border-soft);
+}
+.r-eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--brand-primary-deep);
+  background: var(--brand-primary-soft);
+  border: 1px solid var(--brand-primary-border);
+  padding: 5px 11px; border-radius: 999px; margin-bottom: 16px;
+}
+.r-title { font-size: 30px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 12px; color: var(--ink); }
+.r-intro { font-size: 16px; color: var(--ink-soft); margin: 0; max-width: 62ch; }
+
+/* ---- body sections ------------------------------------------------------ */
+.r-body { padding: 26px 30px 8px; }
+.r-section { margin: 0 0 26px; }
+.r-h2 {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex; align-items: baseline; gap: 9px;
+}
+.r-h2 .r-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 6px; font-size: 11px; font-weight: 700;
+  color: var(--brand-on-primary); background: var(--brand-primary); flex: 0 0 auto;
+  text-transform: none; letter-spacing: 0;
+}
+.r-lead { font-size: 14.5px; color: var(--ink-soft); margin: -2px 0 14px; }
+
+/* ---- checklist ---------------------------------------------------------- */
+.r-check { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.r-check-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 11px 12px; border-radius: 10px; transition: background 0.12s;
+}
+.r-check-item:hover { background: var(--brand-primary-softer); }
+.r-checkbox {
+  appearance: none; -webkit-appearance: none;
+  flex: 0 0 auto; width: 19px; height: 19px; margin-top: 2px;
+  border: 1.5px solid var(--border); border-radius: 6px; background: var(--card);
+  cursor: pointer; position: relative; transition: border-color 0.12s, background 0.12s;
+}
+.r-checkbox:hover { border-color: var(--brand-primary); }
+.r-checkbox:checked { background: var(--brand-primary); border-color: var(--brand-primary); }
+.r-checkbox:checked::after {
+  content: ''; position: absolute; left: 5px; top: 1.5px; width: 5px; height: 10px;
+  border: solid var(--brand-on-primary); border-width: 0 2px 2px 0; transform: rotate(43deg);
+}
+.r-checkbox:focus-visible { outline: 3px solid var(--brand-ring); outline-offset: 1px; }
+.r-check-body { min-width: 0; }
+.r-check-t { font-weight: 650; font-size: 14.5px; color: var(--ink); }
+.r-check-d { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.r-check-item.done .r-check-t { text-decoration: line-through; color: var(--muted-soft); }
+
+/* ---- pro-tip / callout -------------------------------------------------- */
+.r-protip {
+  margin: 4px 0 26px; padding: 16px 18px; border-radius: 12px;
+  background: var(--brand-primary-soft); border: 1px solid var(--brand-primary-border);
+}
+.r-protip-badge {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--brand-on-primary); background: var(--brand-primary);
+  padding: 3px 9px; border-radius: 6px; margin-bottom: 8px;
+}
+.r-protip p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+
+/* ---- generic table (pricing benchmarks) -------------------------------- */
+.r-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; margin: 2px 0 14px; }
+.r-table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 460px; }
+.r-table thead th {
+  text-align: left; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted); background: var(--brand-primary-softer);
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+}
+.r-table tbody td { padding: 11px 14px; border-top: 1px solid var(--border-soft); vertical-align: top; }
+.r-table tbody tr:first-child td { border-top: none; }
+.r-table td:first-child { font-weight: 600; color: var(--ink); }
+.r-table .r-num-cell { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--brand-primary-deep); font-weight: 600; }
+
+/* ---- formula block ------------------------------------------------------ */
+.r-formula {
+  margin: 2px 0 20px; padding: 16px 18px; border-radius: 12px;
+  background: var(--ink); color: #E8E9F5; border: 1px solid var(--ink);
+}
+.r-formula .r-formula-eq { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px; font-weight: 600; color: #FFFFFF; }
+.r-formula .r-formula-ex { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; color: #A9ADCB; margin-top: 8px; }
+
+/* ---- two-column inclusions / exclusions -------------------------------- */
+.r-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 2px 0 22px; }
+.r-mini-card { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; background: var(--card); }
+.r-mini-card h4 { margin: 0 0 9px; font-size: 13px; font-weight: 700; }
+.r-mini-card ul { margin: 0; padding-left: 18px; }
+.r-mini-card li { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 5px; }
+.r-mini-card.inc h4 { color: var(--brand-primary-deep); }
+.r-mini-card.exc h4 { color: var(--muted); }
+
+/* ---- AI prompt block ---------------------------------------------------- */
+.r-prompt {
+  border: 1px dashed var(--brand-primary-border); border-radius: 12px;
+  background: var(--brand-primary-softer); padding: 14px 16px; margin: 2px 0 22px;
+}
+.r-prompt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.r-prompt-head .r-prompt-label { font-size: 12px; font-weight: 700; color: var(--brand-primary-deep); }
+.r-prompt-text {
+  font-size: 13.5px; color: var(--ink-soft); white-space: pre-wrap;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 13px; margin: 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; line-height: 1.5;
+}
+.r-copy-btn {
+  border: 1px solid var(--brand-primary-border); background: var(--card); color: var(--brand-primary-deep);
+  font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 8px; cursor: pointer;
+}
+.r-copy-btn:hover { background: var(--brand-primary-soft); }
+
+/* ---- message template block -------------------------------------------- */
+.r-msg {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--field);
+  padding: 14px 16px; margin: 2px 0 22px;
+}
+.r-msg pre { margin: 0; white-space: pre-wrap; font-family: inherit; font-size: 14px; color: var(--ink-soft); }
+
+/* ---- buttons ------------------------------------------------------------ */
+.r-btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--brand-primary); color: var(--brand-on-primary);
+  font-weight: 700; font-size: 14.5px; text-decoration: none;
+  padding: 11px 20px; border-radius: 10px; border: none; cursor: pointer;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.r-btn-primary:hover { background: var(--brand-primary-hover); box-shadow: 0 6px 18px -6px var(--brand-ring); }
+
+/* ---- closing CTA block -------------------------------------------------- */
+.r-cta-block {
+  margin: 8px 30px 4px; padding: 26px; border-radius: 14px; text-align: center;
+  background: var(--brand-primary-soft); border: 1px solid var(--brand-primary-border);
+}
+.r-cta-block h3 { margin: 0 0 6px; font-size: 19px; font-weight: 800; color: var(--brand-primary-deep); }
+.r-cta-block p { margin: 0 0 16px; font-size: 14.5px; color: var(--ink-soft); }
+
+/* ---- footer ------------------------------------------------------------- */
+.r-foot { padding: 22px 30px 28px; border-top: 1px solid var(--border-soft); margin-top: 22px; }
+.r-contact { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 8px; }
+.r-contact span, .r-contact a { margin-right: 14px; }
+.r-contact a { color: var(--brand-primary-deep); text-decoration: none; }
+.r-foot-links { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-wrap: wrap; gap: 14px; }
+.r-foot-links a { font-size: 13.5px; color: var(--brand-primary-deep); text-decoration: none; font-weight: 600; }
+.r-foot-note { font-size: 12px; color: var(--muted-soft); line-height: 1.5; max-width: 70ch; }
+.r-powered { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.r-powered b { color: var(--brand-primary-deep); }
+
+/* ---- floating print button (hidden in print) --------------------------- */
+.r-print-btn {
+  position: fixed; right: 20px; bottom: 20px; z-index: 40;
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--brand-primary); color: var(--brand-on-primary);
+  border: none; border-radius: 999px; padding: 11px 18px;
+  font: inherit; font-weight: 700; font-size: 14px; cursor: pointer;
+  box-shadow: 0 8px 24px -6px rgba(16,24,40,0.30);
+}
+.r-print-btn:hover { background: var(--brand-primary-hover); }
+
+/* ---- interactive invoice ------------------------------------------------ */
+.r-inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
+.r-fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.r-fieldset legend { font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); padding: 0 6px; }
+.r-field { margin-bottom: 9px; }
+.r-field:last-child { margin-bottom: 0; }
+.r-field label { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+.r-input {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  padding: 8px 10px; font: inherit; font-size: 14px; color: var(--ink);
+}
+.r-input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 3px var(--brand-ring); }
+.r-input::placeholder { color: var(--muted-soft); }
+
+.r-line-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+.r-line-table th {
+  text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 8px; border-bottom: 1px solid var(--border);
+}
+.r-line-table th.num, .r-line-table td.num { text-align: right; }
+.r-line-table td { padding: 6px 6px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
+.r-line-input { width: 100%; border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 6px 8px; font: inherit; font-size: 14px; color: var(--ink); }
+.r-line-input:hover { border-color: var(--border); }
+.r-line-input:focus { outline: none; border-color: var(--brand-primary); background: var(--card); box-shadow: 0 0 0 3px var(--brand-ring); }
+.r-line-input.num { text-align: right; font-variant-numeric: tabular-nums; }
+.r-line-total { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; padding-right: 10px; white-space: nowrap; }
+.r-row-del {
+  border: none; background: transparent; color: var(--muted-soft); cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 4px 6px; border-radius: 6px;
+}
+.r-row-del:hover { color: var(--red, #EF4444); background: #FEE2E2; }
+.r-add-row {
+  border: 1px dashed var(--border); background: var(--card); color: var(--brand-primary-deep);
+  font: inherit; font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 8px; cursor: pointer; margin-top: 4px;
+}
+.r-add-row:hover { border-color: var(--brand-primary); background: var(--brand-primary-softer); }
+
+.r-totals { margin-left: auto; max-width: 340px; margin-top: 16px; }
+.r-total-row { display: flex; justify-content: space-between; gap: 20px; padding: 7px 0; font-size: 14px; border-bottom: 1px solid var(--border-soft); }
+.r-total-row .r-total-val { font-variant-numeric: tabular-nums; font-weight: 600; }
+.r-total-row.grand { border-top: 2px solid var(--ink); border-bottom: none; margin-top: 4px; padding-top: 10px; font-size: 16px; font-weight: 800; }
+.r-total-row.grand .r-total-val { color: var(--brand-primary-deep); }
+.r-total-row.deposit { color: var(--brand-primary-deep); font-weight: 700; }
+.r-deposit-ctrl { display: inline-flex; align-items: center; gap: 6px; }
+.r-deposit-ctrl select { border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; font: inherit; font-size: 13px; }
+
+/* ---- responsive --------------------------------------------------------- */
+@media (max-width: 720px) {
+  .r-doc { margin: 0 0 40px; border-radius: 0; border-left: none; border-right: none; }
+  .r-inv-grid, .r-two-col { grid-template-columns: 1fr; }
+  .r-title { font-size: 25px; }
+  .r-head, .r-hero, .r-body, .r-foot { padding-left: 18px; padding-right: 18px; }
+  .r-cta-block { margin-left: 18px; margin-right: 18px; }
+}
+
+/* ---- print (branded PDF via the browser) ------------------------------- */
+@media print {
+  @page { margin: 14mm; }
+  html, body { background: #fff; }
+  .r-print-btn, .r-head-cta, .r-add-row, .r-row-del, .r-copy-btn { display: none !important; }
+  .r-doc {
+    margin: 0; max-width: none; border: none; box-shadow: none; border-radius: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .r-head, .r-hero, .r-section, .r-cta-block, .r-protip, .r-fieldset, .r-mini-card, .r-formula { break-inside: avoid; }
+  .r-check-item:hover { background: transparent; }
+  .r-line-input, .r-input { border: none; padding: 2px 0; }
+  .r-cta-block { background: var(--brand-primary-soft) !important; }
+  a[href]::after { content: ''; }
+}

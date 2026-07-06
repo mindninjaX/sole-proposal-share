@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sole Resource Library</title>
+<meta name="description" content="Free, high-value business resources for Australian sole traders — checklists, pricing guides and templates, ready to use or white-label for partners." />
+<link rel="icon" type="image/png" href="assets/sole-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, system-ui, sans-serif; color: #0F1117; background: #F5F4F8; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 24px 80px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .brand { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: #3F3AB0; }
+  .studio-cta { display: inline-flex; align-items: center; gap: 8px; background: #5B5BF6; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 10px; box-shadow: 0 6px 18px -8px rgba(91,91,246,.55); }
+  .studio-cta:hover { background: #4F46E5; }
+  h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 8px; }
+  .sub { font-size: 16px; color: #6B7280; max-width: 60ch; margin: 0 0 30px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card { display: flex; flex-direction: column; background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; padding: 20px; transition: transform .12s, box-shadow .12s, border-color .12s; }
+  .card:hover { transform: translateY(-2px); border-color: #C7C9FB; box-shadow: 0 12px 28px -14px rgba(91,91,246,.35); }
+  .eyebrow { display: inline-block; align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3F3AB0; background: #EEF0FF; border: 1px solid #C7C9FB; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
+  .card h3 { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
+  .card p { font-size: 14px; color: #6B7280; margin: 0 0 16px; flex: 1; }
+  .card .go { font-size: 14px; font-weight: 700; color: #5B5BF6; }
+  .foot { margin-top: 44px; font-size: 13px; color: #9CA3AF; }
+  .banner { background: linear-gradient(135deg,#EEF0FF,#F5F6FF); border: 1px solid #C7C9FB; border-radius: 14px; padding: 20px 22px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .banner .t { font-weight: 700; font-size: 15px; color: #1F2937; }
+  .banner .d { font-size: 13.5px; color: #6B7280; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="brand">Sole</div>
+    <a class="studio-cta" href="toolkit.html">🎨 Open the Rebranding Studio</a>
+  </div>
+  <h1>Resource library</h1>
+  <p class="sub">Free, high-value tools for Australian small businesses — ready to use, or white-label for a partner in their own brand.</p>
+
+  <div class="banner">
+    <div>
+      <div class="t">Rebrand any of these for a partner in minutes</div>
+      <div class="d">Paste their website, drop in a logo and colour, then export a self-contained file that’s theirs to keep.</div>
+    </div>
+    <a class="studio-cta" href="toolkit.html">Open the Studio →</a>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="foot">General information only — not financial, legal or tax advice.</div>
+</div>
+
+<script src="resources/data.js"></script>
+<script>
+  (function () {
+    var grid = document.getElementById('grid');
+    var items = window.RESOURCE_INDEX || [];
+    grid.innerHTML = items.map(function (r) {
+      return '<a class="card" href="resource-' + r.id + '.html">' +
+        '<span class="eyebrow">' + (r.eyebrow || 'Resource') + '</span>' +
+        '<h3>' + r.title + '</h3>' +
+        '<p>' + (r.intro || '') + '</p>' +
+        '<span class="go">Open resource →</span>' +
+      '</a>';
+    }).join('');
+    if (!items.length) grid.innerHTML = '<p style="color:#6B7280">No resources loaded.</p>';
+  })();
+</script>
+</body>
+</html>

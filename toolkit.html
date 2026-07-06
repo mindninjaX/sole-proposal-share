@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sole Rebranding Studio</title>
+<link rel="icon" type="image/png" href="assets/sole-icon.png" />
+<meta name="description" content="Rebrand any Sole resource for a partner — paste their website, drop in a logo and colour, and export a self-contained file that's theirs to keep." />
+<!-- React + Babel from unpkg. Babel PINNED to 7.29.7 (a floating tag rolls to v8 → blank page). See docs/MEMORY.md. -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!-- Shared engine + content: attach window.SoleBrand and window.RESOURCES before the app runs -->
+<script src="resources/brand.js"></script>
+<script src="resources/data.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { margin: 0; padding: 0; height: 100%; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; font-size: 13px; line-height: 1.45; color: #0F1117; background: #F5F4F8; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; font-size: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #5B5BF6 !important; box-shadow: 0 0 0 3px rgba(91,91,246,0.12); }
+  button[data-btn] { transition: background .12s, border-color .12s, box-shadow .12s, transform .05s; }
+  button[data-btn]:active { transform: translateY(0.5px); }
+  .scroll { overflow-y: auto; }
+  .scroll::-webkit-scrollbar { width: 8px; }
+  .scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+const SB = window.SoleBrand;
+const RESOURCES = window.RESOURCES || {};
+const RESOURCE_INDEX = window.RESOURCE_INDEX || [];
+
+const T = {
+  primary: '#5B5BF6', primaryDark: '#4F46E5', primarySoft: '#EEF0FF', primarySofter: '#F5F6FF',
+  bg: '#F5F4F8', card: '#FFFFFF', border: '#E5E7EB', borderSoft: '#ECEDF2', text: '#0F1117',
+  textSoft: '#1F2937', muted: '#6B7280', mutedSoft: '#9CA3AF', field: '#F9FAFB',
+  green: '#10B981', amber: '#D97706', red: '#EF4444', radius: 10, radiusCard: 12,
+};
+
+const KITS_KEY = 'sole.toolkit.kits.v1';
+const LAST_KEY = 'sole.toolkit.last.v1';
+
+/* ---- helpers ------------------------------------------------------------ */
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const loadKits = () => { try { return JSON.parse(localStorage.getItem(KITS_KEY)) || {}; } catch (_) { return {}; } };
+const persistKits = (k) => { try { localStorage.setItem(KITS_KEY, JSON.stringify(k)); } catch (_) {} };
+const loadLast = () => { try { return JSON.parse(localStorage.getItem(LAST_KEY)); } catch (_) { return null; } };
+const persistLast = (b) => { try { localStorage.setItem(LAST_KEY, JSON.stringify(b)); } catch (_) {} };
+
+const readImageAsDataURL = (file, onLoad) => {
+  if (!file || !file.type || file.type.indexOf('image/') !== 0) return;
+  const reader = new FileReader();
+  reader.onload = () => onLoad(reader.result);
+  reader.readAsDataURL(file);
+};
+
+const normalizeUrl = (raw) => {
+  let u = String(raw || '').trim();
+  if (!u) return '';
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+  return u.replace(/\/+$/, '');
+};
+const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (_) { return ''; } };
+const titleFromHost = (host) => {
+  const base = (host || '').split('.')[0] || '';
+  return base ? base.charAt(0).toUpperCase() + base.slice(1) : '';
+};
+const cleanTitle = (t) => String(t || '').split(/[|–—\-·:]/)[0].trim().slice(0, 48);
+
+// Filter a palette down to a usable brand hue (skip near-white/black/greys).
+const pickBrandHue = (palette) => {
+  const hexes = (palette || []).map((p) => (typeof p === 'string' ? p : (p && (p.hex || p.color)))).filter(Boolean);
+  let best = null, bestScore = -1;
+  hexes.forEach((hex) => {
+    if (!SB.isValidHex(hex)) return;
+    const c = SB.hexToRgb(SB.normHex(hex, '#000000'));
+    const max = Math.max(c[0], c[1], c[2]), min = Math.min(c[0], c[1], c[2]);
+    const lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+    const sat = max === 0 ? 0 : (max - min) / max;
+    if (lum > 0.93 || lum < 0.07 || sat < 0.18) return; // skip neutrals
+    const score = sat * (1 - Math.abs(lum - 0.5)); // colourful + mid-toned wins
+    if (score > bestScore) { bestScore = score; best = SB.normHex(hex, '#5B5BF6'); }
+  });
+  return best;
+};
+
+// Canvas colour quantiser — dominant + a distinct accent from an image (data-URI safe).
+const paletteFromImage = (src) => new Promise((resolve) => {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    try {
+      const s = 48, cv = document.createElement('canvas'); cv.width = s; cv.height = s;
+      const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, s, s);
+      const data = ctx.getImageData(0, 0, s, s).data;
+      const buckets = {};
+      for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3]; if (a < 128) continue;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        const sat = max === 0 ? 0 : (max - min) / max;
+        if (lum > 0.93 || lum < 0.07 || sat < 0.2) continue;
+        const key = (r >> 5) + ',' + (g >> 5) + ',' + (b >> 5);
+        buckets[key] = buckets[key] || { n: 0, r: 0, g: 0, b: 0 };
+        buckets[key].n++; buckets[key].r += r; buckets[key].g += g; buckets[key].b += b;
+      }
+      const arr = Object.keys(buckets).map((k) => buckets[k]).sort((x, y) => y.n - x.n);
+      const toHex = (bk) => SB.normHex('#' + [bk.r / bk.n, bk.g / bk.n, bk.b / bk.n].map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), '#5B5BF6');
+      if (!arr.length) return resolve(null);
+      const primary = toHex(arr[0]);
+      let accent = null;
+      for (let i = 1; i < arr.length; i++) { const h = toHex(arr[i]); if (h !== primary) { accent = h; break; } }
+      resolve({ primary: primary, accent: accent });
+    } catch (_) { resolve(null); } // tainted canvas / CORS
+  };
+  img.onerror = () => resolve(null);
+  img.src = src;
+});
+
+const toDataUri = (url) => new Promise((resolve) => {
+  if (!url) return resolve(null);
+  if (/^data:/.test(url)) return resolve(url);
+  fetch(url).then((r) => r.blob()).then((blob) => {
+    const fr = new FileReader(); fr.onload = () => resolve(fr.result); fr.onerror = () => resolve(url); fr.readAsDataURL(blob);
+  }).catch(() => resolve(url)); // CORS-blocked → keep remote URL (needs net for the logo only)
+});
+
+const slug = (s) => String(s || 'brand').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'brand';
+const escJson = (obj) => JSON.stringify(obj).replace(/<\//g, '<\\/');
+
+/* ---- small UI atoms ----------------------------------------------------- */
+const Btn = ({ variant = 'primary', children, style, ...rest }) => {
+  const base = { border: '1px solid transparent', borderRadius: T.radius, padding: '9px 14px', fontWeight: 600, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' };
+  const kinds = {
+    primary: { background: T.primary, color: '#fff' },
+    soft: { background: T.primarySoft, color: T.primaryDark, borderColor: '#C7C9FB' },
+    ghost: { background: T.card, color: T.textSoft, borderColor: T.border },
+  };
+  return <button data-btn={variant} style={{ ...base, ...kinds[variant], opacity: rest.disabled ? 0.55 : 1, ...style }} {...rest}>{children}</button>;
+};
+const Field = ({ label, hint, children }) => (
+  <label style={{ display: 'block', marginBottom: 12 }}>
+    <div style={{ fontSize: 11.5, fontWeight: 600, color: T.muted, marginBottom: 4 }}>{label}</div>
+    {children}
+    {hint && <div style={{ fontSize: 11, color: T.mutedSoft, marginTop: 3 }}>{hint}</div>}
+  </label>
+);
+const inputStyle = { width: '100%', border: `1px solid ${T.border}`, borderRadius: 8, background: T.card, padding: '8px 10px', fontSize: 13.5, color: T.text };
+const Input = (p) => <input style={{ ...inputStyle, ...(p.style || {}) }} {...{ ...p, style: undefined }} />;
+
+const ConfidenceDot = ({ level }) => {
+  if (!level) return null;
+  const c = level === 'high' ? T.green : level === 'med' ? T.amber : T.mutedSoft;
+  const label = level === 'high' ? 'Confident' : level === 'med' ? 'Best guess' : 'Low — please check';
+  return <span title={label} style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 99, background: c, marginLeft: 6, verticalAlign: 'middle' }} />;
+};
+
+const ColorEdit = ({ label, hex, onChange, hint }) => (
+  <Field label={label} hint={hint}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px 4px 4px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.card }}>
+      <input type="color" value={SB.isValidHex(hex) ? SB.normHex(hex, '#5B5BF6') : '#5B5BF6'} onChange={(e) => onChange(e.target.value)}
+        style={{ width: 30, height: 30, border: 'none', padding: 0, cursor: 'pointer', borderRadius: 6, background: 'transparent' }} />
+      <input value={hex || ''} onChange={(e) => { let v = e.target.value.trim(); if (v && v[0] !== '#') v = '#' + v; onChange(v); }}
+        style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontFamily: 'monospace', color: T.text, outline: 'none', textTransform: 'uppercase' }} />
+    </div>
+  </Field>
+);
+
+const Section = ({ title, children, right }) => (
+  <div style={{ borderTop: `1px solid ${T.borderSoft}`, paddingTop: 16, marginTop: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: T.muted }}>{title}</div>
+      {right}
+    </div>
+    {children}
+  </div>
+);
+
+/* ---- the app ------------------------------------------------------------ */
+function Studio() {
+  const [brand, setBrand] = useState(() => loadLast() || clone(SB.SOLE_BRAND));
+  const [confidence, setConfidence] = useState({});
+  const [selected, setSelected] = useState(RESOURCE_INDEX[0] ? RESOURCE_INDEX[0].id : 'getting-paid-trades');
+  const [url, setUrl] = useState('');
+  const [fetching, setFetching] = useState(false);
+  const [fetchMsg, setFetchMsg] = useState('');
+  const [kits, setKits] = useState(loadKits);
+  const [kitName, setKitName] = useState('');
+  const [toast, setToast] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const previewRef = useRef(null);
+
+  const set = (patch) => setBrand((b) => ({ ...b, ...patch }));
+
+  useEffect(() => { persistLast(brand); }, [brand]);
+  const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
+
+  // push brand to the live preview
+  const pushBrand = () => {
+    const w = previewRef.current && previewRef.current.contentWindow;
+    if (w) w.postMessage({ type: 'sole:brand', config: brand }, '*');
+  };
+  useEffect(pushBrand, [brand]);
+  useEffect(() => {
+    const onMsg = (e) => { if (e.data && e.data.type === 'sole:resource-ready') pushBrand(); };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  });
+
+  /* ---- auto-fetch ---- */
+  const doFetch = async () => {
+    const u = normalizeUrl(url);
+    if (!u) { flash('Enter a website address first'); return; }
+    const host = hostOf(u);
+    setFetching(true); setFetchMsg('Looking up ' + host + '…');
+    const next = {}; const conf = {};
+    next.ctaUrl = u; conf.ctaUrl = 'high';
+    next.orgName = titleFromHost(host); conf.orgName = 'low';
+    next.logo = 'https://www.google.com/s2/favicons?sz=128&domain=' + host; conf.logo = 'low';
+    try {
+      setFetchMsg('Reading site metadata…');
+      const j = await fetch('https://api.microlink.io/?url=' + encodeURIComponent(u) + '&palette=true').then((r) => r.json());
+      if (j && j.status === 'success' && j.data) {
+        const d = j.data;
+        if (d.title) { next.orgName = cleanTitle(d.title); conf.orgName = 'med'; }
+        if (d.description) { next.introText = d.description; conf.introText = 'low'; }
+        if (d.logo && d.logo.url) { next.logo = d.logo.url; conf.logo = 'high'; }
+        else if (d.image && d.image.url) { next.logo = d.image.url; conf.logo = 'med'; }
+        const pal = (d.logo && d.logo.palette) || (d.image && d.image.palette) || d.palette;
+        const hue = pickBrandHue(pal || []);
+        if (hue) { next.primaryColor = hue; conf.primaryColor = 'med'; }
+      }
+    } catch (_) { /* degrade to favicon + manual */ }
+    // refine colour from the resolved logo image
+    try {
+      setFetchMsg('Extracting colours from the logo…');
+      const pal = await paletteFromImage(next.logo);
+      if (pal && pal.primary) { next.primaryColor = pal.primary; conf.primaryColor = 'high'; if (pal.accent) next.accentColor = pal.accent; }
+    } catch (_) {}
+    setBrand((b) => ({ ...b, ...next, kind: 'partner', poweredBySole: true }));
+    setConfidence(conf);
+    setFetching(false);
+    setFetchMsg('');
+    flash('Branding fetched — review each field, then export');
+  };
+
+  /* ---- logo upload / auto palette ---- */
+  const onLogoFile = (file) => readImageAsDataURL(file, async (dataUri) => {
+    set({ logo: dataUri });
+    setConfidence((c) => ({ ...c, logo: 'high' }));
+    const pal = await paletteFromImage(dataUri);
+    if (pal && pal.primary) { setBrand((b) => ({ ...b, primaryColor: pal.primary, accentColor: pal.accent || b.accentColor })); setConfidence((c) => ({ ...c, primaryColor: 'high' })); flash('Colours picked from your logo'); }
+  });
+
+  /* ---- kits ---- */
+  const saveKit = () => {
+    const name = (kitName || brand.orgName || 'Untitled').trim();
+    const k = { ...kits, [name]: { ...brand, _v: SB.VERSION } };
+    setKits(k); persistKits(k); flash('Saved kit “' + name + '”');
+  };
+  const loadKit = (name) => { if (kits[name]) { setBrand(clone(kits[name])); setConfidence({}); setKitName(name); flash('Loaded “' + name + '”'); } };
+  const deleteKit = (name) => { const k = { ...kits }; delete k[name]; setKits(k); persistKits(k); if (kitName === name) setKitName(''); };
+  const newKit = () => { setBrand(clone(SB.SOLE_BRAND)); setConfidence({}); setKitName(''); setUrl(''); flash('Reset to Sole default'); };
+
+  /* ---- partner links ---- */
+  const setLink = (i, key, val) => { const links = clone(brand.partnerLinks || []); links[i] = { ...links[i], [key]: val }; set({ partnerLinks: links }); };
+  const addLink = () => set({ partnerLinks: [...(brand.partnerLinks || []), { label: '', url: '' }] });
+  const delLink = (i) => { const links = clone(brand.partnerLinks || []); links.splice(i, 1); set({ partnerLinks: links }); };
+
+  /* ---- export (self-contained single file) ---- */
+  const buildExport = async (id, cfg) => {
+    const shell = await fetch('resource-' + id + '.html').then((r) => r.text());
+    const [css, brandJs, renderJs] = await Promise.all([
+      fetch('resources/resource.css').then((r) => r.text()),
+      fetch('resources/brand.js').then((r) => r.text()),
+      fetch('resources/resource.js').then((r) => r.text()),
+    ]);
+    const entry = {}; entry[id] = RESOURCES[id];
+    const logo = await toDataUri(cfg.logo);
+    const outCfg = { ...cfg, logo: logo };
+    const dataInline = 'window.RESOURCES=' + escJson(entry) + ';window.RESOURCE_INDEX=[];';
+    // Replacement FUNCTIONS (not strings): the inlined JS contains '$' (money
+    // formatting), and $&/$'/$` in a replacement STRING would be interpreted as
+    // special patterns and corrupt the output. A function return is inserted verbatim.
+    return shell
+      .replace('<link id="r-css" rel="stylesheet" href="resources/resource.css" />', () => '<style>\n' + css + '\n</style>')
+      .replace('<script id="r-data" src="resources/data.js"><\/script>', () => '<script>' + dataInline + '<\/script>')
+      .replace('<script id="r-brand" src="resources/brand.js"><\/script>', () => '<script>' + brandJs + '<\/script>')
+      .replace('<script id="r-render" src="resources/resource.js"><\/script>', () => '<script>' + renderJs + '<\/script>')
+      .replace('<!--BRAND-->', () => '<script>window.__BRAND__=' + escJson(outCfg) + ';<\/script>');
+  };
+  const doExport = async () => {
+    setExporting(true);
+    try {
+      const html = await buildExport(selected, brand);
+      const blob = new Blob([html], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = slug(brand.orgName) + '-' + selected + '.html';
+      document.body.appendChild(a); a.click(); a.remove();
+      const remoteLogo = brand.logo && !/^data:/.test(brand.logo);
+      flash(remoteLogo ? 'Exported — note: the logo is a live URL (upload it for a fully-offline file)' : 'Exported a self-contained file ✓');
+    } catch (e) {
+      flash('Export failed: ' + (e && e.message ? e.message : e));
+    }
+    setExporting(false);
+  };
+  const doPrint = () => { const w = previewRef.current && previewRef.current.contentWindow; if (w) w.print(); };
+
+  const kitNames = Object.keys(kits);
+  const logoIsRemote = brand.logo && !/^data:/.test(brand.logo);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      {/* top bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '12px 20px', background: T.card, borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: T.primaryDark, letterSpacing: '-.02em' }}>Sole · Rebranding Studio</div>
+          <span style={{ fontSize: 11.5, color: T.muted, background: T.primarySofter, border: `1px solid ${T.primarySoft}`, padding: '2px 8px', borderRadius: 999 }}>Marketing tool</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <select value={kitName} onChange={(e) => e.target.value ? loadKit(e.target.value) : newKit()} style={{ ...inputStyle, width: 'auto', padding: '7px 10px' }}>
+            <option value="">Sole default</option>
+            {kitNames.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+          {kitName && <Btn variant="ghost" onClick={() => deleteKit(kitName)} title="Delete this kit">Delete</Btn>}
+          <Btn variant="ghost" onClick={newKit}>New</Btn>
+          <Btn variant="soft" onClick={saveKit}>Save kit</Btn>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* control panel */}
+        <div className="scroll" style={{ width: 380, flex: '0 0 380px', background: T.card, borderRight: `1px solid ${T.border}`, padding: '18px 20px 40px' }}>
+
+          <Section title="1 · Fetch from a website (optional)">
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Input placeholder="partner-website.com.au" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') doFetch(); }} />
+              <Btn onClick={doFetch} disabled={fetching}>
+                {fetching ? <span style={{ width: 12, height: 12, border: '2px solid #ffffff60', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : 'Fetch'}
+              </Btn>
+            </div>
+            <div style={{ fontSize: 11, color: fetching ? T.primaryDark : T.mutedSoft, marginTop: 6, minHeight: 14 }}>
+              {fetching ? fetchMsg : 'Best-effort: pulls the logo, colours and name. Always review each field below.'}
+            </div>
+          </Section>
+
+          <Section title="2 · Logo">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 60, height: 60, border: `1px solid ${T.border}`, borderRadius: 10, background: T.field, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flex: '0 0 auto' }}>
+                {brand.logo
+                  ? <img src={brand.logo} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                  : <span style={{ fontWeight: 800, color: T.primaryDark }}>{(brand.orgName || 'S')[0]}</span>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <label data-btn="soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: T.primarySoft, color: T.primaryDark, border: '1px solid #C7C9FB', borderRadius: T.radius, padding: '8px 12px', fontWeight: 600, cursor: 'pointer' }}>
+                  Upload logo
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && onLogoFile(e.target.files[0])} />
+                </label>
+                {brand.logo && <Btn variant="ghost" onClick={() => set({ logo: null })} style={{ marginLeft: 8 }}>Clear</Btn>}
+                <ConfidenceDot level={confidence.logo} />
+                {logoIsRemote && <div style={{ fontSize: 11, color: T.amber, marginTop: 5 }}>Live URL — upload the file for a fully-offline export.</div>}
+                {!brand.logo && <div style={{ fontSize: 11, color: T.mutedSoft, marginTop: 5 }}>No logo → the header shows the name as a wordmark.</div>}
+              </div>
+            </div>
+          </Section>
+
+          <Section title="3 · Colours">
+            <ColorEdit label={<span>Primary colour <ConfidenceDot level={confidence.primaryColor} /></span>} hex={brand.primaryColor} onChange={(v) => set({ primaryColor: v })} hint="Everything derives from this — button text auto-adjusts for contrast." />
+            <ColorEdit label="Accent colour" hex={brand.accentColor} onChange={(v) => set({ accentColor: v })} />
+          </Section>
+
+          <Section title="4 · Copy">
+            <Field label={<span>Organisation name <ConfidenceDot level={confidence.orgName} /></span>}>
+              <Input value={brand.orgName || ''} onChange={(e) => set({ orgName: e.target.value })} placeholder="Partner name" />
+            </Field>
+            <Field label={<span>Intro line <ConfidenceDot level={confidence.introText} /></span>} hint="Leave blank to use the resource's own intro.">
+              <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={brand.introText || ''} onChange={(e) => set({ introText: e.target.value })} placeholder="A short line addressed to the partner's audience" />
+            </Field>
+            <Field label="Call-to-action label"><Input value={brand.ctaLabel || ''} onChange={(e) => set({ ctaLabel: e.target.value })} placeholder="e.g. Get set up free" /></Field>
+            <Field label={<span>Call-to-action link <ConfidenceDot level={confidence.ctaUrl} /></span>}><Input value={brand.ctaUrl || ''} onChange={(e) => set({ ctaUrl: e.target.value })} placeholder="https://…" /></Field>
+          </Section>
+
+          <Section title="5 · Contact">
+            <Field label="Contact name"><Input value={brand.contactName || ''} onChange={(e) => set({ contactName: e.target.value })} /></Field>
+            <Field label="Contact email"><Input value={brand.contactEmail || ''} onChange={(e) => set({ contactEmail: e.target.value })} /></Field>
+            <Field label="Contact phone"><Input value={brand.contactPhone || ''} onChange={(e) => set({ contactPhone: e.target.value })} /></Field>
+          </Section>
+
+          <Section title="6 · Footer links">
+            {(brand.partnerLinks || []).map((l, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+                <Input style={{ flex: '0 0 40%' }} placeholder="Label" value={l.label || ''} onChange={(e) => setLink(i, 'label', e.target.value)} />
+                <Input placeholder="https://…" value={l.url || ''} onChange={(e) => setLink(i, 'url', e.target.value)} />
+                <Btn variant="ghost" onClick={() => delLink(i)} style={{ padding: '6px 10px' }}>×</Btn>
+              </div>
+            ))}
+            <Btn variant="ghost" onClick={addLink} style={{ marginTop: 2 }}>+ Add link</Btn>
+          </Section>
+
+          <Section title="7 · Options">
+            <Field label="Font">
+              <select value={brand.font || 'Inter'} onChange={(e) => set({ font: e.target.value })} style={{ ...inputStyle }}>
+                {Object.keys(SB.FONT_LINKS).map((f) => <option key={f} value={f}>{f === 'system' ? 'System default' : f}</option>)}
+              </select>
+            </Field>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: T.textSoft, cursor: 'pointer', marginTop: 4 }}>
+              <input type="checkbox" checked={!!brand.poweredBySole} onChange={(e) => set({ poweredBySole: e.target.checked })} />
+              Show “Powered by Sole” in the footer
+            </label>
+            <Field label="Footer note (fine print)" hint=" "><textarea style={{ ...inputStyle, resize: 'vertical', marginTop: 8 }} rows={2} value={brand.footerNote || ''} onChange={(e) => set({ footerNote: e.target.value })} /></Field>
+          </Section>
+        </div>
+
+        {/* preview + export */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.bg }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderBottom: `1px solid ${T.border}`, background: T.card, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted }}>Resource:</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+              {RESOURCE_INDEX.map((r) => (
+                <button key={r.id} onClick={() => setSelected(r.id)} data-btn="chip" style={{
+                  border: `1px solid ${selected === r.id ? T.primary : T.border}`, background: selected === r.id ? T.primarySoft : T.card,
+                  color: selected === r.id ? T.primaryDark : T.textSoft, borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600,
+                }}>{r.title}</button>
+              ))}
+            </div>
+            <Btn variant="ghost" onClick={doPrint}>Print / PDF</Btn>
+            <Btn onClick={doExport} disabled={exporting}>
+              {exporting ? 'Exporting…' : 'Export self-contained HTML'}
+            </Btn>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, padding: 16 }}>
+            <iframe ref={previewRef} title="preview" src={'resource-' + selected + '.html?embed=1'} onLoad={pushBrand}
+              style={{ width: '100%', height: '100%', border: `1px solid ${T.border}`, borderRadius: 12, background: '#fff', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }} />
+          </div>
+        </div>
+      </div>
+
+      {toast && <div style={{ position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', background: T.text, color: '#fff', padding: '11px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px -6px rgba(16,24,40,0.4)', animation: 'fadein .2s ease', zIndex: 100 }}>{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Studio />);
+</script>
+</body>
+</html>
