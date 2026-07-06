@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sole — Unibox</title>
+<link rel="icon" type="image/png" href="assets/sole-icon.png">
+<meta name="description" content="Unibox — your daily action center in Sole. Everything that needs you to run your business, in one place.">
+<meta property="og:title" content="Sole — Unibox">
+<meta property="og:description" content="Your daily action center: get paid, reconcile, and tidy up — all in one place.">
+<!-- React + Babel from unpkg. Babel is PINNED to 7.29.7 — a floating tag rolls to
+     v8 (automatic JSX runtime → import stmt → blank page). See docs/MEMORY.md. -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 13px; line-height: 1.45; color: #0F1117; background: #F5F4F8;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; font-size: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #5B5BF6 !important; box-shadow: 0 0 0 3px rgba(91, 91, 246, 0.12); }
+  button:focus-visible { outline: 2px solid #5B5BF6; outline-offset: 2px; }
+  ::placeholder { color: #9CA3AF; }
+
+  /* Hover states — inline styles can't express :hover, so interactive elements tag
+     themselves with data-attrs and pick up treatments here. */
+  button[data-btn]:not(:disabled) { transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s, transform 0.05s; }
+  button[data-btn]:not(:disabled):active { transform: translateY(0.5px); }
+  button[data-btn="ghost"]:not(:disabled):hover          { background: #F9FAFB; border-color: #D1D5DB; }
+  button[data-btn="soft"]:not(:disabled):hover           { background: #EEF0FF; border-color: #C7C9FB; }
+  button[data-btn="primary"]:not(:disabled):hover        { background: #4F46E5; border-color: #4F46E5; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25); }
+  button[data-btn="primaryOutline"]:not(:disabled):hover { background: #EEF0FF; }
+  button[data-btn="iconOnly"]:not(:disabled):hover       { background: #F3F4F6; }
+  button[data-btn="danger"]:not(:disabled):hover         { background: #DC2626; border-color: #DC2626; }
+  [data-hover="row"]:not(:disabled)        { transition: background 0.1s; }
+  [data-hover="row"]:not(:disabled):hover  { background: #F9FAFB; }
+  [data-hover="nav"]                       { transition: background 0.1s, color 0.1s; }
+  [data-hover="nav"]:hover                 { background: #F5F6FF; }
+  [data-card="lift"]                       { transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease; }
+  [data-card="lift"]:hover                 { transform: translateY(-2px); border-color: #C7C9FB; box-shadow: 0 10px 24px -12px rgba(91,91,246,0.28), 0 1px 2px rgba(15,17,23,0.04); }
+  button[data-chip]:not(:disabled):not([data-selected="true"]):hover { background: #F9FAFB; border-color: #D1D5DB; color: #1F2937; }
+  .scroll-area { overflow-y: auto; }
+  .scroll-area::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-area::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+  .scroll-area::-webkit-scrollbar-track { background: transparent; }
+
+  @keyframes slidein { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadein  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes expand  { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes rowflash { 0% { box-shadow: 0 0 0 0 rgba(91,91,246,0); } 30% { box-shadow: 0 0 0 4px rgba(91,91,246,0.28); } 100% { box-shadow: 0 0 0 0 rgba(91,91,246,0); } }
+  @keyframes ringpop { 0% { transform: scale(1); } 45% { transform: scale(1.06); } 100% { transform: scale(1); } }
+  /* Quiet rows reveal their secondary actions only on hover (Asana pattern). */
+  .ub-sec { opacity: 0; transition: opacity 0.12s; }
+  .ub-row:hover .ub-sec, .ub-row:focus-within .ub-sec { opacity: 1; }
+  /* Widget ⋯ menu stays hidden until the widget is hovered. */
+  .ub-more { opacity: 0; transition: opacity 0.12s; }
+  .ub-widget:hover .ub-more { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo, Fragment } = React;
+
+// --- design tokens (copied from index.html; the small-business Sole app shares this brand) ---
+const T = {
+  primary: '#5B5BF6', primaryDark: '#4F46E5', primarySoft: '#EEF0FF', primarySofter: '#F5F6FF',
+  bg: '#F5F4F8', card: '#FFFFFF', surface: '#FBFBFD',
+  border: '#E5E7EB', borderStrong: '#D1D5DB', borderSoft: '#ECEDF2',
+  text: '#0F1117', textSoft: '#1F2937', muted: '#6B7280', mutedSoft: '#9CA3AF', fieldBg: '#F9FAFB',
+  green: '#10B981', greenDark: '#059669', greenSoft: '#ECFDF5',
+  amber: '#D97706', amberSoft: '#FEF3C7', red: '#EF4444', redSoft: '#FEE2E2',
+  blue: '#3B82F6', blueSoft: '#EFF6FF',
+  radiusSm: 8, radius: 10, radiusLg: 14, radiusCard: 12,
+  shadowXs: '0 1px 2px rgba(16,24,40,0.04)',
+  shadowSm: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06)',
+  shadowMd: '0 2px 4px -1px rgba(16,24,40,0.05), 0 4px 12px -2px rgba(16,24,40,0.08)',
+  shadowLg: '0 8px 24px -6px rgba(16,24,40,0.12)',
+  space: { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
+};
+
+// --- icons (Lucide-style; copied from index.html + grid) ---
+const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
+  const paths = {
+    grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
+    inbox: <><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" /></>,
+    repeat: <><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>,
+    dollar: <><line x1="12" y1="2" x2="12" y2="22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>,
+    receipt: <><path d="M6 2h12v20l-2.4-1.6L13.2 22 12 20.4 10.8 22 8.4 20.4 6 22z" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="9" y1="12" x2="15" y2="12" /></>,
+    layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
+    scale: <><line x1="12" y1="3" x2="12" y2="21" /><line x1="6" y1="21" x2="18" y2="21" /><path d="M3 10l3-6 3 6z" /><path d="M15 10l3-6 3 6z" /><line x1="6" y1="4" x2="18" y2="4" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    chartBar: <><line x1="3" y1="20" x2="21" y2="20" /><rect x="6" y="11" width="3" height="8" /><rect x="11" y="6" width="3" height="13" /><rect x="16" y="14" width="3" height="5" /></>,
+    gitMerge: <><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M6 9v6" /><circle cx="18" cy="9" r="3" /><path d="M18 12a9 9 0 0 1-9 6" /></>,
+    flow: <><line x1="6" y1="3" x2="6" y2="15" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="6" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="16" y1="3" x2="16" y2="7" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></>,
+    gauge: <><path d="M3.6 18a9 9 0 1 1 16.8 0" /><line x1="12" y1="14" x2="16" y2="9" /><circle cx="12" cy="14" r="1.3" fill="currentColor" /></>,
+    docs: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9l7 7v9a2 2 0 0 1-2 2z" /><path d="M14 3v6h7" /></>,
+    rocket: <><path d="M5 15c0-4 4-7 7-9 3 2 7 5 7 9-1 4-5 7-7 7s-6-3-7-7z" /><circle cx="12" cy="11" r="1.4" fill="currentColor" /><path d="M5 15c-2 1-3 5-1 7 2 1 6 0 7-2" /></>,
+    shield: <path d="M12 2L4 5v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V5z" />,
+    handshake: <><path d="M9 11l-3 3-3-3 4-4a2 2 0 0 1 2.8 0" /><path d="M15 13l3-3 3 3-4 4a2 2 0 0 1-2.8 0" /><line x1="10" y1="12" x2="14" y2="14" /></>,
+    smile: <><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></>,
+    star: <polygon points="12 2 15 8.6 22 9.3 17 14.1 18.2 21 12 17.5 5.8 21 7 14.1 2 9.3 9 8.6 12 2" />,
+    percent: <><line x1="19" y1="5" x2="5" y2="19" /><circle cx="7" cy="7" r="2" /><circle cx="17" cy="17" r="2" /></>,
+    sliders: <><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="2" y1="14" x2="6" y2="14" /><line x1="10" y1="8" x2="14" y2="8" /><line x1="18" y1="16" x2="22" y2="16" /></>,
+    messageSquare: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a1.5 1.5 0 0 1-3.4 0" /></>,
+    search: <><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.65" y2="16.65" /></>,
+    send: <><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>,
+    mail: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 7l-10 6L2 7" /></>,
+    bank: <><line x1="3" y1="21" x2="21" y2="21" /><path d="M3 10l9-6 9 6" /><line x1="6" y1="10" x2="6" y2="21" /><line x1="10" y1="10" x2="10" y2="21" /><line x1="14" y1="10" x2="14" y2="21" /><line x1="18" y1="10" x2="18" y2="21" /></>,
+    sparkle: <path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5z" />,
+    tag: <><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6z" /><circle cx="7.5" cy="7.5" r="1.1" fill="currentColor" /></>,
+    target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></>,
+    checkCircle: <><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></>,
+    alertTriangle: <><path d="M10.3 3.86l-8.7 15a2 2 0 0 0 1.71 3h17.4a2 2 0 0 0 1.7-3l-8.7-15a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
+    flame: <path d="M12 2c1 4 5 5 5 10a5 5 0 1 1-10 0c0-3 2-4 2-7 0 0 2 1 3 0z" />,
+    check: <polyline points="5 12 10 17 19 7" />,
+    close: <><line x1="6" y1="6" x2="18" y2="18" /><line x1="6" y1="18" x2="18" y2="6" /></>,
+    plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+    arrow: <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
+    chevronRight: <polyline points="9 18 15 12 9 6" />,
+    chevronDown: <polyline points="6 9 12 15 18 9" />,
+    upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>,
+    paperclip: <path d="M21 11.5l-9 9a5 5 0 0 1-7-7l9-9a3 3 0 0 1 4 4l-9 9a1 1 0 0 1-1.4-1.4l7.6-7.6" />,
+    link: <><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></>,
+    info: <><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></>,
+    refresh: <><polyline points="21 4 21 10 15 10" /><polyline points="3 20 3 14 9 14" /><path d="M3.5 9a9 9 0 0 1 15-3.4L21 8" /><path d="M20.5 15a9 9 0 0 1-15 3.4L3 16" /></>,
+    trendUp: <><polyline points="3 17 9 11 13 14 21 6" /><polyline points="15 6 21 6 21 12" /></>,
+    wallet: <><rect x="3" y="6" width="18" height="14" rx="2" /><line x1="3" y1="11" x2="21" y2="11" /><circle cx="17" cy="15" r="1.2" /></>,
+    more: <><circle cx="5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="19" cy="12" r="1.4" fill="currentColor" /></>,
+    settings2: <><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /><circle cx="9" cy="6" r="2" fill={T.card} /><circle cx="15" cy="12" r="2" fill={T.card} /><circle cx="8" cy="18" r="2" fill={T.card} /></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {paths[name]}
+    </svg>
+  );
+};
+
+const ICONCHIP_TONES = {
+  accent:  { bg: T.primarySoft, fg: T.primary,   grad: 'linear-gradient(135deg, #5A4FCF 0%, #4A3FBE 100%)', shadow: 'rgba(74,63,190,0.5)' },
+  green:   { bg: T.greenSoft,   fg: T.greenDark, grad: 'linear-gradient(135deg, #34D399 0%, #059669 100%)', shadow: 'rgba(5,150,105,0.42)' },
+  amber:   { bg: T.amberSoft,   fg: T.amber,     grad: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', shadow: 'rgba(217,119,6,0.42)' },
+  blue:    { bg: T.blueSoft,    fg: T.blue,      grad: 'linear-gradient(135deg, #60A5FA 0%, #2563EB 100%)', shadow: 'rgba(37,99,235,0.42)' },
+  red:     { bg: T.redSoft,     fg: T.red,       grad: 'linear-gradient(135deg, #F87171 0%, #DC2626 100%)', shadow: 'rgba(220,38,38,0.42)' },
+  neutral: { bg: T.fieldBg,     fg: T.muted,     grad: 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)', shadow: 'rgba(107,114,128,0.36)' },
+};
+const IconChip = ({ icon, tone = 'accent', size = 36, style, gradient }) => {
+  const t = ICONCHIP_TONES[tone] || ICONCHIP_TONES.accent;
+  const bg = gradient ? t.grad : t.bg;
+  const fg = gradient ? '#fff' : t.fg;
+  return (
+    <div style={{ width: size, height: size, borderRadius: Math.round(size * 0.29), background: bg, color: fg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: gradient ? `0 6px 14px -6px ${t.shadow}` : undefined, ...style }}>
+      <Icon name={icon} size={Math.round(size * 0.5)} color={fg} />
+    </div>
+  );
+};
+
+// --- atoms (copied from index.html) ---
+const Card = ({ children, style, padded = true, hover, onClick }) => (
+  <div data-card={hover ? 'lift' : 'base'} onClick={onClick} style={{
+    background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusCard,
+    boxShadow: T.shadowSm, padding: padded ? T.space.lg : 0, ...style
+  }}>{children}</div>
+);
+const Label = ({ children, style }) => (<div style={{ fontSize: 12, fontWeight: 500, color: T.textSoft, marginBottom: 6, ...style }}>{children}</div>);
+const SectionTitle = ({ children, style }) => (<div style={{ fontSize: 14, fontWeight: 600, color: T.text, ...style }}>{children}</div>);
+const Helper = ({ children, style }) => (<div style={{ fontSize: 12, color: T.muted, ...style }}>{children}</div>);
+
+const StatCard = ({ icon, tone = 'accent', label, value, sub, delta, deltaTone, onClick, style }) => (
+  <div onClick={onClick} style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusCard, boxShadow: T.shadowSm, padding: '13px 15px', display: 'flex', flexDirection: 'column', cursor: onClick ? 'pointer' : 'default', minWidth: 0, ...style }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      {icon && <IconChip icon={icon} tone={tone} size={32} gradient />}
+      {delta != null && <span style={{ fontSize: 11.5, fontWeight: 700, color: deltaTone === 'down' ? T.red : T.greenDark }}>{deltaTone === 'down' ? '▼' : '▲'} {delta}</span>}
+    </div>
+    <div style={{ fontSize: 11.5, fontWeight: 600, color: T.muted, marginTop: 11 }}>{label}</div>
+    <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: -0.4, fontVariantNumeric: 'tabular-nums', marginTop: 2, lineHeight: 1.15 }}>{value}</div>
+    {sub && <div style={{ fontSize: 11.5, color: T.muted, marginTop: 3 }}>{sub}</div>}
+  </div>
+);
+
+const PageHead = ({ title, subtitle, actions, style }) => (
+  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 18, ...style }}>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: T.text, letterSpacing: -0.4 }}>{title}</div>
+      {subtitle && <Helper style={{ fontSize: 13, marginTop: 3 }}>{subtitle}</Helper>}
+    </div>
+    {actions && <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{actions}</div>}
+  </div>
+);
+
+const BANNER_TONES = {
+  success: { bg: T.greenSoft,     bd: '#A7F3D0', fg: T.greenDark, icon: 'checkCircle' },
+  info:    { bg: T.blueSoft,      bd: '#BFDBFE', fg: T.blue,      icon: 'info' },
+  accent:  { bg: T.primarySofter, bd: '#C7C9FB', fg: T.primary,   icon: 'sparkle' },
+  warn:    { bg: T.amberSoft,     bd: '#FCD34D', fg: '#92400E',   icon: 'alertTriangle' },
+  danger:  { bg: T.redSoft,       bd: '#FECACA', fg: '#991B1B',   icon: 'alertTriangle' },
+};
+const Banner = ({ tone = 'info', title, children, icon, action, style }) => {
+  const t = BANNER_TONES[tone] || BANNER_TONES.info;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: t.bg, border: `1px solid ${t.bd}`, borderRadius: T.radius, ...style }}>
+      <Icon name={icon || t.icon} size={18} color={t.fg} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {title && <div style={{ fontSize: 13.5, fontWeight: 700, color: t.fg }}>{title}</div>}
+        {children && <div style={{ fontSize: 12.5, color: t.fg, opacity: 0.92, marginTop: title ? 1 : 0 }}>{children}</div>}
+      </div>
+      {action}
+    </div>
+  );
+};
+
+const Btn = ({ variant = 'ghost', children, onClick, style, disabled, icon, iconRight, size = 'md', title, type }) => {
+  const sizes = { sm: { padding: '5px 10px', fontSize: 12, minHeight: 28 }, md: { padding: '7px 13px', fontSize: 13, minHeight: 32 }, lg: { padding: '9px 16px', fontSize: 14, minHeight: 38 } };
+  const iconSize = size === 'sm' ? 12 : size === 'lg' ? 15 : 13;
+  const base = { borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, color: T.text, fontWeight: 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap', lineHeight: 1.2, ...sizes[size] };
+  const styles = {
+    ghost: { ...base }, soft: { ...base, background: T.fieldBg },
+    primary: { ...base, background: T.primary, color: '#fff', borderColor: T.primary, boxShadow: '0 1px 2px rgba(79,70,229,0.18)' },
+    primaryOutline: { ...base, background: T.card, color: T.primary, borderColor: T.primary, fontWeight: 600 },
+    danger: { ...base, background: T.red, color: '#fff', borderColor: T.red },
+    iconOnly: { ...base, padding: size === 'sm' ? 6 : 7, minWidth: sizes[size].minHeight },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} data-btn={variant} title={title} type={type}
+      style={{ ...styles[variant], opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer', ...style }}>
+      {icon && <Icon name={icon} size={iconSize} />}{children}{iconRight && <Icon name={iconRight} size={iconSize} />}
+    </button>
+  );
+};
+
+const Pill = ({ children, color = 'neutral', style, title }) => {
+  const palettes = {
+    neutral: { bg: T.fieldBg, fg: T.muted, bd: T.border }, green: { bg: T.greenSoft, fg: T.greenDark, bd: '#A7F3D0' },
+    amber: { bg: T.amberSoft, fg: T.amber, bd: '#FCD34D' }, blue: { bg: T.blueSoft, fg: T.blue, bd: '#BFDBFE' },
+    accent: { bg: T.primarySoft, fg: T.primary, bd: '#C7C9FB' }, red: { bg: T.redSoft, fg: T.red, bd: '#FECACA' },
+  };
+  const p = palettes[color];
+  return (<span title={title} style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, background: p.bg, color: p.fg, border: `1px solid ${p.bd}`, fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', ...style }}>{children}</span>);
+};
+
+const Chip = ({ selected, onClick, children, style, size = 'md' }) => (
+  <button onClick={onClick} data-chip data-selected={selected ? 'true' : 'false'}
+    style={{ padding: size === 'sm' ? '5px 10px' : '7px 14px', borderRadius: 999, border: `1px solid ${selected ? T.primary : T.border}`, background: selected ? T.primarySoft : T.card, color: selected ? T.primary : T.textSoft, fontWeight: selected ? 600 : 500, fontSize: size === 'sm' ? 12 : 13, cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4, ...style }}>{children}</button>
+);
+
+const Select = ({ value, onChange, children, style }) => (
+  <select value={value} onChange={onChange} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.card, color: T.text, appearance: 'none', backgroundImage: `linear-gradient(45deg, transparent 50%, ${T.muted} 50%), linear-gradient(135deg, ${T.muted} 50%, transparent 50%)`, backgroundPosition: 'calc(100% - 16px) 50%, calc(100% - 11px) 50%', backgroundSize: '5px 5px, 5px 5px', backgroundRepeat: 'no-repeat', paddingRight: 32, cursor: 'pointer', ...style }}>{children}</select>
+);
+
+const AVATAR_PALETTE = ['#5B5BF6', '#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#9333EA', '#EC4899', '#0891B2'];
+const avatarColorOf = (str) => { let h = 0; for (const ch of (str || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return AVATAR_PALETTE[h % AVATAR_PALETTE.length]; };
+const Avatar = ({ name, size = 32, style }) => (
+  <div style={{ width: size, height: size, borderRadius: '50%', background: avatarColorOf(name), color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: Math.round(size * 0.42), flexShrink: 0, ...style }}>{(name || '?').trim().charAt(0).toUpperCase() || '?'}</div>
+);
+
+const Toast = ({ toast, onClose }) => {
+  if (!toast) return null;
+  const t = typeof toast === 'string' ? { message: toast } : toast;
+  const tone = t.tone || (t.action ? 'undo' : 'success');
+  const palette = tone === 'undo' ? { bg: '#FFFBEB', bd: '#FCD34D', fg: '#92400E', icon: 'info' } : { bg: T.greenSoft, bd: '#A7F3D0', fg: T.greenDark, icon: 'check' };
+  return (
+    <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 300, background: palette.bg, border: `1px solid ${palette.bd}`, color: palette.fg, padding: '8px 10px 8px 14px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 12px rgba(15, 17, 23, 0.10)', fontSize: 13, fontWeight: 500, animation: 'slidein 0.2s ease' }}>
+      <Icon name={palette.icon} size={14} color={palette.fg} strokeWidth={2.5} />
+      <span>{t.message}</span>
+      {t.action && (<button onClick={() => { t.action.onClick(); onClose(); }} style={{ background: 'transparent', border: `1px solid ${palette.bd}`, color: palette.fg, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>{t.action.label}</button>)}
+      <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: palette.fg, padding: 4, opacity: 0.7, cursor: 'pointer', display: 'inline-flex' }}><Icon name="close" size={14} /></button>
+    </div>
+  );
+};
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { console.error('Render crash:', error, info); }
+  render() {
+    if (this.state.error) {
+      return (<div style={{ padding: 24, margin: 24, border: `1px solid ${T.red}`, borderRadius: 12, background: T.redSoft, color: T.red, fontFamily: 'monospace', fontSize: 12 }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>⚠ Render crashed</div>
+        <div>{String(this.state.error?.message || this.state.error)}</div>
+        <pre style={{ marginTop: 10, fontSize: 11, whiteSpace: 'pre-wrap' }}>{this.state.error?.stack}</pre>
+      </div>);
+    }
+    return this.props.children;
+  }
+}
+
+// --- new atoms: SoleLogo + HealthRing ---
+const SoleLogo = ({ size = 22 }) => (
+  <div style={{ display: 'inline-flex', alignItems: 'center', fontSize: size, fontWeight: 800, color: T.text, letterSpacing: -0.5 }}>
+    <span>S</span>
+    <svg width={size * 0.92} height={size * 0.92} viewBox="0 0 24 24" style={{ margin: '0 -1px' }} aria-hidden="true">
+      <path d="M12 2.5 L13.7 10.3 L21.5 12 L13.7 13.7 L12 21.5 L10.3 13.7 L2.5 12 L10.3 10.3 Z" fill={T.primary} />
+    </svg>
+    <span>le</span>
+  </div>
+);
+
+const BAND = {
+  green: { color: T.green, pill: 'green' },
+  amber: { color: T.amber, pill: 'amber' },
+  red:   { color: T.red,   pill: 'red' },
+};
+const HealthRing = ({ score, size = 104, band, celebrate }) => {
+  const stroke = 9;
+  const r = (size / 2) - stroke / 2 - 1;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(100, score)) / 100);
+  const col = BAND[band].color;
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0, animation: celebrate ? 'ringpop 0.5s ease' : undefined }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={T.border} strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={off} transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(.22,1,.36,1), stroke 0.3s' }} />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: Math.round(size * 0.3), fontWeight: 800, color: col, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{score}</div>
+        <div style={{ fontSize: 10, color: T.mutedSoft, fontWeight: 600, marginTop: 1 }}>/ 100</div>
+      </div>
+    </div>
+  );
+};
+
+// --- helpers ---
+const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// --- mock data ---
+const PROFILE = { name: 'Tony Williamson', first: 'Tony', email: 'demo@soleapp.com.au', streak: 5, isNew: false };
+const CATEGORIES = ['Software', 'Fuel', 'Office supplies', 'Phone', 'Meals', 'Travel', 'Other'];
+
+const GROUPS = [
+  { id: 'get_paid',  title: 'Get paid',  icon: 'dollar', tone: 'accent', clearTitle: 'All caught up on getting paid ✓', clearSub: 'Nothing to chase right now.' },
+  { id: 'reconcile', title: 'Reconcile', icon: 'bank',   tone: 'blue',   clearTitle: 'Every transaction is matched ✓', clearSub: 'Your bank feed is fully reconciled.' },
+  { id: 'tidy_up',   title: 'Tidy up',   icon: 'sparkle', tone: 'green', clearTitle: 'Books are tidy ✓', clearSub: 'Expenses and assets are all sorted.' },
+];
+
+// Severity → icon-chip tone + accent-bar colour + health weight.
+const SEV = {
+  high: { tone: 'red',     color: T.red },
+  med:  { tone: 'amber',   color: T.amber },
+  low:  { tone: 'neutral', color: T.borderStrong },
+};
+
+const SEED_ITEMS = [
+  // ---- Get paid ----
+  { id: 'itm-g1', group: 'get_paid', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send',
+    rowTitle: 'INV-1043 · Bondi Mowing Co', title: 'Send invoice INV-1043', sub: 'Draft · created 3 Jul', amount: 680, client: 'Bondi Mowing Co', email: 'pete@bondimowing.au', invoiceNo: 'INV-1043',
+    primary: { id: 'send', label: 'Send', icon: 'send' }, secondary: [{ id: 'preview', label: 'Preview' }] },
+  { id: 'itm-g2', group: 'get_paid', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send',
+    rowTitle: 'INV-1044 · Harbour Cafe', title: 'Send invoice INV-1044', sub: 'Draft · created 5 Jul', amount: 1240, client: 'Harbour Cafe', email: 'hello@harbourcafe.au', invoiceNo: 'INV-1044',
+    primary: { id: 'send', label: 'Send', icon: 'send' }, secondary: [{ id: 'preview', label: 'Preview' }] },
+  { id: 'itm-g3', group: 'get_paid', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle',
+    rowTitle: 'INV-1021 · Marlow & Sons', title: 'Follow up overdue invoice INV-1021', sub: 'Due 22 Jun', amount: 3150, badge: { label: '14 days overdue', color: 'red' }, client: 'Marlow & Sons', email: 'ops@marlowsons.au', invoiceNo: 'INV-1021',
+    primary: { id: 'follow_up', label: 'Follow up', icon: 'mail' }, secondary: [{ id: 'mark_paid', label: 'Mark paid' }] },
+  { id: 'itm-g4', group: 'get_paid', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle',
+    rowTitle: 'INV-1009 · Greenleaf Holdings', title: 'Follow up overdue invoice INV-1009', sub: 'Due 30 Jun', amount: 920, badge: { label: '6 days overdue', color: 'red' }, client: 'Greenleaf Holdings', email: 'trust@greenleaf.au', invoiceNo: 'INV-1009',
+    primary: { id: 'follow_up', label: 'Follow up', icon: 'mail' }, secondary: [{ id: 'mark_paid', label: 'Mark paid' }] },
+  { id: 'itm-g5', group: 'get_paid', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock',
+    rowTitle: 'INV-1038 · North Coast Partners', title: 'Send reminder for INV-1038', sub: 'Due 8 Jul', amount: 2400, badge: { label: 'Due in 2 days', color: 'amber' }, client: 'North Coast Partners', email: 'admin@northcoast.au', invoiceNo: 'INV-1038',
+    primary: { id: 'send_reminder', label: 'Send reminder', icon: 'send' }, secondary: [{ id: 'snooze', label: 'Snooze' }] },
+  { id: 'itm-g6', group: 'get_paid', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock',
+    rowTitle: 'INV-1040 · Kim Tran', title: 'Send reminder for INV-1040', sub: 'Due 7 Jul', amount: 460, badge: { label: 'Due tomorrow', color: 'amber' }, client: 'Kim Tran', email: 'kim@example.com', invoiceNo: 'INV-1040',
+    primary: { id: 'send_reminder', label: 'Send reminder', icon: 'send' }, secondary: [{ id: 'snooze', label: 'Snooze' }] },
+  // ---- Reconcile ----
+  { id: 'itm-r1', group: 'reconcile', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
+    rowTitle: 'Deposit · NORTHCOAST P/L', title: 'Match bank deposit', sub: 'Sole match: INV-1038 · North Coast Partners (98%)', bankLine: '4 Jul · memo “NORTHCOAST P/L”', amount: 2400, amountTone: 'in', invoiceNo: 'INV-1038',
+    aiMatch: { label: 'Pays INV-1038 · North Coast Partners · ' + fmtMoney(2400), confidence: 0.98, detail: 'Amount and reference both match this open invoice.' },
+    primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r2', group: 'reconcile', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
+    rowTitle: 'Deposit · BONDI MOWING', title: 'Match bank deposit', sub: 'Sole match: INV-1043 · Bondi Mowing Co (95%)', bankLine: '2 Jul · memo “BONDI MOWING”', amount: 680, amountTone: 'in', invoiceNo: 'INV-1043',
+    aiMatch: { label: 'Pays INV-1043 · Bondi Mowing Co · ' + fmtMoney(680), confidence: 0.95, detail: 'Amount matches a recently sent invoice.' },
+    primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r3', group: 'reconcile', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'bank',
+    rowTitle: 'Payment · BP FUEL 1042', title: 'Match payment', sub: 'Sole match: Fuel — BP (92%)', bankLine: '3 Jul · memo “BP FUEL 1042”', amount: 142.30, amountTone: 'out',
+    aiMatch: { label: 'Matches expense: Fuel — BP · ' + fmtMoney(142.30) + ' · 3 Jul', confidence: 0.92, detail: 'Amount and date match a logged expense.' },
+    primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r4', group: 'reconcile', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'tag',
+    rowTitle: 'Payment · CANVA PTY', title: 'Categorize payment', sub: 'No confident match — categorize', bankLine: '1 Jul · memo “CANVA PTY”', amount: 59, amountTone: 'out',
+    primary: { id: 'categorize', label: 'Categorize', icon: 'tag' }, secondary: [{ id: 'ignore', label: 'Ignore' }] },
+  // ---- Tidy up ----
+  { id: 'itm-t1', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
+    rowTitle: 'Officeworks', title: 'Categorize expense', sub: 'Expense · 2 Jul', amount: 88.40, badge: { label: 'No category', color: 'amber' },
+    primary: { id: 'categorize', label: 'Categorize', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t2', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
+    rowTitle: 'Telstra', title: 'Add a receipt', sub: 'Expense · 1 Jul · Phone', amount: 99, badge: { label: 'Receipt missing', color: 'amber' },
+    primary: { id: 'add_receipt', label: 'Add receipt', icon: 'paperclip' }, secondary: [{ id: 'categorize', label: 'Categorize' }] },
+  { id: 'itm-t3', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
+    rowTitle: 'Bunnings', title: 'Categorize expense', sub: 'Expense · 30 Jun', amount: 213.75, badge: { label: 'No category · No receipt', color: 'amber' },
+    primary: { id: 'categorize', label: 'Categorize', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t4', group: 'tidy_up', type: 'asset', severity: 'low', weight: 2, icon: 'layers',
+    rowTitle: 'Dell laptop', title: 'Record as an asset', sub: 'Purchase · 28 Jun', amount: 1899, badge: { label: 'Possible asset', color: 'blue' },
+    primary: { id: 'record_asset', label: 'Record', icon: 'plus' }, secondary: [{ id: 'not_asset', label: 'Not an asset' }] },
+  { id: 'itm-t5', group: 'tidy_up', type: 'asset', severity: 'low', weight: 2, icon: 'layers',
+    rowTitle: 'Espresso machine', title: 'Match a payment to this asset', sub: 'Asset · 26 Jun', amount: 2650, badge: { label: 'No payment linked', color: 'amber' },
+    primary: { id: 'match_payment', label: 'Match', icon: 'link' }, secondary: [{ id: 'later', label: 'Later' }] },
+];
+
+// --- health score (deterministic; encouraging floor; never 0) ---
+function computeHealth(items, profile) {
+  const penalty = items.reduce((s, it) => s + (it.weight || 0), 0);
+  const streakBonus = Math.min(profile.streak || 0, 5);
+  const floor = profile.isNew ? 72 : 40;
+  let score = clamp(Math.round(Math.max(floor, 100 - penalty + streakBonus)), 1, 100);
+  let band, label, tail;
+  if (score >= 80)      { band = 'green'; label = 'In the green';         tail = "you're in great shape 🎉"; }
+  else if (score >= 60) { band = 'amber'; label = 'A few things to tidy';  tail = "you're in good shape 👍"; }
+  else                  { band = 'red';   label = 'Needs attention';       tail = "let's knock a few out"; }
+  return { score, band, label, tail };
+}
+
+// --- ranking (Top priorities + within-group order) ---
+const rankItems = (items) => [...items].sort((a, b) => (b.weight - a.weight) || ((b.amount || 0) - (a.amount || 0)) || a.id.localeCompare(b.id));
+
+// --- inline action plumbing ---
+const MODE_FOR = { follow_up: 'email', confirm_match: 'aimatch', categorize: 'category', add_receipt: 'receipt', record_asset: 'asset', match_payment: 'assetpay' };
+const directMessage = (item, actionId) => {
+  switch (actionId) {
+    case 'send': return `Invoice ${item.invoiceNo} sent to ${item.client}`;
+    case 'send_reminder': return `Reminder sent to ${item.client}`;
+    case 'snooze': return "Snoozed — we'll remind you tomorrow";
+    case 'mark_paid': return `${item.invoiceNo} marked as paid`;
+    case 'ignore': return 'Transaction ignored';
+    case 'not_asset': return 'Marked as not an asset';
+    case 'later': return "We'll remind you later";
+    case 'not_match': return "We'll leave this one for you to match";
+    default: return 'Done';
+  }
+};
+
+const panelStyle = { marginTop: 12, padding: 14, background: T.surface, border: `1px solid ${T.borderSoft}`, borderRadius: 10, animation: 'expand 0.16s ease' };
+
+const emailBody = (item) => `Hi ${(item.client || '').split(' ')[0] || item.client},\n\nJust a quick reminder that invoice ${item.invoiceNo} for ${fmtMoney(item.amount)} is ${item.type === 'overdue_invoice' ? 'now overdue' : 'due soon'}. You can pay securely using the link in your original invoice.\n\nThanks so much,\nTony — Sole`;
+
+// --- inline panels ---
+const EmailPanel = ({ item, onConfirm, onCancel }) => (
+  <div style={panelStyle}>
+    <div style={{ fontSize: 12, color: T.muted, marginBottom: 6 }}><b style={{ color: T.textSoft }}>To:</b> {item.email}</div>
+    <div style={{ fontSize: 12, color: T.muted, marginBottom: 8 }}><b style={{ color: T.textSoft }}>Subject:</b> Reminder: invoice {item.invoiceNo} — {fmtMoney(item.amount)} {item.type === 'overdue_invoice' ? 'overdue' : 'due soon'}</div>
+    <textarea defaultValue={emailBody(item)} style={{ width: '100%', minHeight: 96, border: `1px solid ${T.border}`, borderRadius: 8, padding: 10, fontSize: 12.5, color: T.text, resize: 'vertical', background: T.card, fontFamily: 'inherit' }} />
+    <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+      <Btn variant="primary" size="sm" icon="send" onClick={onConfirm}>Send reminder</Btn>
+      <Btn size="sm" onClick={onCancel}>Cancel</Btn>
+    </div>
+  </div>
+);
+
+const MatchPanel = ({ item, onConfirm, onReject }) => (
+  <div style={panelStyle}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <Icon name="sparkle" size={14} color={T.primary} />
+      <span style={{ fontSize: 12, fontWeight: 600, color: T.textSoft }}>Sole found a match</span>
+      <Pill color="green" style={{ marginLeft: 'auto' }}>{Math.round(item.aiMatch.confidence * 100)}% match</Pill>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
+      <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 8 }}>
+        <div style={{ color: T.mutedSoft, fontSize: 11 }}>Bank transaction</div>
+        <div style={{ fontWeight: 600, color: item.amountTone === 'in' ? T.greenDark : T.text }}>{item.amountTone === 'in' ? '+' : '-'}{fmtMoney(item.amount)} · {item.bankLine}</div>
+      </div>
+      <Icon name="arrow" size={16} color={T.muted} />
+      <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 8 }}>
+        <div style={{ color: T.mutedSoft, fontSize: 11 }}>Suggested match</div>
+        <div style={{ fontWeight: 600, color: T.text }}>{item.aiMatch.label}</div>
+      </div>
+    </div>
+    <Helper style={{ marginTop: 8 }}>{item.aiMatch.detail}</Helper>
+    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+      <Btn variant="primary" size="sm" icon="check" onClick={onConfirm}>Confirm match</Btn>
+      <Btn size="sm" onClick={onReject}>Not a match</Btn>
+    </div>
+  </div>
+);
+
+const CategoryPanel = ({ onConfirm, onCancel }) => (
+  <div style={panelStyle}>
+    <div style={{ fontSize: 12, fontWeight: 600, color: T.textSoft, marginBottom: 8 }}>Choose a category</div>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {CATEGORIES.map(c => <Chip key={c} size="sm" onClick={() => onConfirm(c)}>{c}</Chip>)}
+    </div>
+    <div style={{ marginTop: 12 }}><Btn size="sm" onClick={onCancel}>Cancel</Btn></div>
+  </div>
+);
+
+const ReceiptPanel = ({ onConfirm, onCancel }) => {
+  const [up, setUp] = useState(false);
+  const go = () => { if (up) return; setUp(true); setTimeout(onConfirm, 700); };
+  return (
+    <div style={panelStyle}>
+      <div onClick={go} style={{ border: `1.5px dashed ${T.borderStrong}`, borderRadius: 10, padding: 18, textAlign: 'center', cursor: up ? 'default' : 'pointer', color: T.muted, background: T.card }}>
+        {up
+          ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'inline-flex', animation: 'spin 0.8s linear infinite' }}><Icon name="refresh" size={15} /></span> Uploading…</span>
+          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Icon name="upload" size={16} /> Click to attach a receipt (demo)</span>}
+      </div>
+      <div style={{ marginTop: 10 }}><Btn size="sm" onClick={onCancel} disabled={up}>Cancel</Btn></div>
+    </div>
+  );
+};
+
+const AssetPanel = ({ onConfirm, onCancel }) => {
+  const [cat, setCat] = useState('Computer');
+  const [method, setMethod] = useState('bank');
+  return (
+    <div style={panelStyle}>
+      <Label>Asset category</Label>
+      <Select value={cat} onChange={e => setCat(e.target.value)} style={{ maxWidth: 260 }}>
+        {['Computer', 'Equipment', 'Vehicle', 'Furniture'].map(c => <option key={c}>{c}</option>)}
+      </Select>
+      <Label style={{ marginTop: 12 }}>Payment method</Label>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Chip size="sm" selected={method === 'bank'} onClick={() => setMethod('bank')}>Link bank transaction</Chip>
+        <Chip size="sm" selected={method === 'cash'} onClick={() => setMethod('cash')}>Paid with cash</Chip>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <Btn variant="primary" size="sm" icon="check" onClick={onConfirm}>Record asset</Btn>
+        <Btn size="sm" onClick={onCancel}>Cancel</Btn>
+      </div>
+    </div>
+  );
+};
+
+const AssetPayPanel = ({ onConfirm, onCancel }) => (
+  <div style={panelStyle}>
+    <div style={{ fontSize: 12, color: T.muted, marginBottom: 8 }}>How was this paid?</div>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <Btn variant="soft" size="sm" icon="bank" onClick={onConfirm}>Link bank transaction</Btn>
+      <Btn variant="soft" size="sm" icon="dollar" onClick={onConfirm}>Paid with cash</Btn>
+    </div>
+    <div style={{ marginTop: 12 }}><Btn size="sm" onClick={onCancel}>Cancel</Btn></div>
+  </div>
+);
+
+const PanelSwitch = ({ item, mode, onComplete, onClose }) => {
+  if (mode === 'email') return <EmailPanel item={item} onConfirm={() => onComplete(item, `Reminder sent to ${item.client}`)} onCancel={onClose} />;
+  if (mode === 'aimatch') return <MatchPanel item={item} onConfirm={() => onComplete(item, item.amountTone === 'in' ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo}` : `Matched ${fmtMoney(item.amount)} — reconciled`)} onReject={() => onComplete(item, "We'll leave this one for you to match")} />;
+  if (mode === 'category') return <CategoryPanel onConfirm={(c) => onComplete(item, `Categorized as ${c}`)} onCancel={onClose} />;
+  if (mode === 'receipt') return <ReceiptPanel onConfirm={() => onComplete(item, 'Receipt attached')} onCancel={onClose} />;
+  if (mode === 'asset') return <AssetPanel onConfirm={() => onComplete(item, 'Recorded as an asset')} onCancel={onClose} />;
+  if (mode === 'assetpay') return <AssetPayPanel onConfirm={() => onComplete(item, 'Payment recorded')} onCancel={onClose} />;
+  return null;
+};
+
+// --- amount + action item card ---
+const AmountSpan = ({ item }) => (
+  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 13.5, color: item.amountTone === 'in' ? T.greenDark : T.text }}>
+    {item.amountTone === 'in' ? '+' : item.amountTone === 'out' ? '-' : ''}{fmtMoney(item.amount)}
+  </span>
+);
+
+// --- viewport ---
+const useViewport = () => {
+  const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280);
+  useEffect(() => { const on = () => setW(window.innerWidth); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on); }, []);
+  return { w, oneCol: w < 1080 };
+};
+
+// --- quiet action row (Asana-style: leading status marker · title/sub · right-aligned meta + action) ---
+const StatusDot = ({ severity, icon }) => {
+  const bg = severity === 'high' ? T.redSoft : severity === 'med' ? T.amberSoft : T.fieldBg;
+  const fg = severity === 'high' ? T.red : severity === 'med' ? T.amber : T.mutedSoft;
+  return (
+    <span style={{ width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color: fg }}>
+      <Icon name={icon} size={13} strokeWidth={2.2} />
+    </span>
+  );
+};
+
+const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, flash, last }) => (
+  <div ref={innerRef} style={{ borderRadius: 8, animation: flash ? 'rowflash 1.4s ease' : undefined }}>
+    <div className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 8px', borderRadius: 8, borderBottom: last ? 'none' : `1px solid ${T.borderSoft}` }}>
+      <StatusDot severity={item.severity} icon={item.icon} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, minWidth: 0 }}>
+          {item.badge && <Pill color={item.badge.color} style={{ fontSize: 10.5, padding: '1px 6px', flexShrink: 0 }}>{item.badge.label}</Pill>}
+          <span style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.sub}</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {item.amount != null && <AmountSpan item={item} />}
+        {(item.secondary || []).length > 0 && (
+          <div className="ub-sec" style={{ display: 'flex', gap: 6 }}>
+            {item.secondary.map(s => <Btn key={s.id} size="sm" onClick={() => onAction(item, s.id)}>{s.label}</Btn>)}
+          </div>
+        )}
+        <Btn variant="soft" size="sm" icon={item.primary.icon} onClick={() => onAction(item, item.primary.id)}>{item.primary.label}</Btn>
+      </div>
+    </div>
+    {openMode && <div style={{ padding: '2px 8px 12px 43px' }}><PanelSwitch item={item} mode={openMode} onComplete={onComplete} onClose={onClose} /></div>}
+  </div>
+);
+
+// --- widget (self-contained home card: header · optional tabs · quiet rows · show more) ---
+const WidgetTabs = ({ tabs, value, onChange, counts }) => (
+  <div style={{ display: 'flex', gap: 18, padding: '0 16px', borderBottom: `1px solid ${T.borderSoft}` }}>
+    {tabs.map(t => {
+      const active = t.id === value;
+      return (
+        <button key={t.id} onClick={() => onChange(t.id)} style={{ background: 'none', border: 'none', padding: '9px 0', marginBottom: -1, fontSize: 12.5, fontWeight: active ? 600 : 500, color: active ? T.text : T.muted, borderBottom: `2px solid ${active ? T.primary : 'transparent'}`, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {t.label}{counts[t.id] > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: active ? T.primary : T.mutedSoft }}>{counts[t.id]}</span>}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const Widget = ({ title, icon, tone, items, tabs, addLabel, onAdd, emptyTitle, emptySub, renderRow, onHide }) => {
+  const [tab, setTab] = useState(tabs ? tabs[0].id : null);
+  const [all, setAll] = useState(false);
+  const activeTab = tabs ? (tabs.find(t => t.id === tab) || tabs[0]) : null;
+  const list = activeTab ? items.filter(activeTab.filter) : items;
+  const counts = tabs ? Object.fromEntries(tabs.map(t => [t.id, items.filter(t.filter).length])) : {};
+  const shown = all ? list : list.slice(0, 5);
+  return (
+    <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusCard, boxShadow: T.shadowSm, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px 11px' }}>
+        <IconChip icon={icon} tone={tone} size={28} />
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{title}</div>
+        <Pill color="neutral">{items.length}</Pill>
+        <div style={{ flex: 1 }} />
+        <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
+      </div>
+      {tabs && <WidgetTabs tabs={tabs} value={tab} onChange={t => { setTab(t); setAll(false); }} counts={counts} />}
+      <div style={{ padding: '4px 8px 8px' }}>
+        {onAdd && (
+          <button onClick={onAdd} data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 'none', background: 'none', padding: '9px 8px', borderRadius: 8, color: T.muted, cursor: 'pointer', fontSize: 12.5, fontWeight: 500 }}>
+            <span style={{ width: 24, height: 24, borderRadius: 7, background: T.fieldBg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={13} /></span>{addLabel}
+          </button>
+        )}
+        {list.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 8px' }}>
+            <span style={{ width: 24, height: 24, borderRadius: 7, background: T.greenSoft, color: T.greenDark, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={14} strokeWidth={2.6} /></span>
+            <div><div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{emptyTitle}</div><Helper style={{ fontSize: 11.5 }}>{emptySub}</Helper></div>
+          </div>
+        ) : shown.map((item, i) => renderRow(item, i, shown.length))}
+        {list.length > 5 && (
+          <button onClick={() => setAll(a => !a)} style={{ border: 'none', background: 'none', color: T.primary, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: '9px 8px', marginTop: 2 }}>{all ? 'Show less' : `Show ${list.length - 5} more`}</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- business health widget (score ring · top priorities · streak) ---
+const BusinessHealthWidget = ({ health, streak, top, onJump, onHide, allClear }) => (
+  <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusCard, boxShadow: T.shadowSm, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px 11px' }}>
+      <IconChip icon="gauge" tone="accent" size={28} />
+      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Business health</div>
+      <div style={{ flex: 1 }} />
+      <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
+    </div>
+    <div style={{ padding: '4px 16px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <HealthRing score={health.score} band={health.band} size={92} celebrate={allClear} />
+        <div style={{ minWidth: 0 }}>
+          <Pill color={BAND[health.band].pill}>{health.label}</Pill>
+          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 8, lineHeight: 1.4 }}>{allClear ? "Everything's actioned — you're in the green." : "Clear a few items and you'll be in the green."}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <Icon name="flame" size={14} color={T.amber} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{streak}-day streak</span>
+          </div>
+        </div>
+      </div>
+      {!allClear && top.length > 0 && (
+        <div style={{ marginTop: 14, borderTop: `1px solid ${T.borderSoft}`, paddingTop: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5, margin: '2px 8px 2px' }}>What needs you first</div>
+          {top.map(item => (
+            <button key={item.id} onClick={() => onJump(item.id)} data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', background: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
+              <StatusDot severity={item.severity} icon={item.icon} />
+              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
+              {item.amount != null && <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>{item.amountTone === 'in' ? '+' : ''}{fmtMoney(item.amount)}</span>}
+              <Icon name="chevronRight" size={15} color={T.mutedSoft} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+// --- calm hero (date · greeting · summary pill · customize) ---
+const CustomizePopover = ({ hidden, onToggle, widgets }) => (
+  <div style={{ position: 'absolute', top: 42, right: 0, width: 220, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 90, overflow: 'hidden', animation: 'expand 0.14s ease', textAlign: 'left' }}>
+    <div style={{ padding: '10px 14px', borderBottom: `1px solid ${T.borderSoft}`, fontSize: 12, fontWeight: 700, color: T.text }}>Show on home</div>
+    {widgets.map(w => (
+      <button key={w.id} onClick={() => onToggle(w.id)} data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', background: 'none', padding: '9px 14px', cursor: 'pointer', fontSize: 13, color: T.text }}>
+        <span style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, border: `1.5px solid ${hidden[w.id] ? T.borderStrong : T.primary}`, background: hidden[w.id] ? T.card : T.primary, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{!hidden[w.id] && <Icon name="check" size={12} color="#fff" strokeWidth={3} />}</span>
+        {w.label}
+      </button>
+    ))}
+  </div>
+);
+
+const Hero = ({ health, count, streak, customizeOpen, onCustomizeToggle, customizeProps }) => {
+  const hr = new Date().getHours();
+  const greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+  const dateStr = new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+  return (
+    <div style={{ position: 'relative', textAlign: 'center', padding: '30px 20px 28px', borderRadius: 16, background: `radial-gradient(125% 130% at 50% 0%, ${T.primarySoft} 0%, rgba(245,246,255,0) 60%)`, marginBottom: 18 }}>
+      <div style={{ position: 'absolute', top: 18, right: 18 }}>
+        {customizeOpen && <div onClick={onCustomizeToggle} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />}
+        <Btn variant="ghost" size="sm" icon="sliders" onClick={onCustomizeToggle} style={{ background: T.card, position: 'relative', zIndex: 91 }}>Customize</Btn>
+        {customizeOpen && <CustomizePopover {...customizeProps} />}
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: T.muted }}>{dateStr}</div>
+      <div style={{ fontSize: 27, fontWeight: 800, color: T.text, letterSpacing: -0.6, marginTop: 4 }}>{greet}, {PROFILE.first}</div>
+      <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 16, background: T.card, border: `1px solid ${T.border}`, borderRadius: 999, padding: '7px 4px', boxShadow: T.shadowSm }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 13px', fontSize: 12.5, color: T.textSoft }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: BAND[health.band].color }} />
+          <b style={{ fontWeight: 700, color: T.text }}>{health.score}</b> business health
+        </span>
+        <span style={{ width: 1, height: 15, background: T.border }} />
+        <span style={{ padding: '0 13px', fontSize: 12.5, color: T.textSoft }}><b style={{ fontWeight: 700, color: T.text }}>{count}</b> to action</span>
+        <span style={{ width: 1, height: 15, background: T.border }} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', fontSize: 12.5, color: T.textSoft }}>
+          <Icon name="flame" size={13} color={T.amber} /><b style={{ fontWeight: 700, color: T.text }}>{streak}</b> day streak
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const Celebration = ({ onNew }) => (
+  <div style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusCard, boxShadow: T.shadowSm, textAlign: 'center', padding: '48px 24px' }}>
+    <div style={{ display: 'inline-flex', animation: 'ringpop 0.5s ease' }}><IconChip icon="sparkle" tone="green" size={60} gradient /></div>
+    <div style={{ fontSize: 20, fontWeight: 800, color: T.text, marginTop: 16 }}>You're all clear ✨</div>
+    <Helper style={{ marginTop: 6, fontSize: 13 }}>Everything's actioned. Your business is in the green.</Helper>
+    <div style={{ marginTop: 18 }}><Btn variant="soft" icon="plus" onClick={onNew}>Create an invoice</Btn></div>
+  </div>
+);
+
+// --- Unibox screen (calm hero + Asana-style bento of self-contained widgets) ---
+const GET_PAID_TABS = [
+  { id: 'send', label: 'To send', filter: i => i.type === 'send_invoice' },
+  { id: 'overdue', label: 'Overdue', filter: i => i.type === 'overdue_invoice' },
+  { id: 'due', label: 'Due soon', filter: i => i.type === 'due_soon' },
+];
+const WIDGET_LIST = [
+  { id: 'get_paid', label: 'Get paid' },
+  { id: 'health', label: 'Business health' },
+  { id: 'reconcile', label: 'Reconcile' },
+  { id: 'tidy_up', label: 'Tidy up' },
+];
+
+const UniboxScreen = ({ items, onComplete, fireToast, focus }) => {
+  const [open, setOpen] = useState(null);       // { id, mode }
+  const [flashId, setFlashId] = useState(null);
+  const [hidden, setHidden] = useState({});     // { [widgetId]: true }
+  const [customize, setCustomize] = useState(false);
+  const rowRefs = useRef({});
+  const vp = useViewport();
+
+  const health = useMemo(() => computeHealth(items, PROFILE), [items]);
+  const ranked = useMemo(() => rankItems(items), [items]);
+  const byGroup = (g) => ranked.filter(i => i.group === g);
+  const top = ranked.slice(0, 3);
+  const allClear = items.length === 0;
+
+  const scrollTo = (id, flash) => setTimeout(() => {
+    const el = rowRefs.current[id];
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); if (flash) { setFlashId(id); setTimeout(() => setFlashId(null), 1400); } }
+  }, 60);
+
+  // Bell deep-link: reveal the item's widget and scroll+flash its row.
+  useEffect(() => {
+    if (!focus || !focus.id) return;
+    const it = items.find(i => i.id === focus.id);
+    if (it) { setHidden(h => ({ ...h, [it.group]: false })); scrollTo(focus.id, true); }
+  }, [focus && focus.nonce]);
+
+  const complete = (item, message) => { onComplete(item, message); setOpen(null); };
+  const jumpTo = (id) => { const it = items.find(x => x.id === id); if (it) setHidden(h => ({ ...h, [it.group]: false })); scrollTo(id, true); };
+  const onAction = (item, actionId) => {
+    if (actionId === 'preview') { fireToast('Opening invoice preview (demo)'); return; }
+    const mode = MODE_FOR[actionId];
+    if (mode) {
+      setOpen(prev => (prev && prev.id === item.id && prev.mode === mode) ? null : { id: item.id, mode });
+      scrollTo(item.id, false);
+      return;
+    }
+    complete(item, directMessage(item, actionId));
+  };
+
+  const renderRow = (item, i, len) => (
+    <ActionRow key={item.id} item={item} openMode={open && open.id === item.id ? open.mode : null}
+      onAction={onAction} onComplete={complete} onClose={() => setOpen(null)}
+      innerRef={el => { rowRefs.current[item.id] = el; }} flash={flashId === item.id} last={i === len - 1} />
+  );
+
+  const toggleWidget = (id) => setHidden(h => ({ ...h, [id]: !h[id] }));
+  const getPaidW = !hidden.get_paid && <Widget key="gp" title="Get paid" icon="dollar" tone="accent" items={byGroup('get_paid')} tabs={GET_PAID_TABS} addLabel="New invoice" onAdd={() => fireToast('Opening new invoice (demo)')} emptyTitle="Nothing to chase" emptySub="No invoices need sending or following up." renderRow={renderRow} onHide={() => toggleWidget('get_paid')} />;
+  const reconcileW = !hidden.reconcile && <Widget key="rc" title="Reconcile" icon="bank" tone="blue" items={byGroup('reconcile')} addLabel="Import a statement" onAdd={() => fireToast('Import bank statement (demo)')} emptyTitle="Bank feed reconciled" emptySub="Every transaction is matched." renderRow={renderRow} onHide={() => toggleWidget('reconcile')} />;
+  const healthW = !hidden.health && <BusinessHealthWidget key="hl" health={health} streak={PROFILE.streak} top={top} onJump={jumpTo} onHide={() => toggleWidget('health')} allClear={allClear} />;
+  const tidyW = !hidden.tidy_up && <Widget key="td" title="Tidy up" icon="sparkle" tone="green" items={byGroup('tidy_up')} addLabel="Add an expense" onAdd={() => fireToast('Add expense (demo)')} emptyTitle="Books are tidy" emptySub="Expenses and assets are all sorted." renderRow={renderRow} onHide={() => toggleWidget('tidy_up')} />;
+
+  const colStyle = { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 };
+  return (
+    <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+      <Hero health={health} count={items.length} streak={PROFILE.streak}
+        customizeOpen={customize} onCustomizeToggle={() => setCustomize(v => !v)}
+        customizeProps={{ hidden, onToggle: toggleWidget, widgets: WIDGET_LIST }} />
+      {allClear ? (
+        <Celebration onNew={() => fireToast('Opening new invoice (demo)')} />
+      ) : vp.oneCol ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{getPaidW}{healthW}{reconcileW}{tidyW}</div>
+      ) : (
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+          <div style={colStyle}>{getPaidW}{reconcileW}</div>
+          <div style={colStyle}>{healthW}{tidyW}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- dashboard stub ---
+const DashboardStub = ({ count, onNav }) => (
+  <div>
+    <PageHead title={<span>Welcome, <span style={{ color: T.primary }}>{PROFILE.name}</span></span>}
+      subtitle="Here's how your business is tracking this financial year."
+      actions={<Btn variant="primary" icon="plus" iconRight="chevronDown">Create new</Btn>} />
+    {count > 0 && (
+      <Banner tone="accent" style={{ marginBottom: 16 }}
+        title={`You've got ${count} thing${count > 1 ? 's' : ''} to action in Unibox`}
+        action={<Btn variant="primaryOutline" size="sm" iconRight="arrow" onClick={() => onNav('#/unibox')}>Open Unibox</Btn>}>
+        Matching, invoices to send and chase, and a few things to tidy — all in one place.
+      </Banner>
+    )}
+    <Card style={{ marginBottom: 16, padding: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <IconChip icon="target" tone="accent" size={30} gradient />
+        <SectionTitle style={{ fontWeight: 700 }}>Goal tracker</SectionTitle>
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 12, fontWeight: 700, color: T.greenDark }}>77% done</span>
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: T.text }}>$92,000 <span style={{ color: T.mutedSoft, fontWeight: 600, fontSize: 15 }}>of $120,000</span></div>
+      <div style={{ height: 8, background: T.fieldBg, borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
+        <div style={{ width: '77%', height: '100%', background: `linear-gradient(90deg, ${T.primary}, ${T.green})`, borderRadius: 999 }} />
+      </div>
+    </Card>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+      <StatCard icon="wallet" tone="accent" label="Running balance" value="$12,480.50" />
+      <StatCard icon="dollar" tone="green" label="Net profit (FY)" value="$32,540" delta="12%" deltaTone="up" sub="compared to last year" />
+      <StatCard icon="percent" tone="blue" label="Profit margin" value="22%" delta="3%" deltaTone="up" sub="compared to last year" />
+      <StatCard icon="trendUp" tone="amber" label="Forecast (next 6 months)" value="$86,300" />
+      <StatCard icon="layers" tone="accent" label="Assets" value="$18,900" />
+      <StatCard icon="chartBar" tone="green" label="Total revenue (FY)" value="$148,200" delta="9%" deltaTone="up" sub="compared to last year" />
+    </div>
+  </div>
+);
+
+// --- app shell ---
+const NAV = [
+  [ { id: 'dashboard', label: 'Dashboard', icon: 'grid', route: '#/dashboard' },
+    { id: 'unibox', label: 'Unibox', icon: 'inbox', route: '#/unibox', badge: true },
+    { id: 'transactions', label: 'Transactions', icon: 'repeat' },
+    { id: 'sales', label: 'Sales', icon: 'dollar' },
+    { id: 'expenses', label: 'Expenses', icon: 'receipt' },
+    { id: 'assets', label: 'Assets', icon: 'layers' },
+    { id: 'liab', label: 'Liabilities & Equity', icon: 'scale' },
+    { id: 'contacts', label: 'Contacts', icon: 'users' },
+    { id: 'reporting', label: 'Reporting Suite', icon: 'chartBar' },
+    { id: 'migrations', label: 'Migrations', icon: 'gitMerge' } ],
+  [ { id: 'projects', label: 'Projects / Milestones', icon: 'flow' },
+    { id: 'scheduling', label: 'Scheduling', icon: 'calendar' },
+    { id: 'time', label: 'Time Tracker', icon: 'clock' },
+    { id: 'km', label: 'KM Tracker', icon: 'gauge' } ],
+  [ { id: 'resources', label: 'Resources', icon: 'docs' },
+    { id: 'growth', label: 'Growth & Marketing', icon: 'rocket' },
+    { id: 'legal', label: 'Legal Help', icon: 'shield' },
+    { id: 'refer', label: 'Refer & Earn $50', icon: 'handshake', accent: 'red' },
+    { id: 'community', label: 'Sole Community', icon: 'smile' },
+    { id: 'perks', label: 'Sole Perks', icon: 'star' },
+    { id: 'tax', label: 'Tax Estimator', icon: 'percent' } ],
+  [ { id: 'settings', label: 'Settings', icon: 'sliders' },
+    { id: 'support', label: 'Support', icon: 'messageSquare' } ],
+];
+
+const Sidebar = ({ route, count, onNav, onStub }) => (
+  <div style={{ width: 232, flexShrink: 0, height: '100vh', background: T.card, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: '18px 20px 12px' }}><SoleLogo size={24} /></div>
+    <div className="scroll-area" style={{ flex: 1, padding: '4px 12px', overflowY: 'auto' }}>
+      {NAV.map((section, si) => (
+        <div key={si} style={{ paddingBottom: 8, marginBottom: 8, borderBottom: si < NAV.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
+          {section.map(item => {
+            const active = item.route && route === item.route.replace('#/', '');
+            return (
+              <div key={item.id} data-hover={active ? undefined : 'nav'}
+                onClick={() => item.route ? onNav(item.route) : onStub(item.label)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 1, background: active ? T.primarySoft : 'transparent', color: active ? T.primary : (item.accent === 'red' ? '#B91C1C' : T.textSoft), fontWeight: active ? 600 : 500, fontSize: 13 }}>
+                <Icon name={item.icon} size={17} color={active ? T.primary : (item.accent === 'red' ? '#B91C1C' : T.muted)} />
+                <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+                {item.badge && count > 0 && (
+                  <span style={{ background: active ? T.primary : T.red, color: '#fff', fontSize: 10.5, fontWeight: 700, borderRadius: 999, minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>{count}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+    <div style={{ padding: '10px 14px', borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <Avatar name={PROFILE.name} size={32} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hi, {PROFILE.first} Williamson</div>
+        <div style={{ fontSize: 11, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{PROFILE.email}</div>
+      </div>
+    </div>
+  </div>
+);
+
+const BellDropdown = ({ top, count, onPick, onOpenAll }) => (
+  <div style={{ position: 'absolute', top: 40, right: 0, width: 320, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 80, overflow: 'hidden', animation: 'expand 0.14s ease' }}>
+    <div style={{ padding: '11px 14px', borderBottom: `1px solid ${T.borderSoft}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>Needs your attention</span>
+      <Pill color="red">{count}</Pill>
+    </div>
+    <div>
+      {top.map(item => {
+        const sev = SEV[item.severity];
+        return (
+          <div key={item.id} data-hover="row" onClick={() => onPick(item.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: `1px solid ${T.borderSoft}` }}>
+            <IconChip icon={item.icon} tone={sev.tone} size={28} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
+              <div style={{ fontSize: 11, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.sub}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+    <div onClick={onOpenAll} data-hover="row" style={{ padding: '10px 14px', textAlign: 'center', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: T.primary }}>Open Unibox</div>
+  </div>
+);
+
+const TopBar = ({ count, items, onFocusItem, onNav }) => {
+  const [bell, setBell] = useState(false);
+  const [period, setPeriod] = useState('fy');
+  const top = rankItems(items).slice(0, 5);
+  return (
+    <div style={{ flexShrink: 0, background: T.card, borderBottom: `1px solid ${T.border}`, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ position: 'relative', flex: '0 1 360px' }}>
+        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex' }}><Icon name="search" size={15} color={T.mutedSoft} /></span>
+        <input placeholder="Search or type a command" style={{ width: '100%', padding: '8px 40px 8px 32px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.fieldBg, fontSize: 13 }} />
+        <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: T.mutedSoft, border: `1px solid ${T.border}`, borderRadius: 5, padding: '1px 5px', background: T.card }}>⌘K</span>
+      </div>
+      <div style={{ flex: 1 }} />
+      <Select value={period} onChange={e => setPeriod(e.target.value)} style={{ width: 140 }}>
+        <option value="month">This month</option>
+        <option value="quarter">This quarter</option>
+        <option value="fy">This financial year</option>
+      </Select>
+      <Btn variant="soft" icon="calendar">Schedule support session</Btn>
+      <div style={{ position: 'relative' }}>
+        <Btn variant="iconOnly" icon="bell" onClick={() => setBell(v => !v)} title="Notifications" />
+        {count > 0 && <span style={{ position: 'absolute', top: -3, right: -3, background: T.red, color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', border: `2px solid ${T.card}`, pointerEvents: 'none' }}>{count > 9 ? '9+' : count}</span>}
+        {bell && <div onClick={() => setBell(false)} style={{ position: 'fixed', inset: 0, zIndex: 70 }} />}
+        {bell && <BellDropdown top={top} count={count} onPick={(id) => { setBell(false); onFocusItem(id); }} onOpenAll={() => { setBell(false); onNav('#/unibox'); }} />}
+      </div>
+    </div>
+  );
+};
+
+const AppShell = ({ route }) => {
+  const [items, setItems] = useState(SEED_ITEMS);
+  const [toast, setToast] = useState(null);
+  const [focus, setFocus] = useState(null);
+  const toastTimer = useRef();
+
+  const fireToast = (t) => {
+    const obj = typeof t === 'string' ? { message: t } : t;
+    setToast(obj);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(cur => cur === obj ? null : cur), obj.action ? 5000 : 2400);
+  };
+  const completeItem = (item, message) => {
+    const idx = items.findIndex(i => i.id === item.id);
+    setItems(prev => prev.filter(i => i.id !== item.id));
+    fireToast({ message, tone: 'undo', action: { label: 'Undo', onClick: () => setItems(cur => { const arr = [...cur]; arr.splice(Math.min(idx, arr.length), 0, item); return arr; }) } });
+  };
+  const nav = (route) => { window.location.hash = route; };
+  const stub = (label) => fireToast(`${label} isn't part of this prototype`);
+  const focusItem = (id) => { if (route !== 'unibox') window.location.hash = '#/unibox'; setFocus({ id, nonce: (focus ? focus.nonce : 0) + 1 }); };
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: T.bg }}>
+      <Sidebar route={route} count={items.length} onNav={nav} onStub={stub} />
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <TopBar count={items.length} items={items} onFocusItem={focusItem} onNav={nav} />
+        <div className="scroll-area" style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 28px 64px' }}>
+            {route === 'dashboard'
+              ? <DashboardStub count={items.length} onNav={nav} />
+              : <UniboxScreen items={items} onComplete={completeItem} fireToast={fireToast} focus={focus} />}
+          </div>
+        </div>
+      </div>
+      <Toast toast={toast} onClose={() => setToast(null)} />
+    </div>
+  );
+};
+
+// --- root / render ---
+const classify = (h) => (h || '').startsWith('#/dashboard') ? 'dashboard' : 'unibox';
+const Root = () => {
+  const [route, setRoute] = useState(() => classify(window.location.hash));
+  useEffect(() => {
+    if (!window.location.hash) window.history.replaceState(null, '', '#/unibox');
+    const onHash = () => setRoute(classify(window.location.hash));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  return <AppShell route={route} />;
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><Root /></ErrorBoundary>);
+</script>
+</body>
+</html>
