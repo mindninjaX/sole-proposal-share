@@ -64,6 +64,10 @@
   /* Widget ⋯ menu stays hidden until the widget is hovered. */
   .ub-more { opacity: 0; transition: opacity 0.12s; }
   .ub-widget:hover .ub-more { opacity: 1; }
+  /* Quiet inline actions — one bordered primary, secondaries reveal on row hover (Notion/Gmail). */
+  .ub-qbtn { transition: background .12s, border-color .12s, color .12s; }
+  .ub-qbtn:hover { background: #F9FAFB; border-color: #D1D5DB; }
+  .ub-qlink:hover { background: #F3F4F6; color: #1F2937 !important; }
 </style>
 </head>
 <body>
@@ -139,7 +143,9 @@ const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
     trendUp: <><polyline points="3 17 9 11 13 14 21 6" /><polyline points="15 6 21 6 21 12" /></>,
     wallet: <><rect x="3" y="6" width="18" height="14" rx="2" /><line x1="3" y1="11" x2="21" y2="11" /><circle cx="17" cy="15" r="1.2" /></>,
     more: <><circle cx="5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="19" cy="12" r="1.4" fill="currentColor" /></>,
-    settings2: <><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /><circle cx="9" cy="6" r="2" fill={T.card} /><circle cx="15" cy="12" r="2" fill={T.card} /><circle cx="8" cy="18" r="2" fill={T.card} /></>,
+    file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></>,
+    briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="2" y1="13" x2="22" y2="13" /></>,
+    gavel: <><path d="M3 21h10" /><path d="M6 15l6-6" /><rect x="10" y="4" width="8" height="4" rx="1" transform="rotate(45 14 6)" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -358,6 +364,12 @@ const SEV = {
 
 const SEED_ITEMS = [
   // ---- Get paid ----
+  { id: 'itm-q1', group: 'get_paid', type: 'quote', severity: 'med', weight: 1, icon: 'file',
+    rowTitle: 'QUO-2041 · Riverview Construction', title: 'Convert accepted quote', sub: 'Accepted 4 Jul', amount: 5400, badge: { label: 'Accepted', color: 'green' }, client: 'Riverview Construction', quoteNo: 'QUO-2041',
+    primary: { id: 'convert', label: 'Convert', icon: 'arrow', title: 'Convert to invoice' }, secondary: [{ id: 'preview', label: 'View' }] },
+  { id: 'itm-q2', group: 'get_paid', type: 'quote', severity: 'med', weight: 1, icon: 'file',
+    rowTitle: 'QUO-2038 · Harbour Cafe', title: 'Convert accepted quote', sub: 'Accepted 2 Jul', amount: 1450, badge: { label: 'Accepted', color: 'green' }, client: 'Harbour Cafe', quoteNo: 'QUO-2038',
+    primary: { id: 'convert', label: 'Convert', icon: 'arrow', title: 'Convert to invoice' }, secondary: [{ id: 'preview', label: 'View' }] },
   { id: 'itm-g1', group: 'get_paid', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send',
     rowTitle: 'INV-1043 · Bondi Mowing Co', title: 'Send invoice INV-1043', sub: 'Draft · created 3 Jul', amount: 680, client: 'Bondi Mowing Co', email: 'pete@bondimowing.au', invoiceNo: 'INV-1043',
     primary: { id: 'send', label: 'Send', icon: 'send' }, secondary: [{ id: 'preview', label: 'Preview' }] },
@@ -378,30 +390,30 @@ const SEED_ITEMS = [
     primary: { id: 'send_reminder', label: 'Send reminder', icon: 'send' }, secondary: [{ id: 'snooze', label: 'Snooze' }] },
   // ---- Reconcile ----
   { id: 'itm-r1', group: 'reconcile', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
-    rowTitle: 'Deposit · NORTHCOAST P/L', title: 'Match bank deposit', sub: 'Sole match: INV-1038 · North Coast Partners (98%)', bankLine: '4 Jul · memo “NORTHCOAST P/L”', amount: 2400, amountTone: 'in', invoiceNo: 'INV-1038',
+    rowTitle: 'NORTHCOAST P/L', title: 'Match bank deposit', sub: 'Sole match: INV-1038 (98%)', bankLine: '4 Jul · memo “NORTHCOAST P/L”', amount: 2400, amountTone: 'in', invoiceNo: 'INV-1038',
     aiMatch: { label: 'Pays INV-1038 · North Coast Partners · ' + fmtMoney(2400), confidence: 0.98, detail: 'Amount and reference both match this open invoice.' },
     primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
   { id: 'itm-r2', group: 'reconcile', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
-    rowTitle: 'Deposit · BONDI MOWING', title: 'Match bank deposit', sub: 'Sole match: INV-1043 · Bondi Mowing Co (95%)', bankLine: '2 Jul · memo “BONDI MOWING”', amount: 680, amountTone: 'in', invoiceNo: 'INV-1043',
+    rowTitle: 'BONDI MOWING', title: 'Match bank deposit', sub: 'Sole match: INV-1043 (95%)', bankLine: '2 Jul · memo “BONDI MOWING”', amount: 680, amountTone: 'in', invoiceNo: 'INV-1043',
     aiMatch: { label: 'Pays INV-1043 · Bondi Mowing Co · ' + fmtMoney(680), confidence: 0.95, detail: 'Amount matches a recently sent invoice.' },
     primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
   { id: 'itm-r3', group: 'reconcile', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'bank',
-    rowTitle: 'Payment · BP FUEL 1042', title: 'Match payment', sub: 'Sole match: Fuel — BP (92%)', bankLine: '3 Jul · memo “BP FUEL 1042”', amount: 142.30, amountTone: 'out',
+    rowTitle: 'BP FUEL 1042', title: 'Match payment', sub: 'Sole match: Fuel — BP (92%)', bankLine: '3 Jul · memo “BP FUEL 1042”', amount: 142.30, amountTone: 'out',
     aiMatch: { label: 'Matches expense: Fuel — BP · ' + fmtMoney(142.30) + ' · 3 Jul', confidence: 0.92, detail: 'Amount and date match a logged expense.' },
     primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
   { id: 'itm-r4', group: 'reconcile', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'tag',
-    rowTitle: 'Payment · CANVA PTY', title: 'Categorize payment', sub: 'No confident match — categorize', bankLine: '1 Jul · memo “CANVA PTY”', amount: 59, amountTone: 'out',
-    primary: { id: 'categorize', label: 'Categorize', icon: 'tag' }, secondary: [{ id: 'ignore', label: 'Ignore' }] },
+    rowTitle: 'CANVA PTY', title: 'Categorise payment', sub: 'No confident match — categorise', bankLine: '1 Jul · memo “CANVA PTY”', amount: 59, amountTone: 'out',
+    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'ignore', label: 'Ignore' }] },
   // ---- Tidy up ----
   { id: 'itm-t1', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
-    rowTitle: 'Officeworks', title: 'Categorize expense', sub: 'Expense · 2 Jul', amount: 88.40, badge: { label: 'No category', color: 'amber' },
-    primary: { id: 'categorize', label: 'Categorize', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+    rowTitle: 'Officeworks', title: 'Categorise expense', sub: 'Expense · 2 Jul', amount: 88.40, badge: { label: 'No category', color: 'amber' },
+    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
   { id: 'itm-t2', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
     rowTitle: 'Telstra', title: 'Add a receipt', sub: 'Expense · 1 Jul · Phone', amount: 99, badge: { label: 'Receipt missing', color: 'amber' },
-    primary: { id: 'add_receipt', label: 'Add receipt', icon: 'paperclip' }, secondary: [{ id: 'categorize', label: 'Categorize' }] },
+    primary: { id: 'add_receipt', label: 'Add receipt', icon: 'paperclip' }, secondary: [{ id: 'categorize', label: 'Categorise' }] },
   { id: 'itm-t3', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
-    rowTitle: 'Bunnings', title: 'Categorize expense', sub: 'Expense · 30 Jun', amount: 213.75, badge: { label: 'No category · No receipt', color: 'amber' },
-    primary: { id: 'categorize', label: 'Categorize', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+    rowTitle: 'Bunnings', title: 'Categorise expense', sub: 'Expense · 30 Jun', amount: 213.75, badge: { label: 'No category · No receipt', color: 'amber' },
+    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
   { id: 'itm-t4', group: 'tidy_up', type: 'asset', severity: 'low', weight: 2, icon: 'layers',
     rowTitle: 'Dell laptop', title: 'Record as an asset', sub: 'Purchase · 28 Jun', amount: 1899, badge: { label: 'Possible asset', color: 'blue' },
     primary: { id: 'record_asset', label: 'Record', icon: 'plus' }, secondary: [{ id: 'not_asset', label: 'Not an asset' }] },
@@ -409,6 +421,36 @@ const SEED_ITEMS = [
     rowTitle: 'Espresso machine', title: 'Match a payment to this asset', sub: 'Asset · 26 Jun', amount: 2650, badge: { label: 'No payment linked', color: 'amber' },
     primary: { id: 'match_payment', label: 'Match', icon: 'link' }, secondary: [{ id: 'later', label: 'Later' }] },
 ];
+
+// --- business insights (mirrors the top of the SPM dashboard; AUD) ---
+const INSIGHTS = [
+  { icon: 'wallet', tone: 'accent', label: 'Cash at bank', value: '$12,480' },
+  { icon: 'dollar', tone: 'green', label: 'Revenue (month)', value: '$18,240', delta: '8%', deltaTone: 'up' },
+  { icon: 'receipt', tone: 'amber', label: 'Outstanding', value: '$8,850', sub: 'across 6 invoices' },
+  { icon: 'trendUp', tone: 'green', label: 'Net profit (FY)', value: '$32,540', delta: '12%', deltaTone: 'up' },
+  { icon: 'percent', tone: 'blue', label: 'Profit margin', value: '22%', delta: '3%', deltaTone: 'up' },
+];
+
+// --- upcoming work (from the calendar → cash coming in over the next fortnight) ---
+const UPCOMING_TOTAL = 5330;
+const UPCOMING = [
+  { id: 'w1', title: 'Kitchen fit-out — stage 2', client: 'Riverview Construction', when: 'Tomorrow · 8:00am', amount: 3200 },
+  { id: 'w2', title: 'Monthly garden maintenance', client: 'Bondi Mowing Co', when: 'Wed 8 Jul', amount: 680 },
+  { id: 'w3', title: 'Cafe deep clean', client: 'Harbour Cafe', when: 'Fri 11 Jul', amount: 1450 },
+  { id: 'w4', title: 'Fit-out site inspection', client: 'North Coast Partners', when: 'Mon 14 Jul', amount: 0 },
+];
+
+// --- key AU tax & compliance dates (relative to today = Mon 6 Jul 2026) ---
+const KEY_DATES = [
+  { id: 'd1', label: 'STP finalisation', sub: 'Single Touch Payroll — FY25/26', due: '14 Jul', dueIn: 8,   tone: 'red' },
+  { id: 'd2', label: 'BAS — Q4 FY25/26', sub: 'Apr–Jun activity statement', due: '28 Jul', dueIn: 22,  tone: 'amber' },
+  { id: 'd3', label: 'Super guarantee — Q4', sub: 'Employee super contributions', due: '28 Jul', dueIn: 22, tone: 'amber' },
+  { id: 'd4', label: 'TPAR', sub: 'Taxable payments annual report', due: '28 Aug', dueIn: 53, tone: 'neutral' },
+  { id: 'd5', label: 'Income tax return — FY25/26', sub: 'Self-lodgers', due: '31 Oct', dueIn: 117, tone: 'neutral' },
+];
+
+const HEALTH_DEF = 'Your business health starts at 100. Overdue invoices, unmatched transactions and untidy books lower it; clearing them lifts it back up. New businesses start with an encouraging score, and it never hits zero.';
+const STREAK_DEF = "Days in a row you've checked in and kept your books up to date — keep it going to stay on top.";
 
 // --- health score (deterministic; encouraging floor; never 0) ---
 function computeHealth(items, profile) {
@@ -438,6 +480,9 @@ const directMessage = (item, actionId) => {
     case 'not_asset': return 'Marked as not an asset';
     case 'later': return "We'll remind you later";
     case 'not_match': return "We'll leave this one for you to match";
+    case 'convert': return `Converted ${item.quoteNo} to a new invoice`;
+    case 'remind': return "Reminder set — we'll nudge you before it's due";
+    case 'dismiss': return 'Dismissed';
     default: return 'Done';
   }
 };
@@ -546,7 +591,7 @@ const AssetPayPanel = ({ onConfirm, onCancel }) => (
 const PanelSwitch = ({ item, mode, onComplete, onClose }) => {
   if (mode === 'email') return <EmailPanel item={item} onConfirm={() => onComplete(item, `Reminder sent to ${item.client}`)} onCancel={onClose} />;
   if (mode === 'aimatch') return <MatchPanel item={item} onConfirm={() => onComplete(item, item.amountTone === 'in' ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo}` : `Matched ${fmtMoney(item.amount)} — reconciled`)} onReject={() => onComplete(item, "We'll leave this one for you to match")} />;
-  if (mode === 'category') return <CategoryPanel onConfirm={(c) => onComplete(item, `Categorized as ${c}`)} onCancel={onClose} />;
+  if (mode === 'category') return <CategoryPanel onConfirm={(c) => onComplete(item, `Categorised as ${c}`)} onCancel={onClose} />;
   if (mode === 'receipt') return <ReceiptPanel onConfirm={() => onComplete(item, 'Receipt attached')} onCancel={onClose} />;
   if (mode === 'asset') return <AssetPanel onConfirm={() => onComplete(item, 'Recorded as an asset')} onCancel={onClose} />;
   if (mode === 'assetpay') return <AssetPayPanel onConfirm={() => onComplete(item, 'Payment recorded')} onCancel={onClose} />;
@@ -564,48 +609,60 @@ const AmountSpan = ({ item }) => (
 const useViewport = () => {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280);
   useEffect(() => { const on = () => setW(window.innerWidth); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on); }, []);
-  return { w, oneCol: w < 1080 };
+  const cols = w >= 1420 ? 3 : w >= 1000 ? 2 : 1;
+  return { w, cols, oneCol: cols === 1 };
 };
 
 // --- quiet action row (Asana-style: leading status marker · title/sub · right-aligned meta + action) ---
-const StatusDot = ({ severity, icon }) => {
-  const bg = severity === 'high' ? T.redSoft : severity === 'med' ? T.amberSoft : T.fieldBg;
-  const fg = severity === 'high' ? T.red : severity === 'med' ? T.amber : T.mutedSoft;
+const QUIET_BTN = { border: `1px solid ${T.border}`, background: T.card, color: T.textSoft, fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: 1.4 };
+const QUIET_LINK = { border: 'none', background: 'none', color: T.muted, fontSize: 12, fontWeight: 500, padding: '4px 7px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: 1.4 };
+// Home cards float on the coloured canvas — a touch more radius + shadow than a flat dashboard tile.
+const CARD = { background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' };
+
+// Small monochrome leading glyph — red only when the item is genuinely urgent.
+const StatusDot = ({ severity, icon }) => (
+  <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: severity === 'high' ? T.red : T.mutedSoft }}>
+    <Icon name={icon} size={16} color={severity === 'high' ? T.red : T.mutedSoft} strokeWidth={2} />
+  </span>
+);
+
+// Quiet row: leading glyph · title / muted sub (status folded in) · amount ·
+// ONE bordered primary; secondary actions reveal on hover only.
+const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, flash, last }) => {
+  const badgeRed = item.badge && item.badge.color === 'red';
   return (
-    <span style={{ width: 24, height: 24, borderRadius: 7, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: bg, color: fg }}>
-      <Icon name={icon} size={13} strokeWidth={2.2} />
-    </span>
+    <div ref={innerRef} style={{ animation: flash ? 'rowflash 1.4s ease' : undefined }}>
+      <div className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: last ? 'none' : `1px solid ${T.borderSoft}` }}>
+        <StatusDot severity={item.severity} icon={item.icon} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
+          <div style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>
+            {item.badge && <span style={{ color: badgeRed ? T.red : T.muted, fontWeight: badgeRed ? 600 : 400 }}>{item.badge.label}{item.sub ? ' · ' : ''}</span>}
+            {item.sub}
+          </div>
+        </div>
+        {item.amount != null && (
+          <span style={{ fontSize: 13, fontWeight: 600, color: item.amountTone === 'in' ? T.greenDark : T.textSoft, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+            {item.amountTone === 'in' ? '+' : item.amountTone === 'out' ? '-' : ''}{fmtMoney(item.amount)}
+          </span>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {(item.secondary || []).length > 0 && (
+            <span className="ub-sec" style={{ display: 'flex', gap: 2 }}>
+              {item.secondary.map(s => <button key={s.id} className="ub-qlink" style={QUIET_LINK} onClick={() => onAction(item, s.id)}>{s.label}</button>)}
+            </span>
+          )}
+          <button className="ub-qbtn" style={QUIET_BTN} title={item.primary.title || item.primary.label} onClick={() => onAction(item, item.primary.id)}>{item.primary.label}</button>
+        </div>
+      </div>
+      {openMode && <div style={{ padding: '2px 14px 14px 44px' }}><PanelSwitch item={item} mode={openMode} onComplete={onComplete} onClose={onClose} /></div>}
+    </div>
   );
 };
 
-const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, flash, last }) => (
-  <div ref={innerRef} style={{ borderRadius: 8, animation: flash ? 'rowflash 1.4s ease' : undefined }}>
-    <div className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 8px', borderRadius: 8, borderBottom: last ? 'none' : `1px solid ${T.borderSoft}` }}>
-      <StatusDot severity={item.severity} icon={item.icon} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, minWidth: 0 }}>
-          {item.badge && <Pill color={item.badge.color} style={{ fontSize: 10.5, padding: '1px 6px', flexShrink: 0 }}>{item.badge.label}</Pill>}
-          <span style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.sub}</span>
-        </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        {item.amount != null && <AmountSpan item={item} />}
-        {(item.secondary || []).length > 0 && (
-          <div className="ub-sec" style={{ display: 'flex', gap: 6 }}>
-            {item.secondary.map(s => <Btn key={s.id} size="sm" onClick={() => onAction(item, s.id)}>{s.label}</Btn>)}
-          </div>
-        )}
-        <Btn variant="soft" size="sm" icon={item.primary.icon} onClick={() => onAction(item, item.primary.id)}>{item.primary.label}</Btn>
-      </div>
-    </div>
-    {openMode && <div style={{ padding: '2px 8px 12px 43px' }}><PanelSwitch item={item} mode={openMode} onComplete={onComplete} onClose={onClose} /></div>}
-  </div>
-);
-
 // --- widget (self-contained home card: header · optional tabs · quiet rows · show more) ---
 const WidgetTabs = ({ tabs, value, onChange, counts }) => (
-  <div style={{ display: 'flex', gap: 18, padding: '0 16px', borderBottom: `1px solid ${T.borderSoft}` }}>
+  <div style={{ display: 'flex', gap: 18, padding: '0 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
     {tabs.map(t => {
       const active = t.id === value;
       return (
@@ -617,82 +674,190 @@ const WidgetTabs = ({ tabs, value, onChange, counts }) => (
   </div>
 );
 
-const Widget = ({ title, icon, tone, items, tabs, addLabel, onAdd, emptyTitle, emptySub, renderRow, onHide }) => {
+// Header "+ add" — a single quiet button, or a small dropdown when there are 2+.
+const WidgetAdd = ({ label, actions }) => {
+  const [open, setOpen] = useState(false);
+  if (!actions || actions.length === 0) return null;
+  if (actions.length === 1) return (
+    <button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: 5 }} onClick={actions[0].onClick}><Icon name="plus" size={12} />{actions[0].label}</button>
+  );
+  return (
+    <div style={{ position: 'relative' }}>
+      {open && <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />}
+      <button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px', display: 'inline-flex', alignItems: 'center', gap: 4, position: 'relative', zIndex: 81 }} onClick={() => setOpen(v => !v)}><Icon name="plus" size={12} />{label}<Icon name="chevronDown" size={11} /></button>
+      {open && (
+        <div style={{ position: 'absolute', top: 32, right: 0, minWidth: 160, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, boxShadow: T.shadowLg, zIndex: 82, overflow: 'hidden', animation: 'expand .14s ease' }}>
+          {actions.map(a => <button key={a.label} data-hover="row" onClick={() => { setOpen(false); a.onClick(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 'none', background: 'none', padding: '9px 12px', fontSize: 12.5, color: T.text, cursor: 'pointer', textAlign: 'left' }}><Icon name="plus" size={12} color={T.mutedSoft} />{a.label}</button>)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Shared widget header — mono icon · title · count · (add) · hide.
+const WidgetHead = ({ icon, title, count, addLabel, addActions, headerAction, onHide }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '13px 14px 11px' }}>
+    <Icon name={icon} size={16} color={T.mutedSoft} />
+    <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>{title}</div>
+    {count != null && <span style={{ fontSize: 12, fontWeight: 500, color: T.mutedSoft }}>{count}</span>}
+    <div style={{ flex: 1 }} />
+    {headerAction}
+    {addActions && <WidgetAdd label={addLabel} actions={addActions} />}
+    <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
+  </div>
+);
+
+const ShowMore = ({ all, onToggle, count }) => (
+  <button className="ub-qlink" onClick={onToggle} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: 'none', background: 'none', color: T.muted, fontSize: 12, fontWeight: 500, cursor: 'pointer', padding: '11px 14px' }}>
+    <span style={{ display: 'inline-flex', transform: all ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}><Icon name="chevronDown" size={13} /></span>
+    {all ? 'Show less' : `Show ${count} more`}
+  </button>
+);
+
+const Widget = ({ title, icon, addLabel, addActions, items, tabs, emptyTitle, renderRow, onHide }) => {
   const [tab, setTab] = useState(tabs ? tabs[0].id : null);
   const [all, setAll] = useState(false);
   const activeTab = tabs ? (tabs.find(t => t.id === tab) || tabs[0]) : null;
   const list = activeTab ? items.filter(activeTab.filter) : items;
   const counts = tabs ? Object.fromEntries(tabs.map(t => [t.id, items.filter(t.filter).length])) : {};
-  const shown = all ? list : list.slice(0, 5);
+  const shown = all ? list : list.slice(0, 3);
   return (
-    <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusCard, boxShadow: T.shadowSm, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px 11px' }}>
-        <IconChip icon={icon} tone={tone} size={28} />
-        <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{title}</div>
-        <Pill color="neutral">{items.length}</Pill>
-        <div style={{ flex: 1 }} />
-        <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
-      </div>
+    <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' }}>
+      <WidgetHead icon={icon} title={title} count={items.length} addLabel={addLabel} addActions={addActions} onHide={onHide} />
       {tabs && <WidgetTabs tabs={tabs} value={tab} onChange={t => { setTab(t); setAll(false); }} counts={counts} />}
-      <div style={{ padding: '4px 8px 8px' }}>
-        {onAdd && (
-          <button onClick={onAdd} data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 'none', background: 'none', padding: '9px 8px', borderRadius: 8, color: T.muted, cursor: 'pointer', fontSize: 12.5, fontWeight: 500 }}>
-            <span style={{ width: 24, height: 24, borderRadius: 7, background: T.fieldBg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="plus" size={13} /></span>{addLabel}
-          </button>
-        )}
-        {list.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 8px' }}>
-            <span style={{ width: 24, height: 24, borderRadius: 7, background: T.greenSoft, color: T.greenDark, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="check" size={14} strokeWidth={2.6} /></span>
-            <div><div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{emptyTitle}</div><Helper style={{ fontSize: 11.5 }}>{emptySub}</Helper></div>
-          </div>
-        ) : shown.map((item, i) => renderRow(item, i, shown.length))}
-        {list.length > 5 && (
-          <button onClick={() => setAll(a => !a)} style={{ border: 'none', background: 'none', color: T.primary, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: '9px 8px', marginTop: 2 }}>{all ? 'Show less' : `Show ${list.length - 5} more`}</button>
-        )}
-      </div>
+      {list.length === 0 ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '12px 14px 16px', color: T.muted }}>
+          <Icon name="check" size={15} color={T.greenDark} strokeWidth={2.4} />
+          <span style={{ fontSize: 12.5 }}>{emptyTitle}</span>
+        </div>
+      ) : shown.map((item, i) => renderRow(item, i, shown.length))}
+      {list.length > 3 && <ShowMore all={all} onToggle={() => setAll(a => !a)} count={list.length - 3} />}
     </div>
   );
 };
 
-// --- business health widget (score ring · top priorities · streak) ---
-const BusinessHealthWidget = ({ health, streak, top, onJump, onHide, allClear }) => (
-  <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusCard, boxShadow: T.shadowSm, overflow: 'hidden' }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px 11px' }}>
-      <IconChip icon="gauge" tone="accent" size={28} />
-      <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Business health</div>
-      <div style={{ flex: 1 }} />
-      <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
-    </div>
-    <div style={{ padding: '4px 16px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <HealthRing score={health.score} band={health.band} size={92} celebrate={allClear} />
+// --- business health card (gamified engagement: ring · streak · what needs you first) ---
+const HealthCard = ({ health, streak, top, onJump, onHide, allClear }) => {
+  const [info, setInfo] = useState(false);
+  return (
+    <div className="ub-widget" style={CARD}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '15px 16px 11px' }}>
+        <Icon name="gauge" size={16} color={T.mutedSoft} />
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>Business health</div>
+        <button onClick={() => setInfo(v => !v)} title="How's this worked out?" style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, cursor: 'pointer', padding: 3, display: 'inline-flex', borderRadius: 6 }}><Icon name="info" size={15} /></button>
+        <div style={{ flex: 1 }} />
+        <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
+      </div>
+      {info && (
+        <div style={{ margin: '0 16px 12px', padding: 12, background: T.primarySofter, border: `1px solid ${T.borderSoft}`, borderRadius: 10, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 700, color: T.text, marginBottom: 3 }}>How your score works</div>
+          {HEALTH_DEF}
+          <div style={{ fontWeight: 700, color: T.text, margin: '8px 0 3px' }}>What the streak means</div>
+          {STREAK_DEF}
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '4px 18px 16px' }}>
+        <HealthRing score={health.score} band={health.band} size={78} celebrate={allClear} />
         <div style={{ minWidth: 0 }}>
-          <Pill color={BAND[health.band].pill}>{health.label}</Pill>
-          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 8, lineHeight: 1.4 }}>{allClear ? "Everything's actioned — you're in the green." : "Clear a few items and you'll be in the green."}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: BAND[health.band].color }}>{health.label}</div>
+          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 4, lineHeight: 1.45 }}>{allClear ? "Everything's actioned — you're in the green." : "Clear a few items and you'll be in the green."}</div>
+          <div title={STREAK_DEF} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 9, cursor: 'help' }}>
             <Icon name="flame" size={14} color={T.amber} />
             <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{streak}-day streak</span>
           </div>
         </div>
       </div>
       {!allClear && top.length > 0 && (
-        <div style={{ marginTop: 14, borderTop: `1px solid ${T.borderSoft}`, paddingTop: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5, margin: '2px 8px 2px' }}>What needs you first</div>
+        <div style={{ borderTop: `1px solid ${T.borderSoft}`, padding: '10px 6px 10px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 14px 4px' }}>What needs you first</div>
           {top.map(item => (
-            <button key={item.id} onClick={() => onJump(item.id)} data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', background: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', textAlign: 'left' }}>
+            <button key={item.id} onClick={() => onJump(item.id)} data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', border: 'none', background: 'none', padding: '9px 14px', cursor: 'pointer', textAlign: 'left' }}>
               <StatusDot severity={item.severity} icon={item.icon} />
               <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
-              {item.amount != null && <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>{item.amountTone === 'in' ? '+' : ''}{fmtMoney(item.amount)}</span>}
+              {item.amount != null && <span style={{ fontSize: 12, fontWeight: 600, color: item.amountTone === 'in' ? T.greenDark : T.muted, fontVariantNumeric: 'tabular-nums' }}>{item.amountTone === 'in' ? '+' : ''}{fmtMoney(item.amount)}</span>}
               <Icon name="chevronRight" size={15} color={T.mutedSoft} />
             </button>
           ))}
         </div>
       )}
     </div>
+  );
+};
+
+// --- business insights strip + upcoming work + key AU dates ---
+const InsightsCard = ({ onHide }) => (
+  <div className="ub-widget" style={CARD}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '15px 16px 11px' }}>
+      <Icon name="chartBar" size={16} color={T.mutedSoft} />
+      <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>Business insights</div>
+      <span style={{ fontSize: 12, fontWeight: 500, color: T.mutedSoft }}>· this month</span>
+      <div style={{ flex: 1 }} />
+      <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${T.borderSoft}` }}>
+      {INSIGHTS.map((s, i) => (
+        <div key={s.label} style={{ padding: '13px 16px', borderTop: i > 1 ? `1px solid ${T.borderSoft}` : 'none', borderLeft: i % 2 === 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
+          <div style={{ fontSize: 11.5, color: T.muted, fontWeight: 500 }}>{s.label}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+            <span style={{ fontSize: 19, fontWeight: 800, color: T.text, letterSpacing: -0.4, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
+            {s.delta && <span style={{ fontSize: 11.5, fontWeight: 600, color: s.deltaTone === 'down' ? T.red : T.greenDark }}>{s.deltaTone === 'down' ? '▾' : '▴'} {s.delta}</span>}
+          </div>
+          {s.sub && <div style={{ fontSize: 11, color: T.mutedSoft, marginTop: 2 }}>{s.sub}</div>}
+        </div>
+      ))}
+    </div>
   </div>
 );
 
-// --- calm hero (date · greeting · summary pill · customize) ---
+const UpcomingWidget = ({ onHide, fireToast }) => (
+  <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' }}>
+    <WidgetHead icon="briefcase" title="Work coming up" count={UPCOMING.length}
+      headerAction={<button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px' }} onClick={() => fireToast('Opening your calendar (demo)')}>Open calendar</button>}
+      onHide={onHide} />
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '2px 14px 10px' }}>
+      <span style={{ fontSize: 19, fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums', letterSpacing: -0.3 }}>{fmtMoney(UPCOMING_TOTAL)}</span>
+      <span style={{ fontSize: 12, color: T.muted }}>booked · next 2 weeks</span>
+    </div>
+    {UPCOMING.map((w, i) => (
+      <div key={w.id} className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: i < UPCOMING.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
+        <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: T.mutedSoft }}><Icon name="calendar" size={15} /></span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.title}</div>
+          <div style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.client} · {w.when}</div>
+        </div>
+        <span style={{ fontSize: 12.5, fontWeight: w.amount > 0 ? 600 : 500, color: w.amount > 0 ? T.textSoft : T.mutedSoft, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{w.amount > 0 ? fmtMoney(w.amount) : 'Quote visit'}</span>
+        <span className="ub-sec"><button className="ub-qbtn" style={QUIET_BTN} onClick={() => fireToast(w.amount > 0 ? `Invoice drafted for ${w.client} (demo)` : `Quote sent to ${w.client} (demo)`)}>{w.amount > 0 ? 'Invoice' : 'Send quote'}</button></span>
+      </div>
+    ))}
+  </div>
+);
+
+const KeyDatesWidget = ({ onHide, fireToast }) => (
+  <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' }}>
+    <WidgetHead icon="calendar" title="Key dates" count="AU tax"
+      headerAction={<button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px' }} onClick={() => fireToast('Added key dates to your calendar (demo)')}>Add to calendar</button>}
+      onHide={onHide} />
+    {KEY_DATES.map((d, i) => {
+      const c = d.tone === 'red' ? T.red : d.tone === 'amber' ? T.amber : T.mutedSoft;
+      return (
+        <div key={d.id} className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: i < KEY_DATES.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
+          <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: c }}><Icon name="calendar" size={15} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</div>
+            <div style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.sub}</div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: T.textSoft }}>{d.due}</div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: c }}>in {d.dueIn} days</div>
+          </div>
+          <span className="ub-sec"><button className="ub-qbtn" style={QUIET_BTN} onClick={() => fireToast(`Reminder set for ${d.label} (demo)`)}>Remind me</button></span>
+        </div>
+      );
+    })}
+  </div>
+);
+
+// --- calm hero (date · greeting · summary pill · customise) ---
 const CustomizePopover = ({ hidden, onToggle, widgets }) => (
   <div style={{ position: 'absolute', top: 42, right: 0, width: 220, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 90, overflow: 'hidden', animation: 'expand 0.14s ease', textAlign: 'left' }}>
     <div style={{ padding: '10px 14px', borderBottom: `1px solid ${T.borderSoft}`, fontSize: 12, fontWeight: 700, color: T.text }}>Show on home</div>
@@ -710,24 +875,24 @@ const Hero = ({ health, count, streak, customizeOpen, onCustomizeToggle, customi
   const greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const dateStr = new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
   return (
-    <div style={{ position: 'relative', textAlign: 'center', padding: '30px 20px 28px', borderRadius: 16, background: `radial-gradient(125% 130% at 50% 0%, ${T.primarySoft} 0%, rgba(245,246,255,0) 60%)`, marginBottom: 18 }}>
-      <div style={{ position: 'absolute', top: 18, right: 18 }}>
+    <div style={{ position: 'relative', textAlign: 'center', padding: '2px 0 26px' }}>
+      <div style={{ position: 'absolute', top: 0, right: 0 }}>
         {customizeOpen && <div onClick={onCustomizeToggle} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />}
-        <Btn variant="ghost" size="sm" icon="sliders" onClick={onCustomizeToggle} style={{ background: T.card, position: 'relative', zIndex: 91 }}>Customize</Btn>
+        <Btn variant="ghost" size="sm" icon="sliders" onClick={onCustomizeToggle} style={{ background: T.card, position: 'relative', zIndex: 91 }}>Customise</Btn>
         {customizeOpen && <CustomizePopover {...customizeProps} />}
       </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: T.muted }}>{dateStr}</div>
-      <div style={{ fontSize: 27, fontWeight: 800, color: T.text, letterSpacing: -0.6, marginTop: 4 }}>{greet}, {PROFILE.first}</div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 16, background: T.card, border: `1px solid ${T.border}`, borderRadius: 999, padding: '7px 4px', boxShadow: T.shadowSm }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 13px', fontSize: 12.5, color: T.textSoft }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: T.muted }}>{dateStr}</div>
+      <div style={{ fontSize: 28, fontWeight: 800, color: T.text, letterSpacing: -0.6, marginTop: 4 }}>{greet}, {PROFILE.first}</div>
+      <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 18, background: T.card, border: `1px solid ${T.border}`, borderRadius: 999, padding: '8px 6px', boxShadow: T.shadowSm }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', fontSize: 12.5, color: T.textSoft }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: BAND[health.band].color }} />
-          <b style={{ fontWeight: 700, color: T.text }}>{health.score}</b> business health
+          <b style={{ fontWeight: 700, color: T.text }}>{health.score}</b> health
         </span>
         <span style={{ width: 1, height: 15, background: T.border }} />
-        <span style={{ padding: '0 13px', fontSize: 12.5, color: T.textSoft }}><b style={{ fontWeight: 700, color: T.text }}>{count}</b> to action</span>
+        <span style={{ padding: '0 14px', fontSize: 12.5, color: T.textSoft }}><b style={{ fontWeight: 700, color: T.text }}>{count}</b> to action</span>
         <span style={{ width: 1, height: 15, background: T.border }} />
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 13px', fontSize: 12.5, color: T.textSoft }}>
-          <Icon name="flame" size={13} color={T.amber} /><b style={{ fontWeight: 700, color: T.text }}>{streak}</b> day streak
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', fontSize: 12.5, color: T.textSoft }}>
+          <Icon name="flame" size={13} color={T.amber} /><b style={{ fontWeight: 700, color: T.text }}>{streak}</b>-day streak
         </span>
       </div>
     </div>
@@ -745,15 +910,19 @@ const Celebration = ({ onNew }) => (
 
 // --- Unibox screen (calm hero + Asana-style bento of self-contained widgets) ---
 const GET_PAID_TABS = [
+  { id: 'quotes', label: 'Quotes', filter: i => i.type === 'quote' },
   { id: 'send', label: 'To send', filter: i => i.type === 'send_invoice' },
   { id: 'overdue', label: 'Overdue', filter: i => i.type === 'overdue_invoice' },
   { id: 'due', label: 'Due soon', filter: i => i.type === 'due_soon' },
 ];
 const WIDGET_LIST = [
+  { id: 'insights', label: 'Business insights' },
   { id: 'get_paid', label: 'Get paid' },
   { id: 'health', label: 'Business health' },
   { id: 'reconcile', label: 'Reconcile' },
   { id: 'tidy_up', label: 'Tidy up' },
+  { id: 'upcoming', label: 'Work coming up' },
+  { id: 'keydates', label: 'Key dates' },
 ];
 
 const UniboxScreen = ({ items, onComplete, fireToast, focus }) => {
@@ -762,7 +931,22 @@ const UniboxScreen = ({ items, onComplete, fireToast, focus }) => {
   const [hidden, setHidden] = useState({});     // { [widgetId]: true }
   const [customize, setCustomize] = useState(false);
   const rowRefs = useRef({});
-  const vp = useViewport();
+  // Column count is driven by the ACTUAL content width (not the window — the
+  // sidebar steals ~230px), measured live so columns never get too narrow to read.
+  const wrapRef = useRef(null);
+  const [cw, setCw] = useState(1120);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(es => { for (const e of es) setCw(e.contentRect.width); });
+    ro.observe(el);
+    setCw(el.getBoundingClientRect().width);
+    return () => ro.disconnect();
+  }, []);
+  // Cap at 2 columns — 3 crams the rows at real content widths (sidebar steals
+  // ~230px). Two wide columns + the full-width insights strip fill the screen
+  // while keeping every row title readable.
+  const cols = cw >= 760 ? 2 : 1;
 
   const health = useMemo(() => computeHealth(items, PROFILE), [items]);
   const ranked = useMemo(() => rankItems(items), [items]);
@@ -802,27 +986,39 @@ const UniboxScreen = ({ items, onComplete, fireToast, focus }) => {
   );
 
   const toggleWidget = (id) => setHidden(h => ({ ...h, [id]: !h[id] }));
-  const getPaidW = !hidden.get_paid && <Widget key="gp" title="Get paid" icon="dollar" tone="accent" items={byGroup('get_paid')} tabs={GET_PAID_TABS} addLabel="New invoice" onAdd={() => fireToast('Opening new invoice (demo)')} emptyTitle="Nothing to chase" emptySub="No invoices need sending or following up." renderRow={renderRow} onHide={() => toggleWidget('get_paid')} />;
-  const reconcileW = !hidden.reconcile && <Widget key="rc" title="Reconcile" icon="bank" tone="blue" items={byGroup('reconcile')} addLabel="Import a statement" onAdd={() => fireToast('Import bank statement (demo)')} emptyTitle="Bank feed reconciled" emptySub="Every transaction is matched." renderRow={renderRow} onHide={() => toggleWidget('reconcile')} />;
-  const healthW = !hidden.health && <BusinessHealthWidget key="hl" health={health} streak={PROFILE.streak} top={top} onJump={jumpTo} onHide={() => toggleWidget('health')} allClear={allClear} />;
-  const tidyW = !hidden.tidy_up && <Widget key="td" title="Tidy up" icon="sparkle" tone="green" items={byGroup('tidy_up')} addLabel="Add an expense" onAdd={() => fireToast('Add expense (demo)')} emptyTitle="Books are tidy" emptySub="Expenses and assets are all sorted." renderRow={renderRow} onHide={() => toggleWidget('tidy_up')} />;
+  const getPaidW = <Widget key="gp" title="Get paid" icon="dollar" items={byGroup('get_paid')} tabs={GET_PAID_TABS}
+    addLabel="New" addActions={[{ label: 'New invoice', onClick: () => fireToast('Opening new invoice (demo)') }, { label: 'New quote', onClick: () => fireToast('Starting a new quote (demo)') }]}
+    emptyTitle="Nothing to chase right now." renderRow={renderRow} onHide={() => toggleWidget('get_paid')} />;
+  const reconcileW = <Widget key="rc" title="Reconcile" icon="bank" items={byGroup('reconcile')}
+    addActions={[{ label: 'Import', onClick: () => fireToast('Import bank statement (demo)') }]}
+    emptyTitle="Every transaction is matched." renderRow={renderRow} onHide={() => toggleWidget('reconcile')} />;
+  const tidyW = <Widget key="td" title="Tidy up" icon="sparkle" items={byGroup('tidy_up')}
+    addLabel="Log" addActions={[{ label: 'Log expense', onClick: () => fireToast('Log a new expense (demo)') }, { label: 'Log asset', onClick: () => fireToast('Log a new asset (demo)') }]}
+    emptyTitle="Expenses and assets are all sorted." renderRow={renderRow} onHide={() => toggleWidget('tidy_up')} />;
+  const upcomingW = <UpcomingWidget key="up" onHide={() => toggleWidget('upcoming')} fireToast={fireToast} />;
+  const keyDatesW = <KeyDatesWidget key="kd" onHide={() => toggleWidget('keydates')} fireToast={fireToast} />;
+  const healthW = <HealthCard key="hl" health={health} streak={PROFILE.streak} top={top} onJump={jumpTo} onHide={() => toggleWidget('health')} allClear={allClear} />;
+  const insightsW = <InsightsCard key="in" onHide={() => toggleWidget('insights')} />;
 
-  const colStyle = { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 };
+  // Fewer, larger cards on a calm canvas — the "home" feel. Order interleaves so
+  // Get paid | Business health sit at the top like Asana's My tasks | Goals.
+  const bento = [
+    { id: 'get_paid', el: getPaidW }, { id: 'health', el: healthW }, { id: 'reconcile', el: reconcileW },
+    { id: 'upcoming', el: upcomingW }, { id: 'tidy_up', el: tidyW }, { id: 'keydates', el: keyDatesW },
+    { id: 'insights', el: insightsW },
+  ].filter(w => !hidden[w.id]);
+  const columns = Array.from({ length: cols }, () => []);
+  bento.forEach((w, i) => columns[i % cols].push(w.el));
+
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+    <div ref={wrapRef}>
       <Hero health={health} count={items.length} streak={PROFILE.streak}
         customizeOpen={customize} onCustomizeToggle={() => setCustomize(v => !v)}
         customizeProps={{ hidden, onToggle: toggleWidget, widgets: WIDGET_LIST }} />
-      {allClear ? (
-        <Celebration onNew={() => fireToast('Opening new invoice (demo)')} />
-      ) : vp.oneCol ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{getPaidW}{healthW}{reconcileW}{tidyW}</div>
-      ) : (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          <div style={colStyle}>{getPaidW}{reconcileW}</div>
-          <div style={colStyle}>{healthW}{tidyW}</div>
-        </div>
-      )}
+      {allClear && <Banner tone="success" style={{ marginBottom: 16 }} title="You're all clear ✨">Everything's actioned — your business is in the green.</Banner>}
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        {columns.map((col, ci) => <div key={ci} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>{col}</div>)}
+      </div>
     </div>
   );
 };
@@ -975,6 +1171,10 @@ const TopBar = ({ count, items, onFocusItem, onNav }) => {
   );
 };
 
+// Soft ambient "home" canvas — a calm indigo wash with two faint corner glows
+// fading into the page. This is the biggest lever that reads "home", not "dashboard".
+const UNIBOX_CANVAS = 'radial-gradient(1100px 420px at 6% -12%, rgba(91,91,246,0.12), transparent 60%), radial-gradient(950px 340px at 100% -8%, rgba(91,91,246,0.08), transparent 55%), linear-gradient(180deg, #ECECFB 0%, #F5F4F8 520px)';
+
 const AppShell = ({ route }) => {
   const [items, setItems] = useState(SEED_ITEMS);
   const [toast, setToast] = useState(null);
@@ -1001,8 +1201,8 @@ const AppShell = ({ route }) => {
       <Sidebar route={route} count={items.length} onNav={nav} onStub={stub} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <TopBar count={items.length} items={items} onFocusItem={focusItem} onNav={nav} />
-        <div className="scroll-area" style={{ flex: 1, overflowY: 'auto' }}>
-          <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 28px 64px' }}>
+        <div className="scroll-area" style={{ flex: 1, overflowY: 'auto', background: route === 'unibox' ? UNIBOX_CANVAS : T.bg }}>
+          <div style={{ maxWidth: route === 'unibox' ? 1140 : 1560, margin: '0 auto', padding: route === 'unibox' ? '34px 28px 64px' : '24px 30px 56px' }}>
             {route === 'dashboard'
               ? <DashboardStub count={items.length} onNav={nav} />
               : <UniboxScreen items={items} onComplete={completeItem} fireToast={fireToast} focus={focus} />}
