@@ -35509,6 +35509,7 @@ const REP_JOB_TYPES = ['BAS', 'Tax return', 'Bookkeeping', 'Advisory', 'Payroll'
 
 // The 8 reasons offered on the private (1–3★) feedback form (spec §4).
 const REP_ISSUE_OPTIONS = ['The job took longer than expected', 'Communication was unclear', 'I was not sure what was happening', 'I did not understand what was completed', 'The outcome did not meet expectations', 'The cost or invoice was unclear', 'I had an issue using the portal', 'Other'];
+const REP_HIGHLIGHT_TAGS_DEFAULT = ['Responsive', 'Clear communication', 'On time', 'Good value', 'Thorough', 'Friendly team', 'Easy process', 'Expert advice'];
 
 // The 4 client-facing updates a workflow is expected to send during a job —
 // used to score "Client communication". A job stores the subset actually sent.
@@ -35737,6 +35738,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Google review clicked',
   rating: 5,
+  highlights: ['Responsive', 'On time', 'Easy process'],
   comment: 'Fast, clear and stress-free as always.',
   category: null,
   wantsContact: false,
@@ -35761,6 +35763,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Rated',
   rating: 4,
+  highlights: ['Thorough', 'Clear communication'],
   comment: 'Happy with the outcome.',
   category: null,
   wantsContact: false,
@@ -35785,6 +35788,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Google review clicked',
   rating: 5,
+  highlights: ['Friendly team', 'On time', 'Good value'],
   comment: 'Brilliant work, thank you.',
   category: null,
   wantsContact: false,
@@ -35809,7 +35813,8 @@ const REPUTATION_JOBS = [{
   reminderCount: 1,
   status: 'Follow up required',
   rating: 2,
-  comment: 'I wasn’t sure what was happening for a few weeks.',
+  highlights: [],
+  comment: "I wasn't sure what was happening for a few weeks.",
   category: 'I was not sure what was happening',
   wantsContact: true,
   routedPublic: false,
@@ -35833,6 +35838,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Feedback received',
   rating: 3,
+  highlights: [],
   comment: 'Outcome was fine, took a while to get going.',
   category: 'The outcome did not meet expectations',
   wantsContact: false,
@@ -35857,6 +35863,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Rated',
   rating: 4,
+  highlights: ['Expert advice', 'Clear communication'],
   comment: 'Smooth and professional.',
   category: null,
   wantsContact: false,
@@ -35881,6 +35888,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Google review clicked',
   rating: 5,
+  highlights: ['On time', 'Responsive', 'Easy process'],
   comment: 'Always on time, never an issue.',
   category: null,
   wantsContact: false,
@@ -35905,6 +35913,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Google review clicked',
   rating: 5,
+  highlights: ['On time', 'Expert advice', 'Thorough'],
   comment: 'Great service.',
   category: null,
   wantsContact: false,
@@ -35929,6 +35938,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 1,
   status: 'Follow up required',
   rating: 1,
+  highlights: [],
   comment: 'The job took much longer than I expected and I had to chase for updates.',
   category: 'The job took longer than expected',
   wantsContact: true,
@@ -35953,6 +35963,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 1,
   status: 'Reminder sent',
   rating: null,
+  highlights: [],
   comment: null,
   category: null,
   wantsContact: false,
@@ -35977,6 +35988,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Feedback received',
   rating: 3,
+  highlights: [],
   comment: 'It was okay — communication could be clearer.',
   category: 'Communication was unclear',
   wantsContact: false,
@@ -36001,6 +36013,7 @@ const REPUTATION_JOBS = [{
   reminderCount: 0,
   status: 'Scheduled',
   rating: null,
+  highlights: [],
   comment: null,
   category: null,
   wantsContact: false,
@@ -36026,13 +36039,42 @@ const repResponseRate = jobs => {
   const sent = jobs.filter(repIsSent);
   return sent.length ? Math.round(repRatedJobs(sent).length / sent.length * 100) : 0;
 };
-// Public-review funnel: positive ratings → routed to a public channel → clicked through.
+// 4-stage funnel: Requests sent → Rated → Happy 4–5★ → Left a public review.
+// Each bar fills to its conversion % of the previous stage so the bars differ in width.
 const repFunnel = jobs => {
-  const positive = repRatedJobs(jobs).filter(j => j.routedPublic);
+  const sent = jobs.filter(repIsSent);
+  const rated = repRatedJobs(sent);
+  const happy = rated.filter(j => j.routedPublic);
+  const clicked = happy.filter(j => j.googleReviewClicked);
+  const pct = (n, d) => d ? Math.round(n / d * 100) : 0;
   return {
-    positive: positive.length,
-    prompted: positive.length,
-    clicked: positive.filter(j => j.googleReviewClicked).length
+    sent: sent.length,
+    rated: rated.length,
+    happy: happy.length,
+    clicked: clicked.length,
+    positive: happy.length,
+    // backward-compat alias used by KPI card
+    stages: [{
+      label: 'Requests sent',
+      n: sent.length,
+      pctOfPrev: 100,
+      color: 'primary'
+    }, {
+      label: 'Rated',
+      n: rated.length,
+      pctOfPrev: pct(rated.length, sent.length),
+      color: 'blue'
+    }, {
+      label: 'Happy (4–5★)',
+      n: happy.length,
+      pctOfPrev: pct(happy.length, rated.length),
+      color: 'green'
+    }, {
+      label: 'Left a review',
+      n: clicked.length,
+      pctOfPrev: pct(clicked.length, happy.length),
+      color: 'greenDark'
+    }]
   };
 };
 const repStarCounts = jobs => {
@@ -36047,6 +36089,89 @@ const repStarCounts = jobs => {
     c[j.rating]++;
   });
   return c;
+};
+
+// Short display labels for negative issue categories (used by repNegativeThemes).
+const REP_ISSUE_LABEL = {
+  'The job took longer than expected': 'Took too long',
+  'Communication was unclear': 'Unclear communication',
+  'I was not sure what was happening': 'Kept in the dark',
+  'I did not understand what was completed': 'Outcome confusing',
+  'The outcome did not meet expectations': 'Outcome fell short',
+  'The cost or invoice was unclear': 'Fees unclear',
+  'I had an issue using the portal': 'Portal issue',
+  'Other': 'Other'
+};
+// Aggregate highlight tags from happy jobs → sorted frequency list for the themes card.
+const repCountTags = jobs => {
+  const counts = {};
+  jobs.forEach(j => {
+    (j.highlights || []).forEach(t => {
+      counts[t] = (counts[t] || 0) + 1;
+    });
+  });
+  return Object.entries(counts).map(([word, n]) => ({
+    word,
+    n
+  })).sort((a, b) => b.n - a.n);
+};
+const repPositiveThemes = jobs => repCountTags(jobs.filter(j => j.routedPublic));
+const repNegativeThemes = jobs => {
+  const counts = {};
+  jobs.filter(j => j.category && j.rating != null && j.rating <= 3).forEach(j => {
+    const lbl = REP_ISSUE_LABEL[j.category] || j.category;
+    counts[lbl] = (counts[lbl] || 0) + 1;
+  });
+  return Object.entries(counts).map(([word, n]) => ({
+    word,
+    n
+  })).sort((a, b) => b.n - a.n);
+};
+// Build a lifecycle timeline for the request detail modal.
+const repTimeline = job => {
+  const steps = [{
+    label: 'Scheduled',
+    reached: true,
+    date: null
+  }];
+  if (job.sentDate) steps.push({
+    label: 'Sent',
+    reached: true,
+    date: job.sentDate
+  });else steps.push({
+    label: 'Sent',
+    reached: false,
+    date: null
+  });
+  if ((job.reminderCount || 0) > 0) steps.push({
+    label: `Reminder ×${job.reminderCount}`,
+    reached: true,
+    date: null
+  });
+  if (job.rating != null) {
+    steps.push({
+      label: `Rated ${job.rating}★`,
+      reached: true,
+      date: null
+    });
+    steps.push({
+      label: job.routedPublic ? 'Routed → public review' : 'Routed → private form',
+      reached: true,
+      date: null
+    });
+    if (job.googleReviewClicked) steps.push({
+      label: 'Clicked through to Google',
+      reached: true,
+      date: null
+    });
+  } else {
+    steps.push({
+      label: 'Awaiting rating',
+      reached: false,
+      date: null
+    });
+  }
+  return steps;
 };
 
 // Distribute employees across clients deterministically. We mutate
@@ -104079,21 +104204,44 @@ const ClientFeedbackFlow = ({
   job,
   settings,
   firmName,
+  flow,
+  questions,
   onComplete,
   initialRating,
   alreadyReviewed
 }) => {
+  // Extra follow-up questions asked right AFTER the star-rating gate (the gate owns the
+  // star rating, so any legacy 'Star rating' question is ignored to avoid a duplicate screen).
+  const extraQuestions = (questions || []).filter(q => q.type !== 'Star rating' && (q.label || '').trim());
+  const [answers, setAnswers] = useState({});
+  const setAnswer = (id, v) => setAnswers(a => ({
+    ...a,
+    [id]: v
+  }));
   const [step, setStep] = useState('rate');
   const [rating, setRating] = useState(0);
   const [hoverR, setHoverR] = useState(0);
-  const [route, setRoute] = useState(null); // 'public' | 'private'
+  const [route, setRoute] = useState(null);
   const [category, setCategory] = useState('');
   const [comment, setComment] = useState('');
   const [wantsContact, setWantsContact] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [selectedHighlights, setSelectedHighlights] = useState([]);
   const jobName = job && job.jobName || 'your recent job';
-  const hasGoogle = !!settings.googleUrl; // Google only (Facebook removed per feedback)
 
+  // Resolve flow config with fallbacks to existing settings/constants.
+  const threshold = flow && flow.gate && flow.gate.positiveThreshold || settings.publicThreshold || 4;
+  const gateLabel = flow && flow.gate && flow.gate.label || `How was your experience with ${jobName}?`;
+  const pos = flow && flow.positive || {};
+  const neg = flow && flow.negative || {};
+  const highlightTags = pos.highlightTags || [];
+  const dest = pos.destinations || {};
+  const showGoogle = dest.google !== false && !!settings.googleUrl;
+  const showSocials = dest.socials !== false;
+  const issueOptions = neg.issueOptions || REP_ISSUE_OPTIONS;
+  const askComment = neg.askComment !== false;
+  const offerContact = neg.offerContact !== false;
+  const toggleHighlight = t => setSelectedHighlights(s => s.includes(t) ? s.filter(x => x !== t) : [...s, t]);
   const finish = extra => {
     if (onComplete) onComplete({
       rating,
@@ -104101,22 +104249,33 @@ const ClientFeedbackFlow = ({
       category,
       comment,
       wantsContact,
+      highlights: selectedHighlights,
+      answers,
       ...extra
     });
   };
+
+  // Route to the branch outcome (public review-ask / private form) based on the rating.
+  const goToOutcome = () => {
+    if (rating >= threshold) {
+      setStep(highlightTags.length > 0 ? 'highlight' : 'public');
+    } else {
+      setStep('private');
+    }
+  };
   const pickRating = n => {
     setRating(n);
-    const positive = n >= (settings.publicThreshold || 4);
-    if (positive) {
-      setRoute('public');
-      setStep('public');
-    } // public step offers Google + socials (or just socials if already reviewed)
-    else {
-      setRoute('private');
+    const positive = n >= threshold;
+    setRoute(positive ? 'public' : 'private');
+    // Star first → then any follow-up questions → then the branch outcome.
+    if (extraQuestions.length > 0) {
+      setStep('questions');
+    } else if (positive) {
+      setStep(highlightTags.length > 0 ? 'highlight' : 'public');
+    } else {
       setStep('private');
-    } // 1–3★ → private form → routes to a senior follow-up
+    }
   };
-  // The email/SMS link can land with a rating already chosen (spec §3/§4).
   useEffect(() => {
     if (initialRating) pickRating(initialRating);
   }, []);
@@ -104130,9 +104289,10 @@ const ClientFeedbackFlow = ({
     });
     setStep('done');
   };
-  const openSocial = () => setStep('socials'); // let the client pick a network (better UX than jumping to LinkedIn)
+  const openSocial = () => setStep('socials');
   const shareUrl = settings.shareUrl || settings.googleUrl || 'https://soleapp.com.au';
-  const shareText = `Really happy with ${firmName} — great accounting support.`;
+  const highlightPrefix = selectedHighlights.length ? `${selectedHighlights.slice(0, 2).join(' & ')} — ` : '';
+  const shareText = `${highlightPrefix}Really happy with ${firmName} — great accounting support.`;
   const SOCIAL_TARGETS = [{
     id: 'linkedin',
     label: 'LinkedIn',
@@ -104187,9 +104347,6 @@ const ClientFeedbackFlow = ({
     maxWidth: 420,
     lineHeight: 1.5
   };
-
-  // Branded header — gives every screen the firm's identity (the client should
-  // feel they're talking to their accountant, not a generic form).
   const Brand = () => /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -104208,14 +104365,113 @@ const ClientFeedbackFlow = ({
       color: T.textSoft
     }
   }, firmName));
+  const renderQInput = q => {
+    const val = answers[q.id];
+    if (q.type === 'Scale 0–10') {
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 5
+        }
+      }, Array.from({
+        length: 11
+      }, (_, k) => /*#__PURE__*/React.createElement("button", {
+        key: k,
+        onClick: () => setAnswer(q.id, k),
+        style: {
+          width: 30,
+          height: 32,
+          borderRadius: 7,
+          border: `1px solid ${val === k ? T.primary : T.border}`,
+          background: val === k ? T.primary : T.card,
+          color: val === k ? '#fff' : T.textSoft,
+          cursor: 'pointer',
+          fontSize: 12.5,
+          fontWeight: 700
+        }
+      }, k)));
+    }
+    if (q.type === 'Yes / No') {
+      return /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 6
+        }
+      }, /*#__PURE__*/React.createElement(Chip, {
+        size: "sm",
+        selected: val === 'Yes',
+        onClick: () => setAnswer(q.id, 'Yes')
+      }, "Yes"), /*#__PURE__*/React.createElement(Chip, {
+        size: "sm",
+        selected: val === 'No',
+        onClick: () => setAnswer(q.id, 'No')
+      }, "No"));
+    }
+    return /*#__PURE__*/React.createElement("textarea", {
+      value: val || '',
+      onChange: e => setAnswer(q.id, e.target.value),
+      rows: 2,
+      placeholder: "Your answer",
+      style: {
+        width: '100%',
+        padding: '9px 12px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        background: T.fieldBg,
+        color: T.text,
+        outline: 'none',
+        resize: 'vertical',
+        fontFamily: 'inherit',
+        fontSize: 13,
+        boxSizing: 'border-box'
+      }
+    });
+  };
   let body;
-  if (step === 'rate') {
+  if (step === 'questions') {
+    body = /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
+      style: {
+        margin: '2px 0'
+      }
+    }, /*#__PURE__*/React.createElement(StarRating, {
+      value: rating,
+      size: 26,
+      gap: 5
+    })), /*#__PURE__*/React.createElement("div", {
+      style: h
+    }, "A couple more questions"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...sub,
+        margin: '6px auto 0'
+      }
+    }, "Thanks for rating ", firmName, " \u2014 just a few quick things to help us improve.")), extraQuestions.map(q => /*#__PURE__*/React.createElement("div", {
+      key: q.id
+    }, /*#__PURE__*/React.createElement(Label, null, q.label), renderQInput(q))), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "lg",
+      onClick: goToOutcome,
+      style: {
+        justifyContent: 'center'
+      }
+    }, "Continue"));
+  } else if (step === 'rate') {
     const lbl = REP_RATING_LABELS[hoverR || rating];
     body = /*#__PURE__*/React.createElement("div", {
       style: wrap
     }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
       style: h
-    }, "How was your experience with ", jobName, "?"), /*#__PURE__*/React.createElement("div", {
+    }, gateLabel), /*#__PURE__*/React.createElement("div", {
       style: sub
     }, "Your feedback helps ", firmName, " improve its service. It takes less than 10 seconds."), /*#__PURE__*/React.createElement("div", {
       style: {
@@ -104235,6 +104491,52 @@ const ClientFeedbackFlow = ({
         minHeight: 20
       }
     }, lbl || 'Tap a star to rate'));
+  } else if (step === 'highlight') {
+    body = /*#__PURE__*/React.createElement("div", {
+      style: wrap
+    }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
+      style: {
+        margin: '2px 0'
+      }
+    }, /*#__PURE__*/React.createElement(StarRating, {
+      value: rating,
+      size: 30,
+      gap: 5
+    })), /*#__PURE__*/React.createElement("div", {
+      style: h
+    }, pos.highlightPrompt || 'What stood out for you?'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...sub,
+        marginTop: 0
+      }
+    }, "Select all that apply \u2014 this helps us keep doing what works."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 8,
+        justifyContent: 'center',
+        marginTop: 4
+      }
+    }, highlightTags.map(t => /*#__PURE__*/React.createElement(Chip, {
+      key: t,
+      size: "sm",
+      selected: selectedHighlights.includes(t),
+      onClick: () => toggleHighlight(t)
+    }, t))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8,
+        marginTop: 2
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "md",
+      onClick: () => setStep('public')
+    }, "Skip"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "md",
+      onClick: () => setStep('public')
+    }, "Continue")));
   } else if (step === 'public') {
     body = /*#__PURE__*/React.createElement("div", {
       style: wrap
@@ -104248,9 +104550,9 @@ const ClientFeedbackFlow = ({
       gap: 5
     })), /*#__PURE__*/React.createElement("div", {
       style: h
-    }, alreadyReviewed ? 'Thanks again — you’re the best!' : 'Thanks, we’re glad you had a good experience.'), /*#__PURE__*/React.createElement("div", {
+    }, alreadyReviewed ? 'Thanks again — you\'re the best!' : pos.headline || 'Thanks, we\'re glad you had a good experience.'), /*#__PURE__*/React.createElement("div", {
       style: sub
-    }, alreadyReviewed ? `You’ve already left ${firmName} a Google review — no need to do it twice. If you’d like, share the love on your socials instead.` : `Would you be willing to leave a quick review for ${firmName}? It helps other businesses find the right accounting support.`), /*#__PURE__*/React.createElement("div", {
+    }, alreadyReviewed ? `You’ve already left ${firmName} a Google review — no need to do it twice. If you’d like, share the love on your socials instead.` : pos.message || `Would you be willing to leave a quick review for ${firmName}? It helps other businesses find the right accounting support.`), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -104259,7 +104561,7 @@ const ClientFeedbackFlow = ({
         maxWidth: 320,
         marginTop: 4
       }
-    }, hasGoogle && !alreadyReviewed && /*#__PURE__*/React.createElement(Btn, {
+    }, showGoogle && !alreadyReviewed && /*#__PURE__*/React.createElement(Btn, {
       variant: "primary",
       size: "lg",
       icon: "star",
@@ -104267,7 +104569,7 @@ const ClientFeedbackFlow = ({
       style: {
         justifyContent: 'center'
       }
-    }, "Leave a Google review"), /*#__PURE__*/React.createElement(Btn, {
+    }, "Leave a Google review"), showSocials && /*#__PURE__*/React.createElement(Btn, {
       variant: alreadyReviewed ? 'primary' : 'primaryOutline',
       size: "lg",
       icon: "share",
@@ -104385,12 +104687,12 @@ const ClientFeedbackFlow = ({
       }
     }, /*#__PURE__*/React.createElement(Brand, null), /*#__PURE__*/React.createElement("div", {
       style: h
-    }, "Thanks for your feedback."), /*#__PURE__*/React.createElement("div", {
+    }, neg.headline || 'Thanks for your feedback.'), /*#__PURE__*/React.createElement("div", {
       style: {
         ...sub,
         margin: '6px auto 0'
       }
-    }, "We\u2019re sorry the experience wasn\u2019t as strong as it should have been. Please let us know what we could improve.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "What best describes the issue? ", /*#__PURE__*/React.createElement("span", {
+    }, neg.message || 'We\'re sorry the experience wasn\'t as strong as it should have been. Please let us know what we could improve.')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "What best describes the issue? ", /*#__PURE__*/React.createElement("span", {
       style: {
         color: T.red
       }
@@ -104400,12 +104702,12 @@ const ClientFeedbackFlow = ({
         flexWrap: 'wrap',
         gap: 6
       }
-    }, REP_ISSUE_OPTIONS.map(o => /*#__PURE__*/React.createElement(Chip, {
+    }, issueOptions.map(o => /*#__PURE__*/React.createElement(Chip, {
       key: o,
       size: "sm",
       selected: category === o,
       onClick: () => setCategory(o)
-    }, o)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Tell us a little more ", /*#__PURE__*/React.createElement("span", {
+    }, o)))), askComment && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Tell us a little more ", /*#__PURE__*/React.createElement("span", {
       style: {
         color: T.mutedSoft,
         fontWeight: 400
@@ -104428,7 +104730,7 @@ const ClientFeedbackFlow = ({
         fontSize: 13,
         boxSizing: 'border-box'
       }
-    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Would you like someone from the firm to contact you? ", /*#__PURE__*/React.createElement("span", {
+    })), offerContact && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Would you like someone from the firm to contact you? ", /*#__PURE__*/React.createElement("span", {
       style: {
         color: T.mutedSoft,
         fontWeight: 400
@@ -105017,31 +105319,46 @@ const EmailWebPreview = ({
 // Survey templates — the firm builds multiple surveys for different purposes and
 // attaches one to a task/job in Job Management. Each has its own questions, always
 // including a free-text "what did they say". Managed in the Reputation → Surveys tab.
-const REP_SURVEY_QTYPES = ['Star rating', 'Free text', 'Yes / No', 'Scale 0–10'];
+const REP_SURVEY_QTYPES = ['Free text', 'Yes / No', 'Scale 0–10'];
 const REP_SURVEYS_SEED = [{
   id: 'sv-eoj',
   name: 'End of job — standard',
   purpose: 'After any completed job',
   active: true,
   questions: [{
-    id: 'q1',
-    type: 'Star rating',
-    label: 'How would you rate this job overall?'
-  }, {
     id: 'q2',
     type: 'Free text',
-    label: 'What did they say? (anything we could improve?)'
-  }]
+    label: 'Anything we could improve?'
+  }],
+  flow: {
+    gate: {
+      label: 'How would you rate this job overall?',
+      positiveThreshold: 4
+    },
+    positive: {
+      headline: 'Thanks — we\'re glad you had a great experience!',
+      message: 'Would you be willing to share that with other businesses? It helps other small businesses find the right accounting support.',
+      highlightPrompt: 'What stood out for you?',
+      highlightTags: [...REP_HIGHLIGHT_TAGS_DEFAULT],
+      destinations: {
+        google: true,
+        socials: true
+      }
+    },
+    negative: {
+      headline: 'Thanks for your feedback.',
+      message: 'We\'re sorry the experience wasn\'t as strong as it should have been. Please let us know what we could improve.',
+      issueOptions: [...REP_ISSUE_OPTIONS],
+      askComment: true,
+      offerContact: true
+    }
+  }
 }, {
   id: 'sv-tax',
   name: 'Annual tax return',
   purpose: 'Tax return engagements',
   active: true,
   questions: [{
-    id: 'q1',
-    type: 'Star rating',
-    label: 'How was your tax return experience?'
-  }, {
     id: 'q2',
     type: 'Scale 0–10',
     label: 'How likely are you to recommend us?'
@@ -105049,24 +105366,43 @@ const REP_SURVEYS_SEED = [{
     id: 'q3',
     type: 'Free text',
     label: 'Anything we could do better next year?'
-  }]
+  }],
+  flow: {
+    gate: {
+      label: 'How was your tax return experience?',
+      positiveThreshold: 5
+    },
+    positive: {
+      headline: 'That\'s fantastic — thank you!',
+      message: 'A quick Google review would really help other businesses find us.',
+      highlightPrompt: 'What stood out?',
+      highlightTags: [],
+      destinations: {
+        google: true,
+        socials: false
+      }
+    },
+    negative: {
+      headline: 'Thanks for your feedback.',
+      message: 'We take every piece of feedback seriously. Please let us know what didn\'t go as expected.',
+      issueOptions: [...REP_ISSUE_OPTIONS],
+      askComment: true,
+      offerContact: true
+    }
+  }
 }, {
   id: 'sv-advisory',
   name: 'Advisory engagement',
   purpose: 'Advisory / cashflow / planning jobs',
   active: true,
   questions: [{
-    id: 'q1',
-    type: 'Star rating',
-    label: 'How valuable was this advisory work?'
-  }, {
     id: 'q2',
     type: 'Yes / No',
     label: 'Did we explain things clearly?'
   }, {
     id: 'q3',
     type: 'Free text',
-    label: 'What did they say?'
+    label: 'Anything we could have done better?'
   }]
 }, {
   id: 'sv-onboard',
@@ -105074,20 +105410,21 @@ const REP_SURVEYS_SEED = [{
   purpose: 'After a new client is onboarded',
   active: false,
   questions: [{
-    id: 'q1',
-    type: 'Star rating',
-    label: 'How smooth was getting set up with us?'
-  }, {
     id: 'q2',
     type: 'Free text',
-    label: 'What did they say?'
+    label: 'How could we improve onboarding?'
   }]
 }];
 const RepSurveyEditor = ({
   survey,
   onSave,
-  onClose
+  onClose,
+  settings,
+  firmName: _firmName
 }) => {
+  const {
+    isCompact
+  } = useViewport();
   const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(survey)));
   const upd = patch => setDraft(d => ({
     ...d,
@@ -105112,24 +105449,232 @@ const RepSurveyEditor = ({
     ...d,
     questions: d.questions.filter(q => q.id !== qid)
   }));
-  return /*#__PURE__*/React.createElement(Modal, {
-    open: true,
-    onClose: onClose,
-    title: survey._isNew ? 'New survey' : 'Edit survey',
-    subtitle: "Pick the questions clients answer after a job \u2014 keep a free-text \u201Cwhat did they say\u201D.",
-    width: 640
+  const [advPos, setAdvPos] = useState(false); // collapse the less-used happy-path controls
+  const [advNeg, setAdvNeg] = useState(false); // collapse the less-used private-form controls
+
+  const ensureFlow = d => d.flow ? d : {
+    ...d,
+    flow: {
+      gate: {
+        label: 'How would you rate this job overall?',
+        positiveThreshold: 4
+      },
+      positive: {
+        headline: 'Thanks — we\'re glad you had a great experience!',
+        message: 'Would you be willing to share that with other businesses?',
+        highlightPrompt: 'What stood out for you?',
+        highlightTags: [...REP_HIGHLIGHT_TAGS_DEFAULT],
+        destinations: {
+          google: true,
+          socials: true
+        }
+      },
+      negative: {
+        headline: 'Thanks for your feedback.',
+        message: 'We\'re sorry the experience wasn\'t as strong as it should have been. Please let us know what we could improve.',
+        issueOptions: [...REP_ISSUE_OPTIONS],
+        askComment: true,
+        offerContact: true
+      }
+    }
+  };
+  const updFlow = (section, patch) => setDraft(d => {
+    const base = ensureFlow(d);
+    return {
+      ...base,
+      flow: {
+        ...base.flow,
+        [section]: {
+          ...base.flow[section],
+          ...patch
+        }
+      }
+    };
+  });
+  const ChipEditor = ({
+    items,
+    onChange,
+    placeholder
+  }) => {
+    const [adding, setAdding] = useState('');
+    const remove = idx => onChange(items.filter((_, i) => i !== idx));
+    const add = () => {
+      const v = adding.trim();
+      if (v && !items.includes(v)) onChange([...items, v]);
+      setAdding('');
+    };
+    return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginBottom: 8
+      }
+    }, items.map((t, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        padding: '3px 8px 3px 10px',
+        borderRadius: 99,
+        border: `1px solid ${T.border}`,
+        background: T.fieldBg,
+        fontSize: 12.5,
+        color: T.textSoft
+      }
+    }, t, /*#__PURE__*/React.createElement("button", {
+      onClick: () => remove(i),
+      style: {
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        color: T.mutedSoft,
+        padding: 0,
+        marginLeft: 2,
+        display: 'flex',
+        lineHeight: 1
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "close",
+      size: 11
+    }))))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement(Input, {
+      value: adding,
+      onChange: e => setAdding(e.target.value),
+      placeholder: placeholder || 'Add item...',
+      onKeyDown: e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          add();
+        }
+      },
+      style: {
+        flex: 1
+      }
+    }), /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      onClick: add,
+      disabled: !adding.trim()
+    }, "Add")));
+  };
+  const flow = draft.flow || {};
+  const gate = flow.gate || {};
+  const pos = flow.positive || {};
+  const neg = flow.negative || {};
+  const threshold = gate.positiveThreshold || 4;
+  const SectionBlock = ({
+    title,
+    icon,
+    tone,
+    children
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: 12,
+      overflow: 'hidden'
+    }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      padding: 22,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      padding: '11px 16px',
+      background: T.fieldBg,
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: icon,
+    size: 14,
+    color: tone === 'amber' ? T.amber : tone === 'green' ? T.greenDark : T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, title)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px',
       display: 'flex',
       flexDirection: 'column',
-      gap: 18
+      gap: 14
     }
+  }, children));
+  const Advanced = ({
+    open,
+    onToggle,
+    children
+  }) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
+    onClick: onToggle,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      color: T.primary,
+      fontSize: 12,
+      fontWeight: 600,
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: open ? 'chevronDown' : 'chevronRight',
+    size: 13
+  }), open ? 'Hide advanced options' : 'Advanced options'), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14,
+      marginTop: 12
+    }
+  }, children));
+  const TextArea = ({
+    value,
+    onChange,
+    placeholder,
+    rows = 2
+  }) => /*#__PURE__*/React.createElement("textarea", {
+    value: value,
+    onChange: onChange,
+    rows: rows,
+    placeholder: placeholder,
+    style: {
+      width: '100%',
+      padding: '9px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.fieldBg,
+      color: T.text,
+      outline: 'none',
+      resize: 'vertical',
+      fontFamily: 'inherit',
+      fontSize: 13,
+      boxSizing: 'border-box'
+    }
+  });
+  const previewSettings = settings || REPUTATION_SETTINGS_DEFAULT;
+  const previewFirmName = _firmName || 'Sole Practice';
+  const leftPane = /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement(SectionBlock, {
+    title: "Identity",
+    icon: "fileText"
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
-      gap: 14
+      gap: 12
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Survey name"), /*#__PURE__*/React.createElement(Input, {
     value: draft.name,
@@ -105143,45 +105688,287 @@ const RepSurveyEditor = ({
       purpose: e.target.value
     }),
     placeholder: "e.g. After any completed job"
-  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement(SectionBlock, {
+    title: "Rating gate",
+    icon: "star"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Rating question shown to client"), /*#__PURE__*/React.createElement(Input, {
+    value: gate.label || '',
+    onChange: e => updFlow('gate', {
+      label: e.target.value
+    }),
+    placeholder: "How would you rate this job overall?"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Public review threshold"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8
+    }
+  }, [4, 5].map(v => /*#__PURE__*/React.createElement("button", {
+    key: v,
+    onClick: () => updFlow('gate', {
+      positiveThreshold: v
+    }),
+    style: {
+      flex: 1,
+      padding: '9px 12px',
+      borderRadius: 10,
+      border: `2px solid ${threshold === v ? T.primary : T.border}`,
+      background: threshold === v ? T.primarySoft : T.card,
+      cursor: 'pointer',
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: threshold === v ? T.primary : T.textSoft,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      transition: 'all 0.12s'
+    }
+  }, /*#__PURE__*/React.createElement(StarRating, {
+    value: v,
+    size: 12
+  }), " ", v === 4 ? '4★ and up' : 'Only 5★'))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 7
+    }
+  }, "Clients at or above this rating see the public review prompt. Below it \u2192 private feedback form.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'stretch',
+      padding: '10px 14px',
+      borderRadius: 10,
+      background: T.fieldBg,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      textAlign: 'center',
+      padding: '7px 10px',
+      borderRadius: 8,
+      background: T.greenSoft,
+      border: `1px solid ${withAlpha(T.greenDark, 0.3)}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: T.greenDark
+    }
+  }, threshold === 4 ? '4–5★' : '5★'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.greenDark,
+      marginTop: 2
+    }
+  }, "\u2192 Public review")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 13,
+    color: T.muted
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      textAlign: 'center',
+      padding: '7px 10px',
+      borderRadius: 8,
+      background: T.amberSoft,
+      border: `1px solid ${withAlpha(T.amber, 0.3)}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: T.amber
+    }
+  }, threshold === 4 ? '1–3★' : '1–4★'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.amber,
+      marginTop: 2
+    }
+  }, "\u2192 Private form")))), /*#__PURE__*/React.createElement(SectionBlock, {
+    title: "Happy path \u2014 public review",
+    icon: "checkCircle",
+    tone: "green"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Headline"), /*#__PURE__*/React.createElement(Input, {
+    value: pos.headline || '',
+    onChange: e => updFlow('positive', {
+      headline: e.target.value
+    }),
+    placeholder: "Thanks \u2014 we're glad you had a great experience!"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Message"), /*#__PURE__*/React.createElement(TextArea, {
+    value: pos.message || '',
+    onChange: e => updFlow('positive', {
+      message: e.target.value
+    }),
+    placeholder: "Would you be willing to share that with other businesses?"
+  })), /*#__PURE__*/React.createElement(Advanced, {
+    open: advPos,
+    onToggle: () => setAdvPos(o => !o)
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Destinations"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    size: "sm",
+    on: (pos.destinations || {}).google !== false,
+    onChange: v => updFlow('positive', {
+      destinations: {
+        ...(pos.destinations || {}),
+        google: v
+      }
+    })
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.textSoft
+    }
+  }, "Google review")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    size: "sm",
+    on: (pos.destinations || {}).socials !== false,
+    onChange: v => updFlow('positive', {
+      destinations: {
+        ...(pos.destinations || {}),
+        socials: v
+      }
+    })
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.textSoft
+    }
+  }, "Share on socials")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 10
+      marginBottom: 7
     }
   }, /*#__PURE__*/React.createElement(Label, {
     style: {
       margin: 0
     }
-  }, "Questions ", /*#__PURE__*/React.createElement("span", {
+  }, "\"What stood out?\" tags"), /*#__PURE__*/React.createElement("span", {
     style: {
-      color: T.mutedSoft,
-      fontWeight: 600
+      fontSize: 11,
+      color: T.mutedSoft
     }
-  }, "\xB7 ", draft.questions.length)), /*#__PURE__*/React.createElement(Btn, {
+  }, "Leave empty to skip this step")), /*#__PURE__*/React.createElement(ChipEditor, {
+    items: pos.highlightTags || [],
+    onChange: tags => updFlow('positive', {
+      highlightTags: tags
+    }),
+    placeholder: "Add a highlight tag..."
+  })))), /*#__PURE__*/React.createElement(SectionBlock, {
+    title: "Private feedback form",
+    icon: "alertTriangle",
+    tone: "amber"
+  }, /*#__PURE__*/React.createElement(Helper, null, "Always shown for low ratings \u2014 this step can't be removed."), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Headline"), /*#__PURE__*/React.createElement(Input, {
+    value: neg.headline || '',
+    onChange: e => updFlow('negative', {
+      headline: e.target.value
+    }),
+    placeholder: "Thanks for your feedback."
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Message"), /*#__PURE__*/React.createElement(TextArea, {
+    value: neg.message || '',
+    onChange: e => updFlow('negative', {
+      message: e.target.value
+    }),
+    placeholder: "We're sorry the experience wasn't as strong as it should have been."
+  })), /*#__PURE__*/React.createElement(Advanced, {
+    open: advNeg,
+    onToggle: () => setAdvNeg(o => !o)
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Issue options"), /*#__PURE__*/React.createElement(ChipEditor, {
+    items: neg.issueOptions || [],
+    onChange: opts => updFlow('negative', {
+      issueOptions: opts
+    }),
+    placeholder: "Add an issue option..."
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    size: "sm",
+    on: neg.askComment !== false,
+    onChange: v => updFlow('negative', {
+      askComment: v
+    })
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.textSoft
+    }
+  }, "Ask for comment")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    size: "sm",
+    on: neg.offerContact !== false,
+    onChange: v => updFlow('negative', {
+      offerContact: v
+    })
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.textSoft
+    }
+  }, "Offer callback"))))), /*#__PURE__*/React.createElement(SectionBlock, {
+    title: "Follow-up questions",
+    icon: "list"
+  }, /*#__PURE__*/React.createElement(Helper, null, "Asked on one screen right after the star rating. Leave empty to send clients straight to the review or feedback step."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'flex-end'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
     icon: "plus",
     onClick: addQ
   }, "Add question")), /*#__PURE__*/React.createElement("div", {
-    className: "scroll-area",
     style: {
       display: 'flex',
       flexDirection: 'column',
-      gap: 10,
-      maxHeight: 360,
-      overflowY: 'auto'
+      gap: 10
     }
   }, draft.questions.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: 'center',
-      padding: '26px 16px',
+      padding: '18px 16px',
       border: `1px dashed ${T.border}`,
       borderRadius: 10,
       background: T.fieldBg
     }
-  }, /*#__PURE__*/React.createElement(Helper, null, "No questions yet \u2014 add your first one.")), draft.questions.map((q, i) => /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(Helper, null, "No follow-up questions \u2014 clients go straight from the rating to the next step.")), draft.questions.map((q, i) => /*#__PURE__*/React.createElement("div", {
     key: q.id,
     style: {
       border: `1px solid ${T.borderSoft}`,
@@ -105209,21 +105996,13 @@ const RepSurveyEditor = ({
       alignItems: 'center',
       justifyContent: 'center'
     }
-  }, i + 1), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700,
-      color: T.mutedSoft,
-      textTransform: 'uppercase',
-      letterSpacing: 0.4
-    }
-  }, "Question ", i + 1), /*#__PURE__*/React.createElement("div", {
+  }, i + 1), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1
     }
-  }), draft.questions.length > 1 && /*#__PURE__*/React.createElement("button", {
+  }), /*#__PURE__*/React.createElement("button", {
     onClick: () => delQ(q.id),
-    title: "Remove question",
+    title: "Remove",
     style: {
       border: 'none',
       background: 'transparent',
@@ -105240,7 +106019,7 @@ const RepSurveyEditor = ({
     onChange: e => updQ(q.id, {
       label: e.target.value
     }),
-    placeholder: "Question text (e.g. How would you rate this job?)",
+    placeholder: "Question text",
     style: {
       background: T.card
     }
@@ -105272,13 +106051,85 @@ const RepSurveyEditor = ({
   }, REP_SURVEY_QTYPES.map(t => /*#__PURE__*/React.createElement("option", {
     key: t,
     value: t
-  }, t))))))))), /*#__PURE__*/React.createElement("div", {
+  }, t))))))))));
+  const rightPane = /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, "Live preview"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderRadius: 14,
+      overflow: 'hidden',
+      border: `1px solid ${T.borderSoft}`,
+      background: T.bg
+    }
+  }, /*#__PURE__*/React.createElement(AppFrame, {
+    key: JSON.stringify({
+      f: draft.flow || {},
+      q: draft.questions || []
+    })
+  }, /*#__PURE__*/React.createElement(ClientFeedbackFlow, {
+    job: {
+      jobName: 'BAS — Q3 FY26'
+    },
+    settings: previewSettings,
+    firmName: previewFirmName,
+    flow: draft.flow || null,
+    questions: draft.questions,
+    onComplete: () => {}
+  }))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, "Edit anything on the left and the preview updates instantly. Answer the questions and rate a star to walk the real flow."));
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: true,
+    onClose: onClose,
+    title: survey._isNew ? 'New survey' : 'Edit survey',
+    subtitle: "Design the branching client-experience flow that runs after a job is completed.",
+    width: isCompact ? 700 : 1180,
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: isCompact ? 'column' : 'row',
+      minHeight: 420
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 560px',
+      padding: '22px 24px',
+      overflowY: 'auto',
+      maxHeight: isCompact ? 'none' : '76vh'
+    }
+  }, leftPane), !isCompact && /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 420,
+      flexShrink: 0,
+      borderLeft: `1px solid ${T.borderSoft}`,
+      padding: '22px 20px',
+      background: T.fieldBg,
+      overflowY: 'auto',
+      maxHeight: '76vh'
+    }
+  }, rightPane)), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       justifyContent: 'flex-end',
       gap: 8,
       borderTop: `1px solid ${T.borderSoft}`,
-      paddingTop: 16
+      padding: '14px 24px',
+      background: T.card
     }
   }, /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
@@ -105288,7 +106139,7 @@ const RepSurveyEditor = ({
     icon: "check",
     onClick: () => onSave(draft),
     disabled: !draft.name.trim()
-  }, "Save survey"))));
+  }, "Save survey")));
 };
 
 // NPS gauge (RightSuccess-style) — a semicircular −100..+100 gauge + promoter/
@@ -105578,18 +106429,15 @@ const REP_KEYWORDS = [{
   n: 4,
   sentiment: 'neu'
 }];
-// Themes clients mention most — split into what's working vs what needs attention,
-// each ranked with a proportional bar. Replaces the old free-floating word cloud
-// (hard to scan) with a focused, sortable read of where to double-down / fix.
+// Themes split into what's working (from real highlight tags on happy jobs) vs
+// what needs attention (from real issue categories on low-rated jobs).
 const RepWordCloud = ({
-  words
+  pos,
+  neg
 }) => {
   const {
     isCompact
   } = useViewport();
-  const top = (s, k) => words.filter(w => w.sentiment === s).sort((a, b) => b.n - a.n).slice(0, k);
-  const pos = top('pos', 7),
-    neg = top('neg', 6);
   const ThemeCol = ({
     title,
     items,
@@ -105597,7 +106445,7 @@ const RepWordCloud = ({
     tone,
     icon
   }) => {
-    const max = Math.max(...items.map(w => w.n), 1);
+    const max = Math.max(...(items || []).map(w => w.n), 1);
     return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
@@ -105621,13 +106469,13 @@ const RepWordCloud = ({
         color: T.mutedSoft,
         fontWeight: 600
       }
-    }, items.length)), /*#__PURE__*/React.createElement("div", {
+    }, (items || []).length)), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         flexDirection: 'column',
         gap: 11
       }
-    }, items.map(w => /*#__PURE__*/React.createElement("div", {
+    }, !items || items.length === 0 ? /*#__PURE__*/React.createElement(Helper, null, "No data yet \u2014 themes appear as clients respond to requests.") : items.map(w => /*#__PURE__*/React.createElement("div", {
       key: w.word,
       style: {
         display: 'flex',
@@ -105636,7 +106484,7 @@ const RepWordCloud = ({
       }
     }, /*#__PURE__*/React.createElement("span", {
       style: {
-        width: 110,
+        width: 130,
         flexShrink: 0,
         fontSize: 12.5,
         fontWeight: 500,
@@ -105674,7 +106522,7 @@ const RepWordCloud = ({
   };
   return /*#__PURE__*/React.createElement(PanelCard, {
     title: "What clients are saying",
-    subtitle: "Themes mentioned most across client feedback",
+    subtitle: "From real highlight tags and issue categories",
     icon: "sparkle",
     iconTone: "accent"
   }, /*#__PURE__*/React.createElement("div", {
@@ -105685,13 +106533,13 @@ const RepWordCloud = ({
     }
   }, /*#__PURE__*/React.createElement(ThemeCol, {
     title: "What's working",
-    items: pos,
+    items: (pos || []).slice(0, 7),
     color: T.greenDark,
     tone: "green",
     icon: "checkCircle"
   }), /*#__PURE__*/React.createElement(ThemeCol, {
     title: "Needs attention",
-    items: neg,
+    items: (neg || []).slice(0, 6),
     color: T.red,
     tone: "red",
     icon: "alertTriangle"
@@ -105823,11 +106671,11 @@ const ReputationPage = ({
     value: 'overview',
     label: 'Overview'
   }, {
-    value: 'feedback',
-    label: 'Feedback'
-  }, {
     value: 'requests',
     label: 'Requests'
+  }, {
+    value: 'feedback',
+    label: 'Feedback'
   }, {
     value: 'surveys',
     label: 'Surveys'
@@ -106007,27 +106855,19 @@ const ReputationPage = ({
     }
   }, "Practice Dashboard"), "."))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
     style: {
+      marginBottom: 4
+    }
+  }, "Public review funnel"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
       marginBottom: 16
     }
-  }, "Public review funnel"), /*#__PURE__*/React.createElement("div", {
+  }, "How requests convert step-by-step \u2014 bar width shows conversion from the previous stage."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: isCompact ? '1fr' : 'repeat(3, 1fr)',
-      gap: isCompact ? 14 : 28
+      gridTemplateColumns: isCompact ? '1fr 1fr' : 'repeat(4, 1fr)',
+      gap: isCompact ? 12 : 20
     }
-  }, [{
-    label: 'Positive ratings (4–5★)',
-    n: funnel.positive,
-    color: T.primary
-  }, {
-    label: 'Prompted for a public review',
-    n: funnel.prompted,
-    color: T.blue
-  }, {
-    label: 'Clicked through to review',
-    n: funnel.clicked,
-    color: T.greenDark
-  }].map((s, i) => /*#__PURE__*/React.createElement("div", {
+  }, funnel.stages.map((s, i) => /*#__PURE__*/React.createElement("div", {
     key: i
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -106041,8 +106881,8 @@ const ReputationPage = ({
       width: 30,
       height: 30,
       borderRadius: 9,
-      background: withAlpha(s.color, 0.12),
-      color: s.color,
+      background: withAlpha(T[s.color] || T.primary, 0.12),
+      color: T[s.color] || T.primary,
       display: 'inline-flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -106058,10 +106898,16 @@ const ReputationPage = ({
       fontWeight: 500
     }
   }, s.label)), /*#__PURE__*/React.createElement(ProgressBar, {
-    pct: funnel.positive ? Math.round(s.n / funnel.positive * 100) : 0,
-    color: s.color,
+    pct: s.pctOfPrev,
+    color: T[s.color] || T.primary,
     height: 8
-  }))))), /*#__PURE__*/React.createElement(PanelCard, {
+  }), i > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft,
+      marginTop: 4
+    }
+  }, s.pctOfPrev, "% from prev"))))), /*#__PURE__*/React.createElement(PanelCard, {
     title: "Needs follow-up",
     subtitle: "Low ratings to make right \u2014 reach out and recover the relationship",
     icon: "alertTriangle",
@@ -106107,7 +106953,8 @@ const ReputationPage = ({
     size: "sm",
     onClick: () => startRecovery(job)
   }, "Start service recovery")))))), /*#__PURE__*/React.createElement(RepWordCloud, {
-    words: REP_KEYWORDS
+    pos: repPositiveThemes(jobs),
+    neg: repNegativeThemes(jobs)
   })), tab === 'feedback' && (() => {
     const inBucket = j => fbFilter === 'all' ? true : fbFilter === 'promoters' ? j.rating === 5 : fbFilter === 'passives' ? j.rating === 4 : j.rating != null && j.rating <= 3;
     const rated = repRatedJobs(jobs).filter(inBucket);
@@ -106164,10 +107011,17 @@ const ReputationPage = ({
       minWidth: 780,
       toolbar: /*#__PURE__*/React.createElement("div", {
         style: {
+          marginBottom: 12
+        }
+      }, /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          marginBottom: 10
+        }
+      }, "Ratings left by clients after completed jobs. Click a row to see the full experience breakdown and score."), /*#__PURE__*/React.createElement("div", {
+        style: {
           display: 'flex',
           gap: 6,
-          flexWrap: 'wrap',
-          marginBottom: 12
+          flexWrap: 'wrap'
         }
       }, [['all', 'All', null], ['promoters', 'Promoters', '5'], ['passives', 'Passives', '4'], ['detractors', 'Detractors', '≤3']].map(([v, l, stars]) => /*#__PURE__*/React.createElement(Chip, {
         key: v,
@@ -106185,7 +107039,7 @@ const ReputationPage = ({
           color: T.amber,
           marginLeft: 1
         }
-      }, "\u2605"))))),
+      }, "\u2605")))))),
       empty: {
         icon: 'inbox',
         title: 'No feedback in this view yet',
@@ -106260,6 +107114,7 @@ const ReputationPage = ({
       columns: reqCols,
       rows: sorted,
       rowKey: j => j.id,
+      onRowClick: setDetailJob,
       minWidth: 780,
       toolbar: /*#__PURE__*/React.createElement("div", {
         style: {
@@ -106306,12 +107161,57 @@ const ReputationPage = ({
           const j = jobs.find(x => x.rating == null) || jobs[0];
           sendForJob(j);
         }
-      }, "Send review request")), /*#__PURE__*/React.createElement(Helper, {
+      }, "Send review request")), /*#__PURE__*/React.createElement("div", {
         style: {
-          fontSize: 11.5,
-          marginTop: 9
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          marginTop: 9,
+          flexWrap: 'wrap'
         }
-      }, "Auto-sent ", settings.delayHours, "h after completion", settings.enabled ? '' : ' (paused)', ".")),
+      }, /*#__PURE__*/React.createElement(Helper, {
+        style: {
+          fontSize: 11.5
+        }
+      }, "Auto-sent ", settings.delayHours, "h after completion", settings.enabled ? '' : ' (paused)', ". Click a row to see the full lifecycle timeline."), /*#__PURE__*/React.createElement("div", {
+        style: {
+          display: 'flex',
+          gap: 10,
+          flexWrap: 'wrap'
+        }
+      }, [{
+        label: 'In progress',
+        color: T.blue
+      }, {
+        label: 'Responded',
+        color: T.green
+      }, {
+        label: 'Needs action',
+        color: T.red
+      }, {
+        label: 'Closed',
+        color: T.muted
+      }].map(g => /*#__PURE__*/React.createElement("div", {
+        key: g.label,
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5
+        }
+      }, /*#__PURE__*/React.createElement("span", {
+        style: {
+          width: 8,
+          height: 8,
+          borderRadius: 3,
+          background: g.color,
+          flexShrink: 0
+        }
+      }), /*#__PURE__*/React.createElement("span", {
+        style: {
+          fontSize: 11,
+          color: T.muted
+        }
+      }, g.label)))))),
       empty: {
         icon: 'inbox',
         title: 'No requests match',
@@ -106500,8 +107400,31 @@ const ReputationPage = ({
         }, {
           id: 'q2',
           type: 'Free text',
-          label: 'What did they say?'
-        }]
+          label: 'Anything we could improve?'
+        }],
+        flow: {
+          gate: {
+            label: 'How would you rate this job overall?',
+            positiveThreshold: 4
+          },
+          positive: {
+            headline: '',
+            message: '',
+            highlightPrompt: 'What stood out for you?',
+            highlightTags: [...REP_HIGHLIGHT_TAGS_DEFAULT],
+            destinations: {
+              google: true,
+              socials: true
+            }
+          },
+          negative: {
+            headline: '',
+            message: '',
+            issueOptions: [...REP_ISSUE_OPTIONS],
+            askComment: true,
+            offerContact: true
+          }
+        }
       })
     }, "New survey")), /*#__PURE__*/React.createElement(DataTable, {
       columns: svCols,
@@ -106536,6 +107459,8 @@ const ReputationPage = ({
     firmName: firmName
   }), editSurvey && /*#__PURE__*/React.createElement(RepSurveyEditor, {
     survey: editSurvey,
+    settings: settings,
+    firmName: firmName,
     onClose: () => setEditSurvey(null),
     onSave: d => {
       setSurveys(s => s.some(x => x.id === d.id) ? s.map(x => x.id === d.id ? {
@@ -106555,9 +107480,10 @@ const ReputationPage = ({
     onClose: () => setDetailJob(null),
     title: detailJob ? `Client experience — ${detailJob.jobName}` : '',
     subtitle: detailJob ? (clientById(detailJob.clientId) || {}).name : '',
-    width: 620
+    width: 640
   }, detailJob && (() => {
     const sc = computeClientExperienceScore(detailJob, settings);
+    const timeline = repTimeline(detailJob);
     return /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
@@ -106606,7 +107532,71 @@ const ReputationPage = ({
     }, /*#__PURE__*/React.createElement(StarRating, {
       value: detailJob.rating,
       size: 16
-    })))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Score breakdown"), /*#__PURE__*/React.createElement("div", {
+    })))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: T.fieldBg,
+        border: `1px solid ${T.borderSoft}`,
+        borderRadius: 10,
+        padding: '12px 16px'
+      }
+    }, /*#__PURE__*/React.createElement(Label, {
+      style: {
+        marginBottom: 10
+      }
+    }, "Request lifecycle"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column'
+      }
+    }, timeline.map((step, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        flexShrink: 0,
+        width: 14
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 10,
+        height: 10,
+        borderRadius: '50%',
+        background: step.reached ? T.greenDark : T.fieldBg,
+        border: `2px solid ${step.reached ? T.greenDark : T.borderSoft}`,
+        flexShrink: 0,
+        marginTop: 3
+      }
+    }), i < timeline.length - 1 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 2,
+        height: 18,
+        background: T.borderSoft,
+        marginTop: 1
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        paddingBottom: i < timeline.length - 1 ? 8 : 0
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: step.reached ? 600 : 400,
+        color: step.reached ? T.textSoft : T.mutedSoft
+      }
+    }, step.label), step.date && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11.5,
+        color: T.mutedSoft,
+        marginLeft: 8
+      }
+    }, fmtDate(step.date))))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Score breakdown"), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         flexDirection: 'column',
@@ -106660,7 +107650,7 @@ const ReputationPage = ({
         color: T.textSoft,
         lineHeight: 1.5
       }
-    }, "\u201C", detailJob.comment, "\u201D"), detailJob.wantsContact && /*#__PURE__*/React.createElement("div", {
+    }, "\"", detailJob.comment, "\""), detailJob.wantsContact && /*#__PURE__*/React.createElement("div", {
       style: {
         marginTop: 8,
         fontSize: 12,
@@ -106696,7 +107686,9 @@ const ReputationPage = ({
     },
     settings: settings,
     firmName: firmName,
-    onComplete: r => fireToast(r.route === 'public' ? r.googleClicked ? 'Client clicked through to a Google review' : r.sharedSocial ? 'Client shared on their socials 🎉' : 'Client rated positively' : settings.createFollowupTask ? 'Private feedback captured — a follow-up task was created for a senior to make it right' : 'Private feedback captured')
+    flow: (surveys.find(s => s.active && s.flow) || {}).flow || null,
+    questions: (surveys.find(s => s.active && s.flow) || {}).questions || [],
+    onComplete: r => fireToast(r.route === 'public' ? r.googleClicked ? 'Client clicked through to a Google review' : r.sharedSocial ? 'Client shared on their socials' : 'Client rated positively' : settings.createFollowupTask ? 'Private feedback captured — a follow-up task was created for a senior to make it right' : 'Private feedback captured')
   })) : /*#__PURE__*/React.createElement(EmailWebPreview, {
     key: previewKey,
     settings: settings,
