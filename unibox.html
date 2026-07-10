@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sole — Unibox</title>
 <link rel="icon" type="image/png" href="assets/sole-icon.png">
-<meta name="description" content="Unibox — your daily action center in Sole. Everything that needs you to run your business, in one place.">
+<meta name="description" content="Unibox — your daily action centre in Sole. Everything that needs you to run your business, in one place.">
 <meta property="og:title" content="Sole — Unibox">
-<meta property="og:description" content="Your daily action center: get paid, reconcile, and tidy up — all in one place.">
+<meta property="og:description" content="Your daily action centre: get paid, match your bank feed, and tidy your books — all in one place.">
 <!-- React + Babel from unpkg. Babel is PINNED to 7.29.7 — a floating tag rolls to
      v8 (automatic JSX runtime → import stmt → blank page). See docs/MEMORY.md. -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -58,12 +58,10 @@
   @keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes rowflash { 0% { box-shadow: 0 0 0 0 rgba(91,91,246,0); } 30% { box-shadow: 0 0 0 4px rgba(91,91,246,0.28); } 100% { box-shadow: 0 0 0 0 rgba(91,91,246,0); } }
   @keyframes ringpop { 0% { transform: scale(1); } 45% { transform: scale(1.06); } 100% { transform: scale(1); } }
-  /* Quiet rows reveal their secondary actions only on hover (Asana pattern). */
-  .ub-sec { opacity: 0; transition: opacity 0.12s; }
-  .ub-row:hover .ub-sec, .ub-row:focus-within .ub-sec { opacity: 1; }
-  /* Widget ⋯ menu stays hidden until the widget is hovered. */
-  .ub-more { opacity: 0; transition: opacity 0.12s; }
-  .ub-widget:hover .ub-more { opacity: 1; }
+  @keyframes confettiFall { 0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(104vh) rotate(680deg); opacity: 0.85; } }
+  @keyframes sheetin { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes flamepop { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
+  @keyframes barrise { from { transform: scaleY(0.02); } to { transform: scaleY(1); } }
   /* Quiet inline actions — one bordered primary, secondaries reveal on row hover (Notion/Gmail). */
   .ub-qbtn { transition: background .12s, border-color .12s, color .12s; }
   .ub-qbtn:hover { background: #F9FAFB; border-color: #D1D5DB; }
@@ -96,6 +94,8 @@ const T = {
 const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
   const paths = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
+    menu: <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>,
+    award: <><circle cx="12" cy="8" r="6" /><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" /></>,
     inbox: <><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" /></>,
     repeat: <><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></>,
     dollar: <><line x1="12" y1="2" x2="12" y2="22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>,
@@ -128,7 +128,7 @@ const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
     target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></>,
     checkCircle: <><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></>,
     alertTriangle: <><path d="M10.3 3.86l-8.7 15a2 2 0 0 0 1.71 3h17.4a2 2 0 0 0 1.7-3l-8.7-15a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
-    flame: <path d="M12 2c1 4 5 5 5 10a5 5 0 1 1-10 0c0-3 2-4 2-7 0 0 2 1 3 0z" />,
+    flame: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />,
     check: <polyline points="5 12 10 17 19 7" />,
     close: <><line x1="6" y1="6" x2="18" y2="18" /><line x1="6" y1="18" x2="18" y2="6" /></>,
     plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
@@ -145,7 +145,6 @@ const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
     more: <><circle cx="5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="19" cy="12" r="1.4" fill="currentColor" /></>,
     file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></>,
     briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="2" y1="13" x2="22" y2="13" /></>,
-    gavel: <><path d="M3 21h10" /><path d="M6 15l6-6" /><rect x="10" y="4" width="8" height="4" rx="1" transform="rotate(45 14 6)" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -287,6 +286,65 @@ const Toast = ({ toast, onClose }) => {
   );
 };
 
+// --- confetti (dependency-free reward burst; single ref'd timer; honours reduced motion) ---
+const CONFETTI_COLORS = [T.primary, T.green, T.amber, '#EC4899', T.blue];
+const prefersReducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const Confetti = ({ fire, big }) => {
+  const [pieces, setPieces] = useState(null);
+  const timer = useRef();
+  useEffect(() => {
+    if (!fire || prefersReducedMotion()) return;   // no particles for reduced-motion users
+    const n = big ? 90 : 40;
+    setPieces(Array.from({ length: n }, (_, i) => ({
+      key: fire + '-' + i,
+      left: Math.random() * 100,
+      bg: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
+      delay: Math.random() * (big ? 0.35 : 0.2),
+      dur: (big ? 1.5 : 1.1) + Math.random() * 0.5,
+      rot: Math.random() * 360,
+    })));
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setPieces(null), big ? 2200 : 1700);
+    return () => clearTimeout(timer.current);
+  }, [fire]);
+  if (!pieces) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 280, overflow: 'hidden' }} aria-hidden="true">
+      {pieces.map(p => (
+        <span key={p.key} style={{ position: 'absolute', top: 0, left: p.left + '%', width: p.w, height: p.h, background: p.bg, borderRadius: 2, transform: `rotate(${p.rot}deg)`, animation: `confettiFall ${p.dur}s ease-in ${p.delay}s forwards` }} />
+      ))}
+    </div>
+  );
+};
+
+// --- modal (centred window on desktop, bottom sheet on mobile) ---
+const Modal = ({ open, onClose, title, subtitle, icon, children, isMobile, maxWidth = 460 }) => {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+  if (!open) return null;
+  const sheet = isMobile;
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 220, background: 'rgba(15,17,23,0.42)', display: 'flex', alignItems: sheet ? 'flex-end' : 'center', justifyContent: 'center', padding: sheet ? 0 : 20, animation: 'fadein 0.16s ease' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.card, width: '100%', maxWidth: sheet ? '100%' : maxWidth, maxHeight: sheet ? '90vh' : '86vh', overflowY: 'auto', borderRadius: sheet ? '18px 18px 0 0' : 14, boxShadow: T.shadowLg, animation: sheet ? 'sheetin 0.24s cubic-bezier(0.32,0.72,0,1)' : 'expand 0.16s ease' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '16px 18px 12px', borderBottom: `1px solid ${T.borderSoft}` }}>
+          {icon && <IconChip icon={icon} tone="accent" size={30} gradient />}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>{title}</div>
+            {subtitle && <Helper style={{ marginTop: 2 }}>{subtitle}</Helper>}
+          </div>
+          <button onClick={onClose} title="Close" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="close" size={18} /></button>
+        </div>
+        <div style={{ padding: '16px 18px 18px' }}>{children}</div>
+      </div>
+    </div>
+  );
+};
+
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error) { return { error }; }
@@ -346,13 +404,89 @@ const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-AU', { minimumFr
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // --- mock data ---
-const PROFILE = { name: 'Tony Williamson', first: 'Tony', email: 'demo@soleapp.com.au', streak: 5, isNew: false };
+const PROFILE = { name: 'Tony Williamson', first: 'Tony', email: 'demo@soleapp.com.au', isNew: false, persona: 'full', actionsAllTime: 42 };
 const CATEGORIES = ['Software', 'Fuel', 'Office supplies', 'Phone', 'Meals', 'Travel', 'Other'];
 
-const GROUPS = [
-  { id: 'get_paid',  title: 'Get paid',  icon: 'dollar', tone: 'accent', clearTitle: 'All caught up on getting paid ✓', clearSub: 'Nothing to chase right now.' },
-  { id: 'reconcile', title: 'Reconcile', icon: 'bank',   tone: 'blue',   clearTitle: 'Every transaction is matched ✓', clearSub: 'Your bank feed is fully reconciled.' },
-  { id: 'tidy_up',   title: 'Tidy up',   icon: 'sparkle', tone: 'green', clearTitle: 'Books are tidy ✓', clearSub: 'Expenses and assets are all sorted.' },
+// --- modules a business uses → drives which widgets the home surfaces ---
+// Sole's home adapts to the business: ~70% only run sales/expenses/liabilities, so
+// booking (Work coming up), bank feed (Match) and assets only appear when in use.
+const PERSONAS = [
+  { id: 'full',       label: 'Established business', hint: 'Everything switched on',                 modules: ['sales','quotes','expenses','assets','liabilities','bankfeed','booking'], reg: { gst: true,  payroll: true,  contractors: true } },
+  { id: 'typical',    label: 'Typical sole trader',  hint: 'Sales · expenses · liabilities (~70%)',  modules: ['sales','expenses','liabilities'],                                        reg: { gst: true,  payroll: false, contractors: false } },
+  { id: 'tradie',     label: 'Tradie on the tools',  hint: 'Quotes · bank feed · booking',           modules: ['sales','quotes','expenses','bankfeed','booking'],                         reg: { gst: true,  payroll: false, contractors: true } },
+  { id: 'bookkeeper', label: 'Just tracking books',  hint: 'Expenses & assets only',                 modules: ['expenses','assets'],                                                     reg: { gst: false, payroll: false, contractors: false } },
+];
+const personaById = (id) => PERSONAS.find(p => p.id === id) || PERSONAS[0];
+
+// --- gamification: tiers (all-time actions) + streak + activity history ---
+const TIERS = [
+  { name: 'Starter',   min: 0,   icon: 'sparkle' },
+  { name: 'Regular',   min: 10,  icon: 'flame' },
+  { name: 'Sharp',     min: 50,  icon: 'target' },
+  { name: 'Pro',       min: 150, icon: 'award' },
+  { name: 'Sole star', min: 350, icon: 'star' },
+];
+const tierFor = (n) => {
+  let i = 0;
+  for (let k = 0; k < TIERS.length; k++) if (n >= TIERS[k].min) i = k;
+  const tier = TIERS[i];
+  const next = TIERS[i + 1] || null;
+  const toNext = next ? next.min - n : 0;
+  const span = next ? next.min - tier.min : 1;
+  const progress = next ? clamp((n - tier.min) / span, 0, 1) : 1;
+  return { tier, next, toNext, progress };
+};
+const DAILY_MILESTONES = [3, 5, 10];
+
+const DAY_MS = 86400000;
+const startOfDay = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
+// Seed ~2 weeks of prior activity (none today, so clearing the first item today
+// visibly extends the streak). Counts are per-day-ago; index 0 = today.
+const ACTIVITY_BY_DAY = [0, 2, 3, 1, 2, 2, 1, 2, 1, 2, 1, 1, 2];
+const SEED_LABELS = ['Sent an invoice', 'Matched a bank transaction', 'Categorised an expense', 'Followed up an overdue invoice', 'Sent a payment reminder', 'Recorded a new asset', 'Attached a receipt'];
+const SEED_ACTIVITY = (() => {
+  const now = Date.now(); const out = [];
+  ACTIVITY_BY_DAY.forEach((cnt, ago) => {
+    for (let k = 0; k < cnt; k++) out.push({ ts: now - ago * DAY_MS - (k + 1) * 3600000, kind: 'done', label: SEED_LABELS[(ago + k) % SEED_LABELS.length] });
+  });
+  return out;
+})();
+const computeStreak = (activity) => {
+  const days = new Set(activity.map(a => startOfDay(a.ts)));
+  let d = startOfDay(Date.now()); let streak = 0;
+  if (!days.has(d)) d -= DAY_MS;          // today empty → count up to yesterday
+  while (days.has(d)) { streak++; d -= DAY_MS; }
+  return streak;
+};
+const computeProgress = (activity) => {
+  const today0 = startOfDay(Date.now());
+  const counts = {};
+  activity.forEach(a => { const ago = Math.round((today0 - startOfDay(a.ts)) / DAY_MS); counts[ago] = (counts[ago] || 0) + 1; });
+  const last7 = []; for (let i = 6; i >= 0; i--) last7.push(counts[i] || 0);
+  let thisWeek = 0, prevWeek = 0;
+  for (let i = 0; i < 7; i++) thisWeek += counts[i] || 0;
+  for (let i = 7; i < 14; i++) prevWeek += counts[i] || 0;
+  return { today: counts[0] || 0, yesterday: counts[1] || 0, thisWeek, prevWeek, last7, streak: computeStreak(activity) };
+};
+
+// --- bank-match candidates (shown in the Match window). Direction-aware: money IN
+// matches to open invoices, money OUT (payments/expenses/asset purchases) to bills/expenses. ---
+const MATCH_CANDIDATES_IN = [
+  { id: 'ci1', label: 'INV-1044 · Harbour Cafe', sub: 'Sent 5 Jul', amount: 1240 },
+  { id: 'ci2', label: 'INV-1038 · North Coast Partners', sub: 'Due 8 Jul', amount: 2400 },
+  { id: 'ci3', label: 'INV-1040 · Kim Tran', sub: 'Due 7 Jul', amount: 460 },
+];
+const MATCH_CANDIDATES_OUT = [
+  { id: 'co1', label: 'Expense · Officeworks', sub: '2 Jul · uncategorised', amount: 88.40 },
+  { id: 'co2', label: 'Bill · Telstra', sub: '1 Jul · Phone', amount: 99 },
+  { id: 'co3', label: 'Expense · Bunnings', sub: '30 Jun', amount: 213.75 },
+];
+
+// --- liabilities & equity (set-asides + loan; light, informational) ---
+const LIABILITIES = [
+  { id: 'l1', label: 'GST set aside', sub: 'For BAS Q4 · due 28 Jul', amount: 4120, tone: 'amber', action: 'Set aside' },
+  { id: 'l2', label: 'Equipment loan', sub: 'BOQ · next repayment 15 Jul', amount: 620, tone: 'neutral', action: 'Schedule' },
+  { id: 'l3', label: "Owner's drawings", sub: 'This month', amount: 2500, tone: 'neutral', action: 'Review' },
 ];
 
 // Severity → icon-chip tone + accent-bar colour + health weight.
@@ -364,71 +498,63 @@ const SEV = {
 
 const SEED_ITEMS = [
   // ---- Get paid ----
-  { id: 'itm-q1', group: 'get_paid', type: 'quote', severity: 'med', weight: 1, icon: 'file',
+  { id: 'itm-q1', group: 'get_paid', module: 'quotes', type: 'quote', severity: 'med', weight: 1, icon: 'file',
     rowTitle: 'QUO-2041 · Riverview Construction', title: 'Convert accepted quote', sub: 'Accepted 4 Jul', amount: 5400, badge: { label: 'Accepted', color: 'green' }, client: 'Riverview Construction', quoteNo: 'QUO-2041',
     primary: { id: 'convert', label: 'Convert', icon: 'arrow', title: 'Convert to invoice' }, secondary: [{ id: 'preview', label: 'View' }] },
-  { id: 'itm-q2', group: 'get_paid', type: 'quote', severity: 'med', weight: 1, icon: 'file',
+  { id: 'itm-q2', group: 'get_paid', module: 'quotes', type: 'quote', severity: 'med', weight: 1, icon: 'file',
     rowTitle: 'QUO-2038 · Harbour Cafe', title: 'Convert accepted quote', sub: 'Accepted 2 Jul', amount: 1450, badge: { label: 'Accepted', color: 'green' }, client: 'Harbour Cafe', quoteNo: 'QUO-2038',
     primary: { id: 'convert', label: 'Convert', icon: 'arrow', title: 'Convert to invoice' }, secondary: [{ id: 'preview', label: 'View' }] },
-  { id: 'itm-g1', group: 'get_paid', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send',
+  { id: 'itm-g1', group: 'get_paid', module: 'sales', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send',
     rowTitle: 'INV-1043 · Bondi Mowing Co', title: 'Send invoice INV-1043', sub: 'Draft · created 3 Jul', amount: 680, client: 'Bondi Mowing Co', email: 'pete@bondimowing.au', invoiceNo: 'INV-1043',
     primary: { id: 'send', label: 'Send', icon: 'send' }, secondary: [{ id: 'preview', label: 'Preview' }] },
-  { id: 'itm-g2', group: 'get_paid', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send',
+  { id: 'itm-g2', group: 'get_paid', module: 'sales', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send',
     rowTitle: 'INV-1044 · Harbour Cafe', title: 'Send invoice INV-1044', sub: 'Draft · created 5 Jul', amount: 1240, client: 'Harbour Cafe', email: 'hello@harbourcafe.au', invoiceNo: 'INV-1044',
     primary: { id: 'send', label: 'Send', icon: 'send' }, secondary: [{ id: 'preview', label: 'Preview' }] },
-  { id: 'itm-g3', group: 'get_paid', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle',
+  { id: 'itm-g3', group: 'get_paid', module: 'sales', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle',
     rowTitle: 'INV-1021 · Marlow & Sons', title: 'Follow up overdue invoice INV-1021', sub: 'Due 22 Jun', amount: 3150, badge: { label: '14 days overdue', color: 'red' }, client: 'Marlow & Sons', email: 'ops@marlowsons.au', invoiceNo: 'INV-1021',
     primary: { id: 'follow_up', label: 'Follow up', icon: 'mail' }, secondary: [{ id: 'mark_paid', label: 'Mark paid' }] },
-  { id: 'itm-g4', group: 'get_paid', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle',
+  { id: 'itm-g4', group: 'get_paid', module: 'sales', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle',
     rowTitle: 'INV-1009 · Greenleaf Holdings', title: 'Follow up overdue invoice INV-1009', sub: 'Due 30 Jun', amount: 920, badge: { label: '6 days overdue', color: 'red' }, client: 'Greenleaf Holdings', email: 'trust@greenleaf.au', invoiceNo: 'INV-1009',
     primary: { id: 'follow_up', label: 'Follow up', icon: 'mail' }, secondary: [{ id: 'mark_paid', label: 'Mark paid' }] },
-  { id: 'itm-g5', group: 'get_paid', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock',
+  { id: 'itm-g5', group: 'get_paid', module: 'sales', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock',
     rowTitle: 'INV-1038 · North Coast Partners', title: 'Send reminder for INV-1038', sub: 'Due 8 Jul', amount: 2400, badge: { label: 'Due in 2 days', color: 'amber' }, client: 'North Coast Partners', email: 'admin@northcoast.au', invoiceNo: 'INV-1038',
     primary: { id: 'send_reminder', label: 'Send reminder', icon: 'send' }, secondary: [{ id: 'snooze', label: 'Snooze' }] },
-  { id: 'itm-g6', group: 'get_paid', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock',
+  { id: 'itm-g6', group: 'get_paid', module: 'sales', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock',
     rowTitle: 'INV-1040 · Kim Tran', title: 'Send reminder for INV-1040', sub: 'Due 7 Jul', amount: 460, badge: { label: 'Due tomorrow', color: 'amber' }, client: 'Kim Tran', email: 'kim@example.com', invoiceNo: 'INV-1040',
     primary: { id: 'send_reminder', label: 'Send reminder', icon: 'send' }, secondary: [{ id: 'snooze', label: 'Snooze' }] },
-  // ---- Reconcile ----
-  { id: 'itm-r1', group: 'reconcile', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
+  // ---- Bank feed (match) ----
+  { id: 'itm-r1', group: 'reconcile', module: 'bankfeed', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
     rowTitle: 'NORTHCOAST P/L', title: 'Match bank deposit', sub: 'Sole match: INV-1038 (98%)', bankLine: '4 Jul · memo “NORTHCOAST P/L”', amount: 2400, amountTone: 'in', invoiceNo: 'INV-1038',
     aiMatch: { label: 'Pays INV-1038 · North Coast Partners · ' + fmtMoney(2400), confidence: 0.98, detail: 'Amount and reference both match this open invoice.' },
-    primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
-  { id: 'itm-r2', group: 'reconcile', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
+    primary: { id: 'confirm_match', label: 'Match', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r2', group: 'reconcile', module: 'bankfeed', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank',
     rowTitle: 'BONDI MOWING', title: 'Match bank deposit', sub: 'Sole match: INV-1043 (95%)', bankLine: '2 Jul · memo “BONDI MOWING”', amount: 680, amountTone: 'in', invoiceNo: 'INV-1043',
     aiMatch: { label: 'Pays INV-1043 · Bondi Mowing Co · ' + fmtMoney(680), confidence: 0.95, detail: 'Amount matches a recently sent invoice.' },
-    primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
-  { id: 'itm-r3', group: 'reconcile', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'bank',
+    primary: { id: 'confirm_match', label: 'Match', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r3', group: 'reconcile', module: 'bankfeed', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'bank',
     rowTitle: 'BP FUEL 1042', title: 'Match payment', sub: 'Sole match: Fuel — BP (92%)', bankLine: '3 Jul · memo “BP FUEL 1042”', amount: 142.30, amountTone: 'out',
     aiMatch: { label: 'Matches expense: Fuel — BP · ' + fmtMoney(142.30) + ' · 3 Jul', confidence: 0.92, detail: 'Amount and date match a logged expense.' },
-    primary: { id: 'confirm_match', label: 'Review', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
-  { id: 'itm-r4', group: 'reconcile', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'tag',
+    primary: { id: 'confirm_match', label: 'Match', icon: 'sparkle' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r4', group: 'reconcile', module: 'bankfeed', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'tag',
     rowTitle: 'CANVA PTY', title: 'Categorise payment', sub: 'No confident match — categorise', bankLine: '1 Jul · memo “CANVA PTY”', amount: 59, amountTone: 'out',
-    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'ignore', label: 'Ignore' }] },
-  // ---- Tidy up ----
-  { id: 'itm-t1', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
+    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'match_expense', label: 'Match' }, { id: 'ignore', label: 'Ignore' }] },
+  // ---- Expenses ----
+  { id: 'itm-t1', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
     rowTitle: 'Officeworks', title: 'Categorise expense', sub: 'Expense · 2 Jul', amount: 88.40, badge: { label: 'No category', color: 'amber' },
-    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
-  { id: 'itm-t2', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
+    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'match_expense', label: 'Match' }, { id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t2', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
     rowTitle: 'Telstra', title: 'Add a receipt', sub: 'Expense · 1 Jul · Phone', amount: 99, badge: { label: 'Receipt missing', color: 'amber' },
-    primary: { id: 'add_receipt', label: 'Add receipt', icon: 'paperclip' }, secondary: [{ id: 'categorize', label: 'Categorise' }] },
-  { id: 'itm-t3', group: 'tidy_up', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
+    primary: { id: 'add_receipt', label: 'Add receipt', icon: 'paperclip' }, secondary: [{ id: 'match_expense', label: 'Match' }, { id: 'categorize', label: 'Categorise' }] },
+  { id: 'itm-t3', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt',
     rowTitle: 'Bunnings', title: 'Categorise expense', sub: 'Expense · 30 Jun', amount: 213.75, badge: { label: 'No category · No receipt', color: 'amber' },
-    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
-  { id: 'itm-t4', group: 'tidy_up', type: 'asset', severity: 'low', weight: 2, icon: 'layers',
+    primary: { id: 'categorize', label: 'Categorise', icon: 'tag' }, secondary: [{ id: 'match_expense', label: 'Match' }, { id: 'add_receipt', label: 'Add receipt' }] },
+  // ---- Assets ----
+  { id: 'itm-t4', group: 'tidy_up', module: 'assets', type: 'asset', severity: 'low', weight: 2, icon: 'layers',
     rowTitle: 'Dell laptop', title: 'Record as an asset', sub: 'Purchase · 28 Jun', amount: 1899, badge: { label: 'Possible asset', color: 'blue' },
     primary: { id: 'record_asset', label: 'Record', icon: 'plus' }, secondary: [{ id: 'not_asset', label: 'Not an asset' }] },
-  { id: 'itm-t5', group: 'tidy_up', type: 'asset', severity: 'low', weight: 2, icon: 'layers',
+  { id: 'itm-t5', group: 'tidy_up', module: 'assets', type: 'asset', severity: 'low', weight: 2, icon: 'layers',
     rowTitle: 'Espresso machine', title: 'Match a payment to this asset', sub: 'Asset · 26 Jun', amount: 2650, badge: { label: 'No payment linked', color: 'amber' },
     primary: { id: 'match_payment', label: 'Match', icon: 'link' }, secondary: [{ id: 'later', label: 'Later' }] },
-];
-
-// --- business insights (mirrors the top of the SPM dashboard; AUD) ---
-const INSIGHTS = [
-  { icon: 'wallet', tone: 'accent', label: 'Cash at bank', value: '$12,480' },
-  { icon: 'dollar', tone: 'green', label: 'Revenue (month)', value: '$18,240', delta: '8%', deltaTone: 'up' },
-  { icon: 'receipt', tone: 'amber', label: 'Outstanding', value: '$8,850', sub: 'across 6 invoices' },
-  { icon: 'trendUp', tone: 'green', label: 'Net profit (FY)', value: '$32,540', delta: '12%', deltaTone: 'up' },
-  { icon: 'percent', tone: 'blue', label: 'Profit margin', value: '22%', delta: '3%', deltaTone: 'up' },
 ];
 
 // --- upcoming work (from the calendar → cash coming in over the next fortnight) ---
@@ -441,22 +567,23 @@ const UPCOMING = [
 ];
 
 // --- key AU tax & compliance dates (relative to today = Mon 6 Jul 2026) ---
+// Each date is gated by a registration (payroll/gst/contractors); income tax applies to everyone.
 const KEY_DATES = [
-  { id: 'd1', label: 'STP finalisation', sub: 'Single Touch Payroll — FY25/26', due: '14 Jul', dueIn: 8,   tone: 'red' },
-  { id: 'd2', label: 'BAS — Q4 FY25/26', sub: 'Apr–Jun activity statement', due: '28 Jul', dueIn: 22,  tone: 'amber' },
-  { id: 'd3', label: 'Super guarantee — Q4', sub: 'Employee super contributions', due: '28 Jul', dueIn: 22, tone: 'amber' },
-  { id: 'd4', label: 'TPAR', sub: 'Taxable payments annual report', due: '28 Aug', dueIn: 53, tone: 'neutral' },
-  { id: 'd5', label: 'Income tax return — FY25/26', sub: 'Self-lodgers', due: '31 Oct', dueIn: 117, tone: 'neutral' },
+  { id: 'd1', label: 'STP finalisation', sub: 'Single Touch Payroll — FY25/26', due: '14 Jul', dueIn: 8,   tone: 'red',     req: 'payroll' },
+  { id: 'd2', label: 'BAS — Q4 FY25/26', sub: 'Apr–Jun activity statement', due: '28 Jul', dueIn: 22,  tone: 'amber',   req: 'gst' },
+  { id: 'd3', label: 'Super guarantee — Q4', sub: 'Employee super contributions', due: '28 Jul', dueIn: 22, tone: 'amber',  req: 'payroll' },
+  { id: 'd4', label: 'TPAR', sub: 'Taxable payments annual report', due: '28 Aug', dueIn: 53, tone: 'neutral', req: 'contractors' },
+  { id: 'd5', label: 'Income tax return — FY25/26', sub: 'Self-lodgers', due: '31 Oct', dueIn: 117, tone: 'neutral', req: null },
 ];
 
 const HEALTH_DEF = 'Your business health starts at 100. Overdue invoices, unmatched transactions and untidy books lower it; clearing them lifts it back up. New businesses start with an encouraging score, and it never hits zero.';
-const STREAK_DEF = "Days in a row you've checked in and kept your books up to date — keep it going to stay on top.";
+const STREAK_DEF = "Days in a row you've checked in and cleared at least one thing. It never counts down — quieter days simply don't add to it.";
 
 // --- health score (deterministic; encouraging floor; never 0) ---
-function computeHealth(items, profile) {
+function computeHealth(items, streak = 0, isNew = false) {
   const penalty = items.reduce((s, it) => s + (it.weight || 0), 0);
-  const streakBonus = Math.min(profile.streak || 0, 5);
-  const floor = profile.isNew ? 72 : 40;
+  const streakBonus = Math.min(streak || 0, 5);
+  const floor = isNew ? 72 : 40;
   let score = clamp(Math.round(Math.max(floor, 100 - penalty + streakBonus)), 1, 100);
   let band, label, tail;
   if (score >= 80)      { band = 'green'; label = 'In the green';         tail = "you're in great shape 🎉"; }
@@ -469,7 +596,9 @@ function computeHealth(items, profile) {
 const rankItems = (items) => [...items].sort((a, b) => (b.weight - a.weight) || ((b.amount || 0) - (a.amount || 0)) || a.id.localeCompare(b.id));
 
 // --- inline action plumbing ---
-const MODE_FOR = { follow_up: 'email', confirm_match: 'aimatch', categorize: 'category', add_receipt: 'receipt', record_asset: 'asset', match_payment: 'assetpay' };
+const MODE_FOR = { follow_up: 'email', categorize: 'category', add_receipt: 'receipt', record_asset: 'asset' };
+// Actions that open the Match window (modal) instead of an inline panel.
+const MATCH_ACTIONS = ['confirm_match', 'match_payment', 'match_expense'];
 const directMessage = (item, actionId) => {
   switch (actionId) {
     case 'send': return `Invoice ${item.invoiceNo} sent to ${item.client}`;
@@ -481,8 +610,6 @@ const directMessage = (item, actionId) => {
     case 'later': return "We'll remind you later";
     case 'not_match': return "We'll leave this one for you to match";
     case 'convert': return `Converted ${item.quoteNo} to a new invoice`;
-    case 'remind': return "Reminder set — we'll nudge you before it's due";
-    case 'dismiss': return 'Dismissed';
     default: return 'Done';
   }
 };
@@ -500,32 +627,6 @@ const EmailPanel = ({ item, onConfirm, onCancel }) => (
     <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
       <Btn variant="primary" size="sm" icon="send" onClick={onConfirm}>Send reminder</Btn>
       <Btn size="sm" onClick={onCancel}>Cancel</Btn>
-    </div>
-  </div>
-);
-
-const MatchPanel = ({ item, onConfirm, onReject }) => (
-  <div style={panelStyle}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-      <Icon name="sparkle" size={14} color={T.primary} />
-      <span style={{ fontSize: 12, fontWeight: 600, color: T.textSoft }}>Sole found a match</span>
-      <Pill color="green" style={{ marginLeft: 'auto' }}>{Math.round(item.aiMatch.confidence * 100)}% match</Pill>
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5 }}>
-      <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 8 }}>
-        <div style={{ color: T.mutedSoft, fontSize: 11 }}>Bank transaction</div>
-        <div style={{ fontWeight: 600, color: item.amountTone === 'in' ? T.greenDark : T.text }}>{item.amountTone === 'in' ? '+' : '-'}{fmtMoney(item.amount)} · {item.bankLine}</div>
-      </div>
-      <Icon name="arrow" size={16} color={T.muted} />
-      <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 8 }}>
-        <div style={{ color: T.mutedSoft, fontSize: 11 }}>Suggested match</div>
-        <div style={{ fontWeight: 600, color: T.text }}>{item.aiMatch.label}</div>
-      </div>
-    </div>
-    <Helper style={{ marginTop: 8 }}>{item.aiMatch.detail}</Helper>
-    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-      <Btn variant="primary" size="sm" icon="check" onClick={onConfirm}>Confirm match</Btn>
-      <Btn size="sm" onClick={onReject}>Not a match</Btn>
     </div>
   </div>
 );
@@ -577,45 +678,78 @@ const AssetPanel = ({ onConfirm, onCancel }) => {
   );
 };
 
-const AssetPayPanel = ({ onConfirm, onCancel }) => (
-  <div style={panelStyle}>
-    <div style={{ fontSize: 12, color: T.muted, marginBottom: 8 }}>How was this paid?</div>
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      <Btn variant="soft" size="sm" icon="bank" onClick={onConfirm}>Link bank transaction</Btn>
-      <Btn variant="soft" size="sm" icon="dollar" onClick={onConfirm}>Paid with cash</Btn>
-    </div>
-    <div style={{ marginTop: 12 }}><Btn size="sm" onClick={onCancel}>Cancel</Btn></div>
-  </div>
-);
-
 const PanelSwitch = ({ item, mode, onComplete, onClose }) => {
   if (mode === 'email') return <EmailPanel item={item} onConfirm={() => onComplete(item, `Reminder sent to ${item.client}`)} onCancel={onClose} />;
-  if (mode === 'aimatch') return <MatchPanel item={item} onConfirm={() => onComplete(item, item.amountTone === 'in' ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo}` : `Matched ${fmtMoney(item.amount)} — reconciled`)} onReject={() => onComplete(item, "We'll leave this one for you to match")} />;
   if (mode === 'category') return <CategoryPanel onConfirm={(c) => onComplete(item, `Categorised as ${c}`)} onCancel={onClose} />;
   if (mode === 'receipt') return <ReceiptPanel onConfirm={() => onComplete(item, 'Receipt attached')} onCancel={onClose} />;
   if (mode === 'asset') return <AssetPanel onConfirm={() => onComplete(item, 'Recorded as an asset')} onCancel={onClose} />;
-  if (mode === 'assetpay') return <AssetPayPanel onConfirm={() => onComplete(item, 'Payment recorded')} onCancel={onClose} />;
   return null;
 };
 
-// --- amount + action item card ---
-const AmountSpan = ({ item }) => (
-  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700, fontSize: 13.5, color: item.amountTone === 'in' ? T.greenDark : T.text }}>
-    {item.amountTone === 'in' ? '+' : item.amountTone === 'out' ? '-' : ''}{fmtMoney(item.amount)}
-  </span>
+// --- match window (modal) — "click Match → opens the match window" (stakeholder) ---
+const MatchOption = ({ selected, onClick, label, sub, badge }) => (
+  <button onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 10, cursor: 'pointer', border: `1.5px solid ${selected ? T.primary : T.border}`, background: selected ? T.primarySofter : T.card }}>
+    <span style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, border: `1.5px solid ${selected ? T.primary : T.borderStrong}`, background: selected ? T.primary : T.card, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{selected && <Icon name="check" size={11} color="#fff" strokeWidth={3} />}</span>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{label}</div>
+      {sub && <div style={{ fontSize: 11.5, color: T.muted, marginTop: 1 }}>{sub}</div>}
+    </div>
+    {badge}
+  </button>
 );
 
-// --- viewport ---
+const MatchModal = ({ item, isMobile, onClose, onConfirm, onReject }) => {
+  const hasAi = !!(item && item.aiMatch);
+  const [picked, setPicked] = useState(null);
+  useEffect(() => { setPicked(item && item.aiMatch ? 'ai' : null); }, [item && item.id]);
+  if (!item) return null;
+  const inbound = item.amountTone === 'in';
+  const candidates = inbound ? MATCH_CANDIDATES_IN : MATCH_CANDIDATES_OUT;
+  const bankLine = item.bankLine || item.sub;
+  return (
+    <Modal open={!!item} onClose={onClose} isMobile={isMobile} icon="bank" maxWidth={480}
+      title="Match this transaction" subtitle="Confirm what this belongs to so your books stay reconciled.">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: T.surface, border: `1px solid ${T.borderSoft}`, borderRadius: 10 }}>
+        <IconChip icon="bank" tone={inbound ? 'green' : 'neutral'} size={30} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{item.rowTitle}</div>
+          {bankLine && <div style={{ fontSize: 11.5, color: T.muted }}>{bankLine}</div>}
+        </div>
+        <span style={{ fontWeight: 700, fontSize: 14, color: inbound ? T.greenDark : T.text, fontVariantNumeric: 'tabular-nums' }}>{inbound ? '+' : '-'}{fmtMoney(item.amount)}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '14px 0 8px' }}>
+        {hasAi && <Icon name="sparkle" size={13} color={T.primary} />}
+        <span style={{ fontSize: 12, fontWeight: 600, color: T.textSoft }}>{hasAi ? 'Sole suggests' : 'Choose a match'}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {hasAi && (
+          <MatchOption selected={picked === 'ai'} onClick={() => setPicked('ai')}
+            label={item.aiMatch.label} sub={item.aiMatch.detail} badge={<Pill color="green">{Math.round(item.aiMatch.confidence * 100)}%</Pill>} />
+        )}
+        {candidates.map(c => (
+          <MatchOption key={c.id} selected={picked === c.id} onClick={() => setPicked(c.id)}
+            label={c.label} sub={c.sub + ' · ' + fmtMoney(c.amount)} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <Btn variant="primary" icon="check" disabled={!picked} onClick={() => onConfirm(item)}>Confirm match</Btn>
+        <Btn onClick={() => onReject(item)}>Not a match</Btn>
+      </div>
+    </Modal>
+  );
+};
+
+// --- viewport (drives CHROME only — sidebar drawer / topbar). The bento column
+// count is measured off real CONTENT width by a separate ResizeObserver, never
+// window width, so a title can't collapse to one letter. See docs/MEMORY.md. ---
 const useViewport = () => {
   const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1280);
   useEffect(() => { const on = () => setW(window.innerWidth); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on); }, []);
-  const cols = w >= 1420 ? 3 : w >= 1000 ? 2 : 1;
-  return { w, cols, oneCol: cols === 1 };
+  return { w, isMobile: w < 768, isTablet: w < 1024 };
 };
 
 // --- quiet action row (Asana-style: leading status marker · title/sub · right-aligned meta + action) ---
 const QUIET_BTN = { border: `1px solid ${T.border}`, background: T.card, color: T.textSoft, fontSize: 12, fontWeight: 500, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: 1.4 };
-const QUIET_LINK = { border: 'none', background: 'none', color: T.muted, fontSize: 12, fontWeight: 500, padding: '4px 7px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap', lineHeight: 1.4 };
 // Home cards float on the coloured canvas — a touch more radius + shadow than a flat dashboard tile.
 const CARD = { background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' };
 
@@ -626,35 +760,107 @@ const StatusDot = ({ severity, icon }) => (
   </span>
 );
 
-// Quiet row: leading glyph · title / muted sub (status folded in) · amount ·
-// ONE bordered primary; secondary actions reveal on hover only.
-const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, flash, last }) => {
-  const badgeRed = item.badge && item.badge.color === 'red';
-  return (
-    <div ref={innerRef} style={{ animation: flash ? 'rowflash 1.4s ease' : undefined }}>
-      <div className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: last ? 'none' : `1px solid ${T.borderSoft}` }}>
-        <StatusDot severity={item.severity} icon={item.icon} />
+// Shared row shell. DESKTOP: one line — [glyph · title/sub · fixed AMOUNT col · fixed
+// ACTION col] so amounts and buttons align across rows and with the header CTA. MOBILE:
+// a tidy 2-line card — title + amount on top, sub + actions below — so the number is
+// paired with its item and never floats alone on its own line.
+const RowShell = ({ icon, iconColor, title, sub, amountNode, actions, isMobile, last, actionWidth = 108 }) => {
+  const border = last ? 'none' : `1px solid ${T.borderSoft}`;
+  const col = iconColor || T.mutedSoft;
+  const glyph = <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: col, marginTop: isMobile ? 1 : 0 }}><Icon name={icon} size={15} color={col} strokeWidth={2} /></span>;
+  const titleEl = <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>;
+  // On mobile the sub is allowed to wrap to a 2nd line rather than truncate; on desktop it stays a single ellipsised line.
+  const subEl = <div style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.4, ...(isMobile ? {} : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }) }}>{sub}</div>;
+  if (isMobile) {
+    return (
+      <div className="ub-row" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '11px 14px', borderBottom: border }}>
+        {glyph}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
-          <div style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>
-            {item.badge && <span style={{ color: badgeRed ? T.red : T.muted, fontWeight: badgeRed ? 600 : 400 }}>{item.badge.label}{item.sub ? ' · ' : ''}</span>}
-            {item.sub}
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>{titleEl}</div>
+            {amountNode && <div style={{ flexShrink: 0 }}>{amountNode}</div>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 5 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>{subEl}</div>
+            {actions && <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>{actions}</div>}
           </div>
         </div>
-        {item.amount != null && (
-          <span style={{ fontSize: 13, fontWeight: 600, color: item.amountTone === 'in' ? T.greenDark : T.textSoft, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
-            {item.amountTone === 'in' ? '+' : item.amountTone === 'out' ? '-' : ''}{fmtMoney(item.amount)}
-          </span>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          {(item.secondary || []).length > 0 && (
-            <span className="ub-sec" style={{ display: 'flex', gap: 2 }}>
-              {item.secondary.map(s => <button key={s.id} className="ub-qlink" style={QUIET_LINK} onClick={() => onAction(item, s.id)}>{s.label}</button>)}
-            </span>
-          )}
-          <button className="ub-qbtn" style={QUIET_BTN} title={item.primary.title || item.primary.label} onClick={() => onAction(item, item.primary.id)}>{item.primary.label}</button>
-        </div>
       </div>
+    );
+  }
+  return (
+    <div className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: border }}>
+      {glyph}
+      <div style={{ flex: 1, minWidth: 0 }}>{titleEl}<div style={{ marginTop: 1 }}>{subEl}</div></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {amountNode && <div style={{ minWidth: 74, textAlign: 'right' }}>{amountNode}</div>}
+        {actions && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: actionWidth }}>{actions}</div>}
+      </div>
+    </div>
+  );
+};
+
+// Row overflow menu — an always-visible ⋯ that opens the secondary actions. Rendered
+// fixed-position so it escapes the card's overflow:hidden; single click-away scrim.
+const RowMenu = ({ actions, onPick }) => {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef(null);
+  if (!actions || !actions.length) return null;
+  const toggle = () => {
+    if (open) { setOpen(false); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    setOpen(true);
+  };
+  return (
+    <React.Fragment>
+      <button ref={btnRef} className="ub-qbtn" title="More actions" onClick={toggle}
+        style={{ border: `1px solid ${T.border}`, background: T.card, borderRadius: 6, padding: '0 6px', height: 30, display: 'inline-flex', alignItems: 'center', cursor: 'pointer', color: T.muted, flexShrink: 0 }}>
+        <Icon name="more" size={15} />
+      </button>
+      {open && (
+        <React.Fragment>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 210 }} />
+          <div style={{ position: 'fixed', top: pos.top, right: pos.right, minWidth: 168, background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, boxShadow: T.shadowLg, zIndex: 211, overflow: 'hidden', animation: 'expand .14s ease' }}>
+            {actions.map(a => (
+              <button key={a.id} data-hover="row" onClick={() => { setOpen(false); onPick(a.id); }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: 'none', padding: '9px 13px', fontSize: 12.5, color: T.text, cursor: 'pointer', whiteSpace: 'nowrap' }}>{a.label}</button>
+            ))}
+          </div>
+        </React.Fragment>
+      )}
+    </React.Fragment>
+  );
+};
+
+// Action row — a RowShell whose amount is the item's value and whose actions are one
+// always-visible primary button + a ⋯ overflow menu for the rest. Inline panels
+// (email/category/receipt/asset) still expand below the row.
+const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, flash, last, isMobile }) => {
+  const badgeRed = item.badge && item.badge.color === 'red';
+  const sub = (
+    <React.Fragment>
+      {item.badge && <span style={{ color: badgeRed ? T.red : T.muted, fontWeight: badgeRed ? 600 : 400 }}>{item.badge.label}{item.sub ? ' · ' : ''}</span>}
+      {item.sub}
+    </React.Fragment>
+  );
+  const amountNode = item.amount != null ? (
+    <span style={{ fontSize: 13, fontWeight: 600, color: item.amountTone === 'in' ? T.greenDark : T.textSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+      {item.amountTone === 'in' ? '+' : item.amountTone === 'out' ? '-' : ''}{fmtMoney(item.amount)}
+    </span>
+  ) : null;
+  const actions = (
+    <React.Fragment>
+      <RowMenu actions={item.secondary} onPick={(id) => onAction(item, id)} />
+      <button className="ub-qbtn" style={{ ...QUIET_BTN, height: 30, display: 'inline-flex', alignItems: 'center' }} title={item.primary.title || item.primary.label} onClick={() => onAction(item, item.primary.id)}>{item.primary.label}</button>
+    </React.Fragment>
+  );
+  return (
+    <div ref={innerRef} style={{ animation: flash ? 'rowflash 1.4s ease' : undefined }}>
+      <RowShell icon={item.icon} iconColor={item.severity === 'high' ? T.red : T.mutedSoft}
+        title={item.rowTitle} sub={sub} amountNode={amountNode} actions={actions}
+        isMobile={isMobile} last={last} actionWidth={146} />
       {openMode && <div style={{ padding: '2px 14px 14px 44px' }}><PanelSwitch item={item} mode={openMode} onComplete={onComplete} onClose={onClose} /></div>}
     </div>
   );
@@ -662,11 +868,11 @@ const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, fl
 
 // --- widget (self-contained home card: header · optional tabs · quiet rows · show more) ---
 const WidgetTabs = ({ tabs, value, onChange, counts }) => (
-  <div style={{ display: 'flex', gap: 18, padding: '0 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
+  <div style={{ display: 'flex', gap: 18, padding: '0 14px', borderBottom: `1px solid ${T.borderSoft}`, overflowX: 'auto', scrollbarWidth: 'none' }}>
     {tabs.map(t => {
       const active = t.id === value;
       return (
-        <button key={t.id} onClick={() => onChange(t.id)} style={{ background: 'none', border: 'none', padding: '9px 0', marginBottom: -1, fontSize: 12.5, fontWeight: active ? 600 : 500, color: active ? T.text : T.muted, borderBottom: `2px solid ${active ? T.primary : 'transparent'}`, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <button key={t.id} onClick={() => onChange(t.id)} style={{ background: 'none', border: 'none', padding: '9px 0', marginBottom: -1, fontSize: 12.5, fontWeight: active ? 600 : 500, color: active ? T.text : T.muted, borderBottom: `2px solid ${active ? T.primary : 'transparent'}`, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
           {t.label}{counts[t.id] > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: active ? T.primary : T.mutedSoft }}>{counts[t.id]}</span>}
         </button>
       );
@@ -694,8 +900,10 @@ const WidgetAdd = ({ label, actions }) => {
   );
 };
 
-// Shared widget header — mono icon · title · count · (add) · hide.
-const WidgetHead = ({ icon, title, count, addLabel, addActions, headerAction, onHide }) => (
+// Shared widget header — mono icon · title · count · (add). The header CTA sits flush
+// to the card's right edge so it lines up with the row action buttons below it.
+// (Widget hide/show lives in the Customise popover, not a per-card ⋯.)
+const WidgetHead = ({ icon, title, count, addLabel, addActions, headerAction }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '13px 14px 11px' }}>
     <Icon name={icon} size={16} color={T.mutedSoft} />
     <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>{title}</div>
@@ -703,7 +911,6 @@ const WidgetHead = ({ icon, title, count, addLabel, addActions, headerAction, on
     <div style={{ flex: 1 }} />
     {headerAction}
     {addActions && <WidgetAdd label={addLabel} actions={addActions} />}
-    <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
   </div>
 );
 
@@ -714,7 +921,7 @@ const ShowMore = ({ all, onToggle, count }) => (
   </button>
 );
 
-const Widget = ({ title, icon, addLabel, addActions, items, tabs, emptyTitle, renderRow, onHide }) => {
+const Widget = ({ title, icon, addLabel, addActions, items, tabs, emptyTitle, renderRow }) => {
   const [tab, setTab] = useState(tabs ? tabs[0].id : null);
   const [all, setAll] = useState(false);
   const activeTab = tabs ? (tabs.find(t => t.id === tab) || tabs[0]) : null;
@@ -723,8 +930,8 @@ const Widget = ({ title, icon, addLabel, addActions, items, tabs, emptyTitle, re
   const shown = all ? list : list.slice(0, 3);
   return (
     <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' }}>
-      <WidgetHead icon={icon} title={title} count={items.length} addLabel={addLabel} addActions={addActions} onHide={onHide} />
-      {tabs && <WidgetTabs tabs={tabs} value={tab} onChange={t => { setTab(t); setAll(false); }} counts={counts} />}
+      <WidgetHead icon={icon} title={title} count={items.length} addLabel={addLabel} addActions={addActions} />
+      {tabs && <WidgetTabs tabs={tabs} value={activeTab ? activeTab.id : tab} onChange={t => { setTab(t); setAll(false); }} counts={counts} />}
       {list.length === 0 ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '12px 14px 16px', color: T.muted }}>
           <Icon name="check" size={15} color={T.greenDark} strokeWidth={2.4} />
@@ -737,7 +944,7 @@ const Widget = ({ title, icon, addLabel, addActions, items, tabs, emptyTitle, re
 };
 
 // --- business health card (gamified engagement: ring · streak · what needs you first) ---
-const HealthCard = ({ health, streak, top, onJump, onHide, allClear }) => {
+const HealthCard = ({ health, streak, top, onJump, allClear }) => {
   const [info, setInfo] = useState(false);
   return (
     <div className="ub-widget" style={CARD}>
@@ -746,7 +953,6 @@ const HealthCard = ({ health, streak, top, onJump, onHide, allClear }) => {
         <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>Business health</div>
         <button onClick={() => setInfo(v => !v)} title="How's this worked out?" style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, cursor: 'pointer', padding: 3, display: 'inline-flex', borderRadius: 6 }}><Icon name="info" size={15} /></button>
         <div style={{ flex: 1 }} />
-        <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
       </div>
       {info && (
         <div style={{ margin: '0 16px 12px', padding: 12, background: T.primarySofter, border: `1px solid ${T.borderSoft}`, borderRadius: 10, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
@@ -784,78 +990,129 @@ const HealthCard = ({ health, streak, top, onJump, onHide, allClear }) => {
   );
 };
 
-// --- business insights strip + upcoming work + key AU dates ---
-const InsightsCard = ({ onHide }) => (
-  <div className="ub-widget" style={CARD}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '15px 16px 11px' }}>
-      <Icon name="chartBar" size={16} color={T.mutedSoft} />
-      <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>Business insights</div>
-      <span style={{ fontSize: 12, fontWeight: 500, color: T.mutedSoft }}>· this month</span>
-      <div style={{ flex: 1 }} />
-      <button className="ub-more" onClick={onHide} title="Hide from home" style={{ border: 'none', background: 'none', color: T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 6 }}><Icon name="more" size={16} /></button>
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${T.borderSoft}` }}>
-      {INSIGHTS.map((s, i) => (
-        <div key={s.label} style={{ padding: '13px 16px', borderTop: i > 1 ? `1px solid ${T.borderSoft}` : 'none', borderLeft: i % 2 === 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
-          <div style={{ fontSize: 11.5, color: T.muted, fontWeight: 500 }}>{s.label}</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
-            <span style={{ fontSize: 19, fontWeight: 800, color: T.text, letterSpacing: -0.4, fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
-            {s.delta && <span style={{ fontSize: 11.5, fontWeight: 600, color: s.deltaTone === 'down' ? T.red : T.greenDark }}>{s.deltaTone === 'down' ? '▾' : '▴'} {s.delta}</span>}
+// --- your progress (gamification: tier · this-week vs your own past · recent actions) ---
+const relDay = (ts) => {
+  const ago = Math.round((startOfDay(Date.now()) - startOfDay(ts)) / DAY_MS);
+  return ago <= 0 ? 'Today' : ago === 1 ? 'Yesterday' : ago + ' days ago';
+};
+const dayLetter = (ago) => 'SMTWTFS'[new Date(startOfDay(Date.now()) - ago * DAY_MS).getDay()];
+const ProgressCard = ({ progress, allTime, recent }) => {
+  const tf = tierFor(allTime);
+  const maxBar = Math.max(1, ...progress.last7);
+  const pace = progress.thisWeek > progress.prevWeek ? { txt: "Ahead of last week", col: T.greenDark }
+    : progress.thisWeek === progress.prevWeek ? { txt: 'Matching your usual pace', col: T.muted }
+    : { txt: 'A quieter week — every bit counts', col: T.muted };
+  return (
+    <div className="ub-widget" style={CARD}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '15px 16px 11px' }}>
+        <Icon name="trendUp" size={16} color={T.mutedSoft} />
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>Your progress</div>
+        <div style={{ flex: 1 }} />
+      </div>
+      <div style={{ padding: '2px 16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <IconChip icon={tf.tier.icon} tone="accent" size={34} gradient />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>{tf.tier.name}</div>
+            <div style={{ fontSize: 11.5, color: T.muted }}>{tf.next ? `${tf.toNext} more to ${tf.next.name}` : 'Top tier — nice work'}</div>
           </div>
-          {s.sub && <div style={{ fontSize: 11, color: T.mutedSoft, marginTop: 2 }}>{s.sub}</div>}
+          <span title="Actions all-time" style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, fontVariantNumeric: 'tabular-nums' }}>{allTime}</span>
         </div>
-      ))}
+        <div style={{ height: 7, background: T.fieldBg, borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
+          <div style={{ width: Math.round(tf.progress * 100) + '%', height: '100%', background: `linear-gradient(90deg, ${T.primary}, ${T.green})`, borderRadius: 999, transition: 'width 0.5s ease' }} />
+        </div>
+      </div>
+      <div style={{ borderTop: `1px solid ${T.borderSoft}`, padding: '12px 16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 12.5, color: T.textSoft }}><b style={{ fontWeight: 700, color: T.text }}>{progress.thisWeek}</b> actions this week</span>
+          <span style={{ fontSize: 11.5, fontWeight: 600, color: pace.col }}>{pace.txt}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginTop: 10 }}>
+          {progress.last7.map((v, i) => {
+            const today = i === 6;
+            return (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: '100%', height: 34, display: 'flex', alignItems: 'flex-end' }}>
+                  <div title={v + ' actions'} style={{ width: '100%', height: Math.round((v / maxBar) * 100) + '%', minHeight: v > 0 ? 4 : 2, background: today ? T.primary : (v > 0 ? '#C7C9FB' : T.border), borderRadius: 3, transformOrigin: 'bottom', animation: 'barrise 0.5s ease' }} />
+                </div>
+                <span style={{ fontSize: 9.5, color: today ? T.primary : T.mutedSoft, fontWeight: today ? 700 : 500 }}>{today ? 'Today' : dayLetter(6 - i)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ borderTop: `1px solid ${T.borderSoft}`, padding: '4px 6px 8px' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5, padding: '8px 14px 4px' }}>Recent actions</div>
+        {recent.length === 0
+          ? <div style={{ fontSize: 12, color: T.muted, padding: '2px 14px 8px' }}>Clear something today and it'll show up here.</div>
+          : recent.map((a, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px' }}>
+              <Icon name="checkCircle" size={15} color={T.green} />
+              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: T.textSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.label}</div>
+              <span style={{ fontSize: 11, color: T.mutedSoft, flexShrink: 0 }}>{relDay(a.ts)}</span>
+            </div>
+          ))}
+      </div>
     </div>
+  );
+};
+
+// --- liabilities & equity (light informational card; appears when the module is in use) ---
+const LiabilitiesWidget = ({ fireToast, isMobile }) => (
+  <div className="ub-widget" style={CARD}>
+    <WidgetHead icon="scale" title="Liabilities & equity" count={LIABILITIES.length} />
+    {LIABILITIES.map((l, i) => {
+      const c = l.tone === 'amber' ? T.amber : T.mutedSoft;
+      return (
+        <RowShell key={l.id} icon="scale" iconColor={c} title={l.label} sub={l.sub}
+          amountNode={<span style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtMoney(l.amount)}</span>}
+          actions={<button className="ub-qbtn" style={{ ...QUIET_BTN, height: 30, display: 'inline-flex', alignItems: 'center' }} onClick={() => fireToast(`${l.action} — ${l.label} (demo)`)}>{l.action}</button>}
+          isMobile={isMobile} last={i === LIABILITIES.length - 1} actionWidth={106} />
+      );
+    })}
   </div>
 );
 
-const UpcomingWidget = ({ onHide, fireToast }) => (
-  <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' }}>
+const UpcomingWidget = ({ fireToast, isMobile }) => (
+  <div className="ub-widget" style={CARD}>
     <WidgetHead icon="briefcase" title="Work coming up" count={UPCOMING.length}
-      headerAction={<button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px' }} onClick={() => fireToast('Opening your calendar (demo)')}>Open calendar</button>}
-      onHide={onHide} />
+      headerAction={<button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px' }} onClick={() => fireToast('Opening your calendar (demo)')}>Open calendar</button>} />
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '2px 14px 10px' }}>
       <span style={{ fontSize: 19, fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums', letterSpacing: -0.3 }}>{fmtMoney(UPCOMING_TOTAL)}</span>
       <span style={{ fontSize: 12, color: T.muted }}>booked · next 2 weeks</span>
     </div>
     {UPCOMING.map((w, i) => (
-      <div key={w.id} className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: i < UPCOMING.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
-        <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: T.mutedSoft }}><Icon name="calendar" size={15} /></span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.title}</div>
-          <div style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.client} · {w.when}</div>
-        </div>
-        <span style={{ fontSize: 12.5, fontWeight: w.amount > 0 ? 600 : 500, color: w.amount > 0 ? T.textSoft : T.mutedSoft, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{w.amount > 0 ? fmtMoney(w.amount) : 'Quote visit'}</span>
-        <span className="ub-sec"><button className="ub-qbtn" style={QUIET_BTN} onClick={() => fireToast(w.amount > 0 ? `Invoice drafted for ${w.client} (demo)` : `Quote sent to ${w.client} (demo)`)}>{w.amount > 0 ? 'Invoice' : 'Send quote'}</button></span>
-      </div>
+      <RowShell key={w.id} icon="calendar" title={w.title} sub={`${w.client} · ${w.when}`}
+        amountNode={<span style={{ fontSize: 12.5, fontWeight: w.amount > 0 ? 600 : 500, color: w.amount > 0 ? T.textSoft : T.mutedSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{w.amount > 0 ? fmtMoney(w.amount) : 'Quote visit'}</span>}
+        actions={<button className="ub-qbtn" style={{ ...QUIET_BTN, height: 30, display: 'inline-flex', alignItems: 'center' }} onClick={() => fireToast(w.amount > 0 ? `Invoice drafted for ${w.client} (demo)` : `Quote sent to ${w.client} (demo)`)}>{w.amount > 0 ? 'Invoice' : 'Send quote'}</button>}
+        isMobile={isMobile} last={i === UPCOMING.length - 1} actionWidth={106} />
     ))}
   </div>
 );
 
-const KeyDatesWidget = ({ onHide, fireToast }) => (
-  <div className="ub-widget" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' }}>
-    <WidgetHead icon="calendar" title="Key dates" count="AU tax"
-      headerAction={<button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px' }} onClick={() => fireToast('Added key dates to your calendar (demo)')}>Add to calendar</button>}
-      onHide={onHide} />
-    {KEY_DATES.map((d, i) => {
-      const c = d.tone === 'red' ? T.red : d.tone === 'amber' ? T.amber : T.mutedSoft;
-      return (
-        <div key={d.id} className="ub-row" data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: i < KEY_DATES.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
-          <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: c }}><Icon name="calendar" size={15} /></span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</div>
-            <div style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.sub}</div>
-          </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: T.textSoft }}>{d.due}</div>
-            <div style={{ fontSize: 11, fontWeight: 500, color: c }}>in {d.dueIn} days</div>
-          </div>
-          <span className="ub-sec"><button className="ub-qbtn" style={QUIET_BTN} onClick={() => fireToast(`Reminder set for ${d.label} (demo)`)}>Remind me</button></span>
-        </div>
-      );
-    })}
-  </div>
-);
+const KeyDatesWidget = ({ fireToast, reg = {}, isMobile }) => {
+  const rows = KEY_DATES.filter(d => !d.req || reg[d.req]);
+  return (
+    <div className="ub-widget" style={CARD}>
+      <WidgetHead icon="calendar" title="Key dates" count="AU tax"
+        headerAction={<button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px' }} onClick={() => fireToast('Added key dates to your calendar (demo)')}>Add to calendar</button>} />
+      {rows.map((d, i) => {
+        const c = d.tone === 'red' ? T.red : d.tone === 'amber' ? T.amber : T.mutedSoft;
+        const amountNode = isMobile
+          ? <span style={{ fontSize: 12.5, fontWeight: 600, color: T.textSoft, whiteSpace: 'nowrap' }}>{d.due}</span>
+          : <div><div style={{ fontSize: 12.5, fontWeight: 600, color: T.textSoft }}>{d.due}</div><div style={{ fontSize: 11, fontWeight: 500, color: c }}>in {d.dueIn} days</div></div>;
+        const sub = isMobile
+          ? <React.Fragment><span style={{ color: c, fontWeight: 600 }}>in {d.dueIn} days</span> · {d.sub}</React.Fragment>
+          : d.sub;
+        return (
+          <RowShell key={d.id} icon="calendar" iconColor={c} title={d.label} sub={sub} amountNode={amountNode}
+            actions={<button className="ub-qbtn" style={{ ...QUIET_BTN, height: 30, display: 'inline-flex', alignItems: 'center' }} onClick={() => fireToast(`Reminder set for ${d.label} (demo)`)}>Remind me</button>}
+            isMobile={isMobile} last={i === rows.length - 1} actionWidth={106} />
+        );
+      })}
+    </div>
+  );
+};
 
 // --- calm hero (date · greeting · summary pill · customise) ---
 const CustomizePopover = ({ hidden, onToggle, widgets }) => (
@@ -870,30 +1127,74 @@ const CustomizePopover = ({ hidden, onToggle, widgets }) => (
   </div>
 );
 
-const Hero = ({ health, count, streak, customizeOpen, onCustomizeToggle, customizeProps }) => {
+// Demo-only: preview the home as different business types so reviewers can watch
+// it reflow to the modules each one actually uses. Not a shipped control.
+const PersonaControl = ({ personaId, personas, onSet }) => {
+  const [open, setOpen] = useState(false);
+  const cur = personas.find(p => p.id === personaId) || personas[0];
+  return (
+    <div style={{ position: 'relative' }}>
+      {open && <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />}
+      <button onClick={() => setOpen(v => !v)} title="Preview the home for different businesses (demo)"
+        style={{ position: 'relative', zIndex: 91, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', minHeight: 30, borderRadius: 8, border: `1px dashed ${T.borderStrong}`, background: T.card, color: T.textSoft, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 9.5, fontWeight: 700, color: T.primary, background: T.primarySoft, borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 }}>DEMO</span>
+        <span style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.label}</span>
+        <Icon name="chevronDown" size={12} />
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', top: 36, right: 0, width: 258, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 91, overflow: 'hidden', animation: 'expand .14s ease', textAlign: 'left' }}>
+          <div style={{ padding: '9px 14px', borderBottom: `1px solid ${T.borderSoft}`, fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5 }}>Preview as a business using…</div>
+          {personas.map(p => {
+            const active = p.id === personaId;
+            return (
+              <button key={p.id} onClick={() => { onSet(p.id); setOpen(false); }} data-hover="row" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', border: 'none', background: active ? T.primarySofter : 'none', padding: '9px 14px', cursor: 'pointer', textAlign: 'left' }}>
+                <span style={{ width: 16, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', paddingTop: 2, color: T.primary }}>{active && <Icon name="check" size={13} strokeWidth={3} />}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{p.label}</div>
+                  <div style={{ fontSize: 11, color: T.muted }}>{p.hint}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Hero = ({ health, count, streak, tier, isMobile, personaProps, customizeOpen, onCustomizeToggle, customizeProps }) => {
   const hr = new Date().getHours();
   const greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const dateStr = new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-  return (
-    <div style={{ position: 'relative', textAlign: 'center', padding: '2px 0 26px' }}>
-      <div style={{ position: 'absolute', top: 0, right: 0 }}>
+  const controls = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+      <PersonaControl {...personaProps} />
+      <div style={{ position: 'relative' }}>
         {customizeOpen && <div onClick={onCustomizeToggle} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />}
         <Btn variant="ghost" size="sm" icon="sliders" onClick={onCustomizeToggle} style={{ background: T.card, position: 'relative', zIndex: 91 }}>Customise</Btn>
         {customizeOpen && <CustomizePopover {...customizeProps} />}
       </div>
+    </div>
+  );
+  const pad = isMobile ? '2px 9px' : '2px 14px';
+  const seg = (children, key) => <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: pad, fontSize: 12.5, color: T.textSoft, whiteSpace: 'nowrap' }}>{children}</span>;
+  const segs = [
+    seg(<React.Fragment><span style={{ width: 8, height: 8, borderRadius: '50%', background: BAND[health.band].color }} /><span><b style={{ fontWeight: 700, color: T.text }}>{health.score}</b> health</span></React.Fragment>, 'h'),
+    seg(<span><b style={{ fontWeight: 700, color: T.text }}>{count}</b> {isMobile ? 'to do' : 'to action'}</span>, 'a'),
+    seg(<React.Fragment><Icon name="flame" size={13} color={T.amber} /><span><b style={{ fontWeight: 700, color: T.text }}>{streak}</b>-day streak</span></React.Fragment>, 's'),
+  ];
+  if (tier && !isMobile) segs.push(seg(<React.Fragment><Icon name={tier.icon} size={13} color={T.primary} /><b style={{ fontWeight: 700, color: T.text }}>{tier.name}</b></React.Fragment>, 't'));
+  const pill = [];
+  segs.forEach((s, i) => { if (i) pill.push(<span key={'d' + i} style={{ width: 1, height: 15, background: T.border }} />); pill.push(s); });
+  return (
+    <div style={{ position: 'relative', textAlign: 'center', padding: isMobile ? '0 0 20px' : '2px 0 24px' }}>
+      {isMobile
+        ? <div style={{ marginBottom: 12 }}>{controls}</div>
+        : <div style={{ position: 'absolute', top: 0, right: 0 }}>{controls}</div>}
       <div style={{ fontSize: 12.5, fontWeight: 600, color: T.muted }}>{dateStr}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: T.text, letterSpacing: -0.6, marginTop: 4 }}>{greet}, {PROFILE.first}</div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 18, background: T.card, border: `1px solid ${T.border}`, borderRadius: 999, padding: '8px 6px', boxShadow: T.shadowSm }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', fontSize: 12.5, color: T.textSoft }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: BAND[health.band].color }} />
-          <b style={{ fontWeight: 700, color: T.text }}>{health.score}</b> health
-        </span>
-        <span style={{ width: 1, height: 15, background: T.border }} />
-        <span style={{ padding: '0 14px', fontSize: 12.5, color: T.textSoft }}><b style={{ fontWeight: 700, color: T.text }}>{count}</b> to action</span>
-        <span style={{ width: 1, height: 15, background: T.border }} />
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', fontSize: 12.5, color: T.textSoft }}>
-          <Icon name="flame" size={13} color={T.amber} /><b style={{ fontWeight: 700, color: T.text }}>{streak}</b>-day streak
-        </span>
+      <div style={{ fontSize: isMobile ? 23 : 28, fontWeight: 800, color: T.text, letterSpacing: -0.6, marginTop: 4 }}>{greet}, {PROFILE.first}</div>
+      <div style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', marginTop: isMobile ? 14 : 18, background: T.card, border: `1px solid ${T.border}`, borderRadius: 999, padding: '7px 4px', boxShadow: T.shadowSm, maxWidth: '100%' }}>
+        {pill}
       </div>
     </div>
   );
@@ -915,24 +1216,18 @@ const GET_PAID_TABS = [
   { id: 'overdue', label: 'Overdue', filter: i => i.type === 'overdue_invoice' },
   { id: 'due', label: 'Due soon', filter: i => i.type === 'due_soon' },
 ];
-const WIDGET_LIST = [
-  { id: 'insights', label: 'Business insights' },
-  { id: 'get_paid', label: 'Get paid' },
-  { id: 'health', label: 'Business health' },
-  { id: 'reconcile', label: 'Reconcile' },
-  { id: 'tidy_up', label: 'Tidy up' },
-  { id: 'upcoming', label: 'Work coming up' },
-  { id: 'keydates', label: 'Key dates' },
-];
+const WIDGET_LABELS = { get_paid: 'Get paid', health: 'Business health', reconcile: 'Bank feed', expenses: 'Expenses', assets: 'Assets', liabilities: 'Liabilities & equity', upcoming: 'Work coming up', keydates: 'Key dates', progress: 'Your progress' };
 
-const UniboxScreen = ({ items, onComplete, fireToast, focus }) => {
-  const [open, setOpen] = useState(null);       // { id, mode }
+const UniboxScreen = ({ items, activeModules, reg, personaId, onSetPersona, progress, activity, allTime, onComplete, fireToast, focus, isMobile }) => {
+  const [open, setOpen] = useState(null);            // inline panel { id, mode }
+  const [matchItem, setMatchItem] = useState(null);  // the Match window
   const [flashId, setFlashId] = useState(null);
-  const [hidden, setHidden] = useState({});     // { [widgetId]: true }
+  const [hidden, setHidden] = useState({});          // { [widgetId]: true }
   const [customize, setCustomize] = useState(false);
   const rowRefs = useRef({});
-  // Column count is driven by the ACTUAL content width (not the window — the
-  // sidebar steals ~230px), measured live so columns never get too narrow to read.
+  // Column count is driven by the ACTUAL content width (not the window — the sidebar
+  // steals width), measured live so columns never get too narrow to read. LANDMINE:
+  // never derive this from window.innerWidth / useViewport — see docs/MEMORY.md.
   const wrapRef = useRef(null);
   const [cw, setCw] = useState(1120);
   useEffect(() => {
@@ -943,16 +1238,18 @@ const UniboxScreen = ({ items, onComplete, fireToast, focus }) => {
     setCw(el.getBoundingClientRect().width);
     return () => ro.disconnect();
   }, []);
-  // Cap at 2 columns — 3 crams the rows at real content widths (sidebar steals
-  // ~230px). Two wide columns + the full-width insights strip fill the screen
-  // while keeping every row title readable.
-  const cols = cw >= 760 ? 2 : 1;
+  const cols = cw >= 900 ? 2 : 1;   // 2-col only when each column is wide enough for a full single-line row
 
-  const health = useMemo(() => computeHealth(items, PROFILE), [items]);
+  const has = (m) => activeModules.includes(m);
+  const health = useMemo(() => computeHealth(items, progress.streak, PROFILE.isNew), [items, progress.streak]);
   const ranked = useMemo(() => rankItems(items), [items]);
-  const byGroup = (g) => ranked.filter(i => i.group === g);
+  const byModule = (mods) => ranked.filter(i => mods.includes(i.module));
   const top = ranked.slice(0, 3);
+  const tier = tierFor(allTime).tier;
+  const recent = activity.slice(0, 5);
   const allClear = items.length === 0;
+
+  const widgetIdForItem = (it) => it.module === 'bankfeed' ? 'reconcile' : it.module === 'expenses' ? 'expenses' : it.module === 'assets' ? 'assets' : 'get_paid';
 
   const scrollTo = (id, flash) => setTimeout(() => {
     const el = rowRefs.current[id];
@@ -963,62 +1260,84 @@ const UniboxScreen = ({ items, onComplete, fireToast, focus }) => {
   useEffect(() => {
     if (!focus || !focus.id) return;
     const it = items.find(i => i.id === focus.id);
-    if (it) { setHidden(h => ({ ...h, [it.group]: false })); scrollTo(focus.id, true); }
+    if (it) { setHidden(h => ({ ...h, [widgetIdForItem(it)]: false })); scrollTo(focus.id, true); }
   }, [focus && focus.nonce]);
 
-  const complete = (item, message) => { onComplete(item, message); setOpen(null); };
-  const jumpTo = (id) => { const it = items.find(x => x.id === id); if (it) setHidden(h => ({ ...h, [it.group]: false })); scrollTo(id, true); };
+  const complete = (item, message, kind = 'done') => { onComplete(item, message, kind); setOpen(null); setMatchItem(null); };
+  const jumpTo = (id) => { const it = items.find(x => x.id === id); if (it) setHidden(h => ({ ...h, [widgetIdForItem(it)]: false })); scrollTo(id, true); };
   const onAction = (item, actionId) => {
     if (actionId === 'preview') { fireToast('Opening invoice preview (demo)'); return; }
+    if (MATCH_ACTIONS.includes(actionId)) { setMatchItem(item); return; }   // → the Match window
     const mode = MODE_FOR[actionId];
     if (mode) {
       setOpen(prev => (prev && prev.id === item.id && prev.mode === mode) ? null : { id: item.id, mode });
       scrollTo(item.id, false);
       return;
     }
-    complete(item, directMessage(item, actionId));
+    complete(item, directMessage(item, actionId), 'done');
   };
+  const confirmMatch = (item) => complete(item, item.amountTone === 'in' ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo || 'your books'}` : `Matched ${fmtMoney(item.amount)} — reconciled`, 'match');
+  const rejectMatch = (item) => complete(item, "We'll leave this one for you to match", 'skip');
 
   const renderRow = (item, i, len) => (
     <ActionRow key={item.id} item={item} openMode={open && open.id === item.id ? open.mode : null}
       onAction={onAction} onComplete={complete} onClose={() => setOpen(null)}
-      innerRef={el => { rowRefs.current[item.id] = el; }} flash={flashId === item.id} last={i === len - 1} />
+      innerRef={el => { rowRefs.current[item.id] = el; }} flash={flashId === item.id} last={i === len - 1} isMobile={isMobile} />
   );
 
   const toggleWidget = (id) => setHidden(h => ({ ...h, [id]: !h[id] }));
-  const getPaidW = <Widget key="gp" title="Get paid" icon="dollar" items={byGroup('get_paid')} tabs={GET_PAID_TABS}
-    addLabel="New" addActions={[{ label: 'New invoice', onClick: () => fireToast('Opening new invoice (demo)') }, { label: 'New quote', onClick: () => fireToast('Starting a new quote (demo)') }]}
-    emptyTitle="Nothing to chase right now." renderRow={renderRow} onHide={() => toggleWidget('get_paid')} />;
-  const reconcileW = <Widget key="rc" title="Reconcile" icon="bank" items={byGroup('reconcile')}
-    addActions={[{ label: 'Import', onClick: () => fireToast('Import bank statement (demo)') }]}
-    emptyTitle="Every transaction is matched." renderRow={renderRow} onHide={() => toggleWidget('reconcile')} />;
-  const tidyW = <Widget key="td" title="Tidy up" icon="sparkle" items={byGroup('tidy_up')}
-    addLabel="Log" addActions={[{ label: 'Log expense', onClick: () => fireToast('Log a new expense (demo)') }, { label: 'Log asset', onClick: () => fireToast('Log a new asset (demo)') }]}
-    emptyTitle="Expenses and assets are all sorted." renderRow={renderRow} onHide={() => toggleWidget('tidy_up')} />;
-  const upcomingW = <UpcomingWidget key="up" onHide={() => toggleWidget('upcoming')} fireToast={fireToast} />;
-  const keyDatesW = <KeyDatesWidget key="kd" onHide={() => toggleWidget('keydates')} fireToast={fireToast} />;
-  const healthW = <HealthCard key="hl" health={health} streak={PROFILE.streak} top={top} onJump={jumpTo} onHide={() => toggleWidget('health')} allClear={allClear} />;
-  const insightsW = <InsightsCard key="in" onHide={() => toggleWidget('insights')} />;
 
-  // Fewer, larger cards on a calm canvas — the "home" feel. Order interleaves so
-  // Get paid | Business health sit at the top like Asana's My tasks | Goals.
-  const bento = [
-    { id: 'get_paid', el: getPaidW }, { id: 'health', el: healthW }, { id: 'reconcile', el: reconcileW },
-    { id: 'upcoming', el: upcomingW }, { id: 'tidy_up', el: tidyW }, { id: 'keydates', el: keyDatesW },
-    { id: 'insights', el: insightsW },
-  ].filter(w => !hidden[w.id]);
+  // Get paid adapts to modules: the Quotes tab + a "New quote" action only when quotes is in use.
+  const getPaidTabs = GET_PAID_TABS.filter(t => t.id !== 'quotes' || has('quotes'));
+  const getPaidItems = byModule(has('quotes') ? ['sales', 'quotes'] : ['sales']);
+  const getPaidW = <Widget key="gp" title="Get paid" icon="dollar" items={getPaidItems} tabs={getPaidTabs}
+    addLabel="New" addActions={[{ label: 'New invoice', onClick: () => fireToast('Opening new invoice (demo)') }].concat(has('quotes') ? [{ label: 'New quote', onClick: () => fireToast('Starting a new quote (demo)') }] : [])}
+    emptyTitle="Nothing to chase right now." renderRow={renderRow} />;
+  const bankfeedW = <Widget key="rc" title="Bank feed" icon="bank" items={byModule(['bankfeed'])}
+    addActions={[{ label: 'Import', onClick: () => fireToast('Import bank statement (demo)') }]}
+    emptyTitle="Every transaction is matched." renderRow={renderRow} />;
+  const expensesW = <Widget key="ex" title="Expenses" icon="receipt" items={byModule(['expenses'])}
+    addLabel="Log" addActions={[{ label: 'Log expense', onClick: () => fireToast('Log a new expense (demo)') }]}
+    emptyTitle="Expenses are all sorted." renderRow={renderRow} />;
+  const assetsW = <Widget key="as" title="Assets" icon="layers" items={byModule(['assets'])}
+    addLabel="Log" addActions={[{ label: 'Log asset', onClick: () => fireToast('Log a new asset (demo)') }]}
+    emptyTitle="Assets are all recorded." renderRow={renderRow} />;
+  const upcomingW = <UpcomingWidget key="up" fireToast={fireToast} isMobile={isMobile} />;
+  const keyDatesW = <KeyDatesWidget key="kd" fireToast={fireToast} reg={reg} isMobile={isMobile} />;
+  const liabilitiesW = <LiabilitiesWidget key="li" fireToast={fireToast} isMobile={isMobile} />;
+  const healthW = <HealthCard key="hl" health={health} streak={progress.streak} top={top} onJump={jumpTo} allClear={allClear} />;
+  const progressW = <ProgressCard key="pr" progress={progress} allTime={allTime} recent={recent} />;
+
+  // Module-adaptive home: only surface widgets for modules this business uses.
+  const WIDGETS = [
+    { id: 'get_paid', el: getPaidW, show: has('sales') || has('quotes') },
+    { id: 'health', el: healthW, show: true },
+    { id: 'reconcile', el: bankfeedW, show: has('bankfeed') },
+    { id: 'expenses', el: expensesW, show: has('expenses') },
+    { id: 'upcoming', el: upcomingW, show: has('booking') },
+    { id: 'progress', el: progressW, show: true },
+    { id: 'assets', el: assetsW, show: has('assets') },
+    { id: 'liabilities', el: liabilitiesW, show: has('liabilities') },
+    { id: 'keydates', el: keyDatesW, show: has('sales') || has('liabilities') },
+  ];
+  const available = WIDGETS.filter(w => w.show);
+  const bento = available.filter(w => !hidden[w.id]);
   const columns = Array.from({ length: cols }, () => []);
   bento.forEach((w, i) => columns[i % cols].push(w.el));
+  const customiseList = available.map(w => ({ id: w.id, label: WIDGET_LABELS[w.id] }));
 
   return (
     <div ref={wrapRef}>
-      <Hero health={health} count={items.length} streak={PROFILE.streak}
+      <Hero health={health} count={items.length} streak={progress.streak} tier={tier} isMobile={isMobile}
+        personaProps={{ personaId, personas: PERSONAS, onSet: onSetPersona }}
         customizeOpen={customize} onCustomizeToggle={() => setCustomize(v => !v)}
-        customizeProps={{ hidden, onToggle: toggleWidget, widgets: WIDGET_LIST }} />
-      {allClear && <Banner tone="success" style={{ marginBottom: 16 }} title="You're all clear ✨">Everything's actioned — your business is in the green.</Banner>}
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-        {columns.map((col, ci) => <div key={ci} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>{col}</div>)}
-      </div>
+        customizeProps={{ hidden, onToggle: toggleWidget, widgets: customiseList }} />
+      {allClear
+        ? <Celebration onNew={() => fireToast('Starting a new invoice (demo)')} />
+        : <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+            {columns.map((col, ci) => <div key={ci} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>{col}</div>)}
+          </div>}
+      <MatchModal item={matchItem} isMobile={isMobile} onClose={() => setMatchItem(null)} onConfirm={confirmMatch} onReject={rejectMatch} />
     </div>
   );
 };
@@ -1086,38 +1405,51 @@ const NAV = [
     { id: 'support', label: 'Support', icon: 'messageSquare' } ],
 ];
 
-const Sidebar = ({ route, count, onNav, onStub }) => (
-  <div style={{ width: 232, flexShrink: 0, height: '100vh', background: T.card, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column' }}>
-    <div style={{ padding: '18px 20px 12px' }}><SoleLogo size={24} /></div>
-    <div className="scroll-area" style={{ flex: 1, padding: '4px 12px', overflowY: 'auto' }}>
-      {NAV.map((section, si) => (
-        <div key={si} style={{ paddingBottom: 8, marginBottom: 8, borderBottom: si < NAV.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
-          {section.map(item => {
-            const active = item.route && route === item.route.replace('#/', '');
-            return (
-              <div key={item.id} data-hover={active ? undefined : 'nav'}
-                onClick={() => item.route ? onNav(item.route) : onStub(item.label)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 1, background: active ? T.primarySoft : 'transparent', color: active ? T.primary : (item.accent === 'red' ? '#B91C1C' : T.textSoft), fontWeight: active ? 600 : 500, fontSize: 13 }}>
-                <Icon name={item.icon} size={17} color={active ? T.primary : (item.accent === 'red' ? '#B91C1C' : T.muted)} />
-                <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
-                {item.badge && count > 0 && (
-                  <span style={{ background: active ? T.primary : T.red, color: '#fff', fontSize: 10.5, fontWeight: 700, borderRadius: 999, minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>{count}</span>
-                )}
-              </div>
-            );
-          })}
+const Sidebar = ({ route, count, onNav, onStub, isMobile, mobileOpen, onClose }) => {
+  const railStyle = isMobile
+    ? { position: 'fixed', top: 0, left: 0, zIndex: 60, transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)', transition: 'transform 0.24s cubic-bezier(0.32,0.72,0,1)', boxShadow: mobileOpen ? '4px 0 28px rgba(15,17,23,0.20)' : 'none' }
+    : {};
+  const click = (item) => { if (item.route) onNav(item.route); else onStub(item.label); if (isMobile) onClose(); };
+  return (
+    <React.Fragment>
+      {isMobile && mobileOpen && <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.42)', zIndex: 59, animation: 'fadein 0.16s ease' }} />}
+      <div style={{ width: 232, flexShrink: 0, height: '100vh', background: T.card, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', ...railStyle }}>
+        <div style={{ padding: '18px 20px 12px', display: 'flex', alignItems: 'center' }}>
+          <SoleLogo size={24} />
+          <div style={{ flex: 1 }} />
+          {isMobile && <button onClick={onClose} title="Close menu" style={{ border: 'none', background: 'none', color: T.muted, cursor: 'pointer', padding: 4, display: 'inline-flex' }}><Icon name="close" size={20} /></button>}
         </div>
-      ))}
-    </div>
-    <div style={{ padding: '10px 14px', borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-      <Avatar name={PROFILE.name} size={32} />
-      <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hi, {PROFILE.first} Williamson</div>
-        <div style={{ fontSize: 11, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{PROFILE.email}</div>
+        <div className="scroll-area" style={{ flex: 1, padding: '4px 12px', overflowY: 'auto' }}>
+          {NAV.map((section, si) => (
+            <div key={si} style={{ paddingBottom: 8, marginBottom: 8, borderBottom: si < NAV.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
+              {section.map(item => {
+                const active = item.route && route === item.route.replace('#/', '');
+                return (
+                  <div key={item.id} data-hover={active ? undefined : 'nav'}
+                    onClick={() => click(item)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, cursor: 'pointer', marginBottom: 1, background: active ? T.primarySoft : 'transparent', color: active ? T.primary : (item.accent === 'red' ? '#B91C1C' : T.textSoft), fontWeight: active ? 600 : 500, fontSize: 13 }}>
+                    <Icon name={item.icon} size={17} color={active ? T.primary : (item.accent === 'red' ? '#B91C1C' : T.muted)} />
+                    <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+                    {item.badge && count > 0 && (
+                      <span style={{ background: active ? T.primary : T.red, color: '#fff', fontSize: 10.5, fontWeight: 700, borderRadius: 999, minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>{count}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: '10px 14px', borderTop: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar name={PROFILE.name} size={32} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hi, {PROFILE.first} Williamson</div>
+            <div style={{ fontSize: 11, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{PROFILE.email}</div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-);
+    </React.Fragment>
+  );
+};
 
 const BellDropdown = ({ top, count, onPick, onOpenAll }) => (
   <div style={{ position: 'absolute', top: 40, right: 0, width: 320, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 80, overflow: 'hidden', animation: 'expand 0.14s ease' }}>
@@ -1143,25 +1475,26 @@ const BellDropdown = ({ top, count, onPick, onOpenAll }) => (
   </div>
 );
 
-const TopBar = ({ count, items, onFocusItem, onNav }) => {
+const TopBar = ({ count, items, onFocusItem, onNav, isMobile, onOpenNav }) => {
   const [bell, setBell] = useState(false);
   const [period, setPeriod] = useState('fy');
   const top = rankItems(items).slice(0, 5);
   return (
-    <div style={{ flexShrink: 0, background: T.card, borderBottom: `1px solid ${T.border}`, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{ position: 'relative', flex: '0 1 360px' }}>
+    <div style={{ flexShrink: 0, background: T.card, borderBottom: `1px solid ${T.border}`, padding: isMobile ? '10px 14px' : '10px 20px', display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+      {isMobile && <button onClick={onOpenNav} title="Menu" style={{ flexShrink: 0, border: `1px solid ${T.border}`, background: T.card, borderRadius: 8, padding: 7, display: 'inline-flex', cursor: 'pointer', color: T.text }}><Icon name="menu" size={18} /></button>}
+      <div style={{ position: 'relative', flex: isMobile ? 1 : '0 1 360px', minWidth: 0 }}>
         <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex' }}><Icon name="search" size={15} color={T.mutedSoft} /></span>
-        <input placeholder="Search or type a command" style={{ width: '100%', padding: '8px 40px 8px 32px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.fieldBg, fontSize: 13 }} />
-        <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: T.mutedSoft, border: `1px solid ${T.border}`, borderRadius: 5, padding: '1px 5px', background: T.card }}>⌘K</span>
+        <input placeholder={isMobile ? 'Search' : 'Search or type a command'} style={{ width: '100%', padding: isMobile ? '8px 12px 8px 32px' : '8px 40px 8px 32px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.fieldBg, fontSize: 13 }} />
+        {!isMobile && <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: T.mutedSoft, border: `1px solid ${T.border}`, borderRadius: 5, padding: '1px 5px', background: T.card }}>⌘K</span>}
       </div>
-      <div style={{ flex: 1 }} />
-      <Select value={period} onChange={e => setPeriod(e.target.value)} style={{ width: 140 }}>
+      {!isMobile && <div style={{ flex: 1 }} />}
+      {!isMobile && <Select value={period} onChange={e => setPeriod(e.target.value)} style={{ width: 140 }}>
         <option value="month">This month</option>
         <option value="quarter">This quarter</option>
         <option value="fy">This financial year</option>
-      </Select>
-      <Btn variant="soft" icon="calendar">Schedule support session</Btn>
-      <div style={{ position: 'relative' }}>
+      </Select>}
+      {!isMobile && <Btn variant="soft" icon="calendar">Schedule support session</Btn>}
+      <div style={{ position: 'relative', flexShrink: 0 }}>
         <Btn variant="iconOnly" icon="bell" onClick={() => setBell(v => !v)} title="Notifications" />
         {count > 0 && <span style={{ position: 'absolute', top: -3, right: -3, background: T.red, color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', border: `2px solid ${T.card}`, pointerEvents: 'none' }}>{count > 9 ? '9+' : count}</span>}
         {bell && <div onClick={() => setBell(false)} style={{ position: 'fixed', inset: 0, zIndex: 70 }} />}
@@ -1176,10 +1509,25 @@ const TopBar = ({ count, items, onFocusItem, onNav }) => {
 const UNIBOX_CANVAS = 'radial-gradient(1100px 420px at 6% -12%, rgba(91,91,246,0.12), transparent 60%), radial-gradient(950px 340px at 100% -8%, rgba(91,91,246,0.08), transparent 55%), linear-gradient(180deg, #ECECFB 0%, #F5F4F8 520px)';
 
 const AppShell = ({ route }) => {
+  const { isMobile } = useViewport();
   const [items, setItems] = useState(SEED_ITEMS);
+  const [activity, setActivity] = useState(SEED_ACTIVITY);
+  const [allTime, setAllTime] = useState(PROFILE.actionsAllTime);
+  const [personaId, setPersonaId] = useState(PROFILE.persona);
   const [toast, setToast] = useState(null);
   const [focus, setFocus] = useState(null);
+  const [burst, setBurst] = useState({ n: 0, big: false });
+  const [navOpen, setNavOpen] = useState(false);
   const toastTimer = useRef();
+  const burstN = useRef(0);
+
+  useEffect(() => { setNavOpen(false); }, [route]);   // close the mobile drawer on navigation
+
+  const persona = personaById(personaId);
+  const activeModules = persona.modules;
+  const reg = persona.reg;
+  const visibleItems = useMemo(() => items.filter(i => activeModules.includes(i.module)), [items, personaId]);
+  const progress = useMemo(() => computeProgress(activity), [activity]);
 
   const fireToast = (t) => {
     const obj = typeof t === 'string' ? { message: t } : t;
@@ -1187,29 +1535,56 @@ const AppShell = ({ route }) => {
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(cur => cur === obj ? null : cur), obj.action ? 5000 : 2400);
   };
-  const completeItem = (item, message) => {
+  const fireBurst = (big) => { burstN.current += 1; setBurst({ n: burstN.current, big: !!big }); };
+
+  // Complete an action: remove it, log it to activity, bump the all-time count, then
+  // celebrate (confetti + copy) on the first-of-day streak, a daily/tier milestone, or all-clear.
+  const completeItem = (item, message, kind = 'done') => {
     const idx = items.findIndex(i => i.id === item.id);
+    const entry = { ts: Date.now(), kind, label: message };
+    const nextActivity = [entry, ...activity];
+    const prevP = progress, nextP = computeProgress(nextActivity);
+    const prevTier = tierFor(allTime).tier.name, nextTier = tierFor(allTime + 1).tier.name;
+    const remaining = visibleItems.filter(i => i.id !== item.id).length;
+    let msg = message, big = false, note = null;
+    if (nextTier !== prevTier) { big = true; note = `Nice work — you've reached ${nextTier}`; }
+    else { for (const m of DAILY_MILESTONES) if (prevP.today < m && nextP.today >= m) { big = true; note = `${m} done today — you're on a roll!`; break; } }
+    if (remaining === 0) { big = true; if (!note) note = "That's everything actioned — you're all clear ✨"; }
+    if (note) msg = note;
+    else if (prevP.today === 0 && nextP.today >= 1) msg = `${message} · 🔥 ${nextP.streak}-day streak`;
+
     setItems(prev => prev.filter(i => i.id !== item.id));
-    fireToast({ message, tone: 'undo', action: { label: 'Undo', onClick: () => setItems(cur => { const arr = [...cur]; arr.splice(Math.min(idx, arr.length), 0, item); return arr; }) } });
+    setActivity(nextActivity);
+    setAllTime(a => a + 1);
+    fireBurst(big);
+    fireToast({ message: msg, tone: 'undo', action: { label: 'Undo', onClick: () => {
+      setItems(cur => { const arr = [...cur]; arr.splice(Math.min(idx, arr.length), 0, item); return arr; });
+      setActivity(cur => cur.filter(a => a !== entry));
+      setAllTime(a => Math.max(0, a - 1));
+    } } });
   };
   const nav = (route) => { window.location.hash = route; };
   const stub = (label) => fireToast(`${label} isn't part of this prototype`);
   const focusItem = (id) => { if (route !== 'unibox') window.location.hash = '#/unibox'; setFocus({ id, nonce: (focus ? focus.nonce : 0) + 1 }); };
+  const setPersona = (id) => { setPersonaId(id); setFocus(null); };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: T.bg }}>
-      <Sidebar route={route} count={items.length} onNav={nav} onStub={stub} />
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: T.bg, position: 'relative' }}>
+      <Sidebar route={route} count={visibleItems.length} onNav={nav} onStub={stub} isMobile={isMobile} mobileOpen={navOpen} onClose={() => setNavOpen(false)} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <TopBar count={items.length} items={items} onFocusItem={focusItem} onNav={nav} />
+        <TopBar count={visibleItems.length} items={visibleItems} onFocusItem={focusItem} onNav={nav} isMobile={isMobile} onOpenNav={() => setNavOpen(true)} />
         <div className="scroll-area" style={{ flex: 1, overflowY: 'auto', background: route === 'unibox' ? UNIBOX_CANVAS : T.bg }}>
-          <div style={{ maxWidth: route === 'unibox' ? 1140 : 1560, margin: '0 auto', padding: route === 'unibox' ? '34px 28px 64px' : '24px 30px 56px' }}>
+          <div style={{ maxWidth: route === 'unibox' ? 1140 : 1560, margin: '0 auto', padding: isMobile ? '20px 16px 56px' : (route === 'unibox' ? '34px 28px 64px' : '24px 30px 56px') }}>
             {route === 'dashboard'
-              ? <DashboardStub count={items.length} onNav={nav} />
-              : <UniboxScreen items={items} onComplete={completeItem} fireToast={fireToast} focus={focus} />}
+              ? <DashboardStub count={visibleItems.length} onNav={nav} />
+              : <UniboxScreen items={visibleItems} activeModules={activeModules} reg={reg} personaId={personaId} onSetPersona={setPersona}
+                  progress={progress} activity={activity} allTime={allTime}
+                  onComplete={completeItem} fireToast={fireToast} focus={focus} isMobile={isMobile} />}
           </div>
         </div>
       </div>
       <Toast toast={toast} onClose={() => setToast(null)} />
+      <Confetti fire={burst.n} big={burst.big} />
     </div>
   );
 };
