@@ -145,6 +145,10 @@ const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
     more: <><circle cx="5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="19" cy="12" r="1.4" fill="currentColor" /></>,
     file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></>,
     briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="2" y1="13" x2="22" y2="13" /></>,
+    car: <><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" /><circle cx="7" cy="17" r="2" /><path d="M9 17h6" /><circle cx="17" cy="17" r="2" /></>,
+    box: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><path d="M3.27 6.96 12 12.01l8.73-5.05" /><line x1="12" y1="22" x2="12" y2="12" /></>,
+    lock: <><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
+    coins: <><circle cx="8" cy="8" r="6" /><path d="M18.09 10.37A6 6 0 1 1 10.34 18" /><path d="M7 6h1v4" /><path d="m16.71 13.88.7.71-2.82 2.82" /></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -404,19 +408,60 @@ const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-AU', { minimumFr
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // --- mock data ---
-const PROFILE = { name: 'Tony Williamson', first: 'Tony', email: 'demo@soleapp.com.au', isNew: false, persona: 'full', actionsAllTime: 42 };
+const PROFILE = { name: 'Tony Williamson', first: 'Tony', email: 'demo@soleapp.com.au', isNew: false, plan: 'advanced', actionsAllTime: 42 };
 const CATEGORIES = ['Software', 'Fuel', 'Office supplies', 'Phone', 'Meals', 'Travel', 'Other'];
 
-// --- modules a business uses → drives which widgets the home surfaces ---
-// Sole's home adapts to the business: ~70% only run sales/expenses/liabilities, so
-// booking (Work coming up), bank feed (Match) and assets only appear when in use.
-const PERSONAS = [
-  { id: 'full',       label: 'Established business', hint: 'Everything switched on',                 modules: ['sales','quotes','expenses','assets','liabilities','bankfeed','booking'], reg: { gst: true,  payroll: true,  contractors: true } },
-  { id: 'typical',    label: 'Typical sole trader',  hint: 'Sales · expenses · liabilities (~70%)',  modules: ['sales','expenses','liabilities'],                                        reg: { gst: true,  payroll: false, contractors: false } },
-  { id: 'tradie',     label: 'Tradie on the tools',  hint: 'Quotes · bank feed · booking',           modules: ['sales','quotes','expenses','bankfeed','booking'],                         reg: { gst: true,  payroll: false, contractors: true } },
-  { id: 'bookkeeper', label: 'Just tracking books',  hint: 'Expenses & assets only',                 modules: ['expenses','assets'],                                                     reg: { gst: false, payroll: false, contractors: false } },
+// --- pricing: plan + add-ons drive which modules (and cards) the home surfaces ---
+// The small-business Sole app is modular: a business is on ONE plan and switches on
+// add-ons. Each add-on unlocks one or more modules; the home only shows a card when
+// its module is active. This is what the home "stitches together" from plan + add-ons.
+// (Replaces the old made-up "business type" personas.)
+const ADDONS = [
+  { id: 'accounting', label: 'Accounting',       price: 7.99, desc: 'Liability & Capital, BAS Reporting, bank feeds',                 icon: 'bank',      unlocks: ['bankfeed', 'liabilities'] },
+  { id: 'time',       label: 'Time Tracker',      price: 4.99, desc: 'Log billable hours and auto-invoice clients',                    icon: 'clock',     unlocks: ['time'] },
+  { id: 'projects',   label: 'Projects',          price: 4.99, desc: 'Track job margins and performance milestones',                   icon: 'briefcase', unlocks: ['projects'] },
+  { id: 'advassets',  label: 'Advanced Assets',   price: 4.99, desc: 'Advanced asset tracking, depreciation & compliance reporting',  icon: 'layers',    unlocks: ['assets'] },
+  { id: 'km',         label: 'KM Tracker',        price: 4.99, desc: 'Vehicle logbook & distance tracking for tax',                    icon: 'car',       unlocks: ['km'] },
+  { id: 'booking',    label: 'Booking',           price: 4.99, desc: 'Multi-calendar booking system for clients',                      icon: 'calendar',  unlocks: ['booking'] },
+  { id: 'inventory',  label: 'Inventory',         price: 4.99, desc: 'Stock management and inventory tracking',                        icon: 'box',       unlocks: ['inventory'] },
+  { id: 'investment', label: 'Investment Module', price: 4.99, desc: 'Track shares, ETFs and investment portfolios',                   icon: 'trendUp',   unlocks: ['investment'] },
+  { id: 'crypto',     label: 'Crypto Module',     price: 4.99, desc: 'Track and report on crypto holdings',                            icon: 'coins',     unlocks: ['crypto'], comingSoon: true },
 ];
-const personaById = (id) => PERSONAS.find(p => p.id === id) || PERSONAS[0];
+const addonById = (id) => ADDONS.find(a => a.id === id);
+
+const PLANS = [
+  { id: 'free',       label: 'Free',              price: 0,     base: ['sales', 'expenses', 'assets'],           includedAddons: [],                                                        freeSlots: 0,
+    desc: ['Ideal for personal use', 'Get started for free', 'Access to essential tools'] },
+  { id: 'business',   label: 'Business',          price: 14.99, base: ['sales', 'quotes', 'expenses', 'assets'], includedAddons: [],                                                        freeSlots: 0,
+    desc: ['Everything in Free', 'Quotes & invoicing', 'Grow your business'] },
+  { id: 'compliance', label: 'Compliance Bundle', price: 24.99, tag: '25% OFF', base: ['sales', 'quotes', 'expenses', 'assets'], includedAddons: ['accounting'],                          freeSlots: 2,
+    desc: ['Everything in Business', 'Accounting module included', 'Any 2 add-ons included'] },
+  { id: 'advanced',   label: 'Advanced',          price: 44.99, tag: 'BEST VALUE', base: ['sales', 'quotes', 'expenses', 'assets'], includedAddons: ['accounting', 'time', 'projects', 'advassets', 'km', 'booking'], freeSlots: 0,
+    desc: ['Everything in Business', 'Accounting + 5 add-ons included', 'Best value for growing teams'] },
+  { id: 'pro',        label: 'Pro',               price: 59.99, comingSoon: 'Coming June 2026', disabled: true, base: [], includedAddons: [], freeSlots: 0,
+    desc: ['Everything in Advanced', 'Priority support', 'Coming soon'] },
+];
+const planById = (id) => PLANS.find(p => p.id === id) || PLANS[0];
+
+// Active module set + registration flags, derived from the plan and any extra add-ons.
+const modulesFor = (plan, extraAddons) => {
+  const activeAddons = [...new Set([...(plan.includedAddons || []), ...extraAddons])];
+  const mods = new Set(plan.base || []);
+  activeAddons.forEach(id => { const a = addonById(id); if (a) a.unlocks.forEach(m => mods.add(m)); });
+  const reg = { gst: mods.has('bankfeed') || mods.has('liabilities'), payroll: false, contractors: mods.has('projects') };
+  return { activeModules: [...mods], activeAddons, reg };
+};
+// Monthly price: plan + paid extras. Compliance grants `freeSlots` free add-ons; a
+// coming-soon add-on (crypto) is never charged. Matches the screenshots' totals.
+const priceFor = (plan, extraAddons) => {
+  let total = plan.price, freeLeft = plan.freeSlots || 0;
+  extraAddons.filter(id => !(plan.includedAddons || []).includes(id)).forEach(id => {
+    const a = addonById(id); if (!a || a.comingSoon) return;
+    if (freeLeft > 0) { freeLeft -= 1; return; }
+    total += a.price;
+  });
+  return total;
+};
 
 // --- gamification: tiers (all-time actions) + streak + activity history ---
 const TIERS = [
@@ -576,7 +621,37 @@ const KEY_DATES = [
   { id: 'd5', label: 'Income tax return — FY25/26', sub: 'Self-lodgers', due: '31 Oct', dueIn: 117, tone: 'neutral', req: null },
 ];
 
-const HEALTH_DEF = 'Your business health starts at 100. Overdue invoices, unmatched transactions and untidy books lower it; clearing them lifts it back up. New businesses start with an encouraging score, and it never hits zero.';
+// --- add-on module seed data (each surfaces a home card when its add-on is switched on) ---
+// Rows share a shape: { id, tone?('red'|'amber'|'neutral'), title, sub, amount?, action }.
+const TIME_UNBILLED = '12.5';
+const TIME_ENTRIES = [
+  { id: 'tt1', tone: 'neutral', title: 'On the clock — Riverview fit-out', sub: 'Running · started 9:12am', amount: null, action: 'Stop' },
+  { id: 'tt2', tone: 'amber',   title: 'Unbilled time — Harbour Cafe',    sub: '3.5 hrs · not yet invoiced', amount: 385, action: 'Invoice' },
+  { id: 'tt3', tone: 'amber',   title: 'Unbilled time — Bondi Mowing Co', sub: '9.0 hrs · not yet invoiced', amount: 990, action: 'Invoice' },
+];
+const PROJECTS = [
+  { id: 'pj1', tone: 'red',     title: 'Riverview fit-out',   sub: 'Over budget · 112% of quote',       amount: 5400, action: 'Review' },
+  { id: 'pj2', tone: 'amber',   title: 'Deck build — stage 2', sub: 'Milestone due Fri · 60% complete',  amount: 3200, action: 'View' },
+  { id: 'pj3', tone: 'neutral', title: 'Cafe refit',          sub: 'On track · 38% margin',             amount: 1450, action: 'View' },
+];
+const KM_WEEK = '128';
+const KM_TRIPS = [
+  { id: 'km1', tone: 'amber',   title: '8 trips to classify',       sub: 'Business or personal? · this week',   amount: null, action: 'Classify' },
+  { id: 'km2', tone: 'neutral', title: 'Bunnings → site · 24 km',   sub: 'Yesterday · 4:10pm',                  amount: null, action: 'Log' },
+  { id: 'km3', tone: 'neutral', title: 'Logbook — 12 weeks left',   sub: 'ATO logbook period ends 30 Sep',      amount: null, action: 'View' },
+];
+const INVENTORY = [
+  { id: 'iv1', tone: 'red',     title: 'Coffee beans — 2 kg left', sub: 'Below reorder point (5 kg)', amount: null, action: 'Reorder' },
+  { id: 'iv2', tone: 'amber',   title: 'Takeaway cups — low',      sub: '80 units left · reorder soon', amount: null, action: 'Reorder' },
+  { id: 'iv3', tone: 'neutral', title: 'Stocktake due',            sub: 'Last counted 31 Mar',          amount: null, action: 'Count' },
+];
+const INVESTMENTS = [
+  { id: 'in1', tone: 'amber',   title: 'Dividend to record — VAS', sub: 'Paid 4 Jul · franked',   amount: 214,   action: 'Record' },
+  { id: 'in2', tone: 'amber',   title: 'CGT event to review',      sub: 'Sold 20 CBA · 1 Jul',    amount: 1860,  action: 'Review' },
+  { id: 'in3', tone: 'neutral', title: 'Portfolio — 6 holdings',   sub: 'Up 2.4% this month',     amount: 48200, action: 'View' },
+];
+
+const HEALTH_DEF ='Your business health starts at 100. Overdue invoices, unmatched transactions and untidy books lower it; clearing them lifts it back up. New businesses start with an encouraging score, and it never hits zero.';
 const STREAK_DEF = "Days in a row you've checked in and cleared at least one thing. It never counts down — quieter days simply don't add to it.";
 
 // --- health score (deterministic; encouraging floor; never 0) ---
@@ -1114,6 +1189,49 @@ const KeyDatesWidget = ({ fireToast, reg = {}, isMobile }) => {
   );
 };
 
+// --- add-on module cards ---
+// Generic add-on card: header (icon · title · count · optional CTA) + a lead stat +
+// quiet action rows. Read-only/demo like Liabilities. One component serves every new
+// module (Time tracker / Projects / KM / Inventory / Investments) so the home stays
+// consistent and the dev team can stitch real data behind the same shape.
+const ADDON_TONE = { red: T.red, amber: T.amber, neutral: T.mutedSoft };
+const AddonCard = ({ icon, title, rows, lead, addAction, fireToast, isMobile }) => (
+  <div className="ub-widget" style={CARD}>
+    <WidgetHead icon={icon} title={title} count={rows.length}
+      headerAction={addAction ? <button className="ub-qbtn" style={{ ...QUIET_BTN, padding: '3px 9px' }} onClick={() => fireToast(addAction.toast)}>{addAction.label}</button> : undefined} />
+    {lead && (
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '2px 14px 10px' }}>
+        <span style={{ fontSize: 19, fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums', letterSpacing: -0.3 }}>{lead.value}</span>
+        <span style={{ fontSize: 12, color: T.muted }}>{lead.label}</span>
+      </div>
+    )}
+    {rows.map((r, i) => {
+      const c = ADDON_TONE[r.tone] || T.mutedSoft;
+      return (
+        <RowShell key={r.id} icon={icon} iconColor={c} title={r.title} sub={r.sub}
+          amountNode={r.amount != null ? <span style={{ fontSize: 13, fontWeight: 600, color: T.textSoft, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmtMoney(r.amount)}</span> : null}
+          actions={<button className="ub-qbtn" style={{ ...QUIET_BTN, height: 30, display: 'inline-flex', alignItems: 'center' }} onClick={() => fireToast(`${r.action} — ${r.title} (demo)`)}>{r.action}</button>}
+          isMobile={isMobile} last={i === rows.length - 1} actionWidth={106} />
+      );
+    })}
+  </div>
+);
+
+// Crypto is on the roadmap — its add-on card is a calm "coming soon" teaser so the team
+// can see where the module will live once it ships.
+const CryptoWidget = () => (
+  <div className="ub-widget" style={{ ...CARD, borderStyle: 'dashed', borderColor: T.borderStrong, background: T.surface }}>
+    <WidgetHead icon="coins" title="Crypto" count="Coming soon" />
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '2px 14px 16px' }}>
+      <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: T.primarySoft, color: T.primary }}><Icon name="lock" size={15} /></span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Track & report on crypto holdings</div>
+        <div style={{ fontSize: 11.5, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>Connect exchanges and wallets to auto-calculate capital gains at tax time. Launching soon — we'll switch it on for you.</div>
+      </div>
+    </div>
+  </div>
+);
+
 // --- calm hero (date · greeting · summary pill · customise) ---
 const CustomizePopover = ({ hidden, onToggle, widgets }) => (
   <div style={{ position: 'absolute', top: 42, right: 0, width: 220, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 90, overflow: 'hidden', animation: 'expand 0.14s ease', textAlign: 'left' }}>
@@ -1127,48 +1245,92 @@ const CustomizePopover = ({ hidden, onToggle, widgets }) => (
   </div>
 );
 
-// Demo-only: preview the home as different business types so reviewers can watch
-// it reflow to the modules each one actually uses. Not a shipped control.
-const PersonaControl = ({ personaId, personas, onSet }) => {
+// Plan + add-ons control. Compact top-right dropdown: pick a plan and toggle add-ons,
+// and the home reflows to the modules they unlock (a card per active add-on/module).
+// This is the demo stand-in for the account's real subscription — hence the DEMO chip.
+const PlanControl = ({ planId, plan, extraAddons, onSetPlan, onToggleAddon, isMobile }) => {
   const [open, setOpen] = useState(false);
-  const cur = personas.find(p => p.id === personaId) || personas[0];
+  const included = plan.includedAddons || [];
+  const total = priceFor(plan, extraAddons);
+  const usedFree = extraAddons.filter(id => !included.includes(id) && !(addonById(id) || {}).comingSoon).length;
+  const freeLeft = Math.max(0, (plan.freeSlots || 0) - usedFree);
+  const priceLbl = (p) => p === 0 ? 'Free' : '$' + p.toFixed(2);
+  // On mobile the pill sits near the middle, so anchor the panel to the viewport (with
+  // side margins) instead of the pill's right edge — otherwise it clips off-screen.
+  const panel = isMobile
+    ? { position: 'fixed', top: 64, left: 12, right: 12, width: 'auto', maxWidth: 'none', maxHeight: '78vh' }
+    : { position: 'absolute', top: 36, right: 0, width: 324, maxWidth: '88vw', maxHeight: '72vh' };
   return (
     <div style={{ position: 'relative' }}>
       {open && <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />}
-      <button onClick={() => setOpen(v => !v)} title="Preview the home for different businesses (demo)"
+      <button onClick={() => setOpen(v => !v)} title="Switch plan & add-ons (demo)"
         style={{ position: 'relative', zIndex: 91, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', minHeight: 30, borderRadius: 8, border: `1px dashed ${T.borderStrong}`, background: T.card, color: T.textSoft, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
         <span style={{ fontSize: 9.5, fontWeight: 700, color: T.primary, background: T.primarySoft, borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 }}>DEMO</span>
-        <span style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>{cur.label}</span>
+        <span style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>{plan.label}</span>
         <Icon name="chevronDown" size={12} />
       </button>
       {open && (
-        <div style={{ position: 'absolute', top: 36, right: 0, width: 258, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 91, overflow: 'hidden', animation: 'expand .14s ease', textAlign: 'left' }}>
-          <div style={{ padding: '9px 14px', borderBottom: `1px solid ${T.borderSoft}`, fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5 }}>Preview as a business using…</div>
-          {personas.map(p => {
-            const active = p.id === personaId;
+        <div style={{ ...panel, overflowY: 'auto', background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: T.shadowLg, zIndex: 91, textAlign: 'left', animation: 'expand .14s ease' }}>
+          <div style={{ padding: '10px 14px 6px', fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5 }}>Your plan</div>
+          {PLANS.map(p => {
+            const active = p.id === planId, dis = p.disabled;
             return (
-              <button key={p.id} onClick={() => { onSet(p.id); setOpen(false); }} data-hover="row" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', border: 'none', background: active ? T.primarySofter : 'none', padding: '9px 14px', cursor: 'pointer', textAlign: 'left' }}>
-                <span style={{ width: 16, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', paddingTop: 2, color: T.primary }}>{active && <Icon name="check" size={13} strokeWidth={3} />}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{p.label}</div>
-                  <div style={{ fontSize: 11, color: T.muted }}>{p.hint}</div>
+              <button key={p.id} disabled={dis} onClick={() => { if (!dis) onSetPlan(p.id); }} data-hover={dis ? undefined : 'row'}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', background: active ? T.primarySofter : 'none', padding: '8px 14px', cursor: dis ? 'not-allowed' : 'pointer', textAlign: 'left', opacity: dis ? 0.55 : 1 }}>
+                <span style={{ width: 16, height: 16, flexShrink: 0, borderRadius: '50%', border: `1.5px solid ${active ? T.primary : T.borderStrong}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{active && <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.primary }} />}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {p.label}
+                    {p.tag && <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', background: T.primary, borderRadius: 4, padding: '1px 5px', letterSpacing: 0.2 }}>{p.tag}</span>}
+                  </div>
+                  {dis && <div style={{ fontSize: 10.5, color: T.mutedSoft, marginTop: 1 }}>{p.comingSoon}</div>}
                 </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: T.textSoft, fontVariantNumeric: 'tabular-nums' }}>{priceLbl(p.price)}</span>
               </button>
             );
           })}
+          <div style={{ padding: '10px 14px 6px', borderTop: `1px solid ${T.borderSoft}`, marginTop: 4, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5 }}>Add-ons</span>
+            {plan.freeSlots > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: freeLeft > 0 ? T.greenDark : T.mutedSoft }}>{freeLeft} of {plan.freeSlots} free left</span>}
+          </div>
+          {ADDONS.map(a => {
+            const isIncl = included.includes(a.id);
+            const on = isIncl || extraAddons.includes(a.id);
+            const right = isIncl
+              ? <span style={{ fontSize: 10.5, fontWeight: 700, color: T.greenDark }}>Included</span>
+              : a.comingSoon
+                ? <span style={{ fontSize: 9, fontWeight: 700, color: T.amber, background: T.amberSoft, borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 }}>SOON</span>
+                : <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, fontVariantNumeric: 'tabular-nums' }}>${a.price.toFixed(2)}</span>;
+            return (
+              <button key={a.id} disabled={isIncl} onClick={() => { if (!isIncl) onToggleAddon(a.id); }} data-hover={isIncl ? undefined : 'row'}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', border: 'none', background: 'none', padding: '8px 14px', cursor: isIncl ? 'default' : 'pointer', textAlign: 'left' }}>
+                <span style={{ width: 18, height: 18, flexShrink: 0, borderRadius: 5, border: `1.5px solid ${on ? T.primary : T.borderStrong}`, background: on ? T.primary : T.card, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{on && <Icon name="check" size={12} color="#fff" strokeWidth={3} />}</span>
+                <span style={{ width: 20, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: T.mutedSoft }}><Icon name={a.icon} size={15} color={T.mutedSoft} /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{a.label}</div>
+                  <div style={{ fontSize: 10.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.desc}</div>
+                </div>
+                {right}
+              </button>
+            );
+          })}
+          <div style={{ position: 'sticky', bottom: 0, background: T.card, borderTop: `1px solid ${T.borderSoft}`, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11.5, color: T.muted }}>Total</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: T.text, fontVariantNumeric: 'tabular-nums' }}>{total === 0 ? 'Free' : '$' + total.toFixed(2)}<span style={{ fontSize: 11, fontWeight: 500, color: T.muted }}> /mo</span></span>
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-const Hero = ({ health, count, streak, tier, isMobile, personaProps, customizeOpen, onCustomizeToggle, customizeProps }) => {
+const Hero = ({ health, count, streak, tier, isMobile, planProps, customizeOpen, onCustomizeToggle, customizeProps }) => {
   const hr = new Date().getHours();
   const greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const dateStr = new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
   const controls = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-      <PersonaControl {...personaProps} />
+      <PlanControl {...planProps} isMobile={isMobile} />
       <div style={{ position: 'relative' }}>
         {customizeOpen && <div onClick={onCustomizeToggle} style={{ position: 'fixed', inset: 0, zIndex: 80 }} />}
         <Btn variant="ghost" size="sm" icon="sliders" onClick={onCustomizeToggle} style={{ background: T.card, position: 'relative', zIndex: 91 }}>Customise</Btn>
@@ -1216,9 +1378,9 @@ const GET_PAID_TABS = [
   { id: 'overdue', label: 'Overdue', filter: i => i.type === 'overdue_invoice' },
   { id: 'due', label: 'Due soon', filter: i => i.type === 'due_soon' },
 ];
-const WIDGET_LABELS = { get_paid: 'Get paid', health: 'Business health', reconcile: 'Bank feed', expenses: 'Expenses', assets: 'Assets', liabilities: 'Liabilities & equity', upcoming: 'Work coming up', keydates: 'Key dates', progress: 'Your progress' };
+const WIDGET_LABELS = { get_paid: 'Get paid', health: 'Business health', reconcile: 'Bank feed', expenses: 'Expenses', assets: 'Assets', liabilities: 'Liabilities & equity', upcoming: 'Work coming up', keydates: 'Key dates', progress: 'Your progress', time: 'Time tracker', projects: 'Projects', km: 'KM tracker', inventory: 'Inventory', investment: 'Investments', crypto: 'Crypto' };
 
-const UniboxScreen = ({ items, activeModules, reg, personaId, onSetPersona, progress, activity, allTime, onComplete, fireToast, focus, isMobile }) => {
+const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity, allTime, onComplete, fireToast, focus, isMobile }) => {
   const [open, setOpen] = useState(null);            // inline panel { id, mode }
   const [matchItem, setMatchItem] = useState(null);  // the Match window
   const [flashId, setFlashId] = useState(null);
@@ -1307,18 +1469,36 @@ const UniboxScreen = ({ items, activeModules, reg, personaId, onSetPersona, prog
   const liabilitiesW = <LiabilitiesWidget key="li" fireToast={fireToast} isMobile={isMobile} />;
   const healthW = <HealthCard key="hl" health={health} streak={progress.streak} top={top} onJump={jumpTo} allClear={allClear} />;
   const progressW = <ProgressCard key="pr" progress={progress} allTime={allTime} recent={recent} />;
+  // Add-on module cards — surface only when their add-on is switched on (see PlanControl).
+  const timeW = <AddonCard key="tm" icon="clock" title="Time tracker" rows={TIME_ENTRIES}
+    lead={{ value: TIME_UNBILLED + ' hrs', label: 'unbilled · ready to invoice' }}
+    addAction={{ label: 'Start timer', toast: 'Timer started (demo)' }} fireToast={fireToast} isMobile={isMobile} />;
+  const projectsW = <AddonCard key="pj" icon="briefcase" title="Projects" rows={PROJECTS} fireToast={fireToast} isMobile={isMobile} />;
+  const kmW = <AddonCard key="km" icon="car" title="KM tracker" rows={KM_TRIPS}
+    lead={{ value: KM_WEEK + ' km', label: 'logged this week' }}
+    addAction={{ label: 'Log trip', toast: 'Log a trip (demo)' }} fireToast={fireToast} isMobile={isMobile} />;
+  const inventoryW = <AddonCard key="iv" icon="box" title="Inventory" rows={INVENTORY}
+    addAction={{ label: 'Add item', toast: 'Add inventory item (demo)' }} fireToast={fireToast} isMobile={isMobile} />;
+  const investmentW = <AddonCard key="in" icon="trendUp" title="Investments" rows={INVESTMENTS} fireToast={fireToast} isMobile={isMobile} />;
+  const cryptoW = <CryptoWidget key="cy" />;
 
-  // Module-adaptive home: only surface widgets for modules this business uses.
+  // Plan + add-ons adaptive home: only surface widgets for modules this business's plan unlocks.
   const WIDGETS = [
     { id: 'get_paid', el: getPaidW, show: has('sales') || has('quotes') },
     { id: 'health', el: healthW, show: true },
     { id: 'reconcile', el: bankfeedW, show: has('bankfeed') },
     { id: 'expenses', el: expensesW, show: has('expenses') },
-    { id: 'upcoming', el: upcomingW, show: has('booking') },
     { id: 'progress', el: progressW, show: true },
+    { id: 'time', el: timeW, show: has('time') },
     { id: 'assets', el: assetsW, show: has('assets') },
+    { id: 'projects', el: projectsW, show: has('projects') },
+    { id: 'upcoming', el: upcomingW, show: has('booking') },
+    { id: 'km', el: kmW, show: has('km') },
+    { id: 'inventory', el: inventoryW, show: has('inventory') },
+    { id: 'investment', el: investmentW, show: has('investment') },
     { id: 'liabilities', el: liabilitiesW, show: has('liabilities') },
     { id: 'keydates', el: keyDatesW, show: has('sales') || has('liabilities') },
+    { id: 'crypto', el: cryptoW, show: has('crypto') },
   ];
   const available = WIDGETS.filter(w => w.show);
   const bento = available.filter(w => !hidden[w.id]);
@@ -1329,7 +1509,7 @@ const UniboxScreen = ({ items, activeModules, reg, personaId, onSetPersona, prog
   return (
     <div ref={wrapRef}>
       <Hero health={health} count={items.length} streak={progress.streak} tier={tier} isMobile={isMobile}
-        personaProps={{ personaId, personas: PERSONAS, onSet: onSetPersona }}
+        planProps={planProps}
         customizeOpen={customize} onCustomizeToggle={() => setCustomize(v => !v)}
         customizeProps={{ hidden, onToggle: toggleWidget, widgets: customiseList }} />
       {allClear
@@ -1513,7 +1693,8 @@ const AppShell = ({ route }) => {
   const [items, setItems] = useState(SEED_ITEMS);
   const [activity, setActivity] = useState(SEED_ACTIVITY);
   const [allTime, setAllTime] = useState(PROFILE.actionsAllTime);
-  const [personaId, setPersonaId] = useState(PROFILE.persona);
+  const [planId, setPlanId] = useState(PROFILE.plan);
+  const [extraAddons, setExtraAddons] = useState([]);   // add-ons toggled on beyond the plan's included set
   const [toast, setToast] = useState(null);
   const [focus, setFocus] = useState(null);
   const [burst, setBurst] = useState({ n: 0, big: false });
@@ -1523,10 +1704,9 @@ const AppShell = ({ route }) => {
 
   useEffect(() => { setNavOpen(false); }, [route]);   // close the mobile drawer on navigation
 
-  const persona = personaById(personaId);
-  const activeModules = persona.modules;
-  const reg = persona.reg;
-  const visibleItems = useMemo(() => items.filter(i => activeModules.includes(i.module)), [items, personaId]);
+  const plan = planById(planId);
+  const { activeModules, reg } = useMemo(() => modulesFor(plan, extraAddons), [planId, extraAddons]);
+  const visibleItems = useMemo(() => items.filter(i => activeModules.includes(i.module)), [items, activeModules]);
   const progress = useMemo(() => computeProgress(activity), [activity]);
 
   const fireToast = (t) => {
@@ -1566,7 +1746,14 @@ const AppShell = ({ route }) => {
   const nav = (route) => { window.location.hash = route; };
   const stub = (label) => fireToast(`${label} isn't part of this prototype`);
   const focusItem = (id) => { if (route !== 'unibox') window.location.hash = '#/unibox'; setFocus({ id, nonce: (focus ? focus.nonce : 0) + 1 }); };
-  const setPersona = (id) => { setPersonaId(id); setFocus(null); };
+  // Switching plan starts each plan clean (you see exactly what it includes); toggling an
+  // add-on adds/removes its modules. Both clear any bell deep-link (it may now be hidden).
+  const setPlan = (id) => { setPlanId(id); setExtraAddons([]); setFocus(null); };
+  const toggleAddon = (id) => {
+    if ((plan.includedAddons || []).includes(id)) return;   // included add-ons can't be turned off
+    setExtraAddons(cur => cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]);
+    setFocus(null);
+  };
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: T.bg, position: 'relative' }}>
@@ -1577,7 +1764,8 @@ const AppShell = ({ route }) => {
           <div style={{ maxWidth: route === 'unibox' ? 1140 : 1560, margin: '0 auto', padding: isMobile ? '20px 16px 56px' : (route === 'unibox' ? '34px 28px 64px' : '24px 30px 56px') }}>
             {route === 'dashboard'
               ? <DashboardStub count={visibleItems.length} onNav={nav} />
-              : <UniboxScreen items={visibleItems} activeModules={activeModules} reg={reg} personaId={personaId} onSetPersona={setPersona}
+              : <UniboxScreen items={visibleItems} activeModules={activeModules} reg={reg}
+                  planProps={{ planId, plan, extraAddons, onSetPlan: setPlan, onToggleAddon: toggleAddon }}
                   progress={progress} activity={activity} allTime={allTime}
                   onComplete={completeItem} fireToast={fireToast} focus={focus} isMobile={isMobile} />}
           </div>
