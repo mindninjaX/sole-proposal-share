@@ -13,9 +13,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<!-- Shared engine + content: attach window.SoleBrand and window.RESOURCES before the app runs -->
+<!-- Shared engine + content: attach window.SoleBrand, RESOURCES and SoleExport before the app runs -->
 <script src="resources/brand.js"></script>
 <script src="resources/data.js"></script>
+<script src="resources/export.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { margin: 0; padding: 0; height: 100%; }
@@ -136,8 +137,258 @@ const toDataUri = (url) => new Promise((resolve) => {
   }).catch(() => resolve(url)); // CORS-blocked → keep remote URL (needs net for the logo only)
 });
 
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+// Extract a palette from an image by fetching its bytes through a CORS proxy into a
+// same-origin blob URL — this dodges the tainted-canvas problem for logos hosted
+// on domains that don't send CORS headers (favicons, partner logos).
+const proxiedPalette = async (url) => {
+  try {
+    const blob = await withTimeout(fetch(CORS_PROXY + encodeURIComponent(url)).then((r) => r.blob()), 8000);
+    const obj = URL.createObjectURL(blob);
+    const pal = await paletteFromImage(obj);
+    URL.revokeObjectURL(obj);
+    if (pal && pal.primary) return pal;
+  } catch (_) {}
+  return paletteFromImage(url); // fallback: direct (works only if the host sends CORS)
+};
 const slug = (s) => String(s || 'brand').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'brand';
 const escJson = (obj) => JSON.stringify(obj).replace(/<\//g, '<\\/');
+
+/* ============================================================================
+   MULTI-FORMAT UPLOAD REBRANDING  (all client-side — no server, works offline)
+   HTML: logo swap + colour remap + text find/replace
+   DOCX/XLSX: theme accent recolour + logo image swap + text find/replace (re-zip)
+   PDF: overlay only — branded cover + per-page logo/accent bar/footer + metadata
+   ========================================================================== */
+const loadScript = (src, g) => new Promise((res, rej) => {
+  if (g && window[g]) return res(window[g]);
+  const s = document.createElement('script'); s.src = src;
+  s.onload = () => res(g ? window[g] : true); s.onerror = () => rej(new Error('Could not load ' + src));
+  document.head.appendChild(s);
+});
+const LIB = {
+  jszip: () => loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js', 'JSZip'),
+  pdflib: () => loadScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js', 'PDFLib'),
+  mammoth: () => loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js', 'mammoth'),
+  xlsx: () => loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX'),
+  docx: () => loadScript('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js', 'docx'),
+};
+const detectType = (name, buf) => {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const b = new Uint8Array((buf || new ArrayBuffer(4)).slice(0, 4));
+  const isPdf = b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46;
+  const isZip = b[0] === 0x50 && b[1] === 0x4B;
+  if (ext === 'pdf' || isPdf) return 'pdf';
+  if (ext === 'docx') return 'docx';
+  if (ext === 'xlsx') return 'xlsx';
+  if (ext === 'csv') return 'csv';
+  if (ext === 'htm' || ext === 'html') return 'html';
+  return isZip ? 'unknown' : 'html';
+};
+const dataUriToBytes = (uri) => { const bin = atob((uri || '').split(',')[1] || ''); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; };
+// re-encode an image data-URI to a target mime (jpeg gets a white background)
+const convertImage = (dataUri, mime) => new Promise((resolve) => {
+  const img = new Image();
+  img.onload = () => { try { const c = document.createElement('canvas'); c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height; const ctx = c.getContext('2d'); if (mime === 'image/jpeg') { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, c.width, c.height); } ctx.drawImage(img, 0, 0); c.toBlob((bl) => bl ? bl.arrayBuffer().then((ab) => resolve(new Uint8Array(ab))) : resolve(null), mime, 0.92); } catch (_) { resolve(null); } };
+  img.onerror = () => resolve(null); img.src = dataUri;
+});
+const hexToRgb01 = (hex) => { const c = SB.hexToRgb(SB.normHex(hex, '#000000')); return [c[0] / 255, c[1] / 255, c[2] / 255]; };
+const countOccurrences = (s, sub) => sub ? s.split(sub).length - 1 : 0;
+const applyTextMaps = (str, maps) => { (maps || []).forEach((m) => { if (m.find) str = str.split(m.find).join(m.replace || ''); }); return str; };
+const remapHex = (str, from, to) => { if (!from || !to) return str; return str.replace(new RegExp('#' + from.replace('#', ''), 'gi'), to.toUpperCase()); };
+const recolorOoxmlTheme = (xml, primaryHex, accentHex) => {
+  const P = primaryHex.replace('#', '').toUpperCase(), A = accentHex.replace('#', '').toUpperCase();
+  xml = xml.replace(/(<a:accent1>\s*<a:srgbClr val=")[0-9A-Fa-f]{6}("\s*\/>)/, '$1' + P + '$2');
+  xml = xml.replace(/(<a:accent2>\s*<a:srgbClr val=")[0-9A-Fa-f]{6}("\s*\/>)/, '$1' + A + '$2');
+  return xml;
+};
+// remap ONE explicit colour → target across OOXML colour attrs: val="RRGGBB",
+// fill="RRGGBB" (docx shading), rgb="FFRRGGBB" (styles fills/fonts, ARGB).
+const remapOoxmlColor = (xml, fromHex, toHex) => {
+  const F = fromHex.replace('#', '').toUpperCase(), TC = toHex.replace('#', '').toUpperCase();
+  xml = xml.replace(new RegExp('((?:val|fill|color)=")' + F + '(")', 'gi'), '$1' + TC + '$2');
+  xml = xml.replace(new RegExp('(rgb=")(FF|00)?' + F + '(")', 'gi'), (m, a, b, c) => a + (b || 'FF') + TC + c);
+  return xml;
+};
+const applyColorMapsXml = (xml, colorMaps, primary) => { (colorMaps || []).forEach((from) => { if (SB.isValidHex(from)) xml = remapOoxmlColor(xml, from, primary); }); return xml; };
+const applyColorMapsHtml = (str, colorMaps, primary) => { (colorMaps || []).forEach((from) => { if (SB.isValidHex(from)) str = str.replace(new RegExp('#' + from.replace('#', ''), 'gi'), primary.toUpperCase()); }); return str; };
+// distinct non-neutral colours present in an uploaded file (for the "colours found" swatches)
+const detectColorsInFile = async (upload) => {
+  const out = []; const seen = {};
+  const add = (h) => { const n = SB.normHex(h, ''); if (n && !seen[n] && pickBrandHue([n])) { seen[n] = 1; out.push(n); } };
+  try {
+    if (upload.type === 'html' || upload.type === 'csv') {
+      (upload.text.match(/#[0-9a-fA-F]{6}\b/g) || []).forEach(add);
+      (upload.text.match(/#[0-9a-fA-F]{3}\b/g) || []).forEach(add);
+    } else if (upload.type === 'docx' || upload.type === 'xlsx') {
+      const JSZip = await LIB.jszip(); const zip = await JSZip.loadAsync(upload.buffer);
+      const dir = upload.type === 'docx' ? 'word' : 'xl';
+      // styles.xml first — those are the visible cell/header/font colours the user sees
+      for (const part of [dir + '/styles.xml', dir + '/theme/theme1.xml']) {
+        if (zip.file(part)) { const xml = await zip.file(part).async('string'); (xml.match(/(?:val|fill|color|rgb)="[0-9A-Fa-f]{6,8}"/g) || []).forEach((m) => { const hx = m.match(/[0-9A-Fa-f]{6,8}/)[0]; add('#' + (hx.length === 8 ? hx.slice(2) : hx)); }); }
+      }
+    }
+  } catch (_) {}
+  return out.slice(0, 16);
+};
+
+// ---- HTML ----
+const buildHtmlOutput = (htmlText, brand, maps, colorMaps) => {
+  let out = applyTextMaps(htmlText, maps);
+  out = applyColorMapsHtml(out, colorMaps, brand.primaryColor);
+  if (brand.logo) out = out.replace(/<img\b[^>]*>/gi, (tag) => /logo/i.test(tag) ? tag.replace(/src=(["'])[^"']*\1/i, 'src="' + brand.logo + '"') : tag);
+  const d = SB.deriveBrand(brand);
+  const inject = '<style id="sole-brand-inject">:root{--brand-primary:' + d.primary + ';--brand-primary-hover:' + d.primaryHover + ';--brand-primary-soft:' + d.primarySoft + ';--brand-on-primary:' + d.onPrimary + ';--brand-accent:' + d.accent + ';}</style>';
+  out = /<\/head>/i.test(out) ? out.replace(/<\/head>/i, inject + '</head>') : inject + out;
+  return out;
+};
+const htmlSummary = (orig, maps, brand, colorMaps) => {
+  const bits = [];
+  const tm = (maps || []).reduce((n, m) => n + countOccurrences(orig, m.find), 0);
+  if (tm) bits.push('replaced ' + tm + ' text match' + (tm === 1 ? '' : 'es'));
+  if ((colorMaps || []).length) bits.push('recoloured ' + colorMaps.length + ' colour' + (colorMaps.length === 1 ? '' : 's') + ' → ' + brand.primaryColor);
+  if (brand.logo && /<img[^>]*logo/i.test(orig)) bits.push('swapped the logo');
+  bits.push('injected brand variables');
+  return 'HTML · ' + bits.join(' · ');
+};
+const buildCsvOutput = (text, maps) => {
+  const tm = (maps || []).reduce((n, m) => n + countOccurrences(text, m.find), 0);
+  const out = applyTextMaps(text, maps);
+  const summary = 'CSV · ' + (tm ? ('replaced ' + tm + ' text match' + (tm === 1 ? '' : 'es')) : 'no text rules yet — CSV has no colours or logo, so rebranding is text find/replace only');
+  return { kind: 'csv', text: out, blob: new Blob([out], { type: 'text/csv' }), ext: 'csv', mime: 'text/csv', summary: summary };
+};
+// tiny CSV parser (handles quoted fields) — for preview only
+const parseCsv = (text) => {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else if (c === '\r') { /* skip */ }
+    else cell += c;
+  }
+  if (cell.length || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+};
+
+// ---- DOCX / XLSX (OOXML zip) ----
+const buildOoxml = async (buffer, brand, maps, kind, colorMaps) => {
+  const JSZip = await LIB.jszip();
+  const zip = await JSZip.loadAsync(buffer);
+  const d = SB.deriveBrand(brand);
+  const dir = kind === 'docx' ? 'word' : 'xl';
+  const bits = [];
+  let colorChanges = 0;
+  // theme accents → brand + explicit colour remaps
+  const themePath = dir + '/theme/theme1.xml';
+  if (zip.file(themePath)) { let xml = await zip.file(themePath).async('string'); const b0 = xml; xml = recolorOoxmlTheme(xml, d.primary, d.accent); xml = applyColorMapsXml(xml, colorMaps, d.primary); if (xml !== b0) colorChanges++; zip.file(themePath, xml); }
+  // styles.xml holds explicit cell fills / fonts (headers, banded rows, etc.)
+  const stylesPath = dir + '/styles.xml';
+  if (zip.file(stylesPath) && (colorMaps || []).length) { let xml = await zip.file(stylesPath).async('string'); const b0 = xml; xml = applyColorMapsXml(xml, colorMaps, d.primary); if (xml !== b0) colorChanges++; zip.file(stylesPath, xml); }
+  if (colorChanges) bits.push('recoloured to ' + d.primary);
+  // text find/replace (+ colour remap) across text-bearing parts
+  const textRe = kind === 'docx' ? /^word\/(document|header\d+|footer\d+)\.xml$/i : /^xl\/(sharedStrings|worksheets\/sheet\d+)\.xml$/i;
+  let textMatches = 0;
+  for (const f of Object.keys(zip.files).filter((f) => textRe.test(f))) {
+    let xml = await zip.file(f).async('string');
+    (maps || []).forEach((m) => { if (m.find) textMatches += countOccurrences(xml, m.find); });
+    xml = applyTextMaps(xml, maps);
+    xml = applyColorMapsXml(xml, colorMaps, d.primary);
+    zip.file(f, xml);
+  }
+  if (textMatches) bits.push('replaced ' + textMatches + ' text match' + (textMatches === 1 ? '' : 'es'));
+  // logo swap — first media image, re-encoded to the slot's format
+  if (brand.logo) {
+    const media = Object.keys(zip.files).filter((f) => new RegExp('^' + dir + '/media/image\\d+\\.(png|jpe?g|gif|bmp)$', 'i').test(f)).sort();
+    if (media.length) {
+      const ext = media[0].split('.').pop().toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : 'image/png';
+      const bytes = await convertImage(brand.logo, mime);
+      if (bytes) { zip.file(media[0], bytes); bits.push('swapped the logo (' + media[0].split('/').pop() + ')'); }
+    }
+  }
+  const mime = kind === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const blob = await zip.generateAsync({ type: 'blob', mimeType: mime });
+  return { kind: kind, blob: blob, ext: kind, mime: mime, summary: kind.toUpperCase() + ' · ' + (bits.length ? bits.join(' · ') : 'no changes applied') };
+};
+
+// ---- PDF (full overlay) ----
+const wrapText = (text, font, size, maxWidth) => {
+  const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ');
+  const lines = []; let line = '';
+  words.forEach((w) => { const t = line ? line + ' ' + w : w; if (font.widthOfTextAtSize(t, size) > maxWidth && line) { lines.push(line); line = w; } else line = t; });
+  if (line) lines.push(line); return lines;
+};
+const buildPdfOutput = async (buffer, brand) => {
+  const PDFLib = await LIB.pdflib();
+  const { PDFDocument, rgb, StandardFonts } = PDFLib;
+  const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const d = SB.deriveBrand(brand);
+  const prim = hexToRgb01(d.primary), onP = hexToRgb01(d.onPrimary), ink = hexToRgb01('#1F2937'), muted = hexToRgb01('#6B7280');
+  const helv = await doc.embedFont(StandardFonts.Helvetica);
+  const helvB = await doc.embedFont(StandardFonts.HelveticaBold);
+  let logo = null;
+  if (brand.logo) { try { const png = await convertImage(brand.logo, 'image/png'); if (png) logo = await doc.embedPng(png); } catch (_) {} }
+  const orig = doc.getPages();
+  const sz = orig.length ? orig[0].getSize() : { width: 595, height: 842 };
+  const W = sz.width, H = sz.height;
+
+  // cover page (inserted at front)
+  const cover = doc.insertPage(0, [W, H]);
+  const bandH = Math.min(190, H * 0.26);
+  cover.drawRectangle({ x: 0, y: H - bandH, width: W, height: bandH, color: rgb(prim[0], prim[1], prim[2]) });
+  if (logo) { const lw = 130, s = lw / logo.width, lh = Math.min(logo.height * s, 64); cover.drawImage(logo, { x: 50, y: H - 46 - lh, width: lw, height: lh }); }
+  let y = H - bandH - 54;
+  cover.drawText((brand.orgName || 'Your brand'), { x: 50, y: y, size: 30, font: helvB, color: rgb(ink[0], ink[1], ink[2]) }); y -= 30;
+  if (brand.tagline) { cover.drawText(brand.tagline, { x: 50, y: y, size: 13, font: helv, color: rgb(muted[0], muted[1], muted[2]) }); y -= 34; } else y -= 14;
+  wrapText(brand.introText || '', helv, 13, W - 100).slice(0, 6).forEach((ln) => { cover.drawText(ln, { x: 50, y: y, size: 13, font: helv, color: rgb(ink[0], ink[1], ink[2]) }); y -= 20; });
+  if (brand.ctaLabel) {
+    const pad = 14, tw = helvB.widthOfTextAtSize(brand.ctaLabel, 13);
+    cover.drawRectangle({ x: 50, y: y - 30, width: tw + pad * 2, height: 34, color: rgb(prim[0], prim[1], prim[2]) });
+    cover.drawText(brand.ctaLabel, { x: 50 + pad, y: y - 20, size: 13, font: helvB, color: rgb(onP[0], onP[1], onP[2]) });
+  }
+  // footer on cover
+  const contact = [brand.contactName, brand.contactEmail, brand.contactPhone].filter(Boolean).join('  ·  ');
+  if (contact) cover.drawText(contact, { x: 50, y: 40, size: 10, font: helv, color: rgb(muted[0], muted[1], muted[2]) });
+
+  // per original page: accent bar + logo stamp + footer line
+  doc.getPages().forEach((pg, i) => {
+    if (i === 0) return; // skip cover
+    const s = pg.getSize();
+    pg.drawRectangle({ x: 0, y: s.height - 5, width: s.width, height: 5, color: rgb(prim[0], prim[1], prim[2]) });
+    if (logo) { const lw = 60, sc = lw / logo.width, lh = logo.height * sc; pg.drawImage(logo, { x: s.width - lw - 24, y: s.height - 18 - lh, width: lw, height: lh, opacity: 0.9 }); }
+    const foot = (brand.orgName || '') + (contact ? '  ·  ' + contact : '');
+    if (foot) pg.drawText(foot.slice(0, 120), { x: 24, y: 16, size: 8, font: helv, color: rgb(muted[0], muted[1], muted[2]) });
+  });
+
+  doc.setTitle((brand.orgName || 'Document'));
+  doc.setAuthor(brand.orgName || 'Sole');
+  doc.setCreator('Sole Rebranding Studio');
+  const bytes = await doc.save();
+  return { kind: 'pdf', blob: new Blob([bytes], { type: 'application/pdf' }), ext: 'pdf', mime: 'application/pdf', summary: 'PDF · added a branded cover, per-page logo + accent bar + footer, and set the author' };
+};
+
+// ---- dispatch ----
+const rebrandFile = async (upload, brand, maps, colorMaps) => {
+  if (upload.type === 'html') { const html = buildHtmlOutput(upload.text, brand, maps, colorMaps); return { kind: 'html', text: html, blob: new Blob([html], { type: 'text/html' }), ext: 'html', mime: 'text/html', summary: htmlSummary(upload.text, maps, brand, colorMaps) }; }
+  if (upload.type === 'csv') return buildCsvOutput(upload.text, maps);
+  if (upload.type === 'pdf') return buildPdfOutput(upload.buffer, brand);
+  if (upload.type === 'docx') return buildOoxml(upload.buffer, brand, maps, 'docx', colorMaps);
+  if (upload.type === 'xlsx') return buildOoxml(upload.buffer, brand, maps, 'xlsx', colorMaps);
+  throw new Error('Unsupported file type');
+};
+// preview: turn the rebranded output into an iframe srcdoc/src
+const previewFor = async (result) => {
+  if (result.kind === 'html') return { srcdoc: result.text };
+  if (result.kind === 'pdf') return { src: URL.createObjectURL(result.blob) };
+  if (result.kind === 'docx') { const mammoth = await LIB.mammoth(); const ab = await result.blob.arrayBuffer(); const { value } = await mammoth.convertToHtml({ arrayBuffer: ab }); return { srcdoc: '<html><head><meta charset="utf-8"><style>body{font-family:-apple-system,Segoe UI,system-ui,sans-serif;color:#1F2937;padding:32px 40px;max-width:820px;margin:0 auto;line-height:1.5}img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #E5E7EB;padding:6px 10px}h1,h2,h3{color:#0F1117}</style></head><body>' + value + '</body></html>' }; }
+  if (result.kind === 'xlsx') { const XLSX = await LIB.xlsx(); const ab = await result.blob.arrayBuffer(); const wb = XLSX.read(ab, { type: 'array' }); const html = XLSX.utils.sheet_to_html(wb.Sheets[wb.SheetNames[0]]); return { srcdoc: '<html><head><meta charset="utf-8"><style>body{font-family:-apple-system,Segoe UI,system-ui,sans-serif;padding:20px}table{border-collapse:collapse;font-size:13px}td,th{border:1px solid #E5E7EB;padding:5px 9px;white-space:nowrap}</style></head><body>' + html + '</body></html>' }; }
+  if (result.kind === 'csv') { const rows = parseCsv(result.text).slice(0, 300); const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); const head = rows[0] || []; const body = rows.slice(1); const table = '<table><thead><tr>' + head.map((h) => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' + body.map((r) => '<tr>' + r.map((c) => '<td>' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>'; return { srcdoc: '<html><head><meta charset="utf-8"><style>body{font-family:-apple-system,Segoe UI,system-ui,sans-serif;padding:20px}table{border-collapse:collapse;font-size:13px}td,th{border:1px solid #E5E7EB;padding:5px 9px;white-space:nowrap;text-align:left}th{background:#F5F4F8;font-weight:700;position:sticky;top:0}</style></head><body>' + table + '</body></html>' }; }
+  return { srcdoc: '<html><body style="font-family:sans-serif;padding:40px;color:#6B7280">No preview.</body></html>' };
+};
 
 /* ---- small UI atoms ----------------------------------------------------- */
 const Btn = ({ variant = 'primary', children, style, ...rest }) => {
@@ -158,6 +409,17 @@ const Field = ({ label, hint, children }) => (
 );
 const inputStyle = { width: '100%', border: `1px solid ${T.border}`, borderRadius: 8, background: T.card, padding: '8px 10px', fontSize: 13.5, color: T.text };
 const Input = (p) => <input style={{ ...inputStyle, ...(p.style || {}) }} {...{ ...p, style: undefined }} />;
+const CHEVRON = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")";
+const selectStyle = { ...inputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', backgroundImage: CHEVRON, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', paddingRight: 30, cursor: 'pointer' };
+const Select = (p) => <select style={{ ...selectStyle, ...(p.style || {}) }} {...{ ...p, style: undefined }}>{p.children}</select>;
+const Check = ({ checked, onChange, children }) => (
+  <div onClick={() => onChange(!checked)} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: T.textSoft, cursor: 'pointer', userSelect: 'none' }}>
+    <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${checked ? T.primary : T.border}`, background: checked ? T.primary : T.card, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', transition: 'all .12s' }}>
+      {checked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5"><path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+    </span>
+    <span>{children}</span>
+  </div>
+);
 
 const ConfidenceDot = ({ level }) => {
   if (!level) return null;
@@ -189,9 +451,13 @@ const Section = ({ title, children, right }) => (
 
 /* ---- the app ------------------------------------------------------------ */
 function Studio() {
-  const [brand, setBrand] = useState(() => loadLast() || clone(SB.SOLE_BRAND));
+  const [brand, setBrand] = useState(() => SB.migrateBrand(loadLast() || SB.SOLE_BRAND));
   const [confidence, setConfidence] = useState({});
-  const [selected, setSelected] = useState(RESOURCE_INDEX[0] ? RESOURCE_INDEX[0].id : 'getting-paid-trades');
+  const [selected, setSelected] = useState(() => {
+    const q = new URLSearchParams(location.search).get('resource');
+    if (q && RESOURCES[q]) return q;
+    return RESOURCE_INDEX[0] ? RESOURCE_INDEX[0].id : 'getting-paid-trades';
+  });
   const [url, setUrl] = useState('');
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState('');
@@ -199,7 +465,24 @@ function Studio() {
   const [kitName, setKitName] = useState('');
   const [toast, setToast] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [resPickerOpen, setResPickerOpen] = useState(false);
+  const [resQuery, setResQuery] = useState('');
   const previewRef = useRef(null);
+  const uploadFrameRef = useRef(null);
+
+  const [sourceMode, setSourceMode] = useState('builtin');       // 'builtin' | 'upload'
+  const [upload, setUpload] = useState(null);                    // {name, type, buffer, text}
+  const [uploadPreview, setUploadPreview] = useState(null);      // {srcdoc?|src?}
+  const [textMaps, setTextMaps] = useState([{ find: '', replace: '' }]);
+  const [colorMaps, setColorMaps] = useState([]);          // ['#RRGGBB', ...] → recoloured to brand primary
+  const [detectedColors, setDetectedColors] = useState([]);
+  const [processing, setProcessing] = useState(false);
+  const [uploadSummary, setUploadSummary] = useState('');
+  const [uploadErr, setUploadErr] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+
+  const selectedMeta = RESOURCE_INDEX.find((r) => r.id === selected) || { title: 'Select a resource' };
+  const filteredResources = RESOURCE_INDEX.filter((r) => (r.title + ' ' + (r.industry || '') + ' ' + (r.archetype || '')).toLowerCase().includes(resQuery.trim().toLowerCase()));
 
   const set = (patch) => setBrand((b) => ({ ...b, ...patch }));
 
@@ -218,41 +501,65 @@ function Studio() {
     return () => window.removeEventListener('message', onMsg);
   });
 
-  /* ---- auto-fetch ---- */
+  /* ---- auto-fetch (layered; manual is always the reliable fallback) ---- */
   const doFetch = async () => {
     const u = normalizeUrl(url);
     if (!u) { flash('Enter a website address first'); return; }
     const host = hostOf(u);
     setFetching(true); setFetchMsg('Looking up ' + host + '…');
-    const next = {}; const conf = {};
+    const next = {}, conf = {};
     next.ctaUrl = u; conf.ctaUrl = 'high';
     next.orgName = titleFromHost(host); conf.orgName = 'low';
     next.logo = 'https://www.google.com/s2/favicons?sz=128&domain=' + host; conf.logo = 'low';
+    const candidates = [];          // brand-colour candidates from all sources
+    let imgForPalette = null;       // an image to canvas-extract from
+
+    // 1) Microlink — CORS-ok, no key: metadata + logo/og-image + any colour fields
     try {
       setFetchMsg('Reading site metadata…');
-      const j = await fetch('https://api.microlink.io/?url=' + encodeURIComponent(u) + '&palette=true').then((r) => r.json());
+      const j = await withTimeout(fetch('https://api.microlink.io/?url=' + encodeURIComponent(u) + '&palette=true').then((r) => r.json()), 9000);
       if (j && j.status === 'success' && j.data) {
         const d = j.data;
         if (d.title) { next.orgName = cleanTitle(d.title); conf.orgName = 'med'; }
         if (d.description) { next.introText = d.description; conf.introText = 'low'; }
-        if (d.logo && d.logo.url) { next.logo = d.logo.url; conf.logo = 'high'; }
-        else if (d.image && d.image.url) { next.logo = d.image.url; conf.logo = 'med'; }
-        const pal = (d.logo && d.logo.palette) || (d.image && d.image.palette) || d.palette;
-        const hue = pickBrandHue(pal || []);
-        if (hue) { next.primaryColor = hue; conf.primaryColor = 'med'; }
+        if (d.logo && d.logo.url) { next.logo = d.logo.url; conf.logo = 'high'; imgForPalette = d.logo.url; }
+        else if (d.image && d.image.url) { next.logo = d.image.url; conf.logo = 'med'; imgForPalette = d.image.url; }
+        const addHex = (v) => { if (v && SB.isValidHex(v)) candidates.push(SB.normHex(v, '#000000')); };
+        addHex(d.logo && d.logo.color); addHex(d.image && d.image.color); addHex(d.image && d.image.background_color);
+        [].concat((d.logo && d.logo.palette) || [], (d.image && d.image.palette) || [], d.palette || []).forEach(addHex);
       }
-    } catch (_) { /* degrade to favicon + manual */ }
-    // refine colour from the resolved logo image
-    try {
-      setFetchMsg('Extracting colours from the logo…');
-      const pal = await paletteFromImage(next.logo);
-      if (pal && pal.primary) { next.primaryColor = pal.primary; conf.primaryColor = 'high'; if (pal.accent) next.accentColor = pal.accent; }
     } catch (_) {}
+
+    // 2) theme-color from the site HTML (via CORS proxy) — the strongest brand signal
+    let themeColor = null;
+    try {
+      setFetchMsg('Reading the site’s theme colour…');
+      const html = await withTimeout(fetch(CORS_PROXY + encodeURIComponent(u)).then((r) => r.text()), 9000);
+      const grab = (re) => { const m = html.match(re); return m && m[1] ? m[1] : null; };
+      let c = grab(/<meta[^>]*name=["']theme-color["'][^>]*content=["']([^"']+)["']/i)
+        || grab(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']theme-color["']/i)
+        || grab(/<meta[^>]*name=["']msapplication-TileColor["'][^>]*content=["']([^"']+)["']/i);
+      if (c && SB.isValidHex(c.trim())) themeColor = SB.normHex(c.trim(), '#000000');
+    } catch (_) {}
+
+    // 3) canvas palette from the logo — fetch bytes through a proxy to dodge CORS taint
+    if (imgForPalette) {
+      try {
+        setFetchMsg('Extracting colours from the logo…');
+        const pal = await withTimeout(proxiedPalette(imgForPalette), 9000);
+        if (pal && pal.primary) { candidates.push(pal.primary); if (pal.accent && !next.accentColor) next.accentColor = pal.accent; }
+      } catch (_) {}
+    }
+
+    // choose: a non-neutral theme-color wins; else the best candidate; else a neutral theme-color
+    let chosen = (themeColor && pickBrandHue([themeColor])) ? themeColor : pickBrandHue(candidates);
+    if (!chosen && themeColor) chosen = themeColor;
+    if (chosen) { next.primaryColor = chosen; conf.primaryColor = (themeColor === chosen) ? 'high' : 'med'; }
+
     setBrand((b) => ({ ...b, ...next, kind: 'partner', poweredBySole: true }));
     setConfidence(conf);
-    setFetching(false);
-    setFetchMsg('');
-    flash('Branding fetched — review each field, then export');
+    setFetching(false); setFetchMsg('');
+    flash(chosen ? 'Branding fetched — review each field, then export' : 'Got the logo + name — pick the brand colour manually');
   };
 
   /* ---- logo upload / auto palette ---- */
@@ -269,26 +576,95 @@ function Studio() {
     const k = { ...kits, [name]: { ...brand, _v: SB.VERSION } };
     setKits(k); persistKits(k); flash('Saved kit “' + name + '”');
   };
-  const loadKit = (name) => { if (kits[name]) { setBrand(clone(kits[name])); setConfidence({}); setKitName(name); flash('Loaded “' + name + '”'); } };
+  const loadKit = (name) => { if (kits[name]) { setBrand(SB.migrateBrand(kits[name])); setConfidence({}); setKitName(name); flash('Loaded “' + name + '”'); } };
   const deleteKit = (name) => { const k = { ...kits }; delete k[name]; setKits(k); persistKits(k); if (kitName === name) setKitName(''); };
-  const newKit = () => { setBrand(clone(SB.SOLE_BRAND)); setConfidence({}); setKitName(''); setUrl(''); flash('Reset to Sole default'); };
+  const newKit = () => { setBrand(SB.migrateBrand(SB.SOLE_BRAND)); setConfidence({}); setKitName(''); setUrl(''); flash('Reset to Sole default'); };
 
   /* ---- partner links ---- */
   const setLink = (i, key, val) => { const links = clone(brand.partnerLinks || []); links[i] = { ...links[i], [key]: val }; set({ partnerLinks: links }); };
   const addLink = () => set({ partnerLinks: [...(brand.partnerLinks || []), { label: '', url: '' }] });
   const delLink = (i) => { const links = clone(brand.partnerLinks || []); links.splice(i, 1); set({ partnerLinks: links }); };
 
+  /* ---- per-resource white-label content (editable copy, text/link maps) ---- */
+  const CONTENT_FIELDS = {
+    _common: [
+      { key: 'intro', label: 'Intro line', area: true, ph: 'Uses the resource’s own intro' },
+      { key: 'ctaHeading', label: 'Closing CTA heading' },
+      { key: 'ctaText', label: 'Closing CTA text', area: true },
+    ],
+    checklist: [{ key: 'proTip', label: 'Pro tip', area: true }],
+    'checklist-getpaid': [{ key: 'proTip', label: 'Pro tip', area: true }],
+    pricing: [{ key: 'benchmarksNote', label: 'Benchmark caveat', area: true }, { key: 'proTip', label: 'Pro tip', area: true }],
+    grid: [{ key: 'note', label: 'Fine print / rate note', area: true }, { key: 'proTip', label: 'Pro tip', area: true }],
+    toolkit: [{ key: 'welcomeBlurb', label: 'Welcome blurb', area: true }, { key: 'aboutBlurb', label: 'About the firm', area: true }],
+    'prompt-guide': [{ key: 'proTip', label: 'Pro tip', area: true }],
+    'email-pack': [{ key: 'proTip', label: 'Pro tip', area: true }],
+  };
+  const fieldsForArchetype = (a) => {
+    const base = a === 'toolkit' ? CONTENT_FIELDS._common.filter((f) => f.key !== 'intro') : CONTENT_FIELDS._common;
+    return base.concat(CONTENT_FIELDS[a] || []);
+  };
+  const contentOf = (id) => (brand.content && brand.content[id]) || {};
+  const fieldVal = (id, key) => (contentOf(id).fields || {})[key] || '';
+  const setContentField = (id, key, val) => {
+    const c = clone(brand.content || {}); c[id] = { ...(c[id] || {}) }; c[id].fields = { ...(c[id].fields || {}) };
+    if (val == null || val === '') delete c[id].fields[key]; else c[id].fields[key] = val;
+    set({ content: c });
+  };
+  const cTextMaps = () => contentOf(selected).textMaps || [];
+  const setCTextMaps = (maps) => { const c = clone(brand.content || {}); c[selected] = { ...(c[selected] || {}), textMaps: maps }; set({ content: c }); };
+  const setCTextMap = (i, k, v) => { const m = clone(cTextMaps()); m[i] = { ...(m[i] || {}), [k]: v }; setCTextMaps(m); };
+  const addCTextMap = () => setCTextMaps([...cTextMaps(), { find: '', replace: '' }]);
+  const delCTextMap = (i) => { const m = clone(cTextMaps()); m.splice(i, 1); setCTextMaps(m); };
+  const linkReplFor = (id, url) => { const m = (contentOf(id).linkMaps || []).find((x) => x.find === url); return m ? (m.replace || '') : ''; };
+  const setLinkRepl = (id, url, repl) => {
+    const c = clone(brand.content || {}); c[id] = { ...(c[id] || {}) };
+    let lm = (c[id].linkMaps || []).filter((x) => x.find !== url);
+    if (repl) lm = lm.concat([{ find: url, replace: repl }]);
+    c[id].linkMaps = lm; set({ content: c });
+  };
+  const resetContent = (id) => { const c = clone(brand.content || {}); delete c[id]; set({ content: c }); flash('Reset this resource’s content'); };
+  // pull every https URL (with a nearby label) out of a resource's data entry
+  const detectLinksInResource = (data) => {
+    const out = [], seen = {};
+    const add = (url, label) => { const u = String(url || '').replace(/[.,;)]+$/, ''); if (!/^https?:\/\//.test(u) || seen[u]) return; seen[u] = 1; out.push({ url: u, label: label || u }); };
+    const walk = (o) => {
+      if (o == null) return;
+      if (typeof o === 'string') { (o.match(/https?:\/\/[^\s"'<>)]+/g) || []).forEach((u) => add(u)); return; }
+      if (Array.isArray(o)) { o.forEach(walk); return; }
+      if (typeof o === 'object') { if (o.url) add(o.url, o.label || o.t || o.text); Object.keys(o).forEach((k) => { if (k !== 'url') walk(o[k]); }); }
+    };
+    walk(data);
+    return out;
+  };
+
+  /* ---- multi-format built-in export (Word / Excel via SoleExport) ---- */
+  const caps = (window.SoleExport && RESOURCES[selected]) ? window.SoleExport.canExport(RESOURCES[selected].archetype) : { pdf: true, docx: true, xlsx: false };
+  const exportBuiltin = async (kind) => {
+    if (!window.SoleExport || !RESOURCES[selected]) return;
+    setExporting(true);
+    try {
+      const p = SB.prepareResource(brand, RESOURCES[selected]);
+      await (kind === 'docx' ? window.SoleExport.exportDocx : window.SoleExport.exportXlsx)(p.data, p.cfg, { download: true });
+      flash('Exported ' + (kind === 'docx' ? 'Word' : 'Excel') + ' ✓');
+    } catch (e) { flash(kind.toUpperCase() + ' export failed: ' + (e && e.message ? e.message : e) + ' (needs internet on first use)'); }
+    setExporting(false);
+  };
+
   /* ---- export (self-contained single file) ---- */
   const buildExport = async (id, cfg) => {
     const shell = await fetch('resource-' + id + '.html').then((r) => r.text());
-    const [css, brandJs, renderJs] = await Promise.all([
+    const [css, brandJs, renderJs, exportJs] = await Promise.all([
       fetch('resources/resource.css').then((r) => r.text()),
       fetch('resources/brand.js').then((r) => r.text()),
       fetch('resources/resource.js').then((r) => r.text()),
+      fetch('resources/export.js').then((r) => r.text()),
     ]);
     const entry = {}; entry[id] = RESOURCES[id];
     const logo = await toDataUri(cfg.logo);
     const outCfg = { ...cfg, logo: logo };
+    // bake ONLY this resource's content overrides (no leakage, smaller file)
+    if (outCfg.content) { const only = {}; if (outCfg.content[id]) only[id] = outCfg.content[id]; outCfg.content = only; }
     const dataInline = 'window.RESOURCES=' + escJson(entry) + ';window.RESOURCE_INDEX=[];';
     // Replacement FUNCTIONS (not strings): the inlined JS contains '$' (money
     // formatting), and $&/$'/$` in a replacement STRING would be interpreted as
@@ -298,6 +674,7 @@ function Studio() {
       .replace('<script id="r-data" src="resources/data.js"><\/script>', () => '<script>' + dataInline + '<\/script>')
       .replace('<script id="r-brand" src="resources/brand.js"><\/script>', () => '<script>' + brandJs + '<\/script>')
       .replace('<script id="r-render" src="resources/resource.js"><\/script>', () => '<script>' + renderJs + '<\/script>')
+      .replace('<script id="r-export" src="resources/export.js"><\/script>', () => '<script>' + exportJs + '<\/script>')
       .replace('<!--BRAND-->', () => '<script>window.__BRAND__=' + escJson(outCfg) + ';<\/script>');
   };
   const doExport = async () => {
@@ -318,6 +695,59 @@ function Studio() {
   };
   const doPrint = () => { const w = previewRef.current && previewRef.current.contentWindow; if (w) w.print(); };
 
+  /* ---- upload / multi-format ---- */
+  const mapsForRun = () => textMaps.filter((m) => m.find).map((m) => ({ find: m.find, replace: (m.replace != null && m.replace !== '') ? m.replace : (brand.orgName || '') }));
+  const onUploadFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const buffer = reader.result;
+      const type = detectType(file.name, buffer);
+      const text = (type === 'html' || type === 'csv') ? new TextDecoder('utf-8').decode(buffer) : null;
+      const up = { name: file.name, type, buffer, text };
+      setUpload(up);
+      setUploadPreview(null); setUploadSummary('');
+      setTextMaps([{ find: '', replace: '' }]); setColorMaps([]); setDetectedColors([]);
+      setUploadErr(type === 'unknown' ? 'Unsupported file — please use HTML, PDF, DOCX, XLSX or CSV.' : '');
+      if (type !== 'unknown') detectColorsInFile(up).then(setDetectedColors).catch(() => {});
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  const rebuildUploadPreview = async () => {
+    if (!upload || upload.type === 'unknown') return;
+    setProcessing(true); setUploadErr('');
+    try {
+      const result = await rebrandFile(upload, brand, mapsForRun(), colorMaps);
+      setUploadSummary(result.summary || '');
+      setUploadPreview(await previewFor(result));
+    } catch (e) { setUploadErr('Could not process this file: ' + (e && e.message ? e.message : e)); }
+    setProcessing(false);
+  };
+  useEffect(() => {
+    if (sourceMode !== 'upload' || !upload || upload.type === 'unknown') return;
+    const t = setTimeout(rebuildUploadPreview, 500);
+    return () => clearTimeout(t);
+  }, [sourceMode, upload, brand, textMaps, colorMaps]);
+  const exportUpload = async () => {
+    if (!upload || upload.type === 'unknown') return;
+    setProcessing(true);
+    try {
+      const result = await rebrandFile(upload, brand, mapsForRun(), colorMaps);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(result.blob);
+      a.download = slug(brand.orgName) + '-' + upload.name.replace(/\.[^.]+$/, '') + '.' + result.ext;
+      document.body.appendChild(a); a.click(); a.remove();
+      flash('Exported ' + result.ext.toUpperCase() + ' ✓');
+    } catch (e) { flash('Export failed: ' + (e && e.message ? e.message : e)); }
+    setProcessing(false);
+  };
+  const doPrintUpload = () => { const w = uploadFrameRef.current && uploadFrameRef.current.contentWindow; if (w) w.print(); };
+  const setTextMap = (i, k, v) => { const m = clone(textMaps); m[i] = { ...m[i], [k]: v }; setTextMaps(m); };
+  const addTextMap = () => setTextMaps([...textMaps, { find: '', replace: '' }]);
+  const delTextMap = (i) => { const m = clone(textMaps); m.splice(i, 1); setTextMaps(m.length ? m : [{ find: '', replace: '' }]); };
+  const toggleColorMap = (hex) => { const h = SB.normHex(hex, ''); if (!h) return; setColorMaps((cm) => cm.includes(h) ? cm.filter((x) => x !== h) : [...cm, h]); };
+  const FILE_BADGE = { html: 'HTML', pdf: 'PDF', docx: 'DOCX', xlsx: 'XLSX', csv: 'CSV', unknown: '??' };
+
   const kitNames = Object.keys(kits);
   const logoIsRemote = brand.logo && !/^data:/.test(brand.logo);
 
@@ -330,10 +760,10 @@ function Studio() {
           <span style={{ fontSize: 11.5, color: T.muted, background: T.primarySofter, border: `1px solid ${T.primarySoft}`, padding: '2px 8px', borderRadius: 999 }}>Marketing tool</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <select value={kitName} onChange={(e) => e.target.value ? loadKit(e.target.value) : newKit()} style={{ ...inputStyle, width: 'auto', padding: '7px 10px' }}>
+          <Select value={kitName} onChange={(e) => e.target.value ? loadKit(e.target.value) : newKit()} style={{ width: 'auto', padding: '7px 30px 7px 10px' }}>
             <option value="">Sole default</option>
             {kitNames.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
+          </Select>
           {kitName && <Btn variant="ghost" onClick={() => deleteKit(kitName)} title="Delete this kit">Delete</Btn>}
           <Btn variant="ghost" onClick={newKit}>New</Btn>
           <Btn variant="soft" onClick={saveKit}>Save kit</Btn>
@@ -400,10 +830,13 @@ function Studio() {
 
           <Section title="6 · Footer links">
             {(brand.partnerLinks || []).map((l, i) => (
-              <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                <Input style={{ flex: '0 0 40%' }} placeholder="Label" value={l.label || ''} onChange={(e) => setLink(i, 'label', e.target.value)} />
+              <div key={i} style={{ border: `1px solid ${T.borderSoft}`, borderRadius: 10, padding: 10, marginBottom: 8, background: T.field }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: T.mutedSoft }}>Link {i + 1}</span>
+                  <button onClick={() => delLink(i)} title="Remove link" style={{ border: 'none', background: 'transparent', color: T.mutedSoft, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2 }}>×</button>
+                </div>
+                <Input style={{ marginBottom: 6 }} placeholder="Label (e.g. yourfirm.com.au)" value={l.label || ''} onChange={(e) => setLink(i, 'label', e.target.value)} />
                 <Input placeholder="https://…" value={l.url || ''} onChange={(e) => setLink(i, 'url', e.target.value)} />
-                <Btn variant="ghost" onClick={() => delLink(i)} style={{ padding: '6px 10px' }}>×</Btn>
               </div>
             ))}
             <Btn variant="ghost" onClick={addLink} style={{ marginTop: 2 }}>+ Add link</Btn>
@@ -411,39 +844,198 @@ function Studio() {
 
           <Section title="7 · Options">
             <Field label="Font">
-              <select value={brand.font || 'Inter'} onChange={(e) => set({ font: e.target.value })} style={{ ...inputStyle }}>
+              <Select value={brand.font || 'Inter'} onChange={(e) => set({ font: e.target.value })}>
                 {Object.keys(SB.FONT_LINKS).map((f) => <option key={f} value={f}>{f === 'system' ? 'System default' : f}</option>)}
-              </select>
+              </Select>
             </Field>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 9, fontSize: 13, color: T.textSoft, cursor: 'pointer', marginTop: 4 }}>
-              <input type="checkbox" checked={!!brand.poweredBySole} onChange={(e) => set({ poweredBySole: e.target.checked })} />
-              Show “Powered by Sole” in the footer
-            </label>
-            <Field label="Footer note (fine print)" hint=" "><textarea style={{ ...inputStyle, resize: 'vertical', marginTop: 8 }} rows={2} value={brand.footerNote || ''} onChange={(e) => set({ footerNote: e.target.value })} /></Field>
+            <div style={{ marginTop: 4, marginBottom: 12 }}>
+              <Check checked={!!brand.poweredBySole} onChange={(v) => set({ poweredBySole: v })}>Show “Powered by Sole” in the footer</Check>
+            </div>
+            <Field label="Footer note (fine print)"><textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={brand.footerNote || ''} onChange={(e) => set({ footerNote: e.target.value })} /></Field>
           </Section>
+
+          {sourceMode === 'builtin' && RESOURCES[selected] && (
+            <Section title="8 · Content & links (this resource)">
+              <div style={{ fontSize: 11.5, color: T.mutedSoft, marginBottom: 10 }}>
+                Personalise this resource. Blank keeps the original. Edits bake into every export — PDF · Word · Excel · HTML.
+              </div>
+              {fieldsForArchetype(RESOURCES[selected].archetype).map((f) => (
+                <Field key={f.key} label={f.label} hint={f.ph}>
+                  {f.area
+                    ? <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={fieldVal(selected, f.key)} onChange={(e) => setContentField(selected, f.key, e.target.value)} placeholder={String(RESOURCES[selected][f.key] || f.ph || '').slice(0, 120)} />
+                    : <Input value={fieldVal(selected, f.key)} onChange={(e) => setContentField(selected, f.key, e.target.value)} placeholder={String(RESOURCES[selected][f.key] || '')} />}
+                </Field>
+              ))}
+              <Field label="Product name in body copy" hint="Softens “Sole” mentions across resources.">
+                <Input value={brand.productName || ''} onChange={(e) => set({ productName: e.target.value })} placeholder="Sole" />
+              </Field>
+              <Field label="Replace wording (find → replace)">
+                {cTextMaps().map((m, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                    <Input placeholder="Find" value={m.find} onChange={(e) => setCTextMap(i, 'find', e.target.value)} />
+                    <span style={{ color: T.mutedSoft, flex: '0 0 auto' }}>→</span>
+                    <Input placeholder="Replace" value={m.replace} onChange={(e) => setCTextMap(i, 'replace', e.target.value)} />
+                    <button onClick={() => delCTextMap(i)} style={{ border: 'none', background: 'transparent', color: T.mutedSoft, cursor: 'pointer', fontSize: 16, flex: '0 0 auto' }}>×</button>
+                  </div>
+                ))}
+                <Btn variant="ghost" onClick={addCTextMap} style={{ marginTop: 2 }}>+ Add replacement</Btn>
+              </Field>
+              {detectLinksInResource(RESOURCES[selected]).length > 0 && (
+                <Field label="Links in this resource" hint="Retarget any link (blank = keep).">
+                  {detectLinksInResource(RESOURCES[selected]).map((lnk, i) => (
+                    <div key={i} style={{ marginBottom: 8, border: `1px solid ${T.borderSoft}`, borderRadius: 10, padding: 10, background: T.field }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: T.textSoft, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lnk.label}</div>
+                      <div style={{ fontSize: 10.5, color: T.mutedSoft, marginBottom: 6, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lnk.url}</div>
+                      <Input placeholder="Replacement URL" value={linkReplFor(selected, lnk.url)} onChange={(e) => setLinkRepl(selected, lnk.url, e.target.value)} />
+                    </div>
+                  ))}
+                </Field>
+              )}
+              <Btn variant="ghost" onClick={() => resetContent(selected)} style={{ marginTop: 4 }}>Reset this resource</Btn>
+            </Section>
+          )}
+
+          {sourceMode === 'upload' && upload && upload.type !== 'unknown' && upload.type !== 'pdf' && (
+            <Section title="8 · Rebrand mapping">
+              <div style={{ fontSize: 11.5, color: T.mutedSoft, marginBottom: 10 }}>
+                {upload.type === 'csv'
+                  ? 'CSV is plain data — no colours or logo to change. Add find/replace rules for the partner’s old wording.'
+                  : 'Your brand colours are applied to the document theme automatically. Recolour specific colours found in the file below, and add find/replace rules for old wording.'}
+              </div>
+              <Field label="Replace text (old wording → your brand)">
+                {textMaps.map((m, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                    <Input placeholder="Find (old name)" value={m.find} onChange={(e) => setTextMap(i, 'find', e.target.value)} />
+                    <span style={{ color: T.mutedSoft, flex: '0 0 auto' }}>→</span>
+                    <Input placeholder={brand.orgName || 'Your name'} value={m.replace} onChange={(e) => setTextMap(i, 'replace', e.target.value)} />
+                    {textMaps.length > 1 && <button onClick={() => delTextMap(i)} style={{ border: 'none', background: 'transparent', color: T.mutedSoft, cursor: 'pointer', fontSize: 16, flex: '0 0 auto' }}>×</button>}
+                  </div>
+                ))}
+                <Btn variant="ghost" onClick={addTextMap} style={{ marginTop: 2 }}>+ Add replacement</Btn>
+              </Field>
+              {upload.type !== 'csv' && (
+                <Field label="Recolour (old colour → your primary)" hint="Any header/cell/text using a selected colour is recoloured to your brand primary.">
+                  {detectedColors.length > 0 && <div style={{ fontSize: 11.5, color: T.mutedSoft, marginBottom: 6 }}>Colours found in this file — click to recolour:</div>}
+                  {detectedColors.length === 0 && <div style={{ fontSize: 11.5, color: T.mutedSoft, marginBottom: 6 }}>No distinct brand colours detected — pick one below to remap.</div>}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: colorMaps.length ? 10 : 6 }}>
+                    {detectedColors.map((c) => (
+                      <button key={c} onClick={() => toggleColorMap(c)} title={c} style={{ width: 26, height: 26, borderRadius: 6, border: `2px solid ${colorMaps.includes(c) ? T.primary : T.border}`, background: c, cursor: 'pointer', boxShadow: colorMaps.includes(c) ? `0 0 0 3px ${T.primarySoft}` : 'none' }} />
+                    ))}
+                    <label title="Pick any colour" style={{ width: 26, height: 26, borderRadius: 6, border: `1px dashed ${T.border}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: T.mutedSoft, fontSize: 16 }}>
+                      +<input type="color" style={{ display: 'none' }} onChange={(e) => toggleColorMap(e.target.value)} />
+                    </label>
+                  </div>
+                  {colorMaps.map((c) => (
+                    <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, fontSize: 12.5 }}>
+                      <span style={{ width: 16, height: 16, borderRadius: 4, background: c, border: `1px solid ${T.border}`, flex: '0 0 auto' }} />
+                      <span style={{ fontFamily: 'monospace' }}>{c}</span>
+                      <span style={{ color: T.mutedSoft }}>→ your primary</span>
+                      <button onClick={() => toggleColorMap(c)} style={{ border: 'none', background: 'transparent', color: T.mutedSoft, cursor: 'pointer', fontSize: 15, marginLeft: 'auto' }}>×</button>
+                    </div>
+                  ))}
+                </Field>
+              )}
+            </Section>
+          )}
         </div>
 
         {/* preview + export */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.bg }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px', borderBottom: `1px solid ${T.border}`, background: T.card, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted }}>Resource:</span>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-              {RESOURCE_INDEX.map((r) => (
-                <button key={r.id} onClick={() => setSelected(r.id)} data-btn="chip" style={{
-                  border: `1px solid ${selected === r.id ? T.primary : T.border}`, background: selected === r.id ? T.primarySoft : T.card,
-                  color: selected === r.id ? T.primaryDark : T.textSoft, borderRadius: 999, padding: '6px 12px', fontSize: 12.5, fontWeight: 600,
-                }}>{r.title}</button>
+          {/* source toggle + mode actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderBottom: `1px solid ${T.border}`, background: T.card }}>
+            <div style={{ display: 'inline-flex', background: T.field, border: `1px solid ${T.border}`, borderRadius: 9, padding: 2 }}>
+              {[['builtin', 'Built-in resource'], ['upload', 'Upload a file']].map(([k, label]) => (
+                <button key={k} onClick={() => setSourceMode(k)} style={{ border: 'none', background: sourceMode === k ? T.card : 'transparent', color: sourceMode === k ? T.primaryDark : T.muted, fontWeight: 600, fontSize: 12.5, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', boxShadow: sourceMode === k ? '0 1px 2px rgba(16,24,40,0.08)' : 'none' }}>{label}</button>
               ))}
             </div>
-            <Btn variant="ghost" onClick={doPrint}>Print / PDF</Btn>
-            <Btn onClick={doExport} disabled={exporting}>
-              {exporting ? 'Exporting…' : 'Export self-contained HTML'}
-            </Btn>
+            <div style={{ flex: 1 }} />
+            {sourceMode === 'builtin'
+              ? (<>
+                  <Btn variant="ghost" onClick={doPrint} title="Print → Save as PDF (branded, with cover page)">Save as PDF</Btn>
+                  <Btn variant="ghost" onClick={() => exportBuiltin('docx')} disabled={exporting} title="Editable Word document">Word</Btn>
+                  {caps.xlsx && <Btn variant="ghost" onClick={() => exportBuiltin('xlsx')} disabled={exporting} title="Working spreadsheet with live formulas">Excel</Btn>}
+                  <Btn onClick={doExport} disabled={exporting}>{exporting ? 'Exporting…' : 'Export HTML'}</Btn>
+                </>)
+              : (upload && upload.type !== 'unknown' && (<>{(upload.type === 'html' || upload.type === 'pdf') && <Btn variant="ghost" onClick={doPrintUpload}>Print / PDF</Btn>}<Btn onClick={exportUpload} disabled={processing}>{processing ? 'Working…' : ('Export .' + upload.type)}</Btn></>))}
+          </div>
+
+          {sourceMode === 'builtin' ? (
+          <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderBottom: `1px solid ${T.border}`, background: T.card, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, flex: '0 0 auto' }}>Resource</span>
+            {/* Searchable picker — scales to hundreds of resources */}
+            <div style={{ position: 'relative', flex: 1, minWidth: 220, maxWidth: 460 }}>
+              <button onClick={() => { setResPickerOpen((o) => !o); setResQuery(''); }} style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                border: `1px solid ${resPickerOpen ? T.primary : T.border}`, background: T.card, color: T.text,
+                borderRadius: 9, padding: '8px 12px', fontSize: 13.5, fontWeight: 600, cursor: 'pointer',
+                boxShadow: resPickerOpen ? `0 0 0 3px ${T.primarySoft}` : 'none',
+              }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedMeta.title}</span>
+                <span style={{ color: T.mutedSoft, flex: '0 0 auto' }}>▾</span>
+              </button>
+              {resPickerOpen && (
+                <>
+                  <div onClick={() => setResPickerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
+                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 31, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: '0 12px 32px -8px rgba(16,24,40,0.24)', overflow: 'hidden', animation: 'fadein .12s ease' }}>
+                    <div style={{ padding: 8, borderBottom: `1px solid ${T.borderSoft}` }}>
+                      <Input autoFocus placeholder="Search resources…" value={resQuery} onChange={(e) => setResQuery(e.target.value)} />
+                    </div>
+                    <div className="scroll" style={{ maxHeight: 320, overflowY: 'auto', padding: 6 }}>
+                      {filteredResources.map((r) => (
+                        <button key={r.id} onClick={() => { setSelected(r.id); setResPickerOpen(false); }} data-hover="row" style={{
+                          width: '100%', textAlign: 'left', border: 'none', background: r.id === selected ? T.primarySofter : 'transparent',
+                          borderRadius: 8, padding: '9px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2,
+                        }}>
+                          <span style={{ fontSize: 13.5, fontWeight: 600, color: r.id === selected ? T.primaryDark : T.text }}>{r.title}</span>
+                          <span style={{ fontSize: 11.5, color: T.mutedSoft, textTransform: 'capitalize' }}>{r.industry} · {(r.archetype || '').replace(/-/g, ' ')}</span>
+                        </button>
+                      ))}
+                      {!filteredResources.length && <div style={{ padding: '14px 10px', fontSize: 13, color: T.mutedSoft }}>No resources match “{resQuery}”.</div>}
+                    </div>
+                    <div style={{ padding: '8px 12px', borderTop: `1px solid ${T.borderSoft}`, fontSize: 11.5, color: T.mutedSoft }}>{RESOURCE_INDEX.length} resource{RESOURCE_INDEX.length === 1 ? '' : 's'} in the library</div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           <div style={{ flex: 1, minHeight: 0, padding: 16 }}>
             <iframe ref={previewRef} title="preview" src={'resource-' + selected + '.html?embed=1'} onLoad={pushBrand}
               style={{ width: '100%', height: '100%', border: `1px solid ${T.border}`, borderRadius: 12, background: '#fff', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }} />
           </div>
+          </>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              {!upload ? (
+                <div style={{ flex: 1, padding: 24 }}>
+                  <label onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={(e) => { e.preventDefault(); setDragOver(false); onUploadFile(e.dataTransfer.files[0]); }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, height: '100%', border: `2px dashed ${dragOver ? T.primary : T.border}`, borderRadius: 14, background: dragOver ? T.primarySofter : T.card, cursor: 'pointer', textAlign: 'center', padding: 24 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 12, background: T.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.primaryDark, fontSize: 24, fontWeight: 800 }}>↑</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Drop a file here, or click to choose</div>
+                    <div style={{ fontSize: 13, color: T.muted, maxWidth: 380 }}>HTML · PDF · DOCX · XLSX · CSV — rebranded right here in your browser and exported in the same format.</div>
+                    <input type="file" accept=".html,.htm,.pdf,.docx,.xlsx,.csv" style={{ display: 'none' }} onChange={(e) => onUploadFile(e.target.files[0])} />
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderBottom: `1px solid ${T.border}`, background: T.card }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.primaryDark, background: T.primarySoft, border: '1px solid #C7C9FB', borderRadius: 6, padding: '2px 8px' }}>{FILE_BADGE[upload.type]}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 360 }}>{upload.name}</span>
+                    {processing && <span style={{ fontSize: 12, color: T.muted }}>updating…</span>}
+                    <div style={{ flex: 1 }} />
+                    <Btn variant="ghost" onClick={() => { setUpload(null); setUploadPreview(null); setUploadErr(''); setUploadSummary(''); }}>Change file</Btn>
+                  </div>
+                  {uploadErr && <div style={{ margin: '12px 18px 0', padding: '10px 12px', background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: 10, color: '#991B1B', fontSize: 13 }}>{uploadErr}</div>}
+                  {uploadSummary && !uploadErr && <div style={{ margin: '12px 18px 0', padding: '8px 12px', background: T.primarySofter, border: `1px solid ${T.primarySoft}`, borderRadius: 10, color: T.primaryDark, fontSize: 12.5 }}>✓ {uploadSummary}</div>}
+                  <div style={{ flex: 1, minHeight: 0, padding: 16 }}>
+                    {upload.type === 'unknown'
+                      ? <div style={{ padding: 40, color: T.muted, fontSize: 14 }}>Unsupported file type. Please use HTML, PDF, DOCX or XLSX.</div>
+                      : <iframe key={upload.name} ref={uploadFrameRef} title="upload-preview" srcDoc={(uploadPreview && uploadPreview.srcdoc) || undefined} src={(uploadPreview && uploadPreview.src) || undefined} style={{ width: '100%', height: '100%', border: `1px solid ${T.border}`, borderRadius: 12, background: '#fff' }} />}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

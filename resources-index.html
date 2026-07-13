@@ -4,72 +4,171 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sole Resource Library</title>
-<meta name="description" content="Free, high-value business resources for Australian sole traders — checklists, pricing guides and templates, ready to use or white-label for partners." />
+<meta name="description" content="The Sole white-label resource library — browse every free lead-magnet resource in a sidebar and preview it live, then rebrand any of them for a partner." />
 <link rel="icon" type="image/png" href="assets/sole-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body { font-family: 'Inter', -apple-system, system-ui, sans-serif; color: #0F1117; background: #F5F4F8; -webkit-font-smoothing: antialiased; }
+  :root { --primary:#5B5BF6; --primary-dark:#4F46E5; --primary-soft:#EEF0FF; --primary-softer:#F5F6FF; --ink:#0F1117; --ink-soft:#1F2937; --muted:#6B7280; --muted-soft:#9CA3AF; --border:#E5E7EB; --border-soft:#ECEDF2; --page:#F5F4F8; --card:#FFFFFF; }
+  * , *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body { font-family: 'Inter', -apple-system, system-ui, sans-serif; color: var(--ink); background: var(--page); -webkit-font-smoothing: antialiased; }
   a { color: inherit; text-decoration: none; }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 24px 80px; }
-  .head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
-  .brand { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: #3F3AB0; }
-  .studio-cta { display: inline-flex; align-items: center; gap: 8px; background: #5B5BF6; color: #fff; font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 10px; box-shadow: 0 6px 18px -8px rgba(91,91,246,.55); }
-  .studio-cta:hover { background: #4F46E5; }
-  h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 8px; }
-  .sub { font-size: 16px; color: #6B7280; max-width: 60ch; margin: 0 0 30px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-  .card { display: flex; flex-direction: column; background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; padding: 20px; transition: transform .12s, box-shadow .12s, border-color .12s; }
-  .card:hover { transform: translateY(-2px); border-color: #C7C9FB; box-shadow: 0 12px 28px -14px rgba(91,91,246,.35); }
-  .eyebrow { display: inline-block; align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3F3AB0; background: #EEF0FF; border: 1px solid #C7C9FB; padding: 4px 10px; border-radius: 999px; margin-bottom: 12px; }
-  .card h3 { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
-  .card p { font-size: 14px; color: #6B7280; margin: 0 0 16px; flex: 1; }
-  .card .go { font-size: 14px; font-weight: 700; color: #5B5BF6; }
-  .foot { margin-top: 44px; font-size: 13px; color: #9CA3AF; }
-  .banner { background: linear-gradient(135deg,#EEF0FF,#F5F6FF); border: 1px solid #C7C9FB; border-radius: 14px; padding: 20px 22px; margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  .banner .t { font-weight: 700; font-size: 15px; color: #1F2937; }
-  .banner .d { font-size: 13.5px; color: #6B7280; margin-top: 2px; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  header.top { display: flex; align-items: center; gap: 14px; padding: 11px 20px; background: var(--card); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+  .brand { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; color: var(--primary-dark); }
+  .brand small { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-soft); margin-left: 8px; }
+  .studio-cta { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #fff; font-weight: 700; font-size: 13.5px; padding: 9px 16px; border-radius: 10px; box-shadow: 0 6px 18px -8px rgba(91,91,246,.55); }
+  .studio-cta:hover { background: var(--primary-dark); }
+
+  .main { flex: 1; display: flex; min-height: 0; }
+
+  /* sidebar */
+  .sidebar { width: 360px; flex: 0 0 360px; background: var(--card); border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .side-tools { padding: 12px 14px; border-bottom: 1px solid var(--border-soft); flex: 0 0 auto; }
+  .search { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--card); padding: 9px 12px; font: inherit; font-size: 13.5px; }
+  .search:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .seg { display: flex; margin-top: 9px; background: var(--page); border: 1px solid var(--border); border-radius: 9px; padding: 2px; }
+  .seg button { flex: 1; border: none; background: transparent; color: var(--muted); font: inherit; font-weight: 600; font-size: 12px; padding: 6px 4px; border-radius: 7px; cursor: pointer; }
+  .seg button.on { background: var(--primary-soft); color: var(--primary-dark); }
+  .side-count { font-size: 11.5px; color: var(--muted-soft); margin-top: 9px; }
+
+  .side-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .side-list::-webkit-scrollbar { width: 9px; }
+  .side-list::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 5px; }
+  .grp { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--primary-dark); padding: 12px 10px 4px; position: sticky; top: -8px; background: var(--card); }
+  .grp .n { color: var(--muted-soft); font-weight: 700; }
+  .subgrp { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted-soft); padding: 8px 10px 3px; }
+  .item { display: block; width: 100%; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 9px; padding: 9px 10px; cursor: pointer; font: inherit; }
+  .item:hover { background: var(--primary-softer); }
+  .item.on { background: var(--primary-soft); border-color: #C7C9FB; }
+  .item .t { font-size: 13.5px; font-weight: 650; color: var(--ink); line-height: 1.3; }
+  .item.on .t { color: var(--primary-dark); }
+  .item .m { font-size: 11px; color: var(--muted-soft); margin-top: 2px; }
+  .side-empty { padding: 24px 12px; color: var(--muted); font-size: 13px; text-align: center; }
+
+  /* preview */
+  .preview { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--page); }
+  .prev-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; background: var(--card); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
+  .prev-title { min-width: 0; }
+  .prev-title .t { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prev-title .m { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+  .prev-acts { margin-left: auto; display: flex; gap: 8px; flex: 0 0 auto; }
+  .btn { border: 1px solid var(--border); background: var(--card); color: var(--ink-soft); font: inherit; font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 9px; cursor: pointer; }
+  .btn:hover { border-color: var(--primary); color: var(--primary-dark); }
+  .btn.primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+  .btn.primary:hover { background: var(--primary-dark); }
+  .prev-body { flex: 1; min-height: 0; padding: 16px; }
+  iframe.prev { width: 100%; height: 100%; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,0.04); }
+
+  @media (max-width: 860px) {
+    .main { flex-direction: column; }
+    .sidebar { width: 100%; flex: 0 0 auto; max-height: 42vh; border-right: none; border-bottom: 1px solid var(--border); }
+    .preview { flex: 1; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="head">
-    <div class="brand">Sole</div>
-    <a class="studio-cta" href="toolkit.html">🎨 Open the Rebranding Studio</a>
+<div class="app">
+  <header class="top">
+    <div class="brand">Sole<small>Resource library</small></div>
+    <a class="studio-cta" href="toolkit.html" target="_blank" rel="noopener">🎨 Rebranding Studio</a>
+  </header>
+  <div class="main">
+    <aside class="sidebar">
+      <div class="side-tools">
+        <input class="search" id="search" type="search" placeholder="Search 45 resources…" />
+        <div class="seg" id="audseg">
+          <button data-aud="all" class="on">All</button>
+          <button data-aud="accountant">Accountants</button>
+          <button data-aud="smallbiz">Small business</button>
+        </div>
+        <div class="side-count" id="sidecount"></div>
+      </div>
+      <div class="side-list" id="list"></div>
+    </aside>
+    <section class="preview">
+      <div class="prev-head">
+        <div class="prev-title"><div class="t" id="ptitle">Select a resource</div><div class="m" id="pmeta"></div></div>
+        <div class="prev-acts">
+          <a class="btn" id="popen" target="_blank" rel="noopener">Open ↗</a>
+          <a class="btn primary" id="prebrand" target="_blank" rel="noopener">Rebrand</a>
+        </div>
+      </div>
+      <div class="prev-body"><iframe class="prev" id="frame" title="preview"></iframe></div>
+    </section>
   </div>
-  <h1>Resource library</h1>
-  <p class="sub">Free, high-value tools for Australian small businesses — ready to use, or white-label for a partner in their own brand.</p>
-
-  <div class="banner">
-    <div>
-      <div class="t">Rebrand any of these for a partner in minutes</div>
-      <div class="d">Paste their website, drop in a logo and colour, then export a self-contained file that’s theirs to keep.</div>
-    </div>
-    <a class="studio-cta" href="toolkit.html">Open the Studio →</a>
-  </div>
-
-  <div class="grid" id="grid"></div>
-  <div class="foot">General information only — not financial, legal or tax advice.</div>
 </div>
 
 <script src="resources/data.js"></script>
 <script>
-  (function () {
-    var grid = document.getElementById('grid');
-    var items = window.RESOURCE_INDEX || [];
-    grid.innerHTML = items.map(function (r) {
-      return '<a class="card" href="resource-' + r.id + '.html">' +
-        '<span class="eyebrow">' + (r.eyebrow || 'Resource') + '</span>' +
-        '<h3>' + r.title + '</h3>' +
-        '<p>' + (r.intro || '') + '</p>' +
-        '<span class="go">Open resource →</span>' +
-      '</a>';
-    }).join('');
-    if (!items.length) grid.innerHTML = '<p style="color:#6B7280">No resources loaded.</p>';
-  })();
+(function () {
+  var INDEX = window.RESOURCE_INDEX || [];
+  var TYPE = { toolkit: 'Toolkits', checklist: 'Checklists', 'checklist-getpaid': 'Checklists', pricing: 'Pricing guides', grid: 'Trackers & calculators', 'email-pack': 'Email packs', 'prompt-guide': 'Guides', 'invoice-deposit': 'Invoice templates', 'invoice-multicurrency': 'Invoice templates' };
+  var TYPE_ORDER = ['Toolkits', 'Checklists', 'Pricing guides', 'Invoice templates', 'Email packs', 'Guides', 'Trackers & calculators'];
+  var IND = { trades: 'Trades', 'property-management': 'Property mgmt', 'personal-services': 'Personal services', retail: 'Retail', 'professional-services': 'Professional services', creatives: 'Creatives', fitness: 'Fitness', accounting: 'Accounting', all: 'General' };
+  var KIND = { getpaid: 'Getting paid', pre: 'Pre-job', post: 'Post-job' };
+  var byId = {}; INDEX.forEach(function (r) { byId[r.id] = r; });
+  function typeOf(r) { return TYPE[r.archetype] || 'Resources'; }
+  function typeSingular(r) { return typeOf(r).replace(/s$/, ''); }
+  function audOf(r) { return r.audience === 'accountant' ? 'accountant' : 'smallbiz'; }
+  function metaOf(r) { return typeSingular(r) + ' · ' + (KIND[r.kind] ? KIND[r.kind] + ' · ' : '') + (IND[r.industry] || 'General'); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+  var state = { q: '', aud: 'all', sel: null };
+  var listEl = document.getElementById('list'), frame = document.getElementById('frame');
+  document.getElementById('search').placeholder = 'Search ' + INDEX.length + ' resources…';
+
+  function matches(r) {
+    if (state.aud !== 'all' && audOf(r) !== state.aud) return false;
+    if (state.q) { var hay = (r.title + ' ' + r.intro + ' ' + r.eyebrow + ' ' + (IND[r.industry] || '') + ' ' + typeOf(r)).toLowerCase(); if (hay.indexOf(state.q) === -1) return false; }
+    return true;
+  }
+  function select(id) {
+    var r = byId[id]; if (!r) return; state.sel = id;
+    frame.src = 'resource-' + id + '.html?embed=1';
+    document.getElementById('ptitle').textContent = r.title;
+    document.getElementById('pmeta').textContent = metaOf(r);
+    document.getElementById('popen').href = 'resource-' + id + '.html';
+    document.getElementById('prebrand').href = 'toolkit.html?resource=' + id;
+    listEl.querySelectorAll('.item').forEach(function (el) { el.classList.toggle('on', el.getAttribute('data-id') === id); });
+  }
+  function render() {
+    var items = INDEX.filter(matches);
+    document.getElementById('sidecount').textContent = items.length + ' of ' + INDEX.length + ' resources';
+    var buckets = [['accountant', 'For accountants'], ['smallbiz', 'For small businesses']];
+    var html = '';
+    buckets.forEach(function (b) {
+      var list = items.filter(function (r) { return audOf(r) === b[0]; });
+      if (!list.length) return;
+      html += '<div class="grp">' + b[1] + ' <span class="n">' + list.length + '</span></div>';
+      var byType = {}; list.forEach(function (r) { var t = typeOf(r); (byType[t] = byType[t] || []).push(r); });
+      TYPE_ORDER.forEach(function (t) {
+        if (!byType[t]) return;
+        html += '<div class="subgrp">' + t + '</div>';
+        byType[t].forEach(function (r) {
+          html += '<button class="item' + (state.sel === r.id ? ' on' : '') + '" data-id="' + r.id + '"><div class="t">' + esc(r.title) + '</div><div class="m">' + esc(metaOf(r)) + '</div></button>';
+        });
+      });
+    });
+    listEl.innerHTML = html || '<div class="side-empty">No resources match “' + esc(state.q) + '”.</div>';
+    // keep selection valid; if the selected item was filtered out, keep preview but don't highlight
+    if (items.length && (!state.sel || !items.some(function (r) { return r.id === state.sel; }))) {
+      // don't auto-jump the preview on every keystroke; only auto-select if nothing chosen yet
+      if (!state.sel) select(items[0].id);
+    }
+  }
+  listEl.addEventListener('click', function (e) { var b = e.target.closest('.item'); if (b) select(b.getAttribute('data-id')); });
+  document.getElementById('search').addEventListener('input', function (e) { state.q = e.target.value.trim().toLowerCase(); render(); });
+  document.getElementById('audseg').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; state.aud = b.getAttribute('data-aud'); document.querySelectorAll('#audseg button').forEach(function (x) { x.classList.toggle('on', x === b); }); render(); });
+
+  // default selection: the flagship toolkit if present, else the first
+  state.sel = byId['spm-white-label-toolkit'] ? 'spm-white-label-toolkit' : (INDEX[0] && INDEX[0].id);
+  render();
+  if (state.sel) select(state.sel);
+})();
 </script>
 </body>
 </html>

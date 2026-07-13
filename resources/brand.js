@@ -14,7 +14,8 @@
 (function (global) {
   'use strict';
 
-  var BRAND_SCHEMA_VERSION = 1;
+  var BRAND_SCHEMA_VERSION = 2;
+  function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }
 
   /* ---- hex utilities (index.html:566-588, 8639-8648) --------------------- */
   function hexMix(hex, towards, ratio) {
@@ -74,10 +75,11 @@
   var SOLE_BRAND = {
     _v: BRAND_SCHEMA_VERSION,
     kind: 'sole',
-    logo: null,                       // Sole default = wordmark; partners upload an image (data-URI)
+    logo: 'assets/logo-spm-web.png',  // Sole default = real logo; partners upload their own (data-URI)
     primaryColor: '#5B5BF6',
     accentColor: '#F5C518',
     orgName: 'Sole',
+    productName: 'Sole',              // body-copy product token; softens "Sole" mentions in one field
     tagline: 'Small-business accounting, sorted.',
     ctaLabel: 'Get set up free with Sole',
     ctaUrl: 'https://soleapp.com.au',
@@ -88,7 +90,8 @@
     partnerLinks: [{ label: 'soleapp.com.au', url: 'https://soleapp.com.au' }],
     footerNote: 'General information only — not financial, legal or tax advice. Figures are examples; confirm current ATO rates.',
     poweredBySole: false,
-    font: 'Inter'
+    font: 'Inter',
+    content: {}                       // per-resource overrides: { <id>: { fields, textMaps, linkMaps } }
   };
 
   /* ---- derive full palette from one hex (from makePortalTheme) ----------- */
@@ -129,6 +132,61 @@
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  /* ---- schema migration: keep old (_v:1) exports & kits rendering -------- */
+  function migrateBrand(rawCfg) {
+    var cfg = clone(rawCfg) || {};
+    cfg._v = BRAND_SCHEMA_VERSION;
+    if (cfg.content == null || typeof cfg.content !== 'object') cfg.content = {};
+    if (cfg.productName == null) cfg.productName = cfg.orgName || 'Sole';
+    return cfg;
+  }
+
+  /* ---- per-resource white-label content (editable text + link/text maps) - */
+  function contentFor(cfg, id) { return (cfg && cfg.content && id && cfg.content[id]) || {}; }
+  function textMapsFor(cfg, id) { return contentFor(cfg, id).textMaps || []; }
+  function linkMapsFor(cfg, id) { return contentFor(cfg, id).linkMaps || []; }
+  // apply the partner's find/replace + the productName softening to a plain string
+  function applyTextMap(str, maps, productName) {
+    var s = String(str == null ? '' : str);
+    (maps || []).forEach(function (m) { if (m && m.find) s = s.split(m.find).join(m.replace == null ? '' : m.replace); });
+    if (productName && productName !== 'Sole') {
+      s = s.replace(/\bSole App\b/g, productName).replace(/\bSole\b/g, productName);
+    }
+    return s;
+  }
+  // retarget a URL via the partner's link map (exact match, then same-origin prefix)
+  function applyLinkMap(url, maps) {
+    var u = String(url == null ? '' : url);
+    (maps || []).forEach(function (m) {
+      if (!m || !m.find) return;
+      if (u === m.find) u = m.replace || u;
+      else if (u.indexOf(m.find) === 0) u = (m.replace || '') + u.slice(m.find.length);
+    });
+    return u;
+  }
+
+  // Merge per-resource content overrides + resource-level defaults into a working
+  // (data, cfg) pair. Never mutates the caller's cfg (resolveBrand may return the
+  // shared SOLE_BRAND). Both resource.js (DOM) and export.js (DOCX/XLSX) call this.
+  function prepareResource(rawCfg, data) {
+    var cfg = migrateBrand(rawCfg);
+    var id = data && data.id;
+    var f = contentFor(cfg, id).fields || {};
+    // brand-slot defaults (fed to applyBrand via data-brand slots)
+    if (!cfg.introText) cfg.introText = f.intro || f.welcomeBlurb || (data && data.intro) || '';
+    if (!cfg.tagline || cfg.tagline === SOLE_BRAND.tagline) cfg.tagline = f.aboutBlurb || (data && data.taglineDefault) || cfg.tagline;
+    if (f.footerNote) cfg.footerNote = f.footerNote;
+    // data-field overrides (rendered as literals by chrome()/renderers)
+    var d = data;
+    var keys = ['ctaHeading', 'ctaText', 'proTip', 'note', 'benchmarksNote'];
+    var touched = keys.some(function (k) { return f[k] != null && f[k] !== ''; });
+    if (touched) { d = clone(data); keys.forEach(function (k) { if (f[k] != null && f[k] !== '') d[k] = f[k]; }); }
+    return { data: d, cfg: cfg };
+  }
+
+  // convenience for callers building non-DOM output (DOCX/XLSX) from data strings
+  function mergeResourceDefaults(rawCfg, data) { return prepareResource(rawCfg, data).cfg; }
+
   /* ---- apply a brand config to a document (live + export share this) ----- */
   function applyBrand(rawCfg, root) {
     root = root || document;
@@ -136,6 +194,10 @@
     var cfg = {};
     for (var k in SOLE_BRAND) cfg[k] = SOLE_BRAND[k];
     for (var k2 in (rawCfg || {})) if (rawCfg[k2] != null) cfg[k2] = rawCfg[k2];
+    // `logo: null` is an EXPLICIT "no image → show the wordmark". Because the Sole
+    // default logo is now a real path, a partner who clears their logo must NOT
+    // inherit it — so an explicit null overrides the default.
+    if (rawCfg && Object.prototype.hasOwnProperty.call(rawCfg, 'logo')) cfg.logo = rawCfg.logo;
 
     var d = deriveBrand(cfg);
     var vars = {
@@ -236,6 +298,15 @@
     applyBrand: applyBrand,
     resolveBrand: resolveBrand,
     ensureFontLink: ensureFontLink,
+    // white-label content layer (shared by resource.js DOM + export.js DOCX/XLSX)
+    migrateBrand: migrateBrand,
+    prepareResource: prepareResource,
+    mergeResourceDefaults: mergeResourceDefaults,
+    contentFor: contentFor,
+    textMapsFor: textMapsFor,
+    linkMapsFor: linkMapsFor,
+    applyTextMap: applyTextMap,
+    applyLinkMap: applyLinkMap,
     // utils reused by the studio
     contrastText: contrastText,
     lightenHex: lightenHex,
