@@ -382,7 +382,11 @@ const BAND = {
   red:   { color: T.red,   pill: 'red' },
 };
 const HealthRing = ({ score, size = 104, band, celebrate }) => {
-  const stroke = 9;
+  // Stroke scales with the ring — a fixed 9px looked like a thick, broken swoosh at the
+  // small header size. Below ~64px we drop the "/100" too (it crowds the score); the band
+  // label beside the ring carries the scale.
+  const stroke = Math.max(4, Math.round(size * 0.09));
+  const compact = size < 64;
   const r = (size / 2) - stroke / 2 - 1;
   const c = 2 * Math.PI * r;
   const off = c * (1 - Math.max(0, Math.min(100, score)) / 100);
@@ -396,8 +400,8 @@ const HealthRing = ({ score, size = 104, band, celebrate }) => {
           style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(.22,1,.36,1), stroke 0.3s' }} />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: Math.round(size * 0.3), fontWeight: 800, color: col, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{score}</div>
-        <div style={{ fontSize: 10, color: T.mutedSoft, fontWeight: 600, marginTop: 1 }}>/ 100</div>
+        <div style={{ fontSize: Math.round(size * (compact ? 0.36 : 0.3)), fontWeight: 800, color: col, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{score}</div>
+        {!compact && <div style={{ fontSize: 10, color: T.mutedSoft, fontWeight: 600, marginTop: 1 }}>/ 100</div>}
       </div>
     </div>
   );
@@ -828,13 +832,6 @@ const QUIET_BTN = { border: `1px solid ${T.border}`, background: T.card, color: 
 // Home cards float on the coloured canvas — a touch more radius + shadow than a flat dashboard tile.
 const CARD = { background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, overflow: 'hidden' };
 
-// Small monochrome leading glyph — red only when the item is genuinely urgent.
-const StatusDot = ({ severity, icon }) => (
-  <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: severity === 'high' ? T.red : T.mutedSoft }}>
-    <Icon name={icon} size={16} color={severity === 'high' ? T.red : T.mutedSoft} strokeWidth={2} />
-  </span>
-);
-
 // Shared row shell. DESKTOP: one line — [glyph · title/sub · fixed AMOUNT col · fixed
 // ACTION col] so amounts and buttons align across rows and with the header CTA. MOBILE:
 // a tidy 2-line card — title + amount on top, sub + actions below — so the number is
@@ -1014,53 +1011,6 @@ const Widget = ({ title, icon, addLabel, addActions, items, tabs, emptyTitle, re
         </div>
       ) : shown.map((item, i) => renderRow(item, i, shown.length))}
       {list.length > 3 && <ShowMore all={all} onToggle={() => setAll(a => !a)} count={list.length - 3} />}
-    </div>
-  );
-};
-
-// --- business health card (gamified engagement: ring · streak · what needs you first) ---
-const HealthCard = ({ health, streak, top, onJump, allClear }) => {
-  const [info, setInfo] = useState(false);
-  return (
-    <div className="ub-widget" style={CARD}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '15px 16px 11px' }}>
-        <Icon name="gauge" size={16} color={T.mutedSoft} />
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: T.text }}>Business health</div>
-        <button onClick={() => setInfo(v => !v)} title="How's this worked out?" style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, cursor: 'pointer', padding: 3, display: 'inline-flex', borderRadius: 6 }}><Icon name="info" size={15} /></button>
-        <div style={{ flex: 1 }} />
-      </div>
-      {info && (
-        <div style={{ margin: '0 16px 12px', padding: 12, background: T.primarySofter, border: `1px solid ${T.borderSoft}`, borderRadius: 10, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
-          <div style={{ fontWeight: 700, color: T.text, marginBottom: 3 }}>How your score works</div>
-          {HEALTH_DEF}
-          <div style={{ fontWeight: 700, color: T.text, margin: '8px 0 3px' }}>What the streak means</div>
-          {STREAK_DEF}
-        </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '4px 18px 16px' }}>
-        <HealthRing score={health.score} band={health.band} size={78} celebrate={allClear} />
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: BAND[health.band].color }}>{health.label}</div>
-          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 4, lineHeight: 1.45 }}>{allClear ? "Everything's actioned — you're in the green." : "Clear a few items and you'll be in the green."}</div>
-          <div title={STREAK_DEF} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 9, cursor: 'help' }}>
-            <Icon name="flame" size={14} color={T.amber} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{streak}-day streak</span>
-          </div>
-        </div>
-      </div>
-      {!allClear && top.length > 0 && (
-        <div style={{ borderTop: `1px solid ${T.borderSoft}`, padding: '10px 6px 10px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 14px 4px' }}>What needs you first</div>
-          {top.map(item => (
-            <button key={item.id} onClick={() => onJump(item.id)} data-hover="row" style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', border: 'none', background: 'none', padding: '9px 14px', cursor: 'pointer', textAlign: 'left' }}>
-              <StatusDot severity={item.severity} icon={item.icon} />
-              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.rowTitle}</div>
-              {item.amount != null && <span style={{ fontSize: 12, fontWeight: 600, color: item.amountTone === 'in' ? T.greenDark : T.muted, fontVariantNumeric: 'tabular-nums' }}>{item.amountTone === 'in' ? '+' : ''}{fmtMoney(item.amount)}</span>}
-              <Icon name="chevronRight" size={15} color={T.mutedSoft} />
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
@@ -1325,6 +1275,7 @@ const PlanControl = ({ planId, plan, extraAddons, onSetPlan, onToggleAddon, isMo
 };
 
 const Hero = ({ health, count, streak, tier, isMobile, planProps, customizeOpen, onCustomizeToggle, customizeProps }) => {
+  const [info, setInfo] = useState(false);
   const hr = new Date().getHours();
   const greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   const dateStr = new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1338,16 +1289,19 @@ const Hero = ({ health, count, streak, tier, isMobile, planProps, customizeOpen,
       </div>
     </div>
   );
-  const pad = isMobile ? '2px 9px' : '2px 14px';
-  const seg = (children, key) => <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: pad, fontSize: 12.5, color: T.textSoft, whiteSpace: 'nowrap' }}>{children}</span>;
-  const segs = [
-    seg(<React.Fragment><span style={{ width: 8, height: 8, borderRadius: '50%', background: BAND[health.band].color }} /><span><b style={{ fontWeight: 700, color: T.text }}>{health.score}</b> health</span></React.Fragment>, 'h'),
-    seg(<span><b style={{ fontWeight: 700, color: T.text }}>{count}</b> {isMobile ? 'to do' : 'to action'}</span>, 'a'),
-    seg(<React.Fragment><Icon name="flame" size={13} color={T.amber} /><span><b style={{ fontWeight: 700, color: T.text }}>{streak}</b>-day streak</span></React.Fragment>, 's'),
+  // Business health lives in the header now — always visible above the fold, so the score
+  // is a persistent anchor instead of a card that scrolls away. Kept compact (a small ring
+  // + status + the day's counts) rather than the full-width metrics band we rejected earlier.
+  const bandColor = BAND[health.band].color;
+  const stat = (children, key) => <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: T.textSoft, whiteSpace: 'nowrap' }}>{children}</span>;
+  const stats = [
+    stat(<span><b style={{ fontWeight: 700, color: T.text }}>{count}</b> {isMobile ? 'to do' : 'to action'}</span>, 'a'),
+    stat(<React.Fragment><Icon name="flame" size={13} color={T.amber} /><span><b style={{ fontWeight: 700, color: T.text }}>{streak}</b>-day streak</span></React.Fragment>, 's'),
   ];
-  if (tier && !isMobile) segs.push(seg(<React.Fragment><Icon name={tier.icon} size={13} color={T.primary} /><b style={{ fontWeight: 700, color: T.text }}>{tier.name}</b></React.Fragment>, 't'));
-  const pill = [];
-  segs.forEach((s, i) => { if (i) pill.push(<span key={'d' + i} style={{ width: 1, height: 15, background: T.border }} />); pill.push(s); });
+  if (tier && !isMobile) stats.push(stat(<React.Fragment><Icon name={tier.icon} size={13} color={T.primary} /><b style={{ fontWeight: 700, color: T.text }}>{tier.name}</b></React.Fragment>, 't'));
+  // On mobile skip the divider rules and let the gap do the spacing (thin rules read badly when the row wraps).
+  const statRow = [];
+  stats.forEach((s, i) => { if (!isMobile) statRow.push(<span key={'d' + i} style={{ width: 1, height: 24, background: T.border, flexShrink: 0 }} />); statRow.push(s); });
   return (
     <div style={{ position: 'relative', textAlign: 'center', padding: isMobile ? '0 0 20px' : '2px 0 24px' }}>
       {isMobile
@@ -1355,9 +1309,25 @@ const Hero = ({ health, count, streak, tier, isMobile, planProps, customizeOpen,
         : <div style={{ position: 'absolute', top: 0, right: 0 }}>{controls}</div>}
       <div style={{ fontSize: 12.5, fontWeight: 600, color: T.muted }}>{dateStr}</div>
       <div style={{ fontSize: isMobile ? 23 : 28, fontWeight: 800, color: T.text, letterSpacing: -0.6, marginTop: 4 }}>{greet}, {PROFILE.first}</div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', marginTop: isMobile ? 14 : 18, background: T.card, border: `1px solid ${T.border}`, borderRadius: 999, padding: '7px 4px', boxShadow: T.shadowSm, maxWidth: '100%' }}>
-        {pill}
+      <div style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? 12 : 14, marginTop: isMobile ? 14 : 18, background: T.card, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '8px 14px' : '8px 16px 8px 10px', boxShadow: T.shadowSm, maxWidth: '100%' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <HealthRing score={health.score} band={health.band} size={46} celebrate={false} />
+          <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: bandColor }}>{health.label}</div>
+            <div style={{ fontSize: 11.5, color: T.muted, marginTop: 1 }}>Business health</div>
+          </div>
+        </div>
+        {statRow}
+        <button onClick={() => setInfo(v => !v)} title="How's this worked out?" style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 8, flexShrink: 0 }}><Icon name="info" size={15} /></button>
       </div>
+      {info && (
+        <div style={{ margin: '10px auto 0', maxWidth: 520, textAlign: 'left', padding: 12, background: T.primarySofter, border: `1px solid ${T.borderSoft}`, borderRadius: 10, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 700, color: T.text, marginBottom: 3 }}>How your score works</div>
+          {HEALTH_DEF}
+          <div style={{ fontWeight: 700, color: T.text, margin: '8px 0 3px' }}>What the streak means</div>
+          {STREAK_DEF}
+        </div>
+      )}
     </div>
   );
 };
@@ -1386,6 +1356,9 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
   const [flashId, setFlashId] = useState(null);
   const [hidden, setHidden] = useState({});          // { [widgetId]: true }
   const [customize, setCustomize] = useState(false);
+  const [showEverything, setShowEverything] = useState(false);   // "everything else" is collapsed until revealed
+  const baseAllTime = useRef(allTime);               // completions-this-session baseline (for auto-reveal)
+  const autoRevealed = useRef(false);
   const rowRefs = useRef({});
   // Column count is driven by the ACTUAL content width (not the window — the sidebar
   // steals width), measured live so columns never get too narrow to read. LANDMINE:
@@ -1402,11 +1375,17 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
   }, []);
   const cols = cw >= 900 ? 2 : 1;   // 2-col only when each column is wide enough for a full single-line row
 
+  // Auto-reveal "everything else" once they've cleared their top 5 this session. Latched
+  // (never re-hides on Undo), so once earned it stays; manual toggle still works after.
+  useEffect(() => {
+    if (!autoRevealed.current && (allTime - baseAllTime.current) >= 5) { autoRevealed.current = true; setShowEverything(true); }
+  }, [allTime]);
+
   const has = (m) => activeModules.includes(m);
   const health = useMemo(() => computeHealth(items, progress.streak, PROFILE.isNew), [items, progress.streak]);
   const ranked = useMemo(() => rankItems(items), [items]);
   const byModule = (mods) => ranked.filter(i => mods.includes(i.module));
-  const top = ranked.slice(0, 3);
+  const topFive = ranked.slice(0, 5);   // the "if you've got 5 minutes" focus list
   const tier = tierFor(allTime).tier;
   const recent = activity.slice(0, 5);
   const allClear = items.length === 0;
@@ -1426,14 +1405,17 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
   }, [focus && focus.nonce]);
 
   const complete = (item, message, kind = 'done') => { onComplete(item, message, kind); setOpen(null); setMatchItem(null); };
-  const jumpTo = (id) => { const it = items.find(x => x.id === id); if (it) setHidden(h => ({ ...h, [widgetIdForItem(it)]: false })); scrollTo(id, true); };
-  const onAction = (item, actionId) => {
+  // `src` = which zone the row lives in ('top' = the 5-minute focus card, 'grid' = the
+  // widget below). The same item can render in both, so we scope the open inline-panel by
+  // src (a panel opens in the row you clicked, not both) and only anchor deep-link/jump
+  // scrolling to the grid copy.
+  const onAction = (item, actionId, src = 'grid') => {
     if (actionId === 'preview') { fireToast('Opening invoice preview (demo)'); return; }
     if (MATCH_ACTIONS.includes(actionId)) { setMatchItem(item); return; }   // → the Match window
     const mode = MODE_FOR[actionId];
     if (mode) {
-      setOpen(prev => (prev && prev.id === item.id && prev.mode === mode) ? null : { id: item.id, mode });
-      scrollTo(item.id, false);
+      setOpen(prev => (prev && prev.id === item.id && prev.mode === mode && prev.src === src) ? null : { id: item.id, mode, src });
+      if (src === 'grid') scrollTo(item.id, false);
       return;
     }
     complete(item, directMessage(item, actionId), 'done');
@@ -1441,11 +1423,15 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
   const confirmMatch = (item) => complete(item, item.amountTone === 'in' ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo || 'your books'}` : `Matched ${fmtMoney(item.amount)} — reconciled`, 'match');
   const rejectMatch = (item) => complete(item, "We'll leave this one for you to match", 'skip');
 
-  const renderRow = (item, i, len) => (
-    <ActionRow key={item.id} item={item} openMode={open && open.id === item.id ? open.mode : null}
-      onAction={onAction} onComplete={complete} onClose={() => setOpen(null)}
-      innerRef={el => { rowRefs.current[item.id] = el; }} flash={flashId === item.id} last={i === len - 1} isMobile={isMobile} />
+  const makeRenderRow = (src) => (item, i, len) => (
+    <ActionRow key={item.id} item={item}
+      openMode={open && open.id === item.id && open.src === src ? open.mode : null}
+      onAction={(it, actionId) => onAction(it, actionId, src)} onComplete={complete} onClose={() => setOpen(null)}
+      innerRef={src === 'grid' ? (el => { rowRefs.current[item.id] = el; }) : undefined}
+      flash={flashId === item.id} last={i === len - 1} isMobile={isMobile} />
   );
+  const renderRow = makeRenderRow('grid');       // widget rows (existing behaviour)
+  const renderTopRow = makeRenderRow('top');      // the 5-minute focus card
 
   const toggleWidget = (id) => setHidden(h => ({ ...h, [id]: !h[id] }));
 
@@ -1467,7 +1453,6 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
   const upcomingW = <UpcomingWidget key="up" fireToast={fireToast} isMobile={isMobile} />;
   const keyDatesW = <KeyDatesWidget key="kd" fireToast={fireToast} reg={reg} isMobile={isMobile} />;
   const liabilitiesW = <LiabilitiesWidget key="li" fireToast={fireToast} isMobile={isMobile} />;
-  const healthW = <HealthCard key="hl" health={health} streak={progress.streak} top={top} onJump={jumpTo} allClear={allClear} />;
   const progressW = <ProgressCard key="pr" progress={progress} allTime={allTime} recent={recent} />;
   // Add-on module cards — surface only when their add-on is switched on (see PlanControl).
   const timeW = <AddonCard key="tm" icon="clock" title="Time tracker" rows={TIME_ENTRIES}
@@ -1485,7 +1470,6 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
   // Plan + add-ons adaptive home: only surface widgets for modules this business's plan unlocks.
   const WIDGETS = [
     { id: 'get_paid', el: getPaidW, show: has('sales') || has('quotes') },
-    { id: 'health', el: healthW, show: true },
     { id: 'reconcile', el: bankfeedW, show: has('bankfeed') },
     { id: 'expenses', el: expensesW, show: has('expenses') },
     { id: 'progress', el: progressW, show: true },
@@ -1506,6 +1490,63 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
   bento.forEach((w, i) => columns[i % cols].push(w.el));
   const customiseList = available.map(w => ({ id: w.id, label: WIDGET_LABELS[w.id] }));
 
+  // The focus card: a single flat list of your 5 most urgent, ranked (overdue first) —
+  // the "if I've only got 5 minutes, what do I do today?" surface. It's capped at 5 so it
+  // never overwhelms, but the list REFILLS as you clear (so a backlog of 17 still gets
+  // worked through), and a progress bar makes the real total + what's left legible up front
+  // (fixes the old tiny "5 of 17"). Same items as the full grid below — clearing here clears
+  // everywhere. At the tail (fewer than 5 left) the list naturally counts down to zero.
+  const doneToday = progress.today || 0;
+  const remaining = items.length;
+  const donePct = (doneToday + remaining) > 0 ? Math.round((doneToday / (doneToday + remaining)) * 100) : 0;
+  const topFiveCard = (
+    <div className="ub-topfive" style={{ background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 16, boxShadow: T.shadowMd, overflow: 'hidden' }}>
+      <div style={{ padding: '15px 16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+          <span style={{ display: 'inline-flex', marginTop: 1 }}><Icon name="target" size={18} color={T.primary} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text, letterSpacing: -0.2 }}>If you've got 5 minutes</div>
+            <div style={{ fontSize: 12.5, color: T.muted, marginTop: 2 }}>{remaining > 5 ? 'Your 5 most urgent — clear one and the next moves up.' : 'Your most urgent — clear these to lift your health.'}</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 13 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 12.5, color: T.muted }}>{doneToday > 0 && <React.Fragment><b style={{ color: T.greenDark, fontWeight: 700 }}>{doneToday} done</b> today · </React.Fragment>}<b style={{ color: T.text, fontWeight: 700 }}>{remaining}</b> left to action</span>
+            {remaining > topFive.length && <span style={{ fontSize: 11.5, color: T.mutedSoft, fontWeight: 500 }}>showing top {topFive.length}</span>}
+          </div>
+          <div style={{ height: 6, borderRadius: 999, background: T.borderSoft, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: donePct + '%', background: `linear-gradient(90deg, ${T.primary}, ${T.green})`, borderRadius: 999, transition: 'width .45s cubic-bezier(.22,1,.36,1)' }} />
+          </div>
+        </div>
+      </div>
+      <div style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+        {topFive.map((item, i) => renderTopRow(item, i, topFive.length))}
+      </div>
+    </div>
+  );
+  // Header for the revealed grid — with a "Hide" toggle to collapse it back.
+  const everythingHeading = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 2px 12px' }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.6, whiteSpace: 'nowrap' }}>Everything else</span>
+      <div style={{ flex: 1, height: 1, background: T.borderSoft }} />
+      <button className="ub-qlink" onClick={() => setShowEverything(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: 'none', background: 'none', color: T.muted, fontSize: 12, fontWeight: 500, cursor: 'pointer', padding: 0, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}><Icon name="chevronDown" size={13} /></span>Hide
+      </button>
+    </div>
+  );
+  // Collapsed state: a reveal button that names how many cards are tucked away.
+  const revealControl = (
+    <div style={{ textAlign: 'center' }}>
+      <button onClick={() => setShowEverything(true)} data-hover="row" title="Show everything else"
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, width: '100%', padding: '15px 18px', background: T.card, border: `1px solid ${T.borderSoft}`, borderRadius: 14, boxShadow: T.shadowSm, cursor: 'pointer', color: T.textSoft, fontSize: 13.5, fontWeight: 600 }}>
+        <Icon name="chevronDown" size={16} color={T.mutedSoft} />
+        Show everything else
+        <span style={{ color: T.mutedSoft, fontWeight: 500 }}>· {bento.length} card{bento.length === 1 ? '' : 's'}</span>
+      </button>
+      <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 8 }}>Opens on its own once you've cleared your top 5.</div>
+    </div>
+  );
+
   return (
     <div ref={wrapRef}>
       <Hero health={health} count={items.length} streak={progress.streak} tier={tier} isMobile={isMobile}
@@ -1514,9 +1555,17 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
         customizeProps={{ hidden, onToggle: toggleWidget, widgets: customiseList }} />
       {allClear
         ? <Celebration onNew={() => fireToast('Starting a new invoice (demo)')} />
-        : <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-            {columns.map((col, ci) => <div key={ci} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>{col}</div>)}
-          </div>}
+        : <React.Fragment>
+            <div style={{ marginBottom: isMobile ? 24 : 28 }}>{topFiveCard}</div>
+            {showEverything
+              ? <React.Fragment>
+                  {everythingHeading}
+                  <div className="ub-everything" style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+                    {columns.map((col, ci) => <div key={ci} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>{col}</div>)}
+                  </div>
+                </React.Fragment>
+              : revealControl}
+          </React.Fragment>}
       <MatchModal item={matchItem} isMobile={isMobile} onClose={() => setMatchItem(null)} onConfirm={confirmMatch} onReject={rejectMatch} />
     </div>
   );
