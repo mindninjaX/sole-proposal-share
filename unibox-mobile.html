@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>Unibox — Sole mobile app</title>
+  <meta name="description" content="Unibox in the Sole small-business mobile app: an action centre reached from the dashboard, with the same mechanics as the web app, tuned for touch." />
+  <link rel="icon" href="assets/sole-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #E7E7F0;
+      color: #14152A;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    /* phone frame */
+    .device {
+      position: relative;
+      width: min(404px, 100vw - 24px);
+      height: min(876px, 100vh - 24px);
+      background: #FFFFFF;
+      border-radius: 42px;
+      box-shadow: 0 30px 70px -20px rgba(30,30,82,0.45), 0 0 0 10px #14152A, 0 0 0 12px #2A2A44;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .screen-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+    .screen-scroll::-webkit-scrollbar { width: 0; height: 0; }
+    button { font-family: inherit; }
+    .tap { -webkit-tap-highlight-color: transparent; user-select: none; cursor: pointer; }
+    .press { transition: transform .08s ease, background .12s ease, box-shadow .12s ease; }
+    .press:active { transform: scale(0.97); }
+    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    @keyframes snackUp { from { transform: translateY(140%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes ringpop { 0% { transform: scale(0.8); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes confettiFall { 0% { transform: translateY(-12px) rotate(0); opacity: 1; } 100% { transform: translateY(760px) rotate(560deg); opacity: 0; } }
+    @keyframes barGrow { from { width: 0; } }
+    @keyframes deckIn { from { opacity: 0; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo } = React;
+
+// ---------------------------------------------------------------------------
+// design tokens — the Sole mobile app palette (deeper indigo header, navy
+// balance card, tinted stat cards) sampled from the app screenshots.
+// ---------------------------------------------------------------------------
+const T = {
+  primary: '#4F46E5', primaryDark: '#4338CA', primarySoft: '#EEEEFB', primarySofter: '#F5F5FD',
+  headerFrom: '#5B54EA', headerTo: '#4B44DE',
+  navyFrom: '#3B3A86', navyTo: '#20204F',
+  bg: '#F4F4F9', card: '#FFFFFF', surface: '#F8F8FC', fieldBg: '#F5F6FA',
+  text: '#141527', textSoft: '#2C2E45', muted: '#6B7180', mutedSoft: '#9AA0AE',
+  border: '#EAEBF1', borderSoft: '#F0F1F6', borderStrong: '#D9DBE4',
+  green: '#10B981', greenDark: '#059669', greenSoft: '#E9FBF3',
+  amber: '#D9822B', amberSoft: '#FBF0E1', amberText: '#B96A16',
+  red: '#E5484D', redSoft: '#FDEBEC', redText: '#D22E33',
+  blue: '#3B82F6', blueSoft: '#EDF4FF',
+  shadowSm: '0 1px 2px rgba(20,21,42,0.05), 0 1px 3px rgba(20,21,42,0.05)',
+  shadowMd: '0 6px 18px -6px rgba(20,21,42,0.14)',
+  shadowLg: '0 16px 40px -10px rgba(30,30,82,0.28)',
+};
+const BAND = { green: { color: T.green }, amber: { color: T.amber }, red: { color: T.red } };
+
+// ---------------------------------------------------------------------------
+// icons (Lucide-style; ported from the web Unibox)
+// ---------------------------------------------------------------------------
+const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
+  const paths = {
+    grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
+    dollar: <><line x1="12" y1="2" x2="12" y2="22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>,
+    receipt: <><path d="M6 2h12v20l-2.4-1.6L13.2 22 12 20.4 10.8 22 8.4 20.4 6 22z" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="9" y1="12" x2="15" y2="12" /></>,
+    layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
+    scale: <><line x1="12" y1="3" x2="12" y2="21" /><line x1="6" y1="21" x2="18" y2="21" /><path d="M3 10l3-6 3 6z" /><path d="M15 10l3-6 3 6z" /><line x1="6" y1="4" x2="18" y2="4" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="16" y1="3" x2="16" y2="7" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></>,
+    gauge: <><path d="M3.6 18a9 9 0 1 1 16.8 0" /><line x1="12" y1="14" x2="16" y2="9" /><circle cx="12" cy="14" r="1.3" fill="currentColor" /></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a1.5 1.5 0 0 1-3.4 0" /></>,
+    user: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
+    send: <><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>,
+    mail: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 7l-10 6L2 7" /></>,
+    bank: <><line x1="3" y1="21" x2="21" y2="21" /><path d="M3 10l9-6 9 6" /><line x1="6" y1="10" x2="6" y2="21" /><line x1="10" y1="10" x2="10" y2="21" /><line x1="14" y1="10" x2="14" y2="21" /><line x1="18" y1="10" x2="18" y2="21" /></>,
+    sparkle: <path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5z" />,
+    tag: <><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6z" /><circle cx="7.5" cy="7.5" r="1.1" fill="currentColor" /></>,
+    target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></>,
+    alertTriangle: <><path d="M10.3 3.86l-8.7 15a2 2 0 0 0 1.71 3h17.4a2 2 0 0 0 1.7-3l-8.7-15a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
+    flame: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />,
+    check: <polyline points="5 12 10 17 19 7" />,
+    close: <><line x1="6" y1="6" x2="18" y2="18" /><line x1="6" y1="18" x2="18" y2="6" /></>,
+    plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+    arrow: <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
+    arrowLeft: <><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></>,
+    chevronRight: <polyline points="9 18 15 12 9 6" />,
+    chevronDown: <polyline points="6 9 12 15 18 9" />,
+    paperclip: <path d="M21 11.5l-9 9a5 5 0 0 1-7-7l9-9a3 3 0 0 1 4 4l-9 9a1 1 0 0 1-1.4-1.4l7.6-7.6" />,
+    link: <><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></>,
+    info: <><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></>,
+    trendUp: <><polyline points="3 17 9 11 13 14 21 6" /><polyline points="15 6 21 6 21 12" /></>,
+    percent: <><line x1="19" y1="5" x2="5" y2="19" /><circle cx="7" cy="7" r="2" /><circle cx="17" cy="17" r="2" /></>,
+    file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></>,
+    briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="2" y1="13" x2="22" y2="13" /></>,
+    map: <><polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21 1 6" /><line x1="8" y1="3" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="21" /></>,
+    chartBar: <><line x1="3" y1="20" x2="21" y2="20" /><rect x="6" y="11" width="3" height="8" /><rect x="11" y="6" width="3" height="13" /><rect x="16" y="14" width="3" height="5" /></>,
+    folder: <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />,
+    contact: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2.2" /><path d="M5.5 17a3.5 3.5 0 0 1 7 0" /><line x1="15" y1="9" x2="18" y2="9" /><line x1="15" y1="13" x2="18" y2="13" /></>,
+    inbox: <><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" /></>,
+    wifi: <><path d="M5 12.5a10 10 0 0 1 14 0" /><path d="M8.5 16a5 5 0 0 1 7 0" /><line x1="12" y1="19.5" x2="12.01" y2="19.5" /></>,
+    signal: <><line x1="4" y1="20" x2="4" y2="16" /><line x1="10" y1="20" x2="10" y2="12" /><line x1="16" y1="20" x2="16" y2="7" /></>,
+    more: <><circle cx="5" cy="12" r="1.5" fill="currentColor" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /><circle cx="19" cy="12" r="1.5" fill="currentColor" /></>,
+    camera: <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', flexShrink: 0 }}>
+      {paths[name]}
+    </svg>
+  );
+};
+
+const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtMoney0 = (n) => '$' + Number(n || 0).toLocaleString('en-AU', { maximumFractionDigits: 0 });
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const PROFILE = { name: 'Tony Williamson', first: 'Tony' };
+const CATEGORIES = ['Software', 'Fuel', 'Office supplies', 'Phone', 'Meals', 'Travel', 'Other'];
+
+// ---------------------------------------------------------------------------
+// gamification + activity (ported from the web Unibox — identical mechanics)
+// ---------------------------------------------------------------------------
+const TIERS = [
+  { name: 'Starter', min: 0, icon: 'sparkle' }, { name: 'Regular', min: 10, icon: 'flame' },
+  { name: 'Sharp', min: 50, icon: 'target' }, { name: 'Pro', min: 150, icon: 'target' }, { name: 'Sole star', min: 350, icon: 'sparkle' },
+];
+const tierFor = (n) => { let i = 0; for (let k = 0; k < TIERS.length; k++) if (n >= TIERS[k].min) i = k; return TIERS[i]; };
+const DAILY_MILESTONES = [3, 5, 10];
+const DAY_MS = 86400000;
+const startOfDay = (ts) => { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const ACTIVITY_BY_DAY = [0, 2, 3, 1, 2, 2, 1, 2, 1, 2, 1, 1, 2];
+const SEED_LABELS = ['Sent an invoice', 'Matched a bank transaction', 'Categorised an expense', 'Followed up an overdue invoice', 'Sent a payment reminder', 'Recorded a new asset', 'Attached a receipt'];
+const SEED_ACTIVITY = (() => {
+  const now = Date.now(); const out = [];
+  ACTIVITY_BY_DAY.forEach((cnt, ago) => { for (let k = 0; k < cnt; k++) out.push({ ts: now - ago * DAY_MS - (k + 1) * 3600000, kind: 'done', label: SEED_LABELS[(ago + k) % SEED_LABELS.length] }); });
+  return out;
+})();
+const computeStreak = (activity) => {
+  const days = new Set(activity.map(a => startOfDay(a.ts)));
+  let d = startOfDay(Date.now()); let streak = 0;
+  if (!days.has(d)) d -= DAY_MS;
+  while (days.has(d)) { streak++; d -= DAY_MS; }
+  return streak;
+};
+const computeProgress = (activity) => {
+  const today0 = startOfDay(Date.now()); const counts = {};
+  activity.forEach(a => { const ago = Math.round((today0 - startOfDay(a.ts)) / DAY_MS); counts[ago] = (counts[ago] || 0) + 1; });
+  return { today: counts[0] || 0, streak: computeStreak(activity) };
+};
+
+const HEALTH_DEF = 'Your business health starts at 100. Overdue invoices, unmatched transactions and untidy books lower it; clearing them lifts it back up. It never hits zero.';
+const STREAK_DEF = "Days in a row you've checked in and cleared at least one thing. It never counts down — quieter days simply don't add to it.";
+function computeHealth(items, streak = 0) {
+  const penalty = items.reduce((s, it) => s + (it.weight || 0), 0);
+  const score = clamp(Math.round(Math.max(40, 100 - penalty + Math.min(streak || 0, 5))), 1, 100);
+  let band, label;
+  if (score >= 80) { band = 'green'; label = 'In the green'; }
+  else if (score >= 60) { band = 'amber'; label = 'A few things to tidy'; }
+  else { band = 'red'; label = 'Needs attention'; }
+  return { score, band, label };
+}
+const rankItems = (items) => [...items].sort((a, b) => (b.weight - a.weight) || ((b.amount || 0) - (a.amount || 0)) || a.id.localeCompare(b.id));
+const TYPE_LABEL = { quotes: 'Quote', sales: 'Invoice', bankfeed: 'Bank', expenses: 'Expense', assets: 'Asset' };
+const MODE_FOR = { follow_up: 'email', categorize: 'category', add_receipt: 'receipt', record_asset: 'asset' };
+const MATCH_ACTIONS = ['confirm_match', 'match_payment', 'match_expense'];
+const directMessage = (item, actionId) => ({
+  send: `Invoice ${item.invoiceNo} sent to ${item.client}`, send_reminder: `Reminder sent to ${item.client}`,
+  snooze: "Snoozed — we'll remind you tomorrow", mark_paid: `${item.invoiceNo} marked as paid`, ignore: 'Transaction ignored',
+  not_asset: 'Marked as not an asset', later: "We'll remind you later", not_match: "We'll leave this one for you to match",
+  convert: `Converted ${item.quoteNo} to a new invoice`,
+}[actionId] || 'Done');
+const emailBody = (item) => `Hi ${(item.client || '').split(' ')[0] || item.client},\n\nJust a quick reminder that invoice ${item.invoiceNo} for ${fmtMoney(item.amount)} is ${item.type === 'overdue_invoice' ? 'now overdue' : 'due soon'}. You can pay securely using the link in your original invoice.\n\nThanks so much,\nTony — Sole`;
+
+const MATCH_CANDIDATES_IN = [
+  { id: 'ci1', label: 'INV-1044 · Harbour Cafe', sub: 'Sent 5 Jul', amount: 1240 },
+  { id: 'ci2', label: 'INV-1038 · North Coast Partners', sub: 'Due 8 Jul', amount: 2400 },
+  { id: 'ci3', label: 'INV-1040 · Kim Tran', sub: 'Due 7 Jul', amount: 460 },
+];
+const MATCH_CANDIDATES_OUT = [
+  { id: 'co1', label: 'Expense · Officeworks', sub: '2 Jul · uncategorised', amount: 88.40 },
+  { id: 'co2', label: 'Bill · Telstra', sub: '1 Jul · Phone', amount: 99 },
+  { id: 'co3', label: 'Expense · Bunnings', sub: '30 Jun', amount: 213.75 },
+];
+const LIABILITIES = [
+  { id: 'l1', label: 'GST set aside', sub: 'For BAS Q4 · due 28 Jul', amount: 4120, action: 'Set aside' },
+  { id: 'l2', label: 'Equipment loan', sub: 'BOQ · next repayment 15 Jul', amount: 620, action: 'Schedule' },
+];
+const KEY_DATES = [
+  { id: 'k1', label: 'BAS Q4 lodgement', sub: 'Quarterly activity statement', due: '28 Jul', tone: 'amber' },
+  { id: 'k2', label: 'Super guarantee', sub: 'Employee super contributions', due: '28 Jul', tone: 'neutral' },
+  { id: 'k3', label: 'Income tax return', sub: 'FY24 individual return', due: '31 Oct', tone: 'neutral' },
+];
+
+// SEED_ITEMS — identical to the web Unibox so the mechanics/counts match exactly.
+const SEED_ITEMS = [
+  { id: 'itm-q1', group: 'get_paid', module: 'quotes', type: 'quote', severity: 'med', weight: 1, icon: 'file', rowTitle: 'QUO-2041 · Riverview Construction', sub: 'Accepted 4 Jul', amount: 5400, badge: { label: 'Accepted', color: 'green' }, client: 'Riverview Construction', quoteNo: 'QUO-2041', primary: { id: 'convert', label: 'Convert' }, secondary: [{ id: 'preview', label: 'View' }] },
+  { id: 'itm-q2', group: 'get_paid', module: 'quotes', type: 'quote', severity: 'med', weight: 1, icon: 'file', rowTitle: 'QUO-2038 · Harbour Cafe', sub: 'Accepted 2 Jul', amount: 1450, badge: { label: 'Accepted', color: 'green' }, client: 'Harbour Cafe', quoteNo: 'QUO-2038', primary: { id: 'convert', label: 'Convert' }, secondary: [{ id: 'preview', label: 'View' }] },
+  { id: 'itm-g1', group: 'get_paid', module: 'sales', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send', rowTitle: 'INV-1043 · Bondi Mowing Co', sub: 'Draft · created 3 Jul', amount: 680, client: 'Bondi Mowing Co', invoiceNo: 'INV-1043', primary: { id: 'send', label: 'Send' }, secondary: [{ id: 'preview', label: 'Preview' }] },
+  { id: 'itm-g2', group: 'get_paid', module: 'sales', type: 'send_invoice', severity: 'med', weight: 3, icon: 'send', rowTitle: 'INV-1044 · Harbour Cafe', sub: 'Draft · created 5 Jul', amount: 1240, client: 'Harbour Cafe', invoiceNo: 'INV-1044', primary: { id: 'send', label: 'Send' }, secondary: [{ id: 'preview', label: 'Preview' }] },
+  { id: 'itm-g3', group: 'get_paid', module: 'sales', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle', rowTitle: 'INV-1021 · Marlow & Sons', sub: 'Due 22 Jun', amount: 3150, badge: { label: '14 days overdue', color: 'red' }, client: 'Marlow & Sons', invoiceNo: 'INV-1021', primary: { id: 'follow_up', label: 'Follow up' }, secondary: [{ id: 'mark_paid', label: 'Mark paid' }, { id: 'snooze', label: 'Snooze' }] },
+  { id: 'itm-g4', group: 'get_paid', module: 'sales', type: 'overdue_invoice', severity: 'high', weight: 7, icon: 'alertTriangle', rowTitle: 'INV-1009 · Greenleaf Holdings', sub: 'Due 30 Jun', amount: 920, badge: { label: '6 days overdue', color: 'red' }, client: 'Greenleaf Holdings', invoiceNo: 'INV-1009', primary: { id: 'follow_up', label: 'Follow up' }, secondary: [{ id: 'mark_paid', label: 'Mark paid' }, { id: 'snooze', label: 'Snooze' }] },
+  { id: 'itm-g5', group: 'get_paid', module: 'sales', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock', rowTitle: 'INV-1038 · North Coast Partners', sub: 'Due 8 Jul', amount: 2400, badge: { label: 'Due in 2 days', color: 'amber' }, client: 'North Coast Partners', invoiceNo: 'INV-1038', primary: { id: 'send_reminder', label: 'Send reminder' }, secondary: [{ id: 'snooze', label: 'Snooze' }] },
+  { id: 'itm-g6', group: 'get_paid', module: 'sales', type: 'due_soon', severity: 'med', weight: 2, icon: 'clock', rowTitle: 'INV-1040 · Kim Tran', sub: 'Due 7 Jul', amount: 460, badge: { label: 'Due tomorrow', color: 'amber' }, client: 'Kim Tran', invoiceNo: 'INV-1040', primary: { id: 'send_reminder', label: 'Send reminder' }, secondary: [{ id: 'snooze', label: 'Snooze' }] },
+  { id: 'itm-r1', group: 'reconcile', module: 'bankfeed', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank', rowTitle: 'NORTHCOAST P/L', sub: 'Matches INV-1038 · 98%', bankLine: '4 Jul · memo “NORTHCOAST P/L”', amount: 2400, amountTone: 'in', invoiceNo: 'INV-1038', aiMatch: { label: 'Pays INV-1038 · North Coast Partners · ' + fmtMoney(2400), confidence: 0.98, detail: 'Amount and reference both match this open invoice.' }, primary: { id: 'confirm_match', label: 'Match' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r2', group: 'reconcile', module: 'bankfeed', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank', rowTitle: 'BONDI MOWING', sub: 'Matches INV-1043 · 95%', bankLine: '2 Jul · memo “BONDI MOWING”', amount: 680, amountTone: 'in', invoiceNo: 'INV-1043', aiMatch: { label: 'Pays INV-1043 · Bondi Mowing Co · ' + fmtMoney(680), confidence: 0.95, detail: 'Amount matches a recently sent invoice.' }, primary: { id: 'confirm_match', label: 'Match' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r3', group: 'reconcile', module: 'bankfeed', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'bank', rowTitle: 'BP FUEL 1042', sub: 'Matches Fuel — BP · 92%', bankLine: '3 Jul · memo “BP FUEL 1042”', amount: 142.30, amountTone: 'out', aiMatch: { label: 'Matches expense: Fuel — BP · ' + fmtMoney(142.30) + ' · 3 Jul', confidence: 0.92, detail: 'Amount and date match a logged expense.' }, primary: { id: 'confirm_match', label: 'Match' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
+  { id: 'itm-r4', group: 'reconcile', module: 'bankfeed', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'tag', rowTitle: 'CANVA PTY', sub: 'No confident match', bankLine: '1 Jul · memo “CANVA PTY”', amount: 59, amountTone: 'out', primary: { id: 'categorize', label: 'Categorise' }, secondary: [{ id: 'ignore', label: 'Ignore' }] },
+  { id: 'itm-t1', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Officeworks', sub: 'Expense · 2 Jul', amount: 88.40, badge: { label: 'No category', color: 'amber' }, primary: { id: 'categorize', label: 'Categorise' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t2', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Telstra', sub: 'Expense · 1 Jul · Phone', amount: 99, badge: { label: 'Receipt missing', color: 'amber' }, primary: { id: 'add_receipt', label: 'Add receipt' }, secondary: [{ id: 'categorize', label: 'Categorise' }] },
+  { id: 'itm-t3', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Bunnings', sub: 'Expense · 30 Jun', amount: 213.75, badge: { label: 'No category · No receipt', color: 'amber' }, primary: { id: 'categorize', label: 'Categorise' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t4', group: 'tidy_up', module: 'assets', type: 'asset', severity: 'low', weight: 2, icon: 'layers', rowTitle: 'Dell laptop', sub: 'Purchase · 28 Jun', amount: 1899, badge: { label: 'Possible asset', color: 'blue' }, primary: { id: 'record_asset', label: 'Record' }, secondary: [{ id: 'not_asset', label: 'Not an asset' }] },
+  { id: 'itm-t5', group: 'tidy_up', module: 'assets', type: 'asset', severity: 'low', weight: 2, icon: 'layers', rowTitle: 'Espresso machine', sub: 'Asset · 26 Jun', amount: 2650, badge: { label: 'No payment linked', color: 'amber' }, primary: { id: 'match_payment', label: 'Match' }, secondary: [{ id: 'later', label: 'Later' }] },
+];
+
+// ---------------------------------------------------------------------------
+// small shared atoms
+// ---------------------------------------------------------------------------
+const badgeColor = (c) => ({ red: T.redText, amber: T.amberText, green: T.greenDark, blue: T.blue }[c] || T.muted);
+const Pill = ({ children, tone = 'neutral', style }) => {
+  const p = { neutral: { bg: T.fieldBg, fg: T.muted, bd: T.border }, green: { bg: T.greenSoft, fg: T.greenDark, bd: '#BBF0D8' }, amber: { bg: T.amberSoft, fg: T.amberText, bd: '#F3DDBB' }, red: { bg: T.redSoft, fg: T.redText, bd: '#F6C9CB' }, blue: { bg: T.blueSoft, fg: T.blue, bd: '#CADEFB' } }[tone];
+  return <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, background: p.bg, color: p.fg, border: `1px solid ${p.bd}`, fontSize: 10.5, fontWeight: 600, whiteSpace: 'nowrap', ...style }}>{children}</span>;
+};
+const IconTile = ({ icon, tone = 'accent', size = 44, iconSize = 20 }) => {
+  const pal = { accent: { bg: T.primarySoft, fg: T.primary }, green: { bg: T.greenSoft, fg: T.greenDark }, amber: { bg: T.amberSoft, fg: T.amberText }, red: { bg: T.redSoft, fg: T.redText }, blue: { bg: T.blueSoft, fg: T.blue }, neutral: { bg: T.fieldBg, fg: T.muted } };
+  const p = pal[tone] || pal.neutral;
+  return <span style={{ width: size, height: size, borderRadius: size * 0.32, background: p.bg, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={icon} size={iconSize} color={p.fg} strokeWidth={2.1} /></span>;
+};
+
+// health ring — stroke scales with size (ported fix); score-only when small
+const HealthRing = ({ score, band, size = 60, celebrate }) => {
+  const stroke = Math.max(4, Math.round(size * 0.1)), compact = size < 66;
+  const r = (size / 2) - stroke / 2 - 1, c = 2 * Math.PI * r, off = c * (1 - clamp(score, 0, 100) / 100), col = BAND[band].color;
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0, animation: celebrate ? 'ringpop .5s ease' : undefined }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={T.border} strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: 'stroke-dashoffset .6s cubic-bezier(.22,1,.36,1)' }} />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: Math.round(size * (compact ? 0.36 : 0.3)), fontWeight: 800, color: col, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{score}</div>
+        {!compact && <div style={{ fontSize: 10, color: T.mutedSoft, fontWeight: 600 }}>/ 100</div>}
+      </div>
+    </div>
+  );
+};
+
+// confetti — confined to the phone frame (position:absolute)
+const CONFETTI_COLORS = [T.primary, T.green, T.amber, '#EC4899', T.blue];
+const reduce = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const Confetti = ({ fire, big }) => {
+  const [pieces, setPieces] = useState(null); const timer = useRef();
+  useEffect(() => {
+    if (!fire || reduce()) return;
+    const n = big ? 80 : 36;
+    setPieces(Array.from({ length: n }, (_, i) => ({ key: fire + '-' + i, left: Math.random() * 100, bg: CONFETTI_COLORS[i % CONFETTI_COLORS.length], w: 6 + Math.random() * 5, h: 8 + Math.random() * 7, delay: Math.random() * (big ? 0.3 : 0.18), dur: (big ? 1.4 : 1.05) + Math.random() * 0.5, rot: Math.random() * 360 })));
+    clearTimeout(timer.current); timer.current = setTimeout(() => setPieces(null), big ? 2100 : 1600);
+    return () => clearTimeout(timer.current);
+  }, [fire]);
+  if (!pieces) return null;
+  return <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 60, overflow: 'hidden' }} aria-hidden="true">{pieces.map(p => <span key={p.key} style={{ position: 'absolute', top: -10, left: p.left + '%', width: p.w, height: p.h, background: p.bg, borderRadius: 2, animation: `confettiFall ${p.dur}s ease-in ${p.delay}s forwards` }} />)}</div>;
+};
+
+// ---------------------------------------------------------------------------
+// chrome: status bar + bottom tab bar
+// ---------------------------------------------------------------------------
+const StatusBar = ({ dark }) => {
+  const fg = dark ? '#fff' : T.text;
+  return (
+    <div style={{ height: 46, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px', color: fg, background: dark ? T.headerFrom : T.card }}>
+      <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 0.2 }}>10:37</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <Icon name="wifi" size={16} color={fg} />
+        <Icon name="signal" size={16} color={fg} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, border: `1.5px solid ${fg}`, borderRadius: 4, padding: '1px 4px', fontSize: 10, fontWeight: 700 }}>79</span>
+      </span>
+    </div>
+  );
+};
+const TABS = [{ id: 'dashboard', label: 'Dashboard', icon: 'grid' }, { id: 'invoices', label: 'Invoices', icon: 'file' }, { id: 'expense', label: 'Expense', icon: 'dollar' }, { id: 'transactions', label: 'Transactions', icon: 'bank' }, { id: 'more', label: 'More', icon: 'grid' }];
+const TabBar = ({ active, onTab, onMore }) => (
+  <div style={{ flexShrink: 0, display: 'flex', borderTop: `1px solid ${T.border}`, background: T.card, paddingBottom: 18, paddingTop: 8 }}>
+    {TABS.map(t => {
+      const on = active === t.id;
+      return (
+        <button key={t.id} className="tap" onClick={() => t.id === 'more' ? onMore() : onTab(t.id)} style={{ flex: 1, border: 'none', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '2px 0' }}>
+          {t.id === 'more'
+            ? <span style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2.5, width: 20, height: 20, padding: 1 }}>{[0, 1, 2, 3].map(i => <span key={i} style={{ background: on ? T.primary : T.mutedSoft, borderRadius: 2 }} />)}</span>
+            : <Icon name={t.icon} size={21} color={on ? T.primary : T.mutedSoft} strokeWidth={on ? 2.3 : 2} />}
+          <span style={{ fontSize: 10.5, fontWeight: on ? 700 : 500, color: on ? T.primary : T.muted }}>{t.label}</span>
+        </button>
+      );
+    })}
+  </div>
+);
+
+// ---------------------------------------------------------------------------
+// dashboard (faithful to the app screenshots) + the Unibox entry banner
+// ---------------------------------------------------------------------------
+const StatCard = ({ n, label, tone, onClick }) => {
+  const c = tone === 'red' ? { bg: T.redSoft, fg: T.redText } : { bg: T.amberSoft, fg: T.amberText };
+  return (
+    <button className="tap press" onClick={onClick} style={{ flex: 1, textAlign: 'left', border: 'none', background: c.bg, borderRadius: 18, padding: '14px 15px', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 96 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 30, fontWeight: 800, color: c.fg, lineHeight: 1 }}>{n}</span>
+        <Icon name="chevronRight" size={18} color={c.fg} />
+      </div>
+      <span style={{ fontSize: 13.5, fontWeight: 600, color: c.fg, lineHeight: 1.25 }}>{label}</span>
+    </button>
+  );
+};
+const QuickTile = ({ icon, label, filled }) => (
+  <button className="tap press" style={{ border: 'none', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flex: 1 }}>
+    <span style={{ width: 62, height: 62, borderRadius: 18, background: filled ? T.primary : T.card, boxShadow: T.shadowSm, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={24} color={filled ? '#fff' : T.primary} strokeWidth={2.1} /></span>
+    <span style={{ fontSize: 13.5, fontWeight: 600, color: T.text }}>{label}</span>
+  </button>
+);
+const KpiCard = ({ icon, tone, label, value }) => (
+  <div style={{ minWidth: 150, background: T.card, borderRadius: 16, boxShadow: T.shadowSm, padding: '13px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <IconTile icon={icon} tone={tone} size={30} iconSize={15} />
+    <div><div style={{ fontSize: 12.5, color: T.muted, fontWeight: 500 }}>{label}</div><div style={{ fontSize: 19, fontWeight: 800, color: T.text, marginTop: 2 }}>{value}</div></div>
+  </div>
+);
+const UniboxBanner = ({ count, onOpen }) => {
+  const clear = count === 0;
+  return (
+    <button className="tap press" onClick={onOpen} style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 20, padding: '16px 16px', display: 'flex', alignItems: 'center', gap: 13,
+      background: clear ? 'linear-gradient(135deg,#10B981,#059669)' : 'linear-gradient(135deg,#5B54EA,#4B44DE)', boxShadow: clear ? '0 10px 24px -8px rgba(5,150,105,.5)' : '0 10px 24px -8px rgba(75,68,222,.55)' }}>
+      <span style={{ width: 46, height: 46, borderRadius: 14, background: 'rgba(255,255,255,0.18)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={clear ? 'check' : 'target'} size={24} color="#fff" strokeWidth={2.4} /></span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 15.5, fontWeight: 800, color: '#fff', letterSpacing: -0.2 }}>{clear ? "You're all caught up ✨" : `${count} things need your attention`}</div>
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{clear ? 'Nothing needs you right now — nice work.' : 'Open Unibox and sort them in a few minutes'}</div>
+      </div>
+      <Icon name="chevronRight" size={20} color="#fff" />
+    </button>
+  );
+};
+const Dashboard = ({ count, onOpenUnibox }) => (
+  <div>
+    {/* indigo header */}
+    <div style={{ background: `linear-gradient(160deg,${T.headerFrom},${T.headerTo})`, padding: '4px 20px 60px', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 30, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>S<span style={{ opacity: 0.85 }}>✳</span>le</div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="tap press" onClick={onOpenUnibox} style={{ position: 'relative', width: 42, height: 42, borderRadius: 999, background: 'rgba(255,255,255,0.16)', border: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="bell" size={20} color="#fff" />
+            {count > 0 && <span style={{ position: 'absolute', top: 6, right: 7, minWidth: 17, height: 17, padding: '0 4px', borderRadius: 999, background: T.red, color: '#fff', fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #4B44DE' }}>{count}</span>}
+          </button>
+          <button className="tap press" style={{ width: 42, height: 42, borderRadius: 999, background: 'rgba(255,255,255,0.16)', border: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="user" size={20} color="#fff" /></button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+        <button className="tap press" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', border: 'none', borderRadius: 999, padding: '10px 16px', fontSize: 14.5, fontWeight: 700, color: T.text }}>This Month <Icon name="chevronDown" size={16} color={T.text} /></button>
+      </div>
+    </div>
+    {/* balance + stat cards, overlapping into white */}
+    <div style={{ padding: '0 16px', marginTop: -44, display: 'flex', gap: 12, alignItems: 'stretch' }}>
+      <div style={{ flex: 1.05, background: `linear-gradient(165deg,${T.navyFrom},${T.navyTo})`, borderRadius: 22, padding: '18px 18px', color: '#fff', boxShadow: '0 14px 30px -12px rgba(30,30,82,.5)' }}>
+        <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.75)', fontWeight: 500 }}>Running Balance</div>
+        <div style={{ fontSize: 27, fontWeight: 800, marginTop: 3 }}>$18,240</div>
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '15px 0' }} />
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)' }}>Income</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginTop: 2 }}>$12,890</div>
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', margin: '13px 0' }} />
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)' }}>Expense</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginTop: 2 }}>$4,610</div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <StatCard n={2} label="Overdue Invoices" tone="red" onClick={onOpenUnibox} />
+        <StatCard n={4} label="Unmatched Transactions" tone="amber" onClick={onOpenUnibox} />
+      </div>
+    </div>
+    {/* Unibox entry banner */}
+    <div style={{ padding: '20px 16px 0' }}><UniboxBanner count={count} onOpen={onOpenUnibox} /></div>
+    {/* Quick create */}
+    <div style={{ padding: '22px 16px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}><Icon name="sparkle" size={20} color={T.primary} /><span style={{ fontSize: 19, fontWeight: 800, color: T.text }}>Quick Create</span></div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <QuickTile icon="file" label="Invoice" /><QuickTile icon="contact" label="Contact" /><QuickTile icon="dollar" label="Expense" filled /><QuickTile icon="briefcase" label="Quote" />
+      </div>
+    </div>
+    {/* KPIs */}
+    <div style={{ padding: '20px 0 24px' }}>
+      <div style={{ display: 'flex', gap: 12, padding: '0 16px', overflowX: 'auto' }}>
+        <KpiCard icon="trendUp" tone="green" label="Net Profit" value="$8,279" />
+        <KpiCard icon="percent" tone="accent" label="Profit Margin" value="64.2%" />
+        <KpiCard icon="trendUp" tone="blue" label="Forecast" value="$21,500" />
+      </div>
+    </div>
+  </div>
+);
+
+// ---------------------------------------------------------------------------
+// More drawer (right slide-in) — matches the app menu + a Unibox entry on top
+// ---------------------------------------------------------------------------
+const MENU = [
+  { icon: 'target', tone: 'accent', title: 'Unibox', sub: 'Your action centre', unibox: true },
+  { icon: 'bank', tone: 'accent', title: 'Transactions', sub: 'View bank transactions' },
+  { icon: 'file', tone: 'accent', title: 'Sales', chev: true },
+  { icon: 'dollar', tone: 'accent', title: 'Expenses', chev: true },
+  { icon: 'folder', tone: 'accent', title: 'Assets', sub: 'Manage your assets' },
+  { icon: 'contact', tone: 'accent', title: 'Contact', sub: 'Your contacts' },
+  { icon: 'chartBar', tone: 'accent', title: 'Reporting Suite', chev: true },
+  { icon: 'briefcase', tone: 'accent', title: 'Projects', sub: 'Manage projects', chev: true },
+  { icon: 'map', tone: 'accent', title: 'KM Tracker', sub: 'Track your trips', chev: true },
+  { icon: 'user', tone: 'accent', title: 'Profile', sub: 'View & edit your profile' },
+];
+const MoreDrawer = ({ open, count, onClose, onUnibox }) => {
+  if (!open) return null;
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 40 }}>
+      <div className="tap" onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(20,21,42,0.42)', animation: 'scrimIn .2s ease' }} />
+      <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '86%', background: T.card, animation: 'drawerIn .26s cubic-bezier(.22,1,.36,1)', display: 'flex', flexDirection: 'column', boxShadow: '-12px 0 40px -8px rgba(20,21,42,0.3)' }}>
+        <div style={{ background: `linear-gradient(160deg,${T.headerFrom},${T.headerTo})`, padding: '52px 20px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: 27, fontWeight: 800, color: '#fff', letterSpacing: 0.4 }}>S<span style={{ opacity: 0.85 }}>✳</span>le</div>
+          <button className="tap press" onClick={onClose} style={{ border: 'none', background: 'none' }}><Icon name="close" size={26} color="#fff" /></button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0 20px' }}>
+          {MENU.map((m, i) => (
+            <button key={m.title} className="tap" onClick={() => m.unibox ? onUnibox() : onClose()} style={{ width: '100%', border: 'none', background: 'none', display: 'flex', alignItems: 'center', gap: 15, padding: '13px 20px', textAlign: 'left', borderBottom: m.unibox ? `1px solid ${T.borderSoft}` : 'none' }}>
+              <IconTile icon={m.icon} tone={m.tone} size={46} iconSize={21} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 17.5, fontWeight: 700, color: T.text }}>{m.title}</span>
+                  {m.unibox && count > 0 && <Pill tone="red" style={{ fontSize: 11 }}>{count}</Pill>}
+                </div>
+                {m.sub && <div style={{ fontSize: 13.5, color: T.muted, marginTop: 1 }}>{m.sub}</div>}
+              </div>
+              {(m.chev || m.unibox) && <Icon name="chevronRight" size={20} color={T.mutedSoft} />}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Unibox rows + cards
+// ---------------------------------------------------------------------------
+const AmountText = ({ item, size = 15 }) => item.amount == null ? null : (
+  <span style={{ fontSize: size, fontWeight: 700, color: item.amountTone === 'in' ? T.greenDark : T.text, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{item.amountTone === 'in' ? '+' : item.amountTone === 'out' ? '-' : ''}{fmtMoney(item.amount)}</span>
+);
+// A touch-friendly 2-line row — NO leading icon (per feedback). Title + amount on top;
+// muted subtext (status badge + detail) + action below.
+const ItemRow = ({ item, onAction, onMore, last }) => {
+  const badgeRed = item.badge && item.badge.color === 'red';
+  return (
+    <div style={{ padding: '12px 14px', borderBottom: last ? 'none' : `1px solid ${T.borderSoft}` }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.rowTitle}</span>
+        <AmountText item={item} size={14} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 5 }}>
+        <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {item.badge && <span style={{ color: badgeRed ? T.redText : T.muted, fontWeight: badgeRed ? 600 : 400 }}>{item.badge.label}{item.sub ? ' · ' : ''}</span>}
+          {item.sub}
+        </div>
+        <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
+          <button className="tap press" onClick={() => onAction(item, item.primary.id)} style={{ height: 36, padding: '0 15px', border: 'none', borderRadius: 10, background: T.primary, color: '#fff', fontSize: 13, fontWeight: 700 }}>{item.primary.label}</button>
+          {item.secondary && item.secondary.length > 0 && <button className="tap press" onClick={() => onMore(item)} style={{ width: 36, height: 36, border: `1px solid ${T.border}`, borderRadius: 10, background: T.card, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="more" size={17} color={T.muted} /></button>}
+        </div>
+      </div>
+    </div>
+  );
+};
+const UCard = ({ icon, tone, title, count, children }) => (
+  <div style={{ background: T.card, borderRadius: 18, boxShadow: T.shadowSm, overflow: 'hidden', marginBottom: 14, animation: 'fadeUp .3s ease' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '14px 15px 12px' }}>
+      <IconTile icon={icon} tone={tone} size={34} iconSize={17} />
+      <span style={{ fontSize: 15.5, fontWeight: 700, color: T.text }}>{title}</span>
+      {count != null && <span style={{ fontSize: 13, fontWeight: 600, color: T.mutedSoft }}>{count}</span>}
+    </div>
+    <div style={{ borderTop: `1px solid ${T.borderSoft}` }}>{children}</div>
+  </div>
+);
+// Informational row — SAME shell/typography as ItemRow (leading icon, title 14/600, sub
+// 12/muted, right-aligned value + action) so Liabilities / Key dates match Assets etc.
+const InfoRow = ({ label, sub, amount, topRight, action, onAction, last }) => (
+  <div style={{ padding: '12px 14px', borderBottom: last ? 'none' : `1px solid ${T.borderSoft}` }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+      <span style={{ fontSize: 14, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      {amount != null ? <span style={{ fontSize: 14, fontWeight: 700, color: T.text, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmtMoney(amount)}</span> : topRight}
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 5 }}>
+      <span style={{ fontSize: 12, color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</span>
+      {action && <button className="tap press" onClick={onAction} style={{ height: 34, padding: '0 13px', border: `1px solid ${T.border}`, borderRadius: 10, background: T.card, fontSize: 13, fontWeight: 600, color: T.textSoft, flexShrink: 0 }}>{action}</button>}
+    </div>
+  </div>
+);
+// Category card that shows only the first 3 rows, with a "Show N more" expand.
+const CategoryCard = ({ icon, tone, title, items, renderRow }) => {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, 3);
+  return (
+    <UCard icon={icon} tone={tone} title={title} count={items.length}>
+      {shown.map((it, i) => renderRow(it, i, shown.length))}
+      {items.length > 3 && (
+        <button className="tap" onClick={() => setAll(a => !a)} style={{ width: '100%', border: 'none', borderTop: `1px solid ${T.borderSoft}`, background: 'none', padding: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: T.muted, fontSize: 13, fontWeight: 600 }}>
+          <span style={{ display: 'inline-flex', transform: all ? 'rotate(180deg)' : 'none' }}><Icon name="chevronDown" size={15} color={T.muted} /></span>{all ? 'Show less' : `Show ${items.length - 3} more`}
+        </button>
+      )}
+    </UCard>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// bottom sheet (all row interactions become native-feeling sheets)
+// ---------------------------------------------------------------------------
+const Sheet = ({ open, onClose, children }) => {
+  if (!open) return null;
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+      <div className="tap" onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(20,21,42,0.45)', animation: 'scrimIn .2s ease' }} />
+      <div style={{ position: 'relative', background: T.card, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: '10px 18px 26px', maxHeight: '86%', overflowY: 'auto', animation: 'sheetUp .3s cubic-bezier(.22,1,.36,1)', boxShadow: '0 -12px 40px -8px rgba(20,21,42,0.28)' }}>
+        <div style={{ width: 40, height: 5, borderRadius: 999, background: T.borderStrong, margin: '2px auto 14px' }} />
+        {children}
+      </div>
+    </div>
+  );
+};
+const SheetHead = ({ title, sub }) => (
+  <div style={{ marginBottom: 16 }}>
+    <div style={{ fontSize: 19, fontWeight: 800, color: T.text }}>{title}</div>
+    {sub && <div style={{ fontSize: 13.5, color: T.muted, marginTop: 3, lineHeight: 1.45 }}>{sub}</div>}
+  </div>
+);
+const BigBtn = ({ children, onClick, tone = 'primary', disabled, icon }) => {
+  const styles = { primary: { bg: T.primary, fg: '#fff', bd: 'none' }, ghost: { bg: T.card, fg: T.textSoft, bd: `1px solid ${T.border}` }, danger: { bg: T.redSoft, fg: T.redText, bd: 'none' } }[tone];
+  return <button className="tap press" onClick={onClick} disabled={disabled} style={{ flex: 1, height: 52, borderRadius: 14, border: styles.bd, background: styles.bg, color: styles.fg, fontSize: 15.5, fontWeight: 700, opacity: disabled ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>{icon && <Icon name={icon} size={18} color={styles.fg} />}{children}</button>;
+};
+const MatchOption = ({ o, selected, onClick, badge }) => (
+  <button className="tap" onClick={onClick} style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 14, border: `1.5px solid ${selected ? T.primary : T.border}`, background: selected ? T.primarySofter : T.card, marginBottom: 10 }}>
+    <span style={{ width: 20, height: 20, borderRadius: 999, border: `2px solid ${selected ? T.primary : T.borderStrong}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{selected && <span style={{ width: 10, height: 10, borderRadius: 999, background: T.primary }} />}</span>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{o.label}</div>
+      <div style={{ fontSize: 12.5, color: T.muted, marginTop: 1 }}>{o.sub}</div>
+    </div>
+    {badge}
+  </button>
+);
+// Sheet body variants
+const SheetBody = ({ sheet, onComplete, onClose, fireToast }) => {
+  const item = sheet.item;
+  const [picked, setPicked] = useState(item && item.aiMatch ? 'ai' : null);
+  const [cat, setCat] = useState(null);
+  useEffect(() => { setPicked(item && item.aiMatch ? 'ai' : null); setCat(null); }, [sheet]);
+  if (sheet.type === 'match') {
+    const inbound = item.amountTone === 'in';
+    const candidates = inbound ? MATCH_CANDIDATES_IN : MATCH_CANDIDATES_OUT;
+    return (
+      <React.Fragment>
+        <SheetHead title="Match this transaction" sub="Confirm what this belongs to so your books stay reconciled." />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', background: T.surface, border: `1px solid ${T.borderSoft}`, borderRadius: 14, marginBottom: 16 }}>
+          <IconTile icon="bank" tone={inbound ? 'green' : 'neutral'} size={38} iconSize={18} />
+          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{item.rowTitle}</div><div style={{ fontSize: 12, color: T.muted }}>{item.bankLine}</div></div>
+          <span style={{ fontSize: 16, fontWeight: 800, color: inbound ? T.greenDark : T.text }}>{inbound ? '+' : '-'}{fmtMoney(item.amount)}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>{item.aiMatch && <Icon name="sparkle" size={14} color={T.primary} />}<span style={{ fontSize: 13, fontWeight: 700, color: T.textSoft }}>{item.aiMatch ? 'Sole suggests' : 'Choose a match'}</span></div>
+        {item.aiMatch && <MatchOption o={{ label: item.aiMatch.label, sub: item.aiMatch.detail }} selected={picked === 'ai'} onClick={() => setPicked('ai')} badge={<Pill tone="green">{Math.round(item.aiMatch.confidence * 100)}%</Pill>} />}
+        {candidates.map(c => <MatchOption key={c.id} o={{ label: c.label, sub: c.sub + ' · ' + fmtMoney(c.amount) }} selected={picked === c.id} onClick={() => setPicked(c.id)} />)}
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <BigBtn tone="ghost" onClick={() => onComplete(item, "We'll leave this one for you to match", 'skip')}>Not a match</BigBtn>
+          <BigBtn icon="check" disabled={!picked} onClick={() => onComplete(item, inbound ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo || 'your books'}` : `Matched ${fmtMoney(item.amount)} — reconciled`, 'match')}>Confirm match</BigBtn>
+        </div>
+      </React.Fragment>
+    );
+  }
+  if (sheet.type === 'email') {
+    return (
+      <React.Fragment>
+        <SheetHead title={`Follow up ${item.invoiceNo}`} sub={`To ${item.client} · ${fmtMoney(item.amount)}`} />
+        <textarea defaultValue={emailBody(item)} style={{ width: '100%', minHeight: 150, border: `1px solid ${T.border}`, borderRadius: 14, padding: 13, fontSize: 13.5, color: T.text, lineHeight: 1.5, resize: 'none', fontFamily: 'inherit', background: T.surface }} />
+        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          <BigBtn tone="ghost" onClick={onClose}>Cancel</BigBtn>
+          <BigBtn icon="send" onClick={() => onComplete(item, `Follow-up sent to ${item.client}`)}>Send email</BigBtn>
+        </div>
+      </React.Fragment>
+    );
+  }
+  if (sheet.type === 'category') {
+    return (
+      <React.Fragment>
+        <SheetHead title="Categorise expense" sub={`${item.rowTitle} · ${fmtMoney(item.amount)}`} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, marginBottom: 18 }}>
+          {CATEGORIES.map(c => <button key={c} className="tap" onClick={() => setCat(c)} style={{ padding: '10px 15px', borderRadius: 999, border: `1.5px solid ${cat === c ? T.primary : T.border}`, background: cat === c ? T.primarySofter : T.card, color: cat === c ? T.primary : T.textSoft, fontSize: 14, fontWeight: 600 }}>{c}</button>)}
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}><BigBtn tone="ghost" onClick={onClose}>Cancel</BigBtn><BigBtn icon="check" disabled={!cat} onClick={() => onComplete(item, `${item.rowTitle} categorised as ${cat}`)}>Save category</BigBtn></div>
+      </React.Fragment>
+    );
+  }
+  if (sheet.type === 'receipt') {
+    return (
+      <React.Fragment>
+        <SheetHead title="Add a receipt" sub={`${item.rowTitle} · ${fmtMoney(item.amount)}`} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 18 }}>
+          <button className="tap press" onClick={() => onComplete(item, `Receipt attached to ${item.rowTitle}`)} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '16px 15px', border: `1px solid ${T.border}`, borderRadius: 14, background: T.card, textAlign: 'left' }}><IconTile icon="camera" tone="accent" size={40} /><div><div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Take a photo</div><div style={{ fontSize: 12.5, color: T.muted }}>Snap the receipt with your camera</div></div></button>
+          <button className="tap press" onClick={() => onComplete(item, `Receipt attached to ${item.rowTitle}`)} style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '16px 15px', border: `1px solid ${T.border}`, borderRadius: 14, background: T.card, textAlign: 'left' }}><IconTile icon="paperclip" tone="accent" size={40} /><div><div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>Choose a file</div><div style={{ fontSize: 12.5, color: T.muted }}>Upload from your device</div></div></button>
+        </div>
+      </React.Fragment>
+    );
+  }
+  if (sheet.type === 'asset') {
+    return (
+      <React.Fragment>
+        <SheetHead title="Record as an asset" sub={`${item.rowTitle} · ${fmtMoney(item.amount)}`} />
+        <div style={{ background: T.surface, border: `1px solid ${T.borderSoft}`, borderRadius: 14, padding: 15, fontSize: 13.5, color: T.textSoft, lineHeight: 1.5, marginBottom: 16 }}>We'll add this to your asset register and start depreciation from the purchase date. You can edit the details anytime.</div>
+        <div style={{ display: 'flex', gap: 10 }}><BigBtn tone="ghost" onClick={onClose}>Cancel</BigBtn><BigBtn icon="check" onClick={() => onComplete(item, `${item.rowTitle} recorded as an asset`)}>Record asset</BigBtn></div>
+      </React.Fragment>
+    );
+  }
+  // action sheet (secondary actions from ⋯)
+  return (
+    <React.Fragment>
+      <SheetHead title={item.rowTitle} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {[item.primary, ...(item.secondary || [])].map(a => (
+          <button key={a.id} className="tap" onClick={() => sheet.onPick(a.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '15px 6px', border: 'none', borderBottom: `1px solid ${T.borderSoft}`, background: 'none', textAlign: 'left', fontSize: 15.5, fontWeight: 600, color: a.id === 'not_match' || a.id === 'ignore' || a.id === 'not_asset' ? T.redText : T.text }}>{a.label}</button>
+        ))}
+      </div>
+    </React.Fragment>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// snackbar (undo)
+// ---------------------------------------------------------------------------
+const Snackbar = ({ toast, onClose, bottom = 86 }) => {
+  if (!toast) return null;
+  return (
+    <div style={{ position: 'absolute', left: 14, right: 14, bottom, zIndex: 45, animation: 'snackUp .3s cubic-bezier(.22,1,.36,1)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#1B1C30', color: '#fff', borderRadius: 14, padding: '13px 15px', boxShadow: '0 12px 30px -8px rgba(0,0,0,0.4)' }}>
+        <Icon name={toast.tone === 'undo' ? 'checkCircle' : 'info'} size={19} color="#fff" />
+        <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500 }}>{toast.message}</span>
+        {toast.action && <button className="tap press" onClick={toast.action.onClick} style={{ border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 700, fontSize: 13.5, padding: '7px 13px', borderRadius: 9 }}>{toast.action.label}</button>}
+        <button className="tap" onClick={onClose} style={{ border: 'none', background: 'none' }}><Icon name="close" size={18} color="rgba(255,255,255,0.7)" /></button>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Unibox screen
+// ---------------------------------------------------------------------------
+const HealthCard = ({ health, streak }) => {
+  const [info, setInfo] = useState(false);
+  return (
+    <div style={{ background: T.card, borderRadius: 18, boxShadow: T.shadowSm, overflow: 'hidden', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 14px' }}>
+        <HealthRing score={health.score} band={health.band} size={52} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15.5, fontWeight: 700, color: BAND[health.band].color }}>{health.label}</div>
+          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 2, display: 'inline-flex', alignItems: 'center', gap: 5 }}>Business health<span style={{ color: T.borderStrong }}>·</span><Icon name="flame" size={13} color={T.amber} /><span><b style={{ color: T.textSoft, fontWeight: 700 }}>{streak}</b>-day streak</span></div>
+        </div>
+        <button className="tap press" onClick={() => setInfo(v => !v)} style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, borderRadius: 9, padding: 6 }}><Icon name="info" size={18} /></button>
+      </div>
+      {info && <div style={{ margin: '0 14px 14px', padding: 13, background: T.primarySofter, borderRadius: 12, fontSize: 12.5, color: T.textSoft, lineHeight: 1.5 }}><b style={{ color: T.text }}>How your score works</b><br />{HEALTH_DEF}<br /><b style={{ color: T.text }}>What the streak means</b><br />{STREAK_DEF}</div>}
+    </div>
+  );
+};
+// Priority card face — one item shown big (type, title, amount, AI-match hint).
+const PriorityCard = ({ item }) => {
+  const badgeRed = item.badge && item.badge.color === 'red';
+  const inbound = item.amountTone === 'in';
+  const bt = item.badge ? (item.badge.color === 'red' ? 'red' : item.badge.color === 'amber' ? 'amber' : item.badge.color === 'green' ? 'green' : 'blue') : null;
+  return (
+    <div style={{ padding: '17px', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+          <IconTile icon={item.icon} tone={badgeRed ? 'red' : inbound ? 'green' : 'accent'} size={38} iconSize={19} />
+          <Pill>{TYPE_LABEL[item.module] || 'To do'}</Pill>
+        </span>
+        {item.badge && <Pill tone={bt}>{item.badge.label}</Pill>}
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: T.text, lineHeight: 1.25, marginTop: 15 }}>{item.rowTitle}</div>
+      {item.amount != null && <div style={{ fontSize: 26, fontWeight: 800, color: inbound ? T.greenDark : T.text, marginTop: 5, fontVariantNumeric: 'tabular-nums' }}>{inbound ? '+' : ''}{fmtMoney(item.amount)}</div>}
+      <div style={{ marginTop: 12 }}>
+        {item.aiMatch
+          ? <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, background: T.primarySofter, borderRadius: 12, padding: '10px 12px' }}><Icon name="sparkle" size={15} color={T.primary} /><span style={{ fontSize: 12.5, color: T.textSoft, lineHeight: 1.4 }}>{item.aiMatch.label} · <b style={{ color: T.greenDark }}>{Math.round(item.aiMatch.confidence * 100)}%</b></span></div>
+          : <div style={{ fontSize: 13, color: T.muted }}>{item.sub}</div>}
+      </div>
+    </div>
+  );
+};
+// Card deck: swipe the top card to send it BELOW the stack (next rises to front). It works
+// a finite BATCH of up to 5 that DEPLETES as you resolve (dots go down); when the batch is
+// cleared it loads the next 5. Browse-only — the CTAs below act on the front card.
+const CARD_H = 210;
+const SwipeDeck = ({ items, onAction }) => {
+  const [batch, setBatch] = useState(() => items.slice(0, 5).map(i => i.id));   // stable snapshot order
+  const [pos, setPos] = useState(0);                                            // which batch card is front (cycles)
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const start = useRef(null);
+  // remove resolved ids; when the batch empties, load the next 5 most-urgent
+  useEffect(() => {
+    const ids = new Set(items.map(i => i.id));
+    setBatch(prev => {
+      const kept = prev.filter(id => ids.has(id));
+      if (kept.length === 0 && items.length > 0) { setPos(0); return items.slice(0, 5).map(i => i.id); }
+      return kept;
+    });
+  }, [items]);
+  const byId = {}; items.forEach(i => { byId[i.id] = i; });
+  const cards = batch.map(id => byId[id]).filter(Boolean);
+  useEffect(() => { setPos(p => (cards.length ? p % cards.length : 0)); }, [cards.length]);
+  if (!cards.length) return null;
+  const n = cards.length;
+  const f = pos % n;
+  const front = cards[f];
+  const isRed = (id) => id === 'not_match' || id === 'ignore' || id === 'not_asset';
+  const onDown = (e) => { if (n < 2) return; start.current = e.clientX; setDragging(true); try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {} };
+  const onMove = (e) => { if (start.current == null) return; setDx(e.clientX - start.current); };
+  const onUp = (e) => {
+    if (start.current == null) return;
+    const d = e.clientX - start.current; start.current = null; setDragging(false);
+    if (Math.abs(d) > 56 && n > 1) setPos(p => (p + 1) % n);   // send front below the stack; next rises
+    setDx(0);
+  };
+  return (
+    <div>
+      <div style={{ position: 'relative', height: CARD_H, isolation: 'isolate' }}>
+        {cards.map((it, j) => {
+          const sp = (j - f + n) % n;                 // 0 = front, grows toward the back
+          const isFront = sp === 0;
+          const depth = Math.min(sp, 3);
+          const tf = isFront ? `translateX(${dx}px) rotate(${dx * 0.03}deg)` : `translateY(${depth * 11}px) scale(${1 - depth * 0.05})`;
+          return (
+            <div key={it.id}
+              onPointerDown={isFront ? onDown : undefined} onPointerMove={isFront ? onMove : undefined} onPointerUp={isFront ? onUp : undefined} onPointerCancel={isFront ? onUp : undefined}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: CARD_H, background: T.card, borderRadius: 20, border: `1px solid ${T.borderSoft}`, boxShadow: isFront ? T.shadowLg : T.shadowSm, zIndex: 30 - sp, opacity: sp <= 2 ? 1 : 0, cursor: isFront ? 'grab' : 'default', touchAction: 'pan-y', transformOrigin: 'top center', transform: tf, transition: (isFront && dragging) ? 'none' : 'transform .34s cubic-bezier(.22,1,.36,1), opacity .34s ease' }}>
+              <PriorityCard item={it} />
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, margin: '16px 0 14px' }}>
+        {cards.map((_, k) => <span key={k} style={{ width: k === f ? 18 : 6, height: 6, borderRadius: 999, background: k === f ? T.primary : T.border, transition: 'width .2s, background .2s' }} />)}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <button className="tap press" onClick={() => onAction(front, front.primary.id)} style={{ height: 52, border: 'none', borderRadius: 14, background: T.primary, color: '#fff', fontSize: 16, fontWeight: 700 }}>{front.primary.label}</button>
+        {front.secondary && front.secondary.length > 0 && (
+          <div style={{ display: 'flex', gap: 9 }}>
+            {front.secondary.map(s => <button key={s.id} className="tap press" onClick={() => onAction(front, s.id)} style={{ flex: 1, height: 44, border: `1px solid ${T.border}`, borderRadius: 12, background: T.card, color: isRed(s.id) ? T.redText : T.textSoft, fontSize: 14, fontWeight: 600 }}>{s.label}</button>)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+const UniboxScreen = ({ items, progress, allTime, onBack, onAction, onMore }) => {
+  const [showAll, setShowAll] = useState(false);
+  const health = useMemo(() => computeHealth(items, progress.streak), [items, progress.streak]);
+  const ranked = useMemo(() => rankItems(items), [items]);
+  const doneToday = progress.today || 0, remaining = items.length;
+  const allClear = items.length === 0;
+  // Persistent health ring: show a mini ring in the header once the health card scrolls
+  // out of view; it shares `health`, so it fills live as items are completed.
+  const scrollRef = useRef(null), healthRef = useRef(null);
+  const [miniRing, setMiniRing] = useState(false);
+  useEffect(() => {
+    const root = scrollRef.current, target = healthRef.current;
+    if (!root || !target || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((es) => setMiniRing(!es[0].isIntersecting), { root, threshold: 0 });
+    io.observe(target);
+    return () => io.disconnect();
+  }, []);
+
+  const byModule = (mods) => ranked.filter(i => mods.includes(i.module));
+  const groups = [
+    { id: 'get_paid', icon: 'dollar', tone: 'accent', title: 'Get paid', items: byModule(['sales', 'quotes']) },
+    { id: 'reconcile', icon: 'bank', tone: 'blue', title: 'Bank feed', items: byModule(['bankfeed']) },
+    { id: 'expenses', icon: 'receipt', tone: 'amber', title: 'Expenses', items: byModule(['expenses']) },
+    { id: 'assets', icon: 'layers', tone: 'green', title: 'Assets', items: byModule(['assets']) },
+  ].filter(g => g.items.length > 0);
+  const everythingCount = groups.length + 2; // + Liabilities + Key dates
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '6px 12px 12px', background: T.card, borderBottom: `1px solid ${T.border}` }}>
+        <button className="tap press" onClick={onBack} style={{ width: 40, height: 40, border: 'none', background: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="arrowLeft" size={24} color={T.text} /></button>
+        <span style={{ fontSize: 22, fontWeight: 800, color: T.text }}>Unibox</span>
+        <div style={{ flex: 1 }} />
+        {miniRing && !allClear && <button className="tap press" title="Business health" onClick={() => scrollRef.current && scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })} style={{ border: 'none', background: 'none', padding: 0, marginRight: 4, animation: 'fadeUp .25s ease' }}><HealthRing score={health.score} band={health.band} size={34} /></button>}
+      </div>
+      <div ref={scrollRef} className="screen-scroll" style={{ padding: '14px 14px 40px' }}>
+        <div ref={healthRef}><HealthCard health={health} streak={progress.streak} /></div>
+
+        {allClear ? (
+          <div style={{ background: T.card, borderRadius: 18, boxShadow: T.shadowSm, textAlign: 'center', padding: '40px 24px', marginBottom: 14 }}>
+            <div style={{ display: 'inline-flex', animation: 'ringpop .5s ease' }}><IconTile icon="sparkle" tone="green" size={64} iconSize={30} /></div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: T.text, marginTop: 14 }}>You're all clear ✨</div>
+            <div style={{ fontSize: 13.5, color: T.muted, marginTop: 6 }}>Everything's actioned. Your business is in the green.</div>
+          </div>
+        ) : (
+          <React.Fragment>
+            {/* priorities — a swipeable card deck: swipe/tap to browse, act via the CTAs below */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '2px 2px 10px' }}>
+                <span style={{ fontSize: 15.5, fontWeight: 800, color: T.text, letterSpacing: -0.2 }}>Do these first</span>
+                <span style={{ fontSize: 12.5, color: T.muted }}><b style={{ color: T.text, fontWeight: 700 }}>{remaining}</b> to action{doneToday > 0 ? ` · ${doneToday} done` : ''}</span>
+              </div>
+              <SwipeDeck items={ranked} onAction={onAction} />
+            </div>
+
+            {/* everything else */}
+            {!showAll ? (
+              <button className="tap press" onClick={() => setShowAll(true)} style={{ width: '100%', border: `1px solid ${T.borderSoft}`, background: T.card, borderRadius: 16, boxShadow: T.shadowSm, padding: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9, fontSize: 14.5, fontWeight: 700, color: T.textSoft }}>
+                <Icon name="chevronDown" size={18} color={T.mutedSoft} />Show everything else<span style={{ color: T.mutedSoft, fontWeight: 500 }}>· {everythingCount} cards</span>
+              </button>
+            ) : (
+              <React.Fragment>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 2px 12px' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: 0.6 }}>Everything else</span>
+                  <div style={{ flex: 1, height: 1, background: T.borderSoft }} />
+                  <button className="tap" onClick={() => setShowAll(false)} style={{ border: 'none', background: 'none', color: T.muted, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}><Icon name="chevronDown" size={14} /></span>Hide</button>
+                </div>
+                {groups.map(g => (
+                  <CategoryCard key={g.id} icon={g.icon} tone={g.tone} title={g.title} items={g.items}
+                    renderRow={(it, i, len) => <ItemRow key={it.id} item={it} onAction={onAction} onMore={onMore} last={i === len - 1} />} />
+                ))}
+                <UCard icon="scale" tone="amber" title="Liabilities & equity" count={LIABILITIES.length}>
+                  {LIABILITIES.map((l, i) => <InfoRow key={l.id} label={l.label} sub={l.sub} amount={l.amount} action={l.action} onAction={() => onAction({ ...l, __toast: `${l.action} — ${l.label} (demo)` }, '__toast')} last={i === LIABILITIES.length - 1} />)}
+                </UCard>
+                <UCard icon="calendar" tone="accent" title="Key dates" count="AU tax">
+                  {KEY_DATES.map((k, i) => <InfoRow key={k.id} label={k.label} sub={k.sub} topRight={<Pill tone={k.tone === 'amber' ? 'amber' : 'neutral'}>{k.due}</Pill>} last={i === KEY_DATES.length - 1} />)}
+                </UCard>
+              </React.Fragment>
+            )}
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// App shell
+// ---------------------------------------------------------------------------
+const StubScreen = ({ title, onBack }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg }}>
+    <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, padding: '6px 12px 12px', background: T.card, borderBottom: `1px solid ${T.border}` }}>
+      <button className="tap press" onClick={onBack} style={{ width: 40, height: 40, border: 'none', background: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="arrowLeft" size={24} color={T.text} /></button>
+      <span style={{ fontSize: 22, fontWeight: 800, color: T.text }}>{title}</span>
+    </div>
+    <div className="screen-scroll" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 32, color: T.muted }}>
+      <IconTile icon="grid" tone="accent" size={60} iconSize={28} />
+      <div style={{ fontSize: 17, fontWeight: 700, color: T.text, marginTop: 16 }}>{title}</div>
+      <div style={{ fontSize: 13.5, marginTop: 6 }}>This screen isn't part of the Unibox prototype.</div>
+    </div>
+  </div>
+);
+
+const App = () => {
+  const [tab, setTab] = useState('dashboard');       // active bottom tab
+  const [screen, setScreen] = useState('dashboard'); // dashboard | unibox | invoices | expense | transactions
+  const [drawer, setDrawer] = useState(false);
+  const [items, setItems] = useState(SEED_ITEMS);
+  const [activity, setActivity] = useState(SEED_ACTIVITY);
+  const [allTime, setAllTime] = useState(42);
+  const [toast, setToast] = useState(null);
+  const [burst, setBurst] = useState({ n: 0, big: false });
+  const [sheet, setSheet] = useState(null);
+  const toastTimer = useRef(); const burstN = useRef(0);
+  const progress = useMemo(() => computeProgress(activity), [activity]);
+
+  const fireToast = (t) => { const obj = typeof t === 'string' ? { message: t } : t; setToast(obj); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(c => c === obj ? null : c), obj.action ? 5000 : 2600); };
+  const fireBurst = (big) => { burstN.current += 1; setBurst({ n: burstN.current, big: !!big }); };
+
+  const completeItem = (item, message, kind = 'done') => {
+    const idx = items.findIndex(i => i.id === item.id);
+    const entry = { ts: Date.now(), kind, label: message };
+    const nextActivity = [entry, ...activity];
+    const prevToday = progress.today, nextToday = computeProgress(nextActivity).today;
+    const prevTier = tierFor(allTime).name, nextTier = tierFor(allTime + 1).name;
+    const remaining = items.filter(i => i.id !== item.id).length;
+    let msg = message, big = false, note = null;
+    if (nextTier !== prevTier) { big = true; note = `Nice work — you've reached ${nextTier}`; }
+    else { for (const m of DAILY_MILESTONES) if (prevToday < m && nextToday >= m) { big = true; note = `${m} done today — you're on a roll!`; break; } }
+    if (remaining === 0) { big = true; if (!note) note = "That's everything actioned — you're all clear ✨"; }
+    if (note) msg = note; else if (prevToday === 0 && nextToday >= 1) msg = `${message} · 🔥 ${computeProgress(nextActivity).streak}-day streak`;
+    setItems(prev => prev.filter(i => i.id !== item.id));
+    setActivity(nextActivity); setAllTime(a => a + 1); fireBurst(big); setSheet(null);
+    fireToast({ message: msg, tone: 'undo', action: { label: 'Undo', onClick: () => { setItems(cur => { const arr = [...cur]; arr.splice(Math.min(idx, arr.length), 0, item); return arr; }); setActivity(cur => cur.filter(a => a !== entry)); setAllTime(a => Math.max(0, a - 1)); setToast(null); } } });
+  };
+  const onAction = (item, actionId) => {
+    if (actionId === '__toast') { fireToast(item.__toast); return; }
+    if (actionId === 'preview') { fireToast('Opening preview (demo)'); return; }
+    if (MATCH_ACTIONS.includes(actionId)) { setSheet({ type: 'match', item }); return; }
+    const mode = MODE_FOR[actionId];
+    if (mode) { setSheet({ type: mode, item }); return; }
+    completeItem(item, directMessage(item, actionId));
+  };
+  const onMore = (item) => setSheet({ type: 'actions', item, onPick: (id) => { setSheet(null); setTimeout(() => onAction(item, id), 60); } });
+
+  const openUnibox = () => { setDrawer(false); setScreen('unibox'); };
+  const onTab = (id) => { setTab(id); setScreen(id); };
+  const count = items.length;
+
+  let body;
+  if (screen === 'unibox') body = <UniboxScreen items={items} progress={progress} allTime={allTime} onBack={() => { setScreen('dashboard'); setTab('dashboard'); }} onAction={onAction} onMore={onMore} />;
+  else if (screen === 'dashboard') body = <div className="screen-scroll"><Dashboard count={count} onOpenUnibox={openUnibox} /></div>;
+  else body = <StubScreen title={TABS.find(t => t.id === screen).label} onBack={() => { setScreen('dashboard'); setTab('dashboard'); }} />;
+
+  const darkStatus = screen === 'dashboard';
+  return (
+    <div className="device">
+      <StatusBar dark={darkStatus} />
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>{body}</div>
+      {screen !== 'unibox' && <TabBar active={tab} onTab={onTab} onMore={() => setDrawer(true)} />}
+      <MoreDrawer open={drawer} count={count} onClose={() => setDrawer(false)} onUnibox={openUnibox} />
+      <Sheet open={!!sheet} onClose={() => setSheet(null)}>{sheet && <SheetBody sheet={sheet} onComplete={completeItem} onClose={() => setSheet(null)} fireToast={fireToast} />}</Sheet>
+      <Snackbar toast={toast} onClose={() => setToast(null)} bottom={screen === 'unibox' ? 26 : 86} />
+      <Confetti fire={burst.n} big={burst.big} />
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
