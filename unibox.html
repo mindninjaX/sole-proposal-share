@@ -836,13 +836,21 @@ const CARD = { background: T.card, border: `1px solid ${T.borderSoft}`, borderRa
 // ACTION col] so amounts and buttons align across rows and with the header CTA. MOBILE:
 // a tidy 2-line card — title + amount on top, sub + actions below — so the number is
 // paired with its item and never floats alone on its own line.
-const RowShell = ({ icon, iconColor, title, sub, amountNode, actions, isMobile, last, actionWidth = 108 }) => {
+const RowShell = ({ icon, iconColor, title, titleTag, sub, amountNode, actions, isMobile, last, actionWidth = 108 }) => {
   const border = last ? 'none' : `1px solid ${T.borderSoft}`;
   const col = iconColor || T.mutedSoft;
   const glyph = <span style={{ width: 18, flexShrink: 0, display: 'inline-flex', justifyContent: 'center', color: col, marginTop: isMobile ? 1 : 0 }}><Icon name={icon} size={15} color={col} strokeWidth={2} /></span>;
-  const titleEl = <div style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</div>;
+  const titleText = <span style={{ fontSize: 13, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{title}</span>;
+  // Desktop: the type tag sits beside the title. Mobile: it moves to the start of the sub
+  // line so a long title never has to truncate to make room for it on the top line.
+  const titleEl = (titleTag && !isMobile)
+    ? <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>{titleText}{titleTag}</div>
+    : titleText;
+  const subContent = (titleTag && isMobile)
+    ? <React.Fragment><span style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 7 }}>{titleTag}</span>{sub}</React.Fragment>
+    : sub;
   // On mobile the sub is allowed to wrap to a 2nd line rather than truncate; on desktop it stays a single ellipsised line.
-  const subEl = <div style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.4, ...(isMobile ? {} : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }) }}>{sub}</div>;
+  const subEl = <div style={{ fontSize: 11.5, color: T.muted, lineHeight: 1.4, ...(isMobile ? {} : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }) }}>{subContent}</div>;
   if (isMobile) {
     return (
       <div className="ub-row" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '11px 14px', borderBottom: border }}>
@@ -909,8 +917,12 @@ const RowMenu = ({ actions, onPick }) => {
 // Action row — a RowShell whose amount is the item's value and whose actions are one
 // always-visible primary button + a ⋯ overflow menu for the rest. Inline panels
 // (email/category/receipt/asset) still expand below the row.
-const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, flash, last, isMobile }) => {
+// What kind of thing a row is, by module — shown as a small neutral tag in the mixed
+// focus list so an invoice is distinguishable from a bank transaction, expense, etc.
+const TYPE_LABEL = { quotes: 'Quote', sales: 'Invoice', bankfeed: 'Bank', expenses: 'Expense', assets: 'Asset' };
+const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, flash, last, isMobile, showType }) => {
   const badgeRed = item.badge && item.badge.color === 'red';
+  const typeTag = showType ? <Pill color="neutral" style={{ padding: '1px 7px', fontSize: 10.5, flexShrink: 0 }}>{TYPE_LABEL[item.module] || 'To do'}</Pill> : null;
   const sub = (
     <React.Fragment>
       {item.badge && <span style={{ color: badgeRed ? T.red : T.muted, fontWeight: badgeRed ? 600 : 400 }}>{item.badge.label}{item.sub ? ' · ' : ''}</span>}
@@ -931,7 +943,7 @@ const ActionRow = ({ item, openMode, onAction, onComplete, onClose, innerRef, fl
   return (
     <div ref={innerRef} style={{ animation: flash ? 'rowflash 1.4s ease' : undefined }}>
       <RowShell icon={item.icon} iconColor={item.severity === 'high' ? T.red : T.mutedSoft}
-        title={item.rowTitle} sub={sub} amountNode={amountNode} actions={actions}
+        title={item.rowTitle} titleTag={typeTag} sub={sub} amountNode={amountNode} actions={actions}
         isMobile={isMobile} last={last} actionWidth={146} />
       {openMode && <div style={{ padding: '2px 14px 14px 44px' }}><PanelSwitch item={item} mode={openMode} onComplete={onComplete} onClose={onClose} /></div>}
     </div>
@@ -1309,17 +1321,37 @@ const Hero = ({ health, count, streak, tier, isMobile, planProps, customizeOpen,
         : <div style={{ position: 'absolute', top: 0, right: 0 }}>{controls}</div>}
       <div style={{ fontSize: 12.5, fontWeight: 600, color: T.muted }}>{dateStr}</div>
       <div style={{ fontSize: isMobile ? 23 : 28, fontWeight: 800, color: T.text, letterSpacing: -0.6, marginTop: 4 }}>{greet}, {PROFILE.first}</div>
-      <div style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', gap: isMobile ? 12 : 14, marginTop: isMobile ? 14 : 18, background: T.card, border: `1px solid ${T.border}`, borderRadius: 18, padding: isMobile ? '8px 14px' : '8px 16px 8px 10px', boxShadow: T.shadowSm, maxWidth: '100%' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <HealthRing score={health.score} band={health.band} size={46} celebrate={false} />
-          <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: bandColor }}>{health.label}</div>
-            <div style={{ fontSize: 11.5, color: T.muted, marginTop: 1 }}>Business health</div>
+      {isMobile ? (
+        // Mobile: a clean 2-row card (identity row + a centered stat row on a divider) so
+        // the counts don't wrap lopsidedly the way a single flex-wrap row did.
+        <div style={{ marginTop: 14, background: T.card, border: `1px solid ${T.border}`, borderRadius: 16, boxShadow: T.shadowSm, textAlign: 'left', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+            <HealthRing score={health.score} band={health.band} size={46} celebrate={false} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: bandColor }}>{health.label}</div>
+              <div style={{ fontSize: 12, color: T.muted, marginTop: 1 }}>Business health</div>
+            </div>
+            <button onClick={() => setInfo(v => !v)} title="How's this worked out?" style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 8, flexShrink: 0 }}><Icon name="info" size={15} /></button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '9px 14px', borderTop: `1px solid ${T.borderSoft}` }}>
+            <span style={{ fontSize: 12.5, color: T.textSoft, whiteSpace: 'nowrap' }}><b style={{ fontWeight: 700, color: T.text }}>{count}</b> to do</span>
+            <span style={{ width: 1, height: 14, background: T.border, flexShrink: 0 }} />
+            <span style={{ fontSize: 12.5, color: T.textSoft, display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}><Icon name="flame" size={13} color={T.amber} /><span><b style={{ fontWeight: 700, color: T.text }}>{streak}</b>-day streak</span></span>
           </div>
         </div>
-        {statRow}
-        <button onClick={() => setInfo(v => !v)} title="How's this worked out?" style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 8, flexShrink: 0 }}><Icon name="info" size={15} /></button>
-      </div>
+      ) : (
+        <div style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', gap: 14, marginTop: 18, background: T.card, border: `1px solid ${T.border}`, borderRadius: 18, padding: '8px 16px 8px 10px', boxShadow: T.shadowSm, maxWidth: '100%' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            <HealthRing score={health.score} band={health.band} size={46} celebrate={false} />
+            <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: bandColor }}>{health.label}</div>
+              <div style={{ fontSize: 11.5, color: T.muted, marginTop: 1 }}>Business health</div>
+            </div>
+          </div>
+          {statRow}
+          <button onClick={() => setInfo(v => !v)} title="How's this worked out?" style={{ border: 'none', background: info ? T.primarySoft : 'none', color: info ? T.primary : T.mutedSoft, cursor: 'pointer', padding: 4, display: 'inline-flex', borderRadius: 8, flexShrink: 0 }}><Icon name="info" size={15} /></button>
+        </div>
+      )}
       {info && (
         <div style={{ margin: '10px auto 0', maxWidth: 520, textAlign: 'left', padding: 12, background: T.primarySofter, border: `1px solid ${T.borderSoft}`, borderRadius: 10, fontSize: 12, color: T.textSoft, lineHeight: 1.5 }}>
           <div style={{ fontWeight: 700, color: T.text, marginBottom: 3 }}>How your score works</div>
@@ -1428,7 +1460,7 @@ const UniboxScreen = ({ items, activeModules, reg, planProps, progress, activity
       openMode={open && open.id === item.id && open.src === src ? open.mode : null}
       onAction={(it, actionId) => onAction(it, actionId, src)} onComplete={complete} onClose={() => setOpen(null)}
       innerRef={src === 'grid' ? (el => { rowRefs.current[item.id] = el; }) : undefined}
-      flash={flashId === item.id} last={i === len - 1} isMobile={isMobile} />
+      flash={flashId === item.id} last={i === len - 1} isMobile={isMobile} showType={src === 'top'} />
   );
   const renderRow = makeRenderRow('grid');       // widget rows (existing behaviour)
   const renderTopRow = makeRenderRow('top');      // the 5-minute focus card
