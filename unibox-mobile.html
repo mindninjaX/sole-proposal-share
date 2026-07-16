@@ -228,9 +228,9 @@ const SEED_ITEMS = [
   { id: 'itm-r2', group: 'reconcile', module: 'bankfeed', type: 'unmatched_in', severity: 'med', weight: 4, icon: 'bank', rowTitle: 'BONDI MOWING', sub: 'Matches INV-1043 · 95%', bankLine: '2 Jul · memo “BONDI MOWING”', amount: 680, amountTone: 'in', invoiceNo: 'INV-1043', aiMatch: { label: 'Pays INV-1043 · Bondi Mowing Co · ' + fmtMoney(680), confidence: 0.95, detail: 'Amount matches a recently sent invoice.' }, primary: { id: 'confirm_match', label: 'Match' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
   { id: 'itm-r3', group: 'reconcile', module: 'bankfeed', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'bank', rowTitle: 'BP FUEL 1042', sub: 'Matches Fuel — BP · 92%', bankLine: '3 Jul · memo “BP FUEL 1042”', amount: 142.30, amountTone: 'out', aiMatch: { label: 'Matches expense: Fuel — BP · ' + fmtMoney(142.30) + ' · 3 Jul', confidence: 0.92, detail: 'Amount and date match a logged expense.' }, primary: { id: 'confirm_match', label: 'Match' }, secondary: [{ id: 'not_match', label: 'Not a match' }] },
   { id: 'itm-r4', group: 'reconcile', module: 'bankfeed', type: 'unmatched_out', severity: 'low', weight: 2, icon: 'tag', rowTitle: 'CANVA PTY', sub: 'No confident match', bankLine: '1 Jul · memo “CANVA PTY”', amount: 59, amountTone: 'out', primary: { id: 'categorize', label: 'Categorise' }, secondary: [{ id: 'ignore', label: 'Ignore' }] },
-  { id: 'itm-t1', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Officeworks', sub: 'Expense · 2 Jul', amount: 88.40, badge: { label: 'No category', color: 'amber' }, primary: { id: 'categorize', label: 'Categorise' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
-  { id: 'itm-t2', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Telstra', sub: 'Expense · 1 Jul · Phone', amount: 99, badge: { label: 'Receipt missing', color: 'amber' }, primary: { id: 'add_receipt', label: 'Add receipt' }, secondary: [{ id: 'categorize', label: 'Categorise' }] },
-  { id: 'itm-t3', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Bunnings', sub: 'Expense · 30 Jun', amount: 213.75, badge: { label: 'No category · No receipt', color: 'amber' }, primary: { id: 'categorize', label: 'Categorise' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t1', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Officeworks', sub: 'Expense · 2 Jul', amount: 88.40, badge: { label: 'No category', color: 'amber' }, inlineSecondary: true, primary: { id: 'match_expense', label: 'Match' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t2', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Telstra', sub: 'Expense · 1 Jul · Phone', amount: 99, badge: { label: 'Receipt missing', color: 'amber' }, inlineSecondary: true, primary: { id: 'match_expense', label: 'Match' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
+  { id: 'itm-t3', group: 'tidy_up', module: 'expenses', type: 'expense', severity: 'low', weight: 1, icon: 'receipt', rowTitle: 'Bunnings', sub: 'Expense · 30 Jun', amount: 213.75, badge: { label: 'No category · No receipt', color: 'amber' }, inlineSecondary: true, primary: { id: 'match_expense', label: 'Match' }, secondary: [{ id: 'add_receipt', label: 'Add receipt' }] },
   { id: 'itm-t4', group: 'tidy_up', module: 'assets', type: 'asset', severity: 'low', weight: 2, icon: 'layers', rowTitle: 'Dell laptop', sub: 'Purchase · 28 Jun', amount: 1899, badge: { label: 'Possible asset', color: 'blue' }, primary: { id: 'record_asset', label: 'Record' }, secondary: [{ id: 'not_asset', label: 'Not an asset' }] },
   { id: 'itm-t5', group: 'tidy_up', module: 'assets', type: 'asset', severity: 'low', weight: 2, icon: 'layers', rowTitle: 'Espresso machine', sub: 'Asset · 26 Jun', amount: 2650, badge: { label: 'No payment linked', color: 'amber' }, primary: { id: 'match_payment', label: 'Match' }, secondary: [{ id: 'later', label: 'Later' }] },
 ];
@@ -480,7 +480,11 @@ const ItemRow = ({ item, onAction, onMore, last }) => {
         </div>
         <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>
           <button className="tap press" onClick={() => onAction(item, item.primary.id)} style={{ height: 36, padding: '0 15px', border: 'none', borderRadius: 10, background: T.primary, color: '#fff', fontSize: 13, fontWeight: 700 }}>{item.primary.label}</button>
-          {item.secondary && item.secondary.length > 0 && <button className="tap press" onClick={() => onMore(item)} style={{ width: 36, height: 36, border: `1px solid ${T.border}`, borderRadius: 10, background: T.card, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="more" size={17} color={T.muted} /></button>}
+          {item.inlineSecondary
+            ? (item.secondary || []).map(s => (
+                <button key={s.id} className="tap press" onClick={() => onAction(item, s.id)} style={{ height: 36, padding: '0 13px', border: `1px solid ${T.border}`, borderRadius: 10, background: T.card, color: (s.id === 'not_match' || s.id === 'ignore' || s.id === 'not_asset') ? T.redText : T.textSoft, fontSize: 13, fontWeight: 600 }}>{s.label}</button>
+              ))
+            : (item.secondary && item.secondary.length > 0 && <button className="tap press" onClick={() => onMore(item)} style={{ width: 36, height: 36, border: `1px solid ${T.border}`, borderRadius: 10, background: T.card, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="more" size={17} color={T.muted} /></button>)}
         </div>
       </div>
     </div>
@@ -569,13 +573,14 @@ const SheetBody = ({ sheet, onComplete, onClose, fireToast }) => {
   useEffect(() => { setPicked(item && item.aiMatch ? 'ai' : null); setCat(null); }, [sheet]);
   if (sheet.type === 'match') {
     const inbound = item.amountTone === 'in';
+    const isExpense = item.module === 'expenses';
     const candidates = inbound ? MATCH_CANDIDATES_IN : MATCH_CANDIDATES_OUT;
     return (
       <React.Fragment>
-        <SheetHead title="Match this transaction" sub="Confirm what this belongs to so your books stay reconciled." />
+        <SheetHead title={isExpense ? 'Match this expense' : 'Match this transaction'} sub={isExpense ? 'Link this expense to the bank payment so your books stay reconciled.' : 'Confirm what this belongs to so your books stay reconciled.'} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', background: T.surface, border: `1px solid ${T.borderSoft}`, borderRadius: 14, marginBottom: 16 }}>
-          <IconTile icon="bank" tone={inbound ? 'green' : 'neutral'} size={38} iconSize={18} />
-          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{item.rowTitle}</div><div style={{ fontSize: 12, color: T.muted }}>{item.bankLine}</div></div>
+          <IconTile icon={isExpense ? 'receipt' : 'bank'} tone={inbound ? 'green' : 'neutral'} size={38} iconSize={18} />
+          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{item.rowTitle}</div>{(item.bankLine || (isExpense && item.sub)) && <div style={{ fontSize: 12, color: T.muted }}>{item.bankLine || item.sub}</div>}</div>
           <span style={{ fontSize: 16, fontWeight: 800, color: inbound ? T.greenDark : T.text }}>{inbound ? '+' : '-'}{fmtMoney(item.amount)}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>{item.aiMatch && <Icon name="sparkle" size={14} color={T.primary} />}<span style={{ fontSize: 13, fontWeight: 700, color: T.textSoft }}>{item.aiMatch ? 'Sole suggests' : 'Choose a match'}</span></div>
@@ -583,7 +588,7 @@ const SheetBody = ({ sheet, onComplete, onClose, fireToast }) => {
         {candidates.map(c => <MatchOption key={c.id} o={{ label: c.label, sub: c.sub + ' · ' + fmtMoney(c.amount) }} selected={picked === c.id} onClick={() => setPicked(c.id)} />)}
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
           <BigBtn tone="ghost" onClick={() => onComplete(item, "We'll leave this one for you to match", 'skip')}>Not a match</BigBtn>
-          <BigBtn icon="check" disabled={!picked} onClick={() => onComplete(item, inbound ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo || 'your books'}` : `Matched ${fmtMoney(item.amount)} — reconciled`, 'match')}>Confirm match</BigBtn>
+          <BigBtn icon="check" disabled={!picked} onClick={() => onComplete(item, isExpense ? `Matched ${item.rowTitle} to a payment` : (inbound ? `Matched ${fmtMoney(item.amount)} to ${item.invoiceNo || 'your books'}` : `Matched ${fmtMoney(item.amount)} — reconciled`), 'match')}>Confirm match</BigBtn>
         </div>
       </React.Fragment>
     );
