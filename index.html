@@ -1803,6 +1803,29 @@ const Icon = ({
     }), /*#__PURE__*/React.createElement("path", {
       d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
     })),
+    share: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("circle", {
+      cx: "18",
+      cy: "5",
+      r: "3"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "6",
+      cy: "12",
+      r: "3"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "18",
+      cy: "19",
+      r: "3"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "8.6",
+      y1: "13.5",
+      x2: "15.4",
+      y2: "17.5"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "15.4",
+      y1: "6.5",
+      x2: "8.6",
+      y2: "10.5"
+    })),
     archive: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("rect", {
       x: "3",
       y: "3",
@@ -28442,6 +28465,17 @@ const AppSidebar = ({
     id: 'client-relationship-map',
     label: 'Relationship Map'
   }];
+  // AI Prompt Library — three tiers, each a real route so tabs + sidebar stay in sync.
+  const promptsSubs = [{
+    id: 'prompts',
+    label: 'Team library'
+  }, {
+    id: 'prompts-mine',
+    label: 'My prompts'
+  }, {
+    id: 'prompts-favs',
+    label: 'Favourites'
+  }];
   const goPractice = subId => {
     window.location.hash = `#/practice/${subId}`;
   };
@@ -28458,6 +28492,7 @@ const AppSidebar = ({
   const personalizationActive = subLabel(personalizationSubs);
   const myFocusActive = subLabel(myFocusSubs);
   const clientHubActiveLabel = subLabel(clientHubSubs);
+  const promptsActiveLabel = subLabel(promptsSubs);
   // Deals group: header opens the Deals board; the "Pipeline" sub opens the forecast.
   const dealsActive = activeSubId === 'deals' || activeSubId === 'spm-forecast';
 
@@ -28547,6 +28582,15 @@ const AppSidebar = ({
     subIds: personalizationSubs.map(s => s.id),
     activeSub: personalizationActive,
     onClick: () => goPractice(personalizationSubs[0].id)
+  }, {
+    id: 'ai-prompts',
+    i: 'sparkle2',
+    l: 'AI Prompt Library',
+    active: !!promptsActiveLabel,
+    sub: promptsSubs.map(s => s.label),
+    subIds: promptsSubs.map(s => s.id),
+    activeSub: promptsActiveLabel,
+    onClick: () => goPractice(promptsSubs[0].id)
   }];
   return /*#__PURE__*/React.createElement("aside", {
     style: {
@@ -34286,7 +34330,8 @@ const SortMenu = ({
   open,
   setOpen,
   value,
-  onChange
+  onChange,
+  sorts = EMPLOYEE_SORTS
 }) => /*#__PURE__*/React.createElement("div", {
   style: {
     position: 'relative'
@@ -34345,7 +34390,7 @@ const SortMenu = ({
     textTransform: 'uppercase',
     letterSpacing: 0.6
   }
-}, "Sort by"), EMPLOYEE_SORTS.map(opt => {
+}, "Sort by"), sorts.map(opt => {
   const active = opt.id === value.id;
   return /*#__PURE__*/React.createElement("button", {
     key: opt.id,
@@ -108308,6 +108353,1500 @@ const parsePracticeHash = hash => {
     id: m ? m[2] : undefined
   };
 };
+
+// ============================================================================
+// --- AI prompt library (Module 14) ---
+// A team repository of reusable AI prompts: browse a shared Team library, copy
+// (with a quick fill-in-the-blanks step for {{variables}}), favourite the ones
+// you use, write your own under "My prompts", and share the best back to the
+// team. Deliberately mirrors the Workflow Recipe Library (WfRecipeCard /
+// WfRecipeLibraryPage) so it looks native — same card grid, category-chip
+// filter, favourite star, and Undo-toast conventions. Personal prompts and
+// favourites persist in localStorage (sole.prompts.v1) so they survive reload.
+// ============================================================================
+const PROMPT_CATEGORIES = [{
+  id: 'client-comms',
+  label: 'Client comms',
+  color: 'accent'
+}, {
+  id: 'tax',
+  label: 'Tax & compliance',
+  color: 'blue'
+}, {
+  id: 'advisory',
+  label: 'Advisory',
+  color: 'green'
+}, {
+  id: 'bookkeeping',
+  label: 'Bookkeeping',
+  color: 'amber'
+}, {
+  id: 'payroll',
+  label: 'Payroll',
+  color: 'accent'
+}, {
+  id: 'marketing',
+  label: 'Marketing',
+  color: 'red'
+}, {
+  id: 'admin',
+  label: 'Admin & ops',
+  color: 'neutral'
+}, {
+  id: 'proposals',
+  label: 'Proposals',
+  color: 'blue'
+}];
+const promptCatById = id => PROMPT_CATEGORIES.find(c => c.id === id) || {
+  id,
+  label: id,
+  color: 'neutral'
+};
+
+// Sole's shared/seed catalogue — the "Team library" tab starts from these.
+const PROMPT_LIBRARY = [{
+  id: 'pr-1',
+  title: 'Chase missing BAS documents',
+  category: 'client-comms',
+  author: 'Sarah Mitchell',
+  uses: 214,
+  description: 'Friendly-but-firm reminder for outstanding paperwork before a BAS lodgement.',
+  body: 'Write a friendly but firm email to {{client_name}} reminding them we still need {{documents}} to lodge their {{period}} BAS by {{due_date}}. Keep it under 120 words, warm tone, and finish with one clear call to action.',
+  tags: ['Email', 'BAS', 'Reminder']
+}, {
+  id: 'pr-2',
+  title: 'Welcome a new client',
+  category: 'client-comms',
+  author: 'Priya Nair',
+  uses: 168,
+  description: 'Warm onboarding email that sets expectations for the first month.',
+  body: 'Draft a warm welcome email for {{client_name}}, a new {{industry}} client joining {{firm_name}}. Introduce their account manager {{manager_name}}, outline the first three onboarding steps, and set expectations for the first month.',
+  tags: ['Onboarding', 'Email']
+}, {
+  id: 'pr-3',
+  title: 'Explain a tax position in plain English',
+  category: 'tax',
+  author: 'James Chen',
+  uses: 132,
+  description: 'Turn a technical tax treatment into something a client actually understands.',
+  body: 'Explain the following tax treatment to a non-accountant client in plain English, using a short analogy and no jargon: {{tax_topic}}. End with what it practically means for their {{entity_type}}.',
+  tags: ['Explainer', 'ATO']
+}, {
+  id: 'pr-4',
+  title: 'Summarise ATO correspondence',
+  category: 'tax',
+  author: 'James Chen',
+  uses: 97,
+  description: 'Condense a dense ATO letter into five clear bullets and a next step.',
+  body: 'Summarise this ATO letter for {{client_name}} in five bullet points: what it is about, what they owe or are owed, the deadline, the risk of ignoring it, and the single next step.\n\nLetter:\n{{letter_text}}',
+  tags: ['Summary', 'ATO']
+}, {
+  id: 'pr-5',
+  title: 'Prep a quarterly advisory agenda',
+  category: 'advisory',
+  author: 'Amara Okafor',
+  uses: 121,
+  description: 'One-page agenda of wins, risks and decisions from a client\'s numbers.',
+  body: 'Act as a senior advisor. Using the numbers below for {{client_name}}, draft a one-page agenda for our {{quarter}} advisory meeting: three wins, three risks, and three decisions to make.\n\nNumbers:\n{{financials}}',
+  tags: ['Meeting', 'Advisory']
+}, {
+  id: 'pr-6',
+  title: 'Cash-flow health check',
+  category: 'advisory',
+  author: 'Amara Okafor',
+  uses: 88,
+  description: 'Flag the top cash-flow concerns with plain-English actions.',
+  body: 'Review this cash-flow summary for {{client_name}} and flag the top three concerns, each with a plain-English explanation and one concrete action. Recommend a comfortable cash buffer for a {{industry}} business.\n\nData:\n{{cashflow_data}}',
+  tags: ['Cash flow', 'Analysis']
+}, {
+  id: 'pr-7',
+  title: 'Categorise ambiguous transactions',
+  category: 'bookkeeping',
+  author: 'Tom Bradley',
+  uses: 156,
+  description: 'Suggest account codes and flag anything that needs a receipt.',
+  body: 'You are a bookkeeper. For each transaction below, suggest the most likely account code and a one-line reason. Flag anything that looks personal or needs a receipt.\n\nTransactions:\n{{transactions}}',
+  tags: ['Coding', 'Reconciliation']
+}, {
+  id: 'pr-8',
+  title: 'Draft a month-end review note',
+  category: 'bookkeeping',
+  author: 'Tom Bradley',
+  uses: 74,
+  description: 'A tight 150-word month-end summary with two questions for the client.',
+  body: 'Write a concise month-end review note for {{client_name}} for {{month}}: revenue versus last month, the top three expense movements, anything unusual, and two questions for the client. Keep it to 150 words.',
+  tags: ['Month-end', 'Review']
+}, {
+  id: 'pr-9',
+  title: 'Explain a payslip change to an employee',
+  category: 'payroll',
+  author: 'Sophie Laurent',
+  uses: 63,
+  description: 'Reassuring note on why net pay moved this period.',
+  body: 'Draft a short, friendly message from {{employer_name}} to {{employee_name}} explaining why their net pay changed this period: {{reason}}. Reassure them and tell them who to contact with questions.',
+  tags: ['Payroll', 'Email']
+}, {
+  id: 'pr-10',
+  title: 'Pre-lodgement STP & super checklist',
+  category: 'payroll',
+  author: 'Sophie Laurent',
+  uses: 51,
+  description: 'Internal reminder with the four checks before finalising a pay run.',
+  body: 'Write an internal reminder for the payroll team to finalise {{pay_period}} STP and pay super for {{employer_name}} by {{deadline}}. List the four checks to run before lodging.',
+  tags: ['STP', 'Super', 'Checklist']
+}, {
+  id: 'pr-11',
+  title: 'Turn a client win into a case study',
+  category: 'marketing',
+  author: 'Priya Nair',
+  uses: 109,
+  description: 'A 200-word, client-friendly case study with a soft CTA.',
+  body: 'Turn these notes into a 200-word case study for {{firm_name}} about how we helped {{client_name}}, a {{industry}} business, achieve {{outcome}}. Client-friendly, no jargon, and end with a soft call to action.\n\nNotes:\n{{notes}}',
+  tags: ['Content', 'Case study']
+}, {
+  id: 'pr-12',
+  title: 'Draft a deadline LinkedIn post',
+  category: 'marketing',
+  author: 'Priya Nair',
+  uses: 142,
+  description: 'Punchy social post reminding owners about an upcoming deadline.',
+  body: 'Write a punchy LinkedIn post reminding small-business owners that {{deadline_topic}} is due on {{due_date}}. Friendly expert tone, three short tips, one clear call to action to book a call, and three relevant hashtags.',
+  tags: ['Social', 'LinkedIn']
+}, {
+  id: 'pr-13',
+  title: 'Write a clear internal SOP',
+  category: 'admin',
+  author: 'Sarah Mitchell',
+  uses: 96,
+  description: 'A step-by-step SOP a brand-new team member could follow.',
+  body: 'Write a step-by-step standard operating procedure for the task: {{task_name}}. Include the purpose, who is responsible, the numbered steps, common mistakes, and a definition of done. Audience: a new team member.',
+  tags: ['SOP', 'Process']
+}, {
+  id: 'pr-14',
+  title: 'Summarise a long email thread',
+  category: 'admin',
+  author: 'Tom Bradley',
+  uses: 187,
+  description: 'Distil a thread into the decision needed and the next step.',
+  body: 'Summarise this email thread into: the decision needed, the key point from each person, and the recommended next step. Keep it neutral.\n\nThread:\n{{thread}}',
+  tags: ['Summary', 'Email']
+}, {
+  id: 'pr-15',
+  title: 'Draft engagement scope wording',
+  category: 'proposals',
+  author: 'Amara Okafor',
+  uses: 78,
+  description: 'Clear inclusions, exclusions and assumptions for a proposal.',
+  body: 'Draft clear scope-of-work wording for a proposal to {{client_name}} for {{service}}. List what is included, what is explicitly out of scope, and the assumptions. Professional, plain English, in {{firm_name}} voice.',
+  tags: ['Scope', 'Proposal']
+}, {
+  id: 'pr-16',
+  title: 'Handle a price objection',
+  category: 'proposals',
+  author: 'Sarah Mitchell',
+  uses: 133,
+  description: 'A confident, value-first reply to "your fee is too high".',
+  body: 'A prospect, {{client_name}}, says our fee of {{fee}} is too high. Draft a confident, empathetic reply that reframes value over price, references {{value_point}}, and offers one alternative package without discounting our worth.',
+  tags: ['Sales', 'Objection']
+}];
+// Stamp seed prompts with descending "created" timestamps (newest first) purely
+// so "Recently added" has something to sort on. A fixed base keeps it stable
+// across reloads; user-created prompts use Date.now() and so sort as newest.
+const PROMPT_SEED_BASE = 1750000000000;
+PROMPT_LIBRARY.forEach((p, i) => {
+  p.source = 'team';
+  p.created = PROMPT_SEED_BASE - i * 6 * 86400000;
+});
+const PROMPT_SORTS = [{
+  id: 'used',
+  label: 'Most used'
+}, {
+  id: 'recent',
+  label: 'Recently added'
+}, {
+  id: 'az',
+  label: 'A to Z'
+}];
+
+// Persistence — personal prompts, favourites and team-shared copies survive
+// reload. Same shape/robustness as EMPLOYEE_PREFS_KEY (swallow quota errors).
+const PROMPT_STORE_KEY = 'sole.prompts.v1';
+const loadPromptStore = () => {
+  try {
+    return JSON.parse(localStorage.getItem(PROMPT_STORE_KEY) || '{}');
+  } catch (_) {
+    return {};
+  }
+};
+const savePromptStore = patch => {
+  try {
+    localStorage.setItem(PROMPT_STORE_KEY, JSON.stringify({
+      ...loadPromptStore(),
+      ...patch
+    }));
+  } catch (_) {}
+};
+const myPrompts = () => loadPromptStore().mine || [];
+const sharedPrompts = () => loadPromptStore().shared || [];
+const promptFavIds = () => loadPromptStore().favIds || [];
+const sharedOriginIds = () => loadPromptStore().sharedIds || [];
+const teamPrompts = () => PROMPT_LIBRARY.concat(sharedPrompts());
+const allPrompts = () => PROMPT_LIBRARY.concat(sharedPrompts()).concat(myPrompts());
+const promptById = id => allPrompts().find(p => p.id === id) || null;
+const isPromptFav = id => promptFavIds().includes(id);
+const togglePromptFav = id => {
+  const cur = promptFavIds();
+  savePromptStore({
+    favIds: cur.includes(id) ? cur.filter(x => x !== id) : cur.concat(id)
+  });
+};
+const isPromptShared = id => sharedOriginIds().includes(id);
+const promptUid = prefix => prefix + Math.random().toString(36).slice(2, 8);
+const savePrompt = p => {
+  const mine = myPrompts();
+  const i = mine.findIndex(x => x.id === p.id);
+  const next = i >= 0 ? mine.map((x, j) => j === i ? p : x) : mine.concat(p);
+  savePromptStore({
+    mine: next
+  });
+};
+const deletePrompt = id => {
+  const mine = myPrompts();
+  const removed = mine.find(x => x.id === id) || null;
+  savePromptStore({
+    mine: mine.filter(x => x.id !== id)
+  });
+  return removed;
+};
+const restorePrompt = p => savePromptStore({
+  mine: myPrompts().concat(p)
+});
+const sharePromptToTeam = (p, opts) => {
+  const copy = {
+    ...p,
+    id: promptUid('pr-team-'),
+    source: 'team',
+    sharedFrom: p.id,
+    sharedBy: p.author || 'You',
+    note: opts && opts.note || p.note || '',
+    tags: (p.tags || []).slice(),
+    created: Date.now()
+  };
+  savePromptStore({
+    shared: sharedPrompts().concat(copy),
+    sharedIds: sharedOriginIds().concat(p.id)
+  });
+  return copy;
+};
+const unsharePromptFromTeam = (originId, teamCopyId) => savePromptStore({
+  shared: sharedPrompts().filter(x => x.id !== teamCopyId),
+  sharedIds: sharedOriginIds().filter(x => x !== originId)
+});
+// The team copy is what a teammate can actually open, so a shared personal
+// prompt links to its team copy; everything else links to itself.
+const teamCopyOf = p => sharedPrompts().find(s => s.sharedFrom === p.id) || null;
+const promptShareLink = p => {
+  const copy = p.source === 'mine' && isPromptShared(p.id) ? teamCopyOf(p) : null;
+  const id = copy ? copy.id : p.id;
+  return window.location.origin + window.location.pathname + '#/practice/prompt/' + id;
+};
+
+// {{variable}} helpers. A fresh RegExp per call keeps lastIndex stateless.
+const PROMPT_VAR_SRC = '\\{\\{\\s*([\\w.\\- ]+?)\\s*\\}\\}';
+const extractVars = body => {
+  const out = [],
+    seen = {};
+  const re = new RegExp(PROMPT_VAR_SRC, 'g');
+  let m;
+  while ((m = re.exec(body || '')) !== null) {
+    const v = m[1].trim();
+    if (!seen[v]) {
+      seen[v] = 1;
+      out.push(v);
+    }
+  }
+  return out;
+};
+const fillPrompt = (body, values) => (body || '').replace(new RegExp(PROMPT_VAR_SRC, 'g'), (whole, name) => {
+  const val = values[name.trim()];
+  return val != null && val !== '' ? val : whole;
+});
+const titleizeVar = v => v.replace(/[_\-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+// Render a prompt body as text with {{variables}} shown as inline chips (green
+// once filled, brand-tinted while empty). Returns a mixed string/element array.
+const renderPromptBody = (body, values) => {
+  const text = body || '',
+    parts = [];
+  const re = new RegExp(PROMPT_VAR_SRC, 'g');
+  let last = 0,
+    m,
+    key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const name = m[1].trim();
+    const filled = values && values[name] != null && values[name] !== '';
+    parts.push(/*#__PURE__*/React.createElement("span", {
+      key: 'v' + key++,
+      style: {
+        background: filled ? T.greenSoft : T.primarySoft,
+        color: filled ? T.greenDark : T.primary,
+        borderRadius: 5,
+        padding: '0 4px',
+        fontWeight: 600
+      }
+    }, filled ? values[name] : name));
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+};
+
+// Prompt card — clone of WfRecipeCard, adapted for prompts (author + usage
+// footer, a "N fields" badge when the body has variables).
+const PromptCard = ({
+  prompt,
+  fav,
+  onToggleFav,
+  onOpen,
+  onCopy,
+  onShare,
+  actions
+}) => {
+  const cat = promptCatById(prompt.category);
+  const vars = extractVars(prompt.body);
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onOpen,
+    role: "button",
+    tabIndex: 0,
+    "data-hover": "row",
+    onKeyDown: e => {
+      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+    style: {
+      textAlign: 'left',
+      border: `1px solid ${T.border}`,
+      borderRadius: 12,
+      background: T.card,
+      padding: 16,
+      cursor: 'pointer',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      transition: 'border-color 0.12s, box-shadow 0.12s'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = T.borderStrong;
+      e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,17,23,0.08)';
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.border;
+      e.currentTarget.style.boxShadow = 'none';
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, prompt.title), onToggleFav && /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      onToggleFav();
+    },
+    title: fav ? 'Remove from favourites' : 'Add to favourites',
+    style: {
+      border: 'none',
+      background: 'none',
+      cursor: 'pointer',
+      padding: 0,
+      lineHeight: 0,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "star",
+    size: 15,
+    color: fav ? T.amber : T.mutedSoft
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: cat.color,
+    style: {
+      fontSize: 10
+    }
+  }, cat.label), prompt.source === 'mine' && /*#__PURE__*/React.createElement(Pill, {
+    color: "green",
+    style: {
+      fontSize: 9.5
+    }
+  }, "Mine"), vars.length > 0 && /*#__PURE__*/React.createElement(Pill, {
+    color: "neutral",
+    style: {
+      fontSize: 9.5,
+      gap: 3
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "sliders",
+    size: 9
+  }), vars.length, " field", vars.length > 1 ? 's' : '')), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5
+    }
+  }, prompt.description), (prompt.tags || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 5
+    }
+  }, prompt.tags.map((t, i) => /*#__PURE__*/React.createElement(Pill, {
+    key: i,
+    color: "neutral",
+    style: {
+      fontSize: 9.5
+    }
+  }, t))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 2
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: prompt.author,
+    size: 20
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, prompt.author, " \xB7 Used ", prompt.uses, "\xD7")), /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      display: 'flex',
+      gap: 6,
+      marginTop: 2,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "copy",
+    onClick: onCopy
+  }, "Copy"), onShare && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "share",
+    onClick: onShare,
+    title: "Share / get link"
+  }), actions));
+};
+
+// Read + fill + copy drawer. Shows the body with highlighted variables; if it
+// has {{fields}}, a small form fills them and the preview + copy update live.
+const PromptDetailsDrawer = ({
+  prompt,
+  fav,
+  onToggleFav,
+  onClose,
+  onEdit,
+  onDelete,
+  onShare,
+  fireToast
+}) => {
+  const [values, setValues] = useState({});
+  useEffect(() => {
+    setValues({});
+  }, [prompt && prompt.id]);
+  useEffect(() => {
+    if (!prompt) return;
+    const onKey = ev => {
+      if (ev.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [prompt, onClose]);
+  if (!prompt) return null;
+  const cat = promptCatById(prompt.category);
+  const vars = extractVars(prompt.body);
+  const mine = prompt.source === 'mine';
+  const shared = isPromptShared(prompt.id);
+  const copyFilled = () => {
+    try {
+      navigator.clipboard && navigator.clipboard.writeText(fillPrompt(prompt.body, values));
+    } catch (_) {}
+    fireToast('Prompt copied');
+  };
+  const copyRaw = () => {
+    try {
+      navigator.clipboard && navigator.clipboard.writeText(prompt.body);
+    } catch (_) {}
+    fireToast('Prompt copied (fields left in)');
+  };
+  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,0.42)',
+      zIndex: 200,
+      animation: 'fadein 0.15s ease'
+    }
+  }), /*#__PURE__*/React.createElement("aside", {
+    style: {
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 'min(520px, 100vw)',
+      background: T.card,
+      zIndex: 201,
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: '-12px 0 32px rgba(15,17,23,0.12)',
+      animation: 'drawerin 0.22s cubic-bezier(0.32, 0.72, 0, 1)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px',
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 12,
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 600,
+      letterSpacing: -0.2
+    }
+  }, prompt.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 4,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: cat.color
+  }, cat.label), mine && /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, "Mine"), shared && /*#__PURE__*/React.createElement(Pill, {
+    color: "accent"
+  }, "Shared to team"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onToggleFav,
+    title: fav ? 'Remove from favourites' : 'Add to favourites',
+    style: {
+      border: 'none',
+      background: 'none',
+      cursor: 'pointer',
+      padding: 6,
+      lineHeight: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "star",
+    size: 17,
+    color: fav ? T.amber : T.mutedSoft
+  })), /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    onClick: onClose,
+    title: "Close"
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 14
+  })))), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto',
+      padding: '16px 20px 20px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: prompt.author,
+    size: 24
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted
+    }
+  }, prompt.author, " \xB7 Used ", prompt.uses, "\xD7", prompt.created ? ' · Added ' + fmtDate(new Date(prompt.created)) : '')), prompt.description && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 14
+    }
+  }, prompt.description), prompt.note && /*#__PURE__*/React.createElement(Banner, {
+    tone: "info",
+    icon: "messageSquare",
+    style: {
+      marginBottom: 14
+    }
+  }, (prompt.sharedBy || 'A teammate') + ': ' + prompt.note), vars.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 8,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "sliders",
+    size: 13,
+    color: T.muted
+  }), "Fill in the fields"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 8
+    }
+  }, vars.map(v => /*#__PURE__*/React.createElement("div", {
+    key: v
+  }, /*#__PURE__*/React.createElement(Label, null, titleizeVar(v)), /*#__PURE__*/React.createElement(Input, {
+    value: values[v] || '',
+    onChange: e => setValues(s => ({
+      ...s,
+      [v]: e.target.value
+    })),
+    placeholder: 'Enter ' + titleizeVar(v).toLowerCase()
+  }))))), /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 6
+    }
+  }, vars.length > 0 ? 'Preview' : 'Prompt'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg,
+      padding: '12px 14px',
+      fontSize: 13,
+      lineHeight: 1.6,
+      color: T.text,
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word'
+    }
+  }, renderPromptBody(prompt.body, values)), (prompt.tags || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 5,
+      marginTop: 14
+    }
+  }, prompt.tags.map((t, i) => /*#__PURE__*/React.createElement(Pill, {
+    key: i,
+    color: "neutral",
+    style: {
+      gap: 3
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "tag",
+    size: 9
+  }), t)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 20px',
+      borderTop: `1px solid ${T.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "copy",
+    onClick: copyFilled
+  }, "Copy prompt"), vars.length > 0 && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "clipboard",
+    onClick: copyRaw,
+    title: "Copy with the {{fields}} left in"
+  }, "Copy raw"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "md",
+    icon: "share",
+    onClick: () => onShare(prompt)
+  }, mine ? shared ? 'Shared · link' : 'Share' : 'Get link'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), mine && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "edit",
+    onClick: () => onEdit(prompt),
+    title: "Edit"
+  }), mine && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "md",
+    icon: "trash",
+    onClick: () => onDelete(prompt),
+    title: "Delete"
+  }))));
+};
+
+// Create / edit drawer — clone of the employee editor shell (sticky header with
+// Save, scrolling body). Shows the {{fields}} detected in the body live.
+const PromptEditorDrawer = ({
+  prompt,
+  onClose,
+  onSaved,
+  fireToast
+}) => {
+  const editing = !!(prompt && prompt.id);
+  const [draft, setDraft] = useState(() => prompt ? {
+    ...prompt,
+    tags: (prompt.tags || []).join(', ')
+  } : {
+    id: '',
+    title: '',
+    category: PROMPT_CATEGORIES[0].id,
+    description: '',
+    body: '',
+    tags: '',
+    author: 'You',
+    uses: 0,
+    source: 'mine'
+  });
+  useEffect(() => {
+    const onKey = ev => {
+      if (ev.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const set = patch => setDraft(d => ({
+    ...d,
+    ...patch
+  }));
+  const vars = extractVars(draft.body);
+  const canSave = draft.title.trim() && draft.body.trim();
+  const save = () => {
+    if (!canSave) return;
+    const p = {
+      ...draft,
+      title: draft.title.trim(),
+      source: 'mine',
+      uses: draft.uses || 0,
+      id: draft.id || promptUid('pr-mine-'),
+      created: draft.created || Date.now(),
+      tags: String(draft.tags || '').split(',').map(s => s.trim()).filter(Boolean)
+    };
+    savePrompt(p);
+    fireToast(editing ? 'Prompt updated' : 'Prompt created');
+    onSaved(p);
+  };
+  const taStyle = {
+    width: '100%',
+    padding: '10px 12px',
+    border: `1px solid ${T.border}`,
+    borderRadius: 8,
+    fontFamily: 'inherit',
+    fontSize: 13,
+    lineHeight: 1.55,
+    resize: 'vertical',
+    color: T.text,
+    background: T.card,
+    outline: 'none',
+    boxSizing: 'border-box'
+  };
+  return /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,0.42)',
+      zIndex: 210,
+      animation: 'fadein 0.15s ease'
+    }
+  }), /*#__PURE__*/React.createElement("aside", {
+    style: {
+      position: 'fixed',
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 'min(560px, 100vw)',
+      background: T.card,
+      zIndex: 211,
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: '-12px 0 32px rgba(15,17,23,0.12)',
+      animation: 'drawerin 0.22s cubic-bezier(0.32, 0.72, 0, 1)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      borderBottom: `1px solid ${T.border}`,
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 15,
+      fontWeight: 600
+    }
+  }, editing ? 'Edit prompt' : 'New prompt'), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    onClick: onClose
+  }, "Cancel"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "check",
+    onClick: save,
+    disabled: !canSave
+  }, "Save")), /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: 'auto',
+      padding: '18px 20px 24px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Title"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.title,
+    onChange: e => set({
+      title: e.target.value
+    }),
+    placeholder: "e.g. Chase missing BAS documents",
+    autoFocus: true
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Category"), /*#__PURE__*/React.createElement(Select, {
+    value: draft.category,
+    onChange: e => set({
+      category: e.target.value
+    })
+  }, PROMPT_CATEGORIES.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c.id,
+    value: c.id
+  }, c.label)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Short description"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.description,
+    onChange: e => set({
+      description: e.target.value
+    }),
+    placeholder: "One line on what this prompt is for"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Prompt"), /*#__PURE__*/React.createElement("textarea", {
+    value: draft.body,
+    onChange: e => set({
+      body: e.target.value
+    }),
+    rows: 9,
+    style: taStyle,
+    placeholder: 'Write your prompt. Wrap fill-in words in double braces, e.g. Draft an email to {{client_name}} about {{topic}}.'
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 8,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, "Detected fields:"), vars.length === 0 ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.mutedSoft
+    }
+  }, "none yet \u2014 wrap words in ", '{{ }}', " to make them fillable") : vars.map(v => /*#__PURE__*/React.createElement(Pill, {
+    key: v,
+    color: "accent",
+    style: {
+      fontSize: 10
+    }
+  }, v)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Tags"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.tags,
+    onChange: e => set({
+      tags: e.target.value
+    }),
+    placeholder: "Comma separated, e.g. Email, BAS, Reminder"
+  })))));
+};
+
+// Share dialog — the flow for making a prompt available to the team. Publishing
+// adds it to the Team library; the team-only link is a direct pointer teammates
+// (signed in to Sole) can open. Reachable from every card + the detail drawer,
+// and stays available after sharing (so you can copy the link or unpublish).
+const PromptShareModal = ({
+  prompt,
+  onClose,
+  onChanged,
+  fireToast
+}) => {
+  const mine = prompt.source === 'mine';
+  // team/seed prompts are inherently team-visible, so they start "shared".
+  const [shared, setShared] = useState(!mine || isPromptShared(prompt.id));
+  const [note, setNote] = useState('');
+  const [notify, setNotify] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const link = promptShareLink(prompt);
+  const publish = () => {
+    sharePromptToTeam(prompt, {
+      note: note.trim()
+    });
+    setShared(true);
+    onChanged && onChanged();
+    fireToast('Published to the team library' + (notify ? ' · your team was notified' : ''));
+  };
+  const unpublish = () => {
+    const copy = teamCopyOf(prompt);
+    unsharePromptFromTeam(prompt.id, copy && copy.id);
+    setShared(false);
+    onChanged && onChanged();
+    fireToast({
+      message: 'Removed from the team library',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          sharePromptToTeam(prompt, {
+            note: note.trim()
+          });
+          setShared(true);
+          onChanged && onChanged();
+        }
+      }
+    });
+  };
+  const copyLink = () => {
+    try {
+      navigator.clipboard && navigator.clipboard.writeText(link);
+    } catch (_) {}
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+  const taStyle = {
+    width: '100%',
+    padding: '9px 12px',
+    border: `1px solid ${T.border}`,
+    borderRadius: 8,
+    fontFamily: 'inherit',
+    fontSize: 13,
+    lineHeight: 1.5,
+    resize: 'vertical',
+    color: T.text,
+    background: T.card,
+    outline: 'none',
+    boxSizing: 'border-box'
+  };
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: true,
+    onClose: onClose,
+    title: "Share prompt",
+    subtitle: prompt.title,
+    width: 520
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '12px 14px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "users",
+    tone: "accent",
+    size: 34
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Everyone on your team"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.muted,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 1
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 11,
+    color: T.muted
+  }), "Only teammates signed in to Sole can open this"))), mine && !shared && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.muted,
+      lineHeight: 1.5,
+      marginBottom: 10
+    }
+  }, "Publishing adds this prompt to the ", /*#__PURE__*/React.createElement("b", null, "Team library"), " so anyone at your firm can find it, fill in the blanks, and copy it."), /*#__PURE__*/React.createElement(Label, null, "Add a note (optional)"), /*#__PURE__*/React.createElement("textarea", {
+    value: note,
+    onChange: e => setNote(e.target.value),
+    rows: 2,
+    placeholder: "e.g. Use this for overdue-BAS chasers \u2014 soften the tone for newer clients.",
+    style: taStyle
+  }), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 12,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: notify,
+    onChange: setNotify,
+    size: "sm"
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.text
+    }
+  }, "Notify the team")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "share",
+    onClick: publish,
+    style: {
+      marginTop: 16
+    }
+  }, "Publish to team library")), shared && /*#__PURE__*/React.createElement("div", null, mine && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      fontSize: 12.5,
+      color: T.greenDark,
+      fontWeight: 600,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 14,
+    color: T.greenDark
+  }), "In the team library \u2014 everyone can find it"), /*#__PURE__*/React.createElement(Label, null, "Prompt link"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      alignItems: 'stretch'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '8px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "link",
+    size: 13,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 12.5,
+      color: T.textSoft,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      fontFamily: 'ui-monospace, SFMono-Regular, monospace'
+    }
+  }, link)), /*#__PURE__*/React.createElement(Btn, {
+    variant: copied ? 'soft' : 'primaryOutline',
+    size: "md",
+    icon: copied ? 'check' : 'copy',
+    onClick: copyLink
+  }, copied ? 'Copied' : 'Copy link')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      marginTop: 8,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "lock",
+    size: 10,
+    color: T.muted
+  }), "Anyone on your team with this link can open it. People outside your firm can't."), mine && /*#__PURE__*/React.createElement("button", {
+    onClick: unpublish,
+    style: {
+      marginTop: 18,
+      border: 'none',
+      background: 'transparent',
+      color: T.red,
+      fontSize: 12.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      padding: 0,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "trash",
+    size: 12,
+    color: T.red
+  }), "Unpublish from the team library"))));
+};
+
+// The module page. One component for all three tiers (view = team | mine |
+// favourites), each a real route so tabs + sidebar stay in sync.
+const PromptLibraryPage = ({
+  view = 'team',
+  openId,
+  fireToast
+}) => {
+  const [, forceTick] = useState(0);
+  const refresh = () => forceTick(t => t + 1);
+  const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('all');
+  const [sort, setSort] = useState(PROMPT_SORTS[0]);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [viewing, setViewing] = useState(null); // prompt id
+  const [editing, setEditing] = useState(null); // {} = new · prompt = edit · null = closed
+  const [sharing, setSharing] = useState(null); // prompt object being shared · null = closed
+  useEffect(() => {
+    setCat('all');
+    setSearch('');
+  }, [view]);
+  // Arriving via a shared link (#/practice/prompt/<id>) opens that prompt.
+  useEffect(() => {
+    if (openId) setViewing(openId);
+  }, [openId]);
+  const goView = v => {
+    window.location.hash = '#/practice/' + (v === 'mine' ? 'prompts-mine' : v === 'favourites' ? 'prompts-favs' : 'prompts');
+  };
+  const favIds = promptFavIds();
+  const base = view === 'mine' ? myPrompts() : view === 'favourites' ? allPrompts().filter(p => favIds.includes(p.id)) : teamPrompts();
+  const q = search.trim().toLowerCase();
+  const bySearch = p => !q || (p.title + ' ' + (p.description || '') + ' ' + (p.tags || []).join(' ') + ' ' + p.body).toLowerCase().includes(q);
+  const byCat = p => cat === 'all' || p.category === cat;
+  const filtered = base.filter(byCat).filter(bySearch).slice().sort((a, b) => sort.id === 'az' ? a.title.localeCompare(b.title) : sort.id === 'recent' ? (b.created || 0) - (a.created || 0) : (b.uses || 0) - (a.uses || 0));
+  const tabs = [{
+    id: 'team',
+    label: 'Team library',
+    count: teamPrompts().length
+  }, {
+    id: 'mine',
+    label: 'My prompts',
+    count: myPrompts().length
+  }, {
+    id: 'favourites',
+    label: 'Favourites',
+    count: allPrompts().filter(p => favIds.includes(p.id)).length
+  }];
+  const openNew = () => setEditing({});
+  const openEdit = p => {
+    setViewing(null);
+    setEditing(p);
+  };
+  const doToggleFav = p => {
+    togglePromptFav(p.id);
+    refresh();
+  };
+  const doDelete = p => {
+    const removed = deletePrompt(p.id);
+    setViewing(null);
+    refresh();
+    if (removed) fireToast({
+      message: `Deleted "${removed.title}"`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          restorePrompt(removed);
+          refresh();
+        }
+      }
+    });
+  };
+  const openShare = p => {
+    setViewing(null);
+    setSharing(p);
+  }; // close the drawer so the modal sits on top
+  const copyPrompt = p => {
+    if (extractVars(p.body).length > 0) {
+      setViewing(p.id);
+      return;
+    }
+    try {
+      navigator.clipboard && navigator.clipboard.writeText(p.body);
+    } catch (_) {}
+    fireToast('Prompt copied');
+  };
+  const mineActions = p => /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "edit",
+    onClick: () => openEdit(p),
+    title: "Edit"
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "trash",
+    onClick: () => doDelete(p),
+    title: "Delete"
+  }));
+  const empty = view === 'mine' ? {
+    icon: 'sparkle2',
+    title: 'You have not created any prompts yet',
+    hint: 'Capture a prompt your team keeps reusing — wrap the changing bits in {{fields}} to make it reusable.',
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "plus",
+      onClick: openNew
+    }, "New prompt")
+  } : view === 'favourites' ? {
+    icon: 'star',
+    title: 'No favourites yet',
+    hint: 'Tap the star on any prompt to keep it here for quick access.'
+  } : {
+    icon: 'search',
+    title: 'No prompts match',
+    hint: 'Try a different category or clear your search.'
+  };
+  const viewingPrompt = viewing ? promptById(viewing) : null;
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: -0.3,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "sparkle2",
+    size: 20,
+    color: T.primary
+  }), "AI Prompt Library"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Your team's shared, reusable AI prompts. Browse, fill in the blanks, and copy \u2014 or write your own and share the best with the firm.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "plus",
+    onClick: openNew
+  }, "New prompt")), openId && promptById(openId) && /*#__PURE__*/React.createElement(Banner, {
+    tone: "accent",
+    icon: "share",
+    title: "Shared with your team",
+    style: {
+      marginTop: 14
+    }
+  }, promptById(openId).sharedBy || promptById(openId).author || 'A teammate', " shared this prompt with your team \u2014 open it below to fill in and copy."), /*#__PURE__*/React.createElement(Tabs, {
+    tabs: tabs,
+    value: view,
+    onChange: goView,
+    style: {
+      marginTop: 16
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 240,
+      maxWidth: 320,
+      flex: '0 1 320px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '7px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "search",
+    size: 14,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("input", {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search prompts\u2026",
+    style: {
+      flex: 1,
+      minWidth: 0,
+      border: 'none',
+      background: 'transparent',
+      outline: 'none',
+      fontSize: 13
+    }
+  }), search && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSearch(''),
+    "aria-label": "Clear",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      padding: 2,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 12
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(SortMenu, {
+    open: sortOpen,
+    setOpen: setSortOpen,
+    value: sort,
+    onChange: setSort,
+    sorts: PROMPT_SORTS
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: cat === 'all',
+    onClick: () => setCat('all')
+  }, `All · ${base.length}`), PROMPT_CATEGORIES.map(c => {
+    const n = base.filter(p => p.category === c.id).length;
+    return n ? /*#__PURE__*/React.createElement(Chip, {
+      key: c.id,
+      size: "sm",
+      selected: cat === c.id,
+      onClick: () => setCat(c.id)
+    }, `${c.label} · ${n}`) : null;
+  })), filtered.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: empty.icon,
+    title: empty.title,
+    hint: empty.hint,
+    action: empty.action
+  })) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+      gap: 12
+    }
+  }, filtered.map(p => /*#__PURE__*/React.createElement(PromptCard, {
+    key: p.id,
+    prompt: p,
+    fav: favIds.includes(p.id),
+    onToggleFav: () => doToggleFav(p),
+    onOpen: () => setViewing(p.id),
+    onCopy: () => copyPrompt(p),
+    onShare: () => openShare(p),
+    actions: p.source === 'mine' ? mineActions(p) : null
+  }))), viewingPrompt && /*#__PURE__*/React.createElement(PromptDetailsDrawer, {
+    prompt: viewingPrompt,
+    fav: favIds.includes(viewingPrompt.id),
+    onToggleFav: () => doToggleFav(viewingPrompt),
+    onClose: () => setViewing(null),
+    onEdit: openEdit,
+    onDelete: doDelete,
+    onShare: openShare,
+    fireToast: fireToast
+  }), editing !== null && /*#__PURE__*/React.createElement(PromptEditorDrawer, {
+    prompt: editing && editing.id ? editing : null,
+    onClose: () => setEditing(null),
+    onSaved: () => {
+      setEditing(null);
+      refresh();
+      if (view !== 'mine') goView('mine');
+    },
+    fireToast: fireToast
+  }), sharing && /*#__PURE__*/React.createElement(PromptShareModal, {
+    prompt: sharing,
+    onClose: () => setSharing(null),
+    onChanged: refresh,
+    fireToast: fireToast
+  }));
+};
 const PracticeApp = () => {
   const [route, setRoute] = useState(() => parsePracticeHash(window.location.hash));
   const [toast, setToast] = useState(null);
@@ -108330,7 +109869,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' ? 'prompts' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -108418,6 +109957,27 @@ const PracticeApp = () => {
         });
       case 'workflow-recipes':
         return /*#__PURE__*/React.createElement(WfRecipeLibraryPage, {
+          fireToast: fireToast
+        });
+      case 'prompts':
+        return /*#__PURE__*/React.createElement(PromptLibraryPage, {
+          view: "team",
+          fireToast: fireToast
+        });
+      case 'prompts-mine':
+        return /*#__PURE__*/React.createElement(PromptLibraryPage, {
+          view: "mine",
+          fireToast: fireToast
+        });
+      case 'prompts-favs':
+        return /*#__PURE__*/React.createElement(PromptLibraryPage, {
+          view: "favourites",
+          fireToast: fireToast
+        });
+      case 'prompt':
+        return /*#__PURE__*/React.createElement(PromptLibraryPage, {
+          view: "team",
+          openId: route.id,
           fireToast: fireToast
         });
       case 'spm-forecast':
