@@ -28441,7 +28441,12 @@ const AppSidebar = ({
   }, {
     id: 'questionnaires-forms',
     label: 'Onboarding'
-  } // onboarding template builder
+  },
+  // onboarding template builder
+  {
+    id: 'prompts',
+    label: 'AI Prompt Library'
+  } // tiers (Team/My/Favourites) live as in-page tabs
   ];
   const myFocusSubs = [{
     id: 'individual-staff',
@@ -28465,17 +28470,6 @@ const AppSidebar = ({
     id: 'client-relationship-map',
     label: 'Relationship Map'
   }];
-  // AI Prompt Library — three tiers, each a real route so tabs + sidebar stay in sync.
-  const promptsSubs = [{
-    id: 'prompts',
-    label: 'Team library'
-  }, {
-    id: 'prompts-mine',
-    label: 'My prompts'
-  }, {
-    id: 'prompts-favs',
-    label: 'Favourites'
-  }];
   const goPractice = subId => {
     window.location.hash = `#/practice/${subId}`;
   };
@@ -28492,7 +28486,6 @@ const AppSidebar = ({
   const personalizationActive = subLabel(personalizationSubs);
   const myFocusActive = subLabel(myFocusSubs);
   const clientHubActiveLabel = subLabel(clientHubSubs);
-  const promptsActiveLabel = subLabel(promptsSubs);
   // Deals group: header opens the Deals board; the "Pipeline" sub opens the forecast.
   const dealsActive = activeSubId === 'deals' || activeSubId === 'spm-forecast';
 
@@ -28582,15 +28575,6 @@ const AppSidebar = ({
     subIds: personalizationSubs.map(s => s.id),
     activeSub: personalizationActive,
     onClick: () => goPractice(personalizationSubs[0].id)
-  }, {
-    id: 'ai-prompts',
-    i: 'sparkle2',
-    l: 'AI Prompt Library',
-    active: !!promptsActiveLabel,
-    sub: promptsSubs.map(s => s.label),
-    subIds: promptsSubs.map(s => s.id),
-    activeSub: promptsActiveLabel,
-    onClick: () => goPractice(promptsSubs[0].id)
   }];
   return /*#__PURE__*/React.createElement("aside", {
     style: {
@@ -109869,7 +109853,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' ? 'prompts' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' || route.section === 'prompts-mine' || route.section === 'prompts-favs' ? 'prompts' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
