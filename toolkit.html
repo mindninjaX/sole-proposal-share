@@ -17,6 +17,7 @@
 <script src="resources/brand.js"></script>
 <script src="resources/data.js"></script>
 <script src="resources/export.js"></script>
+<script src="resources/bundled.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { margin: 0; padding: 0; height: 100%; }
@@ -24,6 +25,8 @@
   button { font-family: inherit; font-size: inherit; cursor: pointer; }
   input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
   input:focus, select:focus, textarea:focus { outline: none; border-color: #5B5BF6 !important; box-shadow: 0 0 0 3px rgba(91,91,246,0.12); }
+  .iconfield { transition: border-color .12s, box-shadow .12s; }
+  .iconfield:focus-within { border-color: #5B5BF6; box-shadow: 0 0 0 3px rgba(91,91,246,0.12); }
   button[data-btn] { transition: background .12s, border-color .12s, box-shadow .12s, transform .05s; }
   button[data-btn]:active { transform: translateY(0.5px); }
   .scroll { overflow-y: auto; }
@@ -421,6 +424,82 @@ const Check = ({ checked, onChange, children }) => (
   </div>
 );
 
+// small line icons for the field inputs
+const S = (d, extra) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{d}{extra}</svg>;
+const ICON = {
+  user: S(<circle cx="12" cy="8" r="3.6" />, <path d="M5 20c.7-3.6 3.6-5.5 7-5.5s6.3 1.9 7 5.5" />),
+  mail: S(<rect x="3" y="5" width="18" height="14" rx="2.5" />, <path d="M4 7.5l8 5.5 8-5.5" />),
+  phone: S(<path d="M6.5 3.5H4.2c-.7 0-1.3.6-1.2 1.4C3.7 12 8 16.3 15.1 17c.8.1 1.4-.5 1.4-1.2v-2.3c0-.6-.4-1.1-1-1.2l-2.3-.5-1.3 1.3a11 11 0 01-4.9-4.9L8.3 6.8 7.8 4.5c-.1-.6-.6-1-1.3-1z" />),
+  link: S(<path d="M9.5 14.5a3.5 3.5 0 004.9 0l2.6-2.6a3.5 3.5 0 00-4.9-4.9l-1 1" />, <path d="M14.5 9.5a3.5 3.5 0 00-4.9 0L7 12.1a3.5 3.5 0 004.9 4.9l1-1" />),
+  globe: S(<circle cx="12" cy="12" r="8.5" />, <path d="M3.5 12h17M12 3.5c2.6 2.4 2.6 14.6 0 17M12 3.5c-2.6 2.4-2.6 14.6 0 17" />),
+  tag: S(<path d="M3.5 12.5l8-8H19a1.5 1.5 0 011.5 1.5v7.5l-8 8a1.4 1.4 0 01-2 0l-7-7a1.4 1.4 0 010-2z" />, <circle cx="16" cy="8" r="1.2" fill="currentColor" stroke="none" />),
+  building: S(<path d="M4.5 21V4.5A.5.5 0 015 4h7a.5.5 0 01.5.5V21" />, <><path d="M12.5 10H19a.5.5 0 01.5.5V21" /><path d="M3 21h18" /><path d="M7.5 8h2M7.5 12h2M7.5 16h2" /></>),
+  text: S(<path d="M5 6h14M5 10h14M5 14h9M5 18h9" />),
+};
+
+// input with a leading icon — the modern field affordance used across the panel
+const IconInput = ({ icon, style, ...p }) => (
+  <div className="iconfield" style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${T.border}`, borderRadius: 8, background: T.card, padding: '0 10px', ...style }}>
+    <span style={{ color: T.mutedSoft, display: 'inline-flex', flex: '0 0 auto' }}>{icon}</span>
+    <input {...p} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 13.5, color: T.text, padding: '8px 0' }} />
+  </div>
+);
+
+// textarea with a top-aligned leading icon — matches IconInput so multi-line fields look consistent
+const IconTextarea = ({ icon, style, ...p }) => (
+  <div className="iconfield" style={{ display: 'flex', gap: 8, border: `1px solid ${T.border}`, borderRadius: 8, background: T.card, padding: '8px 10px', ...style }}>
+    <span style={{ color: T.mutedSoft, display: 'inline-flex', flex: '0 0 auto', marginTop: 1 }}>{icon}</span>
+    <textarea {...p} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 13.5, color: T.text, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
+  </div>
+);
+
+// on/off switch — the modern idiom for a single setting
+const Toggle = ({ checked, onChange, children }) => (
+  <div onClick={() => onChange(!checked)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+    <span style={{ width: 34, height: 20, borderRadius: 99, background: checked ? T.primary : T.border, position: 'relative', transition: 'background .15s', flex: '0 0 auto' }}>
+      <span style={{ position: 'absolute', top: 2, left: checked ? 16 : 2, width: 16, height: 16, borderRadius: 99, background: '#fff', boxShadow: '0 1px 2px rgba(16,24,40,0.25)', transition: 'left .15s' }} />
+    </span>
+    <span style={{ fontSize: 13, color: T.textSoft }}>{children}</span>
+  </div>
+);
+
+// custom font dropdown — replaces the native <select> so it matches the icon fields,
+// and renders each option in its own typeface for a real preview
+const FontPicker = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const fonts = Object.keys(SB.FONT_LINKS);
+  const label = (f) => (f === 'system' ? 'System default' : f);
+  useEffect(() => { // load every whitelist font once so the previews render truthfully
+    fonts.forEach((f) => {
+      const url = SB.FONT_LINKS[f];
+      if (!url || [].some.call(document.querySelectorAll('link[rel=stylesheet]'), (l) => l.href === url)) return;
+      const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = url; document.head.appendChild(link);
+    });
+  }, []);
+  return (
+    <div style={{ position: 'relative' }}>
+      <button type="button" onClick={() => setOpen((o) => !o)} className="iconfield" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${open ? T.primary : T.border}`, background: T.card, borderRadius: 8, padding: '8px 10px', cursor: 'pointer', boxShadow: open ? `0 0 0 3px ${T.primarySoft}` : 'none' }}>
+        <span style={{ color: T.mutedSoft, display: 'inline-flex', flex: '0 0 auto' }}>{ICON.text}</span>
+        <span style={{ flex: 1, textAlign: 'left', fontSize: 13.5, color: T.text, fontFamily: SB.fontStack(value), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label(value || 'Inter')}</span>
+        <span style={{ color: T.mutedSoft, flex: '0 0 auto', fontSize: 11 }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 31, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: '0 12px 32px -8px rgba(16,24,40,0.24)', overflow: 'hidden', animation: 'fadein .12s ease', padding: 6 }}>
+            {fonts.map((f) => (
+              <button key={f} type="button" onClick={() => { onChange(f); setOpen(false); }} data-hover="row" style={{ width: '100%', textAlign: 'left', border: 'none', background: f === value ? T.primarySofter : 'transparent', borderRadius: 8, padding: '10px 10px', cursor: 'pointer', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ fontFamily: SB.fontStack(f), fontSize: 15, fontWeight: 600, color: f === value ? T.primaryDark : T.text }}>{label(f)}</span>
+                <span style={{ fontFamily: SB.fontStack(f), fontSize: 14, color: T.mutedSoft }}>Ag</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const ConfidenceDot = ({ level }) => {
   if (!level) return null;
   const c = level === 'high' ? T.green : level === 'med' ? T.amber : T.mutedSoft;
@@ -470,7 +549,16 @@ function Studio() {
   const previewRef = useRef(null);
   const uploadFrameRef = useRef(null);
 
-  const [sourceMode, setSourceMode] = useState('builtin');       // 'builtin' | 'upload'
+  // Default to the 4 shared bundled toolkits. The 45 built-in archetype resources
+  // are intentionally hidden from the Studio (kept safely in data.js / resource-*.html);
+  // re-add 'builtin' to the toggle array below to bring them back.
+  const [sourceMode, setSourceMode] = useState('bundled');       // 'bundled' | 'upload' (+ 'builtin', hidden)
+  const BUNDLES = window.BUNDLED_TOOLKITS || [];
+  const [selectedBundle, setSelectedBundle] = useState(() => (BUNDLES[0] ? BUNDLES[0].id : ''));
+  const [bundlePickerOpen, setBundlePickerOpen] = useState(false);
+  const [bundleQuery, setBundleQuery] = useState('');
+  const bundleMeta = BUNDLES.find((b) => b.id === selectedBundle) || null;
+  const filteredBundles = BUNDLES.filter((b) => (b.title + ' ' + (b.eyebrow || '') + ' ' + (b.audience || '')).toLowerCase().includes(bundleQuery.trim().toLowerCase()));
   const [upload, setUpload] = useState(null);                    // {name, type, buffer, text}
   const [uploadPreview, setUploadPreview] = useState(null);      // {srcdoc?|src?}
   const [textMaps, setTextMaps] = useState([{ find: '', replace: '' }]);
@@ -485,6 +573,7 @@ function Studio() {
   const filteredResources = RESOURCE_INDEX.filter((r) => (r.title + ' ' + (r.industry || '') + ' ' + (r.archetype || '')).toLowerCase().includes(resQuery.trim().toLowerCase()));
 
   const set = (patch) => setBrand((b) => ({ ...b, ...patch }));
+  const setField = (k, v) => setBrand((b) => ({ ...b, fields: { ...(b.fields || {}), [k]: v } })); // per-toolkit content field
 
   useEffect(() => { persistLast(brand); }, [brand]);
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
@@ -500,6 +589,8 @@ function Studio() {
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
   });
+  // load the chosen font into the Studio itself so the Font preview renders truthfully
+  useEffect(() => { try { SB.ensureFontLink(brand.font, document); } catch (e) {} }, [brand.font]);
 
   /* ---- auto-fetch (layered; manual is always the reliable fallback) ---- */
   const doFetch = async () => {
@@ -695,6 +786,39 @@ function Studio() {
   };
   const doPrint = () => { const w = previewRef.current && previewRef.current.contentWindow; if (w) w.print(); };
 
+  /* ---- export a bundled toolkit (self-contained single file) ----
+     These are standalone tools (not the archetype engine), so export just inlines
+     the shared brand-adapter and bakes window.__BRAND__ — no shell/data/render inlining. */
+  const buildBundledExport = async (bundle, cfg) => {
+    let html = await fetch(bundle.file).then((r) => r.text());
+    const logo = await toDataUri(cfg.logo);
+    const outCfg = { ...cfg, logo: logo };
+    let adapter = '';
+    try { adapter = await fetch('resources/bundled/brand-adapter.js').then((r) => r.text()); } catch (e) {}
+    // Replacement FUNCTIONS (not strings): the adapter JS + cfg JSON contain '$' —
+    // $&/$'/$`/$n in a replacement STRING would corrupt the output (see docs/MEMORY.md).
+    if (adapter) html = html.replace('<script src="brand-adapter.js"><\/script>', () => '<script>' + adapter + '<\/script>');
+    const inject = '<script>window.__BRAND__=' + escJson(outCfg) + ';<\/script>';
+    if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, () => inject + '</head>');
+    else html = inject + html;
+    return html;
+  };
+  const doExportBundled = async () => {
+    if (!bundleMeta) return;
+    setExporting(true);
+    try {
+      const html = await buildBundledExport(bundleMeta, brand);
+      const blob = new Blob([html], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = slug(brand.orgName) + '-' + bundleMeta.id + '.html';
+      document.body.appendChild(a); a.click(); a.remove();
+      const remoteLogo = brand.logo && !/^data:/.test(brand.logo);
+      flash(remoteLogo ? 'Exported — note: the logo is a live URL (upload it for a fully-offline file)' : 'Exported a self-contained file ✓');
+    } catch (e) { flash('Export failed: ' + (e && e.message ? e.message : e)); }
+    setExporting(false);
+  };
+
   /* ---- upload / multi-format ---- */
   const mapsForRun = () => textMaps.filter((m) => m.find).map((m) => ({ find: m.find, replace: (m.replace != null && m.replace !== '') ? m.replace : (brand.orgName || '') }));
   const onUploadFile = (file) => {
@@ -759,15 +883,7 @@ function Studio() {
           <div style={{ fontWeight: 800, fontSize: 16, color: T.primaryDark, letterSpacing: '-.02em' }}>Sole · Rebranding Studio</div>
           <span style={{ fontSize: 11.5, color: T.muted, background: T.primarySofter, border: `1px solid ${T.primarySoft}`, padding: '2px 8px', borderRadius: 999 }}>Marketing tool</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Select value={kitName} onChange={(e) => e.target.value ? loadKit(e.target.value) : newKit()} style={{ width: 'auto', padding: '7px 30px 7px 10px' }}>
-            <option value="">Sole default</option>
-            {kitNames.map((n) => <option key={n} value={n}>{n}</option>)}
-          </Select>
-          {kitName && <Btn variant="ghost" onClick={() => deleteKit(kitName)} title="Delete this kit">Delete</Btn>}
-          <Btn variant="ghost" onClick={newKit}>New</Btn>
-          <Btn variant="soft" onClick={saveKit}>Save kit</Btn>
-        </div>
+        <Btn variant="ghost" onClick={newKit} title="Clear all fields back to the Sole default">Reset</Btn>
       </div>
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -776,7 +892,7 @@ function Studio() {
 
           <Section title="1 · Fetch from a website (optional)">
             <div style={{ display: 'flex', gap: 8 }}>
-              <Input placeholder="partner-website.com.au" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') doFetch(); }} />
+              <IconInput icon={ICON.globe} style={{ flex: 1 }} placeholder="partner-website.com.au" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') doFetch(); }} />
               <Btn onClick={doFetch} disabled={fetching}>
                 {fetching ? <span style={{ width: 12, height: 12, border: '2px solid #ffffff60', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin .7s linear infinite' }} /> : 'Fetch'}
               </Btn>
@@ -813,19 +929,19 @@ function Studio() {
 
           <Section title="4 · Copy">
             <Field label={<span>Organisation name <ConfidenceDot level={confidence.orgName} /></span>}>
-              <Input value={brand.orgName || ''} onChange={(e) => set({ orgName: e.target.value })} placeholder="Partner name" />
+              <IconInput icon={ICON.building} value={brand.orgName || ''} onChange={(e) => set({ orgName: e.target.value })} placeholder="Partner name" />
             </Field>
             <Field label={<span>Intro line <ConfidenceDot level={confidence.introText} /></span>} hint="Leave blank to use the resource's own intro.">
-              <textarea style={{ ...inputStyle, resize: 'vertical' }} rows={3} value={brand.introText || ''} onChange={(e) => set({ introText: e.target.value })} placeholder="A short line addressed to the partner's audience" />
+              <IconTextarea icon={ICON.text} rows={3} value={brand.introText || ''} onChange={(e) => set({ introText: e.target.value })} placeholder="A short line addressed to the partner's audience" />
             </Field>
-            <Field label="Call-to-action label"><Input value={brand.ctaLabel || ''} onChange={(e) => set({ ctaLabel: e.target.value })} placeholder="e.g. Get set up free" /></Field>
-            <Field label={<span>Call-to-action link <ConfidenceDot level={confidence.ctaUrl} /></span>}><Input value={brand.ctaUrl || ''} onChange={(e) => set({ ctaUrl: e.target.value })} placeholder="https://…" /></Field>
+            <Field label="Call-to-action label"><IconInput icon={ICON.tag} value={brand.ctaLabel || ''} onChange={(e) => set({ ctaLabel: e.target.value })} placeholder="e.g. Get set up free" /></Field>
+            <Field label={<span>Call-to-action link <ConfidenceDot level={confidence.ctaUrl} /></span>}><IconInput icon={ICON.link} type="url" inputMode="url" value={brand.ctaUrl || ''} onChange={(e) => set({ ctaUrl: e.target.value })} placeholder="https://…" /></Field>
           </Section>
 
           <Section title="5 · Contact">
-            <Field label="Contact name"><Input value={brand.contactName || ''} onChange={(e) => set({ contactName: e.target.value })} /></Field>
-            <Field label="Contact email"><Input value={brand.contactEmail || ''} onChange={(e) => set({ contactEmail: e.target.value })} /></Field>
-            <Field label="Contact phone"><Input value={brand.contactPhone || ''} onChange={(e) => set({ contactPhone: e.target.value })} /></Field>
+            <Field label="Contact name"><IconInput icon={ICON.user} value={brand.contactName || ''} onChange={(e) => set({ contactName: e.target.value })} placeholder="Who to reach" /></Field>
+            <Field label="Contact email"><IconInput icon={ICON.mail} type="email" inputMode="email" value={brand.contactEmail || ''} onChange={(e) => set({ contactEmail: e.target.value })} placeholder="hello@yourfirm.com.au" /></Field>
+            <Field label="Contact phone"><IconInput icon={ICON.phone} type="tel" inputMode="tel" value={brand.contactPhone || ''} onChange={(e) => set({ contactPhone: e.target.value })} placeholder="(02) 5555 1234" /></Field>
           </Section>
 
           <Section title="6 · Footer links">
@@ -835,8 +951,8 @@ function Studio() {
                   <span style={{ fontSize: 11, fontWeight: 600, color: T.mutedSoft }}>Link {i + 1}</span>
                   <button onClick={() => delLink(i)} title="Remove link" style={{ border: 'none', background: 'transparent', color: T.mutedSoft, cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 2 }}>×</button>
                 </div>
-                <Input style={{ marginBottom: 6 }} placeholder="Label (e.g. yourfirm.com.au)" value={l.label || ''} onChange={(e) => setLink(i, 'label', e.target.value)} />
-                <Input placeholder="https://…" value={l.url || ''} onChange={(e) => setLink(i, 'url', e.target.value)} />
+                <IconInput icon={ICON.tag} style={{ marginBottom: 6 }} placeholder="Label (e.g. yourfirm.com.au)" value={l.label || ''} onChange={(e) => setLink(i, 'label', e.target.value)} />
+                <IconInput icon={ICON.link} type="url" inputMode="url" placeholder="https://…" value={l.url || ''} onChange={(e) => setLink(i, 'url', e.target.value)} />
               </div>
             ))}
             <Btn variant="ghost" onClick={addLink} style={{ marginTop: 2 }}>+ Add link</Btn>
@@ -844,15 +960,33 @@ function Studio() {
 
           <Section title="7 · Options">
             <Field label="Font">
-              <Select value={brand.font || 'Inter'} onChange={(e) => set({ font: e.target.value })}>
-                {Object.keys(SB.FONT_LINKS).map((f) => <option key={f} value={f}>{f === 'system' ? 'System default' : f}</option>)}
-              </Select>
+              <FontPicker value={brand.font || 'Inter'} onChange={(f) => set({ font: f })} />
+              <div style={{ marginTop: 8, padding: '11px 13px', border: `1px solid ${T.borderSoft}`, borderRadius: 8, background: T.field }}>
+                <div style={{ fontFamily: SB.fontStack(brand.font), fontSize: 19, fontWeight: 700, letterSpacing: '-0.01em', color: T.text, lineHeight: 1.15 }}>Aa Bb Cc</div>
+                <div style={{ fontFamily: SB.fontStack(brand.font), fontSize: 12.5, color: T.muted, marginTop: 3 }}>The quick brown fox jumps over the lazy dog</div>
+              </div>
             </Field>
-            <div style={{ marginTop: 4, marginBottom: 12 }}>
-              <Check checked={!!brand.poweredBySole} onChange={(v) => set({ poweredBySole: v })}>Show “Powered by Sole” in the footer</Check>
-            </div>
-            <Field label="Footer note (fine print)"><textarea style={{ ...inputStyle, resize: 'vertical' }} rows={2} value={brand.footerNote || ''} onChange={(e) => set({ footerNote: e.target.value })} /></Field>
+            <Field label="Footer credit line" hint="The small line at the very bottom. Clear it to remove.">
+              <IconInput icon={ICON.tag} value={brand.poweredByText !== undefined ? brand.poweredByText : 'Built with Sole'} onChange={(e) => set({ poweredByText: e.target.value, poweredBySole: !!e.target.value.trim() })} placeholder="Built with Sole" />
+            </Field>
           </Section>
+
+          {sourceMode === 'bundled' && bundleMeta && bundleMeta.fields && (
+            <Section title="8 · This toolkit's content">
+              <div style={{ fontSize: 11.5, color: T.mutedSoft, marginBottom: 12 }}>
+                Personalise this toolkit. Blank keeps its built-in wording (the placeholder shows what that is). Edits bake into the PDF + HTML export.
+              </div>
+              {bundleMeta.fields.map((f, i) => f.group ? (
+                <div key={'g' + i} style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: T.muted, margin: '18px 0 8px' }}>{f.group}</div>
+              ) : (
+                <Field key={f.key} label={f.label} hint={f.hint}>
+                  {f.type === 'textarea'
+                    ? <IconTextarea icon={ICON.text} rows={2} value={(brand.fields && brand.fields[f.key]) || ''} placeholder={f.placeholder || ''} onChange={(e) => setField(f.key, e.target.value)} />
+                    : <IconInput icon={f.type === 'url' ? ICON.link : ICON.tag} type={f.type === 'url' ? 'url' : 'text'} inputMode={f.type === 'url' ? 'url' : undefined} value={(brand.fields && brand.fields[f.key]) || ''} placeholder={f.placeholder || ''} onChange={(e) => setField(f.key, e.target.value)} />}
+                </Field>
+              ))}
+            </Section>
+          )}
 
           {sourceMode === 'builtin' && RESOURCES[selected] && (
             <Section title="8 · Content & links (this resource)">
@@ -941,22 +1075,12 @@ function Studio() {
 
         {/* preview + export */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.bg }}>
-          {/* source toggle + mode actions */}
+          {/* preview actions — bundled toolkits only */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderBottom: `1px solid ${T.border}`, background: T.card }}>
-            <div style={{ display: 'inline-flex', background: T.field, border: `1px solid ${T.border}`, borderRadius: 9, padding: 2 }}>
-              {[['builtin', 'Built-in resource'], ['upload', 'Upload a file']].map(([k, label]) => (
-                <button key={k} onClick={() => setSourceMode(k)} style={{ border: 'none', background: sourceMode === k ? T.card : 'transparent', color: sourceMode === k ? T.primaryDark : T.muted, fontWeight: 600, fontSize: 12.5, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', boxShadow: sourceMode === k ? '0 1px 2px rgba(16,24,40,0.08)' : 'none' }}>{label}</button>
-              ))}
-            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: T.mutedSoft }}>Live preview</div>
             <div style={{ flex: 1 }} />
-            {sourceMode === 'builtin'
-              ? (<>
-                  <Btn variant="ghost" onClick={doPrint} title="Print → Save as PDF (branded, with cover page)">Save as PDF</Btn>
-                  <Btn variant="ghost" onClick={() => exportBuiltin('docx')} disabled={exporting} title="Editable Word document">Word</Btn>
-                  {caps.xlsx && <Btn variant="ghost" onClick={() => exportBuiltin('xlsx')} disabled={exporting} title="Working spreadsheet with live formulas">Excel</Btn>}
-                  <Btn onClick={doExport} disabled={exporting}>{exporting ? 'Exporting…' : 'Export HTML'}</Btn>
-                </>)
-              : (upload && upload.type !== 'unknown' && (<>{(upload.type === 'html' || upload.type === 'pdf') && <Btn variant="ghost" onClick={doPrintUpload}>Print / PDF</Btn>}<Btn onClick={exportUpload} disabled={processing}>{processing ? 'Working…' : ('Export .' + upload.type)}</Btn></>))}
+            <Btn variant="ghost" onClick={doPrint} title="Save the current preview as a clean PDF">Save as PDF</Btn>
+            <Btn onClick={doExportBundled} disabled={exporting} title="Download a self-contained, interactive HTML file (same as the preview)">{exporting ? 'Exporting…' : 'Export HTML'}</Btn>
           </div>
 
           {sourceMode === 'builtin' ? (
@@ -1003,6 +1127,53 @@ function Studio() {
             <iframe ref={previewRef} title="preview" src={'resource-' + selected + '.html?embed=1'} onLoad={pushBrand}
               style={{ width: '100%', height: '100%', border: `1px solid ${T.border}`, borderRadius: 12, background: '#fff', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }} />
           </div>
+          </>
+          ) : sourceMode === 'bundled' ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderBottom: `1px solid ${T.border}`, background: T.card, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: T.muted, flex: '0 0 auto' }}>Bundled toolkit</span>
+              <div style={{ position: 'relative', flex: 1, minWidth: 220, maxWidth: 460 }}>
+                <button onClick={() => { setBundlePickerOpen((o) => !o); setBundleQuery(''); }} style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                  border: `1px solid ${bundlePickerOpen ? T.primary : T.border}`, background: T.card, color: T.text,
+                  borderRadius: 9, padding: '8px 12px', fontSize: 13.5, fontWeight: 600, cursor: 'pointer',
+                  boxShadow: bundlePickerOpen ? `0 0 0 3px ${T.primarySoft}` : 'none',
+                }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bundleMeta ? bundleMeta.title : 'Select a toolkit'}</span>
+                  <span style={{ color: T.mutedSoft, flex: '0 0 auto' }}>▾</span>
+                </button>
+                {bundlePickerOpen && (
+                  <>
+                    <div onClick={() => setBundlePickerOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
+                    <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 31, background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, boxShadow: '0 12px 32px -8px rgba(16,24,40,0.24)', overflow: 'hidden', animation: 'fadein .12s ease' }}>
+                      <div style={{ padding: 8, borderBottom: `1px solid ${T.borderSoft}` }}>
+                        <Input autoFocus placeholder="Search toolkits…" value={bundleQuery} onChange={(e) => setBundleQuery(e.target.value)} />
+                      </div>
+                      <div className="scroll" style={{ maxHeight: 320, overflowY: 'auto', padding: 6 }}>
+                        {filteredBundles.map((b) => (
+                          <button key={b.id} onClick={() => { setSelectedBundle(b.id); setBundlePickerOpen(false); }} data-hover="row" style={{
+                            width: '100%', textAlign: 'left', border: 'none', background: b.id === selectedBundle ? T.primarySofter : 'transparent',
+                            borderRadius: 8, padding: '9px 10px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2,
+                          }}>
+                            <span style={{ fontSize: 13.5, fontWeight: 600, color: b.id === selectedBundle ? T.primaryDark : T.text }}>{b.title}</span>
+                            <span style={{ fontSize: 11.5, color: T.mutedSoft, textTransform: 'capitalize' }}>{b.eyebrow} · {b.audience === 'accountant' ? 'for accountants' : 'for small businesses'}</span>
+                          </button>
+                        ))}
+                        {!filteredBundles.length && <div style={{ padding: '14px 10px', fontSize: 13, color: T.mutedSoft }}>No toolkits match “{bundleQuery}”.</div>}
+                      </div>
+                      <div style={{ padding: '8px 12px', borderTop: `1px solid ${T.borderSoft}`, fontSize: 11.5, color: T.mutedSoft }}>Bespoke standalone toolkits — rebranded live, exported self-contained</div>
+                    </div>
+                  </>
+                )}
+              </div>
+              {bundleMeta && <span style={{ fontSize: 11.5, color: T.mutedSoft, flexBasis: '100%' }}>{bundleMeta.description}</span>}
+            </div>
+            <div style={{ flex: 1, minHeight: 0, padding: 16 }}>
+              {bundleMeta
+                ? <iframe key={bundleMeta.id} ref={previewRef} title="bundled-preview" src={bundleMeta.file} onLoad={pushBrand}
+                    style={{ width: '100%', height: '100%', border: `1px solid ${T.border}`, borderRadius: 12, background: '#fff', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }} />
+                : <div style={{ padding: 40, color: T.muted, fontSize: 14 }}>No bundled toolkits registered.</div>}
+            </div>
           </>
           ) : (
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

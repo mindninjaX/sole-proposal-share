@@ -90,6 +90,7 @@
     partnerLinks: [{ label: 'soleapp.com.au', url: 'https://soleapp.com.au' }],
     footerNote: 'General information only — not financial, legal or tax advice. Figures are examples; confirm current ATO rates.',
     poweredBySole: false,
+    poweredByText: 'Built with Sole',  // editable footer credit line (shown on the bundled firm toolkit)
     font: 'Inter',
     content: {}                       // per-resource overrides: { <id>: { fields, textMaps, linkMaps } }
   };
