@@ -353,6 +353,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
      a Btn-atom variant (e.g. table row actions, kebab triggers, list rows). */
   [data-hover="row"]:not(:disabled)                     { transition: background 0.1s; }
   [data-hover="row"]:not(:disabled):hover               { background: #F9FAFB; }
+  /* Sole Academy — thumbnail play button grows when its card is hovered. */
+  .academy-play                                         { transition: transform .18s ease, box-shadow .18s ease; }
+  [data-academy-card]:hover .academy-play               { transform: scale(1.09); box-shadow: 0 14px 34px rgba(0,0,0,0.34); }
   /* Canonical section-navigation tabs (<Tabs>): inactive tab darkens its label
      on hover so it reads as clickable without painting a background block. */
   [data-tab]:not([data-active="true"]):not(:disabled):hover { color: #1F2937 !important; }
@@ -1863,14 +1866,13 @@ const Icon = ({
       y2: "3"
     })),
     rocket: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
-      d: "M5 15c0-4 4-7 7-9 3 2 7 5 7 9-1 4-5 7-7 7s-6-3-7-7z"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
-      cy: "11",
-      r: "1.4",
-      fill: "currentColor"
+      d: "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.74 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M5 15c-2 1-3 5-1 7 2 1 6 0 7-2"
+      d: "M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"
     })),
     sparkle2: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
       d: "M12 4l1.6 5L19 10.5l-5.4 1.5L12 17l-1.6-5L5 10.5 10.4 9z"
@@ -2144,6 +2146,28 @@ const Icon = ({
       y1: "9",
       x2: "9",
       y2: "15"
+    })),
+    graduation: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
+      d: "M22 10L12 5 2 10l10 5 10-5z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"
+    }), /*#__PURE__*/React.createElement("line", {
+      x1: "22",
+      y1: "10",
+      x2: "22",
+      y2: "16"
+    })),
+    bookOpen: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
+      d: "M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"
+    })),
+    award: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "8",
+      r: "6"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M15.5 13L17 22l-5-3-5 3 1.5-9"
     }))
   };
   return /*#__PURE__*/React.createElement("svg", {
@@ -28452,6 +28476,11 @@ const AppSidebar = ({
     id: 'individual-staff',
     label: 'My dashboard'
   }, {
+    id: 'academy',
+    label: 'Sole Academy'
+  },
+  // video-first training (Module 15)
+  {
     id: 'communications',
     label: 'Communications'
   },
@@ -109831,6 +109860,2714 @@ const PromptLibraryPage = ({
     fireToast: fireToast
   }));
 };
+
+// --- Sole Academy / Training (Module 15) ---
+// In-app, video-first learning centre for people new to Sole Practice Manager.
+// Mirrors the AI Prompt Library (Module 14) build pattern: seed data + a
+// versioned localStorage store + components + routed pages, all self-contained
+// here and wired into PracticeApp via switch cases + one top-level sidebar item
+// + a sidebarActive branch.
+//   NOTE — "onboarding" here means NEW-USER onboarding (learning the tool),
+//   which is distinct from the client KYC "Onboarding" template builder.
+//   VideoStage supports both a real <video> file (videoUrl) and a YouTube/Vimeo
+//   iframe (embedUrl). Two hero lessons carry a placeholder sample MP4 so the
+//   player actually plays; swap videoUrl/embedUrl for real Sole clips when they
+//   exist (see docs/BACKLOG.md). Every other lesson shows the branded poster.
+const ACADEMY_LEARNER = 'Sarah Mitchell'; // demo signed-in staff member (matches owners used across the app)
+// Placeholder clips (Google public sample bucket) — stand-ins until real videos exist.
+const ACADEMY_SAMPLE_1 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4';
+const ACADEMY_SAMPLE_2 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+const ACADEMY_CATEGORIES = [{
+  id: 'get-started',
+  label: 'Get started',
+  icon: 'rocket',
+  color: T.primary,
+  blurb: 'Set up your practice and find your way around'
+}, {
+  id: 'work-pipeline',
+  label: 'Work pipeline',
+  icon: 'target',
+  color: T.blue,
+  blurb: 'Win clients — from first contact to signed engagement'
+}, {
+  id: 'work-delivery',
+  label: 'Work delivery & team',
+  icon: 'briefcase',
+  color: T.green,
+  blurb: 'Run the work after the deal is won'
+}, {
+  id: 'capacity',
+  label: 'Capacity & reviews',
+  icon: 'gauge',
+  color: T.amber,
+  blurb: 'See bottlenecks before they become margin problems'
+}, {
+  id: 'payroll-tax',
+  label: 'Payroll & tax',
+  icon: 'wallet',
+  color: T.primary,
+  blurb: 'Run compliant AU payroll and lodgements'
+}, {
+  id: 'finance',
+  label: 'Finance & payments',
+  icon: 'creditCard',
+  color: T.green,
+  blurb: 'Bill, collect and reconcile'
+}, {
+  id: 'automation',
+  label: 'Automation & AI',
+  icon: 'sparkle2',
+  color: T.blue,
+  blurb: 'Let SPM do the repetitive work for you'
+}, {
+  id: 'portal',
+  label: 'Portal & white-label',
+  icon: 'link',
+  color: T.amber,
+  blurb: 'Give clients a branded self-service experience'
+}];
+const academyCatById = id => ACADEMY_CATEGORIES.find(c => c.id === id) || {
+  id,
+  label: id,
+  icon: 'bookOpen',
+  color: T.primary,
+  blurb: ''
+};
+
+// Courses → lessons. Content lifted from pages/bootcamp.html + PLATFORM_INVENTORY.
+const ACADEMY_COURSES = [{
+  id: 'c-get-started',
+  title: 'Getting started with Sole',
+  category: 'get-started',
+  level: 'Beginner',
+  summary: 'A guided tour of the platform — how the pieces fit together and how to set up your practice.',
+  lessons: [{
+    id: 'l-gs-1',
+    title: 'Welcome to Sole Practice Manager',
+    mins: 4,
+    videoUrl: ACADEMY_SAMPLE_1,
+    description: 'A quick tour of the whole platform and how the modules connect — from winning a client to running their payroll.',
+    takeaways: ['What each part of the sidebar is for', 'How work flows from a deal to delivery', 'Where to go next depending on your role'],
+    transcript: 'Welcome to Sole Practice Manager. In the next few minutes we’ll walk through the whole platform so you know where everything lives.\n\nOn the left is your sidebar, grouped by what you’re trying to do: My focus, Firm overview, Deals, Clients, Deliver, Team and Payroll.\n\nA typical job starts as a Deal, becomes a Proposal, and once it’s signed it turns into work your team delivers and bills. Payroll and compliance run alongside. Don’t worry about memorising it — each module has its own short course right here in the Academy.',
+    resources: [{
+      label: 'Quick-start checklist (PDF)',
+      href: '#'
+    }, {
+      label: 'Sidebar map',
+      href: '#'
+    }]
+  }, {
+    id: 'l-gs-2',
+    title: 'Navigating the sidebar & dashboards',
+    mins: 5,
+    description: 'How the lifecycle sidebar is organised and how to read the Practice Dashboard and Helicopter view.',
+    resources: [{
+      label: 'Dashboard cheat-sheet',
+      href: '#'
+    }]
+  }, {
+    id: 'l-gs-3',
+    title: 'Setting up your practice profile & offices',
+    mins: 6,
+    description: 'Configure your firm details, offices and the office switcher so scoped views show the right data.'
+  }, {
+    id: 'l-gs-4',
+    title: 'Inviting your team & setting roles',
+    mins: 5,
+    description: 'Add team members, assign roles and permissions, and get everyone into their own workspace.'
+  }]
+}, {
+  id: 'c-crm',
+  title: 'Centralised CRM & Client Portal',
+  category: 'work-pipeline',
+  level: 'Beginner',
+  summary: 'Contacts, tasks, communications and documents in one client workspace — plus the branded client portal.',
+  lessons: [{
+    id: 'l-crm-1',
+    title: 'Your client workspace in one place',
+    mins: 6,
+    videoUrl: ACADEMY_SAMPLE_2,
+    description: 'See how a single client record pulls together contacts, tasks, jobs, documents and communications.',
+    takeaways: ['Open and read a client record', 'Log a task and a communication', 'Attach and find documents'],
+    transcript: 'Every client in Sole has one workspace that brings together everything you know about them — people, jobs, documents and every conversation — so you’re never digging through email to find the last thing that happened.',
+    resources: [{
+      label: 'Client record fields reference',
+      href: '#'
+    }]
+  }, {
+    id: 'l-crm-2',
+    title: 'Contacts, tasks & communications',
+    mins: 5,
+    description: 'Keep every contact, to-do and message against the right client so nothing slips.'
+  }, {
+    id: 'l-crm-3',
+    title: 'Giving clients the branded portal',
+    mins: 4,
+    description: 'Turn on the white-label client portal so clients can self-serve documents, approvals and requests.'
+  }]
+}, {
+  id: 'c-pipeline',
+  title: 'Sales & Pipeline Oversight',
+  category: 'work-pipeline',
+  level: 'Intermediate',
+  summary: 'Track prospects and opportunities and forecast your pipeline from first contact to conversion.',
+  lessons: [{
+    id: 'l-pl-1',
+    title: 'Tracking prospects & opportunities',
+    mins: 6,
+    description: 'Work the Deals board — stages, priorities and the next step to move each opportunity forward.'
+  }, {
+    id: 'l-pl-2',
+    title: 'The Pipeline forecast dashboard',
+    mins: 5,
+    description: 'Read the Pipeline forecast to see expected revenue, weighting and capacity impact.'
+  }]
+}, {
+  id: 'c-proposals',
+  title: 'Proposal Workflow Automation',
+  category: 'work-pipeline',
+  level: 'Beginner',
+  summary: 'Build, send and convert proposals — from services and packages to signature and won-work handoff.',
+  lessons: [{
+    id: 'l-pr-1',
+    title: 'Building a proposal from services',
+    mins: 7,
+    description: 'Assemble packages, service lines and pricing into a polished proposal.',
+    resources: [{
+      label: 'Services & packages guide',
+      href: '#'
+    }]
+  }, {
+    id: 'l-pr-2',
+    title: 'Payment, terms & sending for signature',
+    mins: 5,
+    description: 'Set payment methods, terms and next steps, then send the proposal for e-signature.'
+  }, {
+    id: 'l-pr-3',
+    title: 'Converting a won proposal into work',
+    mins: 4,
+    description: 'When a proposal is accepted, turn it into active jobs and an onboarding handoff.'
+  }]
+}, {
+  id: 'c-projects',
+  title: 'Project & Task Management',
+  category: 'work-delivery',
+  level: 'Beginner',
+  summary: 'Manage jobs, approvals, deadlines and accountability without a separate workflow tool.',
+  lessons: [{
+    id: 'l-pj-1',
+    title: 'Jobs, tasks & deadlines',
+    mins: 6,
+    description: 'Create jobs, break them into tasks and keep due dates visible to the whole team.'
+  }, {
+    id: 'l-pj-2',
+    title: 'Approvals & accountability',
+    mins: 5,
+    description: 'Route work through review and approval so nothing goes out unchecked.'
+  }]
+}, {
+  id: 'c-time',
+  title: 'Time Tracking & Billing',
+  category: 'work-delivery',
+  level: 'Beginner',
+  summary: 'Record time as you work and turn it into invoices inside the same operating flow.',
+  lessons: [{
+    id: 'l-tt-1',
+    title: 'Recording time as you work',
+    mins: 5,
+    description: 'Use the timer and manual entries to capture billable and non-billable time accurately.'
+  }, {
+    id: 'l-tt-2',
+    title: 'Turning time into invoices',
+    mins: 5,
+    description: 'Convert recorded time and expenses into invoices ready to send.'
+  }]
+}, {
+  id: 'c-team',
+  title: 'Workforce & Team Management',
+  category: 'work-delivery',
+  level: 'Intermediate',
+  summary: 'Visibility of staff capacity, tasks, performance and how work moves through the firm.',
+  lessons: [{
+    id: 'l-tm-1',
+    title: 'Team members, roles & permissions',
+    mins: 5,
+    description: 'Manage who can see and do what across the practice.'
+  }, {
+    id: 'l-tm-2',
+    title: 'Service lines & capacity targets',
+    mins: 5,
+    description: 'Set up service lines and per-person capacity targets that feed the planners.'
+  }]
+}, {
+  id: 'c-capacity',
+  title: 'Staff Scheduler & Capacity Planning',
+  category: 'capacity',
+  level: 'Intermediate',
+  summary: 'Assign work by availability and skill, and spot bottlenecks before they hit margin.',
+  lessons: [{
+    id: 'l-cp-1',
+    title: 'Assigning work by availability & skill',
+    mins: 7,
+    description: 'Use the scheduler to match work to the right person at the right time.'
+  }, {
+    id: 'l-cp-2',
+    title: 'Spotting bottlenecks early',
+    mins: 5,
+    description: 'Read the capacity view to find overloaded weeks and rebalance the plan.'
+  }]
+}, {
+  id: 'c-payroll',
+  title: 'Payroll Management',
+  category: 'payroll-tax',
+  level: 'Intermediate',
+  summary: 'Run compliant Australian payroll end-to-end — from employers to a finalised, STP-reported payrun.',
+  lessons: [{
+    id: 'l-py-1',
+    title: 'Payroll overview & employers',
+    mins: 5,
+    description: 'Understand the Payroll module: employers at a glance, employees and payrun activity.'
+  }, {
+    id: 'l-py-2',
+    title: 'Running a payrun, step by step',
+    mins: 8,
+    description: 'Walk the payrun wizard: Basic info → Pay list → Expenses → Deductions → Review.',
+    takeaways: ['Start a payrun and pick the pay period', 'Resolve the readiness pill’s issues', 'Review payslips before lodging'],
+    resources: [{
+      label: 'Payrun wizard walkthrough',
+      href: '#'
+    }]
+  }, {
+    id: 'l-py-3',
+    title: 'Expenses, deductions & leave',
+    mins: 6,
+    description: 'Add reimbursements, deductions and leave so payslips are correct.'
+  }, {
+    id: 'l-py-4',
+    title: 'STP, super & finalising',
+    mins: 6,
+    description: 'Report through Single Touch Payroll, handle super, and finalise the run.'
+  }]
+}, {
+  id: 'c-tax',
+  title: 'Tax, Compliance & Onboarding',
+  category: 'payroll-tax',
+  level: 'Intermediate',
+  summary: 'Track lodgements and run compliant client onboarding, AML/KYC and BAS/GST from one place.',
+  lessons: [{
+    id: 'l-tx-1',
+    title: 'Compliance dashboard & AML/KYC',
+    mins: 6,
+    description: 'Use the compliance dashboard to track client onboarding, KYC and AML obligations.'
+  }, {
+    id: 'l-tx-2',
+    title: 'BAS, GST & lodgement tracking',
+    mins: 6,
+    description: 'Keep BAS, GST and other lodgements on schedule with clear status.'
+  }]
+}, {
+  id: 'c-workflow',
+  title: 'Workflow Automation',
+  category: 'automation',
+  level: 'Intermediate',
+  summary: 'Automate the repetitive parts of your practice with recipes, templates and the workflow builder.',
+  lessons: [{
+    id: 'l-wf-1',
+    title: 'Recipes & the workflow builder',
+    mins: 7,
+    description: 'Start from a recipe or build your own automation with triggers and actions.'
+  }, {
+    id: 'l-wf-2',
+    title: 'Templates & global settings',
+    mins: 5,
+    description: 'Reuse email/message templates and configure firm-wide workflow settings.'
+  }]
+}, {
+  id: 'c-ai',
+  title: 'AI Prompt Library & Insights',
+  category: 'automation',
+  level: 'Beginner',
+  summary: 'Use your team’s shared AI prompts to draft faster, and let SPM surface insights.',
+  lessons: [{
+    id: 'l-ai-1',
+    title: 'Using the AI Prompt Library',
+    mins: 5,
+    description: 'Browse the team library, open a prompt and copy it into your AI tool.'
+  }, {
+    id: 'l-ai-2',
+    title: 'Filling {{fields}} & sharing prompts',
+    mins: 4,
+    description: 'Fill in a prompt’s variables, save your own, and share the best with the firm.'
+  }]
+}];
+const ACADEMY_POPULAR = ['c-get-started', 'c-payroll', 'c-proposals'];
+const LEARNING_PATHS = [{
+  id: 'path-onboarding',
+  title: 'Getting started (new team member)',
+  forRole: 'Everyone · first week',
+  blurb: 'The essentials every new user needs before touching live client work.',
+  courseIds: ['c-get-started', 'c-crm', 'c-pipeline', 'c-proposals']
+}, {
+  id: 'path-payroll',
+  title: 'Payroll specialist',
+  forRole: 'Payroll & bookkeeping staff',
+  blurb: 'Everything you need to run compliant Australian payroll and lodgements.',
+  courseIds: ['c-get-started', 'c-payroll', 'c-tax', 'c-time']
+}, {
+  id: 'path-owner',
+  title: 'Practice owner / partner',
+  forRole: 'Partners & practice leads',
+  blurb: 'The firm-wide view: pipeline, capacity, team and where AI saves you time.',
+  courseIds: ['c-get-started', 'c-capacity', 'c-team', 'c-pipeline', 'c-ai']
+}
+// Kept intentionally small (~3 role paths). The catalog/grid is data-driven,
+// so adding a fourth path here is all that's needed to scale up later.
+];
+
+// Persistence — completed lessons + resume points survive reload. Same shape and
+// robustness as PROMPT_STORE_KEY (swallow quota / private-mode errors).
+const ACADEMY_STORE_KEY = 'sole.academy.v1';
+const loadAcademy = () => {
+  try {
+    return JSON.parse(localStorage.getItem(ACADEMY_STORE_KEY) || '{}');
+  } catch (_) {
+    return {};
+  }
+};
+const saveAcademy = patch => {
+  try {
+    localStorage.setItem(ACADEMY_STORE_KEY, JSON.stringify({
+      ...loadAcademy(),
+      ...patch
+    }));
+  } catch (_) {}
+};
+const academyCompleted = () => loadAcademy().completed || {};
+const isLessonComplete = lessonId => !!academyCompleted()[lessonId];
+const setLessonComplete = (lessonId, done) => {
+  const c = {
+    ...academyCompleted()
+  };
+  if (done) c[lessonId] = Date.now();else delete c[lessonId];
+  saveAcademy({
+    completed: c
+  });
+};
+const markLessonComplete = lessonId => setLessonComplete(lessonId, true);
+const academyLastLesson = () => loadAcademy().lastLesson || {};
+const setLastLesson = (courseId, lessonId) => saveAcademy({
+  lastLesson: {
+    ...academyLastLesson(),
+    [courseId]: lessonId
+  },
+  lastCourse: courseId
+});
+const courseById = id => ACADEMY_COURSES.find(c => c.id === id) || null;
+const catColor = course => academyCatById(course.category).color || T.primary;
+const courseMins = course => (course ? course.lessons : []).reduce((s, l) => s + (l.mins || 0), 0);
+const courseDoneCount = course => (course ? course.lessons : []).filter(l => isLessonComplete(l.id)).length;
+const courseProgressPct = course => {
+  const n = course ? course.lessons.length : 0;
+  return n ? Math.round(courseDoneCount(course) / n * 100) : 0;
+};
+const isCourseComplete = course => !!course && course.lessons.length > 0 && courseDoneCount(course) === course.lessons.length;
+const resumeLesson = course => {
+  const ls = course ? course.lessons : [];
+  if (!ls.length) return null;
+  const last = academyLastLesson()[course.id];
+  if (last && ls.some(l => l.id === last)) return last;
+  return (ls.find(l => !isLessonComplete(l.id)) || ls[0]).id;
+};
+const nextUpCourse = () => {
+  const lc = loadAcademy().lastCourse;
+  if (lc && courseById(lc) && !isCourseComplete(courseById(lc))) return courseById(lc);
+  return ACADEMY_COURSES.find(c => courseDoneCount(c) > 0 && !isCourseComplete(c)) || ACADEMY_COURSES.find(c => courseDoneCount(c) === 0) || ACADEMY_COURSES[0];
+};
+const certifiedCourses = () => ACADEMY_COURSES.filter(isCourseComplete);
+const academyStats = () => {
+  const all = ACADEMY_COURSES.flatMap(c => c.lessons);
+  const done = all.filter(l => isLessonComplete(l.id));
+  return {
+    coursesDone: certifiedCourses().length,
+    lessonsDone: done.length,
+    totalLessons: all.length,
+    minutes: done.reduce((s, l) => s + (l.mins || 0), 0),
+    certificates: certifiedCourses().length
+  };
+};
+
+// The 16:9 video-first surface. Plays a real <video> file or a YouTube/Vimeo
+// iframe when available; otherwise a branded gradient poster + play chrome.
+const VideoStage = ({
+  lesson,
+  color = T.primary,
+  catIcon = 'video',
+  playing,
+  onPlay
+}) => {
+  const hasFile = !!lesson.videoUrl;
+  const hasEmbed = !!lesson.embedUrl;
+  const stage = {
+    position: 'relative',
+    width: '100%',
+    aspectRatio: '16 / 9',
+    borderRadius: T.radiusLg,
+    overflow: 'hidden'
+  };
+  if (playing && hasFile) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...stage,
+        background: '#000'
+      }
+    }, /*#__PURE__*/React.createElement("video", {
+      src: lesson.videoUrl,
+      controls: true,
+      autoPlay: true,
+      preload: "metadata",
+      style: {
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain',
+        background: '#000'
+      }
+    }));
+  }
+  if (playing && hasEmbed) {
+    const src = lesson.embedUrl + (lesson.embedUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...stage,
+        background: '#000'
+      }
+    }, /*#__PURE__*/React.createElement("iframe", {
+      src: src,
+      title: lesson.title,
+      frameBorder: "0",
+      allow: "autoplay; encrypted-media; fullscreen",
+      allowFullScreen: true,
+      style: {
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        border: 'none'
+      }
+    }));
+  }
+  const comingSoon = playing && !hasFile && !hasEmbed;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...stage,
+      background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.46)} 100%)`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      inset: 0,
+      pointerEvents: 'none',
+      background: `radial-gradient(110% 80% at 14% -6%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 50%)`
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      right: -26,
+      bottom: -32,
+      opacity: 0.13,
+      color: '#fff',
+      transform: 'rotate(-8deg)',
+      pointerEvents: 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: catIcon,
+    size: 210,
+    color: "#fff",
+    strokeWidth: 1.2
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 16,
+      left: 18,
+      zIndex: 2,
+      maxWidth: '70%'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      letterSpacing: 1.4,
+      textTransform: 'uppercase',
+      color: 'rgba(255,255,255,0.82)'
+    }
+  }, "Video lesson"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 17,
+      fontWeight: 700,
+      marginTop: 3,
+      color: '#fff',
+      letterSpacing: -0.2
+    }
+  }, lesson.title)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 16,
+      right: 18,
+      zIndex: 2,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      background: withAlpha('#0F1117', 0.34),
+      color: '#fff',
+      fontSize: 11.5,
+      fontWeight: 600,
+      padding: '4px 9px',
+      borderRadius: 999,
+      backdropFilter: 'blur(4px)',
+      WebkitBackdropFilter: 'blur(4px)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clock",
+    size: 12,
+    color: "#fff"
+  }), lesson.mins, " min"), comingSoon ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      zIndex: 2,
+      textAlign: 'center',
+      color: '#fff',
+      padding: '0 24px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14.5,
+      fontWeight: 700
+    }
+  }, "Preview coming soon"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      opacity: 0.88,
+      marginTop: 5,
+      maxWidth: 380,
+      lineHeight: 1.5
+    }
+  }, "The full video for this lesson is being recorded. Explore the feature live in your dashboard, then mark it complete.")) : /*#__PURE__*/React.createElement("button", {
+    onClick: onPlay,
+    "aria-label": "Play lesson",
+    style: {
+      position: 'relative',
+      zIndex: 2,
+      width: 82,
+      height: 82,
+      borderRadius: '50%',
+      border: 'none',
+      cursor: 'pointer',
+      background: withAlpha('#FFFFFF', 0.97),
+      color,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 16px 40px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.12)',
+      transition: 'transform .14s'
+    },
+    onMouseEnter: e => e.currentTarget.style.transform = 'scale(1.07)',
+    onMouseLeave: e => e.currentTarget.style.transform = 'scale(1)'
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "28",
+    height: "28",
+    viewBox: "0 0 24 24",
+    fill: "currentColor",
+    style: {
+      marginLeft: 4
+    }
+  }, /*#__PURE__*/React.createElement("polygon", {
+    points: "6,4 20,12 6,20"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 2,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 11,
+      padding: '11px 15px',
+      background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.38))'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "play",
+    size: 15,
+    color: "#fff"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: 4,
+      borderRadius: 999,
+      background: 'rgba(255,255,255,0.3)',
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: '0%',
+      height: '100%',
+      background: '#fff'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: 'rgba(255,255,255,0.9)',
+      fontVariantNumeric: 'tabular-nums'
+    }
+  }, "0:00 / ", lesson.mins, ":00"), /*#__PURE__*/React.createElement(Icon, {
+    name: "video",
+    size: 15,
+    color: "rgba(255,255,255,0.9)"
+  })));
+};
+
+// Shared course thumbnail — the module's signature motif. A category-hued
+// gradient carries an oversized, cropped category-icon watermark (so each
+// course is identifiable by module at a glance, not just another play tile),
+// a frosted duration chip, a completed badge, a centred play button (grows on
+// card hover via .academy-play), and a YouTube-style progress bar welded to
+// the bottom edge for in-progress courses. Reused by CourseCard + the Home hero.
+const AcademyThumb = ({
+  course,
+  height,
+  radius = T.radiusLg,
+  playSize = 54,
+  watermark = 132
+}) => {
+  const cat = academyCatById(course.category);
+  const color = catColor(course);
+  const pct = courseProgressPct(course);
+  const done = isCourseComplete(course);
+  const started = courseDoneCount(course) > 0;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative',
+      width: '100%',
+      ...(height ? {
+        height
+      } : {
+        aspectRatio: '16 / 9'
+      }),
+      borderRadius: radius,
+      overflow: 'hidden',
+      background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.44)} 100%)`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      inset: 0,
+      background: `radial-gradient(120% 84% at 12% -8%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 52%)`
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      right: -20,
+      bottom: -26,
+      opacity: 0.15,
+      color: '#fff',
+      transform: 'rotate(-8deg)',
+      pointerEvents: 'none'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: cat.icon,
+    size: watermark,
+    color: "#fff",
+    strokeWidth: 1.3
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      background: withAlpha('#0F1117', 0.34),
+      color: '#fff',
+      fontSize: 11,
+      fontWeight: 600,
+      padding: '3px 9px',
+      borderRadius: 999,
+      backdropFilter: 'blur(4px)',
+      WebkitBackdropFilter: 'blur(4px)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clock",
+    size: 11,
+    color: "#fff"
+  }), courseMins(course), " min"), done && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      top: 12,
+      left: 12,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      background: T.green,
+      color: '#fff',
+      fontSize: 10.5,
+      fontWeight: 700,
+      padding: '3px 8px',
+      borderRadius: 999,
+      boxShadow: '0 2px 8px rgba(5,150,105,0.4)'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: "#fff"
+  }), "Done"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "academy-play",
+    style: {
+      width: playSize,
+      height: playSize,
+      borderRadius: '50%',
+      background: withAlpha('#FFFFFF', 0.97),
+      color,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 10px 28px rgba(0,0,0,0.30)'
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: Math.round(playSize * 0.33),
+    height: Math.round(playSize * 0.33),
+    viewBox: "0 0 24 24",
+    fill: "currentColor",
+    style: {
+      marginLeft: 2
+    }
+  }, /*#__PURE__*/React.createElement("polygon", {
+    points: "6,4 20,12 6,20"
+  })))), started && !done && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 4,
+      background: withAlpha('#0F1117', 0.28)
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: `${pct}%`,
+      height: '100%',
+      background: '#fff'
+    }
+  })));
+};
+
+// Catalog grid card — thumbnail + a quiet, scannable body (category · level,
+// title, summary, and a status line that flips between progress and "Not started").
+const CourseCard = ({
+  course,
+  onOpen
+}) => {
+  const cat = academyCatById(course.category);
+  const pct = courseProgressPct(course);
+  const done = isCourseComplete(course);
+  const started = courseDoneCount(course) > 0;
+  const color = catColor(course);
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onOpen,
+    role: "button",
+    tabIndex: 0,
+    "data-academy-card": true,
+    onKeyDown: e => {
+      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusCard,
+      background: T.card,
+      overflow: 'hidden',
+      cursor: 'pointer',
+      display: 'flex',
+      flexDirection: 'column',
+      boxShadow: T.shadowSm,
+      transition: 'border-color .14s, box-shadow .14s, transform .14s'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = T.borderStrong;
+      e.currentTarget.style.boxShadow = '0 10px 26px rgba(15,17,23,0.10)';
+      e.currentTarget.style.transform = 'translateY(-2px)';
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.border;
+      e.currentTarget.style.boxShadow = T.shadowSm;
+      e.currentTarget.style.transform = 'none';
+    }
+  }, /*#__PURE__*/React.createElement(AcademyThumb, {
+    course: course,
+    radius: 0
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 15,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 9,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      fontSize: 10.5,
+      fontWeight: 600,
+      color: color
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: cat.icon,
+    size: 12,
+    color: color
+  }), cat.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 3,
+      height: 3,
+      borderRadius: 999,
+      background: T.mutedSoft
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      color: T.muted
+    }
+  }, course.level)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14.5,
+      fontWeight: 700,
+      color: T.text,
+      lineHeight: 1.3,
+      letterSpacing: -0.2
+    }
+  }, course.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11.5,
+      lineHeight: 1.5,
+      flex: 1
+    }
+  }, course.summary), started ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: 10.5,
+      fontWeight: 500,
+      color: done ? T.greenDark : T.muted,
+      marginBottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, done ? /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 12,
+    color: T.greenDark
+  }) : /*#__PURE__*/React.createElement(Icon, {
+    name: "play",
+    size: 11,
+    color: T.muted
+  }), done ? 'Completed' : `${courseDoneCount(course)} of ${course.lessons.length} lessons`), /*#__PURE__*/React.createElement("span", null, pct, "%")), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: pct,
+    color: done ? T.green : color,
+    height: 5
+  })) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      fontSize: 11,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "bookOpen",
+    size: 12,
+    color: T.mutedSoft
+  }), course.lessons.length, " lessons"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      fontWeight: 600,
+      color
+    }
+  }, "Start", /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 12,
+    color: color
+  })))));
+};
+
+// Which paths contain a given course (used by the player's "Part of" card).
+const pathsForCourse = courseId => LEARNING_PATHS.filter(p => p.courseIds.includes(courseId));
+
+// A path can hold any number of courses, so the card must NOT render the full
+// list (it wouldn't scale and rows would be uneven). Instead: a fixed-height
+// summary — a segmented tracker (one segment per course, so it scales to any
+// count) + a single "up next / start with" course callout + counts. The full
+// ordered sequence lives in the player ("Part of these paths") / on open.
+const LearningPathCard = ({
+  path,
+  onOpen
+}) => {
+  const courses = path.courseIds.map(courseById).filter(Boolean);
+  const allLessons = courses.flatMap(c => c.lessons);
+  const doneN = allLessons.filter(l => isLessonComplete(l.id)).length;
+  const pct = allLessons.length ? Math.round(doneN / allLessons.length * 100) : 0;
+  const doneCourses = courses.filter(isCourseComplete).length;
+  const started = doneN > 0;
+  const complete = pct === 100;
+  const totalMins = courses.reduce((s, c) => s + courseMins(c), 0);
+  const currentIdx = courses.findIndex(c => !isCourseComplete(c)); // first unfinished; -1 if all done
+  const nextCourse = currentIdx >= 0 ? courses[currentIdx] : null;
+  return /*#__PURE__*/React.createElement("div", {
+    "data-academy-card": true,
+    onClick: onOpen,
+    role: "button",
+    tabIndex: 0,
+    onKeyDown: e => {
+      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusCard,
+      background: T.card,
+      overflow: 'hidden',
+      cursor: 'pointer',
+      boxShadow: T.shadowSm,
+      display: 'flex',
+      flexDirection: 'column',
+      transition: 'border-color .14s, box-shadow .14s, transform .14s'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = T.borderStrong;
+      e.currentTarget.style.boxShadow = '0 10px 26px rgba(15,17,23,0.10)';
+      e.currentTarget.style.transform = 'translateY(-2px)';
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.border;
+      e.currentTarget.style.boxShadow = T.shadowSm;
+      e.currentTarget.style.transform = 'none';
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '15px 18px',
+      borderBottom: `1px solid ${T.borderSoft}`,
+      background: T.primarySofter
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "graduation",
+    tone: "accent",
+    size: 40,
+    gradient: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: T.text,
+      letterSpacing: -0.2,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, path.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      marginTop: 2,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "users",
+    size: 12,
+    color: T.mutedSoft
+  }), path.forRole)), complete ? /*#__PURE__*/React.createElement(Pill, {
+    color: "green",
+    style: {
+      fontSize: 9.5
+    }
+  }, "Complete") : started ? /*#__PURE__*/React.createElement(Pill, {
+    color: "accent",
+    style: {
+      fontSize: 9.5
+    }
+  }, pct, "%") : null), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 18px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12,
+      lineHeight: 1.5,
+      display: '-webkit-box',
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: 'vertical',
+      overflow: 'hidden'
+    }
+  }, path.blurb), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 7
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: T.textSoft
+    }
+  }, "Course path"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      color: T.muted
+    }
+  }, doneCourses, " of ", courses.length, " done")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 4
+    }
+  }, courses.map((c, i) => {
+    const cDone = isCourseComplete(c);
+    const cCur = i === currentIdx;
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      title: c.title,
+      style: {
+        flex: 1,
+        height: 6,
+        borderRadius: 999,
+        background: cDone ? T.green : cCur ? T.primary : T.border
+      }
+    });
+  }))), complete ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      fontSize: 12,
+      fontWeight: 600,
+      color: T.greenDark
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 15,
+    color: T.green
+  }), "All ", courses.length, " courses complete") : nextCourse ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '9px 11px',
+      borderRadius: 10,
+      background: T.fieldBg,
+      border: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      color: catColor(nextCourse),
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: academyCatById(nextCourse.category).icon,
+    size: 15,
+    color: catColor(nextCourse)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9.5,
+      color: T.muted,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, started ? 'Up next' : 'Start with'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, nextCourse.title)), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      color: T.muted,
+      flexShrink: 0
+    }
+  }, nextCourse.lessons.length, " lessons")) : null), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '13px 18px',
+      borderTop: `1px solid ${T.borderSoft}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      background: T.surface
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: complete ? 'soft' : 'primary',
+    size: "sm",
+    icon: complete ? 'checkCircle' : 'play'
+  }, complete ? 'Review path' : started ? 'Continue' : 'Start path'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "bookOpen",
+    size: 12,
+    color: T.mutedSoft
+  }), courses.length, " courses"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clock",
+    size: 12,
+    color: T.mutedSoft
+  }), totalMins, " min"))));
+};
+const LessonRow = ({
+  lesson,
+  index,
+  active,
+  complete,
+  onClick
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  "data-hover": "row",
+  style: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '9px 10px',
+    border: 'none',
+    textAlign: 'left',
+    borderRadius: 8,
+    background: active ? T.primarySoft : 'transparent',
+    cursor: 'pointer'
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    width: 22,
+    height: 22,
+    borderRadius: '50%',
+    flexShrink: 0,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: complete ? T.green : active ? T.primary : T.fieldBg,
+    color: complete || active ? '#fff' : T.muted,
+    border: complete || active ? 'none' : `1px solid ${T.border}`,
+    fontSize: 11,
+    fontWeight: 700
+  }
+}, complete ? /*#__PURE__*/React.createElement(Icon, {
+  name: "check",
+  size: 12,
+  color: "#fff"
+}) : active ? /*#__PURE__*/React.createElement(Icon, {
+  name: "play",
+  size: 11,
+  color: "#fff"
+}) : index + 1), /*#__PURE__*/React.createElement("span", {
+  style: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12.5,
+    fontWeight: active ? 600 : 500,
+    color: active ? T.primary : T.text,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  }
+}, lesson.title), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 11,
+    color: T.muted,
+    flexShrink: 0
+  }
+}, lesson.mins, "m"));
+const CertificateModal = ({
+  course,
+  open,
+  onClose,
+  fireToast
+}) => {
+  if (!course) return null;
+  const color = catColor(course);
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: open,
+    onClose: onClose,
+    title: "Course completed",
+    subtitle: "Nice work \u2014 you've finished every lesson.",
+    width: 540
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: 14,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 0.34)} 100%)`,
+      padding: '28px 24px',
+      textAlign: 'center',
+      color: '#fff',
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'absolute',
+      inset: 0,
+      backgroundImage: 'radial-gradient(rgba(255,255,255,0.14) 1px, transparent 1px)',
+      backgroundSize: '16px 16px'
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: 'relative'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 56,
+      height: 56,
+      borderRadius: '50%',
+      background: 'rgba(255,255,255,0.95)',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "award",
+    size: 28,
+    color: color
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      letterSpacing: 2,
+      textTransform: 'uppercase',
+      opacity: 0.85,
+      fontWeight: 700
+    }
+  }, "Certificate of completion"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      fontWeight: 800,
+      marginTop: 6,
+      letterSpacing: -0.3
+    }
+  }, course.title))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '20px 24px',
+      textAlign: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12
+    }
+  }, "Awarded to"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: T.text,
+      marginTop: 2
+    }
+  }, ACADEMY_LEARNER), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      gap: 22,
+      marginTop: 14,
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: T.text
+    }
+  }, course.lessons.length), "lessons"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: T.text
+    }
+  }, courseMins(course), " min"), "watched"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: T.text
+    }
+  }, fmtDate(new Date())), "completed")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'center',
+      gap: 8,
+      marginTop: 18,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "download",
+    onClick: () => fireToast('Certificate downloaded (demo)')
+  }, "Download"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "share",
+    onClick: () => fireToast('Share link copied (demo)')
+  }, "Share"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Close")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      fontSize: 11,
+      color: T.mutedSoft,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 700,
+      color: T.text
+    }
+  }, "S", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.primary
+    }
+  }, "\u2022"), "le"), " Academy"))));
+};
+
+// --- Sole Academy catalog views ---
+const AcademyHome = ({
+  openCourse,
+  openPath,
+  goView
+}) => {
+  const {
+    isTablet
+  } = useViewport();
+  const stats = academyStats();
+  const resume = nextUpCourse();
+  const resumePct = resume ? courseProgressPct(resume) : 0;
+  const resumeStarted = resume ? courseDoneCount(resume) > 0 : false;
+  const recommendedPath = LEARNING_PATHS[0];
+  const popular = ACADEMY_POPULAR.map(courseById).filter(Boolean);
+  const color = resume ? catColor(resume) : T.primary;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 22
+    }
+  }, resume && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : 'minmax(0,1.35fr) minmax(0,1fr)',
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusLg,
+      overflow: 'hidden',
+      background: T.card,
+      boxShadow: T.shadowSm
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: isTablet ? '24px 24px 8px' : '28px 30px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: 11
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: T.primary
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 6,
+      height: 6,
+      borderRadius: 999,
+      background: T.primary
+    }
+  }), resumeStarted ? 'Continue learning' : 'Start here'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 23,
+      fontWeight: 800,
+      letterSpacing: -0.5,
+      lineHeight: 1.12
+    }
+  }, resume.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.55,
+      maxWidth: 460
+    }
+  }, resume.summary), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      fontSize: 11.5,
+      color: T.muted,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "bookOpen",
+    size: 13,
+    color: T.mutedSoft
+  }), resume.lessons.length, " lessons"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clock",
+    size: 13,
+    color: T.mutedSoft
+  }), courseMins(resume), " min"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: academyCatById(resume.category).icon,
+    size: 13,
+    color: T.mutedSoft
+  }), academyCatById(resume.category).label)), resumeStarted && /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 320
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: 10.5,
+      color: T.muted,
+      marginBottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", null, courseDoneCount(resume), " of ", resume.lessons.length, " done"), /*#__PURE__*/React.createElement("span", null, resumePct, "%")), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: resumePct,
+    color: color,
+    height: 6
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 4
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "lg",
+    icon: "play",
+    onClick: () => openCourse(resume)
+  }, resumeStarted ? 'Resume course' : 'Start course'))), /*#__PURE__*/React.createElement("div", {
+    "data-academy-card": true,
+    onClick: () => openCourse(resume),
+    style: {
+      cursor: 'pointer',
+      padding: isTablet ? '0 24px 24px' : 20,
+      display: 'flex',
+      alignItems: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(AcademyThumb, {
+    course: resume,
+    playSize: 64,
+    watermark: 156
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "bookOpen",
+    tone: "accent",
+    label: "Lessons watched",
+    value: `${stats.lessonsDone}/${stats.totalLessons}`
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "graduation",
+    tone: "blue",
+    label: "Courses done",
+    value: `${stats.coursesDone}/${ACADEMY_COURSES.length}`
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "clock",
+    tone: "amber",
+    label: "Minutes learned",
+    value: stats.minutes
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "award",
+    tone: "green",
+    label: "Certificates",
+    value: stats.certificates
+  })), recommendedPath && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Guided learning paths"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => goView('paths'),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.primary,
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: 'pointer'
+    }
+  }, "All paths \u2192")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr',
+      gap: 14,
+      alignItems: 'start'
+    }
+  }, LEARNING_PATHS.slice(0, 2).map(p => /*#__PURE__*/React.createElement(LearningPathCard, {
+    key: p.id,
+    path: p,
+    onOpen: () => openPath(p)
+  })))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Popular courses"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => goView('courses'),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.primary,
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: 'pointer'
+    }
+  }, "Browse all \u2192")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))',
+      gap: 14
+    }
+  }, popular.map(c => /*#__PURE__*/React.createElement(CourseCard, {
+    key: c.id,
+    course: c,
+    onOpen: () => openCourse(c)
+  })))));
+};
+const AcademyCourses = ({
+  search,
+  setSearch,
+  cat,
+  setCat,
+  openCourse
+}) => {
+  const q = search.trim().toLowerCase();
+  const bySearch = c => !q || (c.title + ' ' + c.summary + ' ' + academyCatById(c.category).label + ' ' + c.lessons.map(l => l.title).join(' ')).toLowerCase().includes(q);
+  const byCat = c => cat === 'all' || c.category === cat;
+  const filtered = ACADEMY_COURSES.filter(byCat).filter(bySearch);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 240,
+      maxWidth: 320,
+      flex: '0 1 320px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '7px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "search",
+    size: 14,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("input", {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search courses\u2026",
+    style: {
+      flex: 1,
+      minWidth: 0,
+      border: 'none',
+      background: 'transparent',
+      outline: 'none',
+      fontSize: 13
+    }
+  }), search && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSearch(''),
+    "aria-label": "Clear",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      padding: 2,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 12
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: cat === 'all',
+    onClick: () => setCat('all')
+  }, `All · ${ACADEMY_COURSES.length}`), ACADEMY_CATEGORIES.map(c => {
+    const n = ACADEMY_COURSES.filter(x => x.category === c.id).length;
+    return n ? /*#__PURE__*/React.createElement(Chip, {
+      key: c.id,
+      size: "sm",
+      selected: cat === c.id,
+      onClick: () => setCat(c.id)
+    }, `${c.label} · ${n}`) : null;
+  })), filtered.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "search",
+    title: "No courses match",
+    hint: "Try a different category or clear your search."
+  })) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+      gap: 14
+    }
+  }, filtered.map(c => /*#__PURE__*/React.createElement(CourseCard, {
+    key: c.id,
+    course: c,
+    onOpen: () => openCourse(c)
+  }))));
+};
+const AcademyPaths = ({
+  openPath
+}) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Banner, {
+  tone: "accent",
+  icon: "graduation",
+  title: "Guided learning paths",
+  style: {
+    marginBottom: 16
+  }
+}, "Curated sequences of courses by role. Start with \"Getting started (new team member)\" in your first week, then branch into your specialty."), /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: 14
+  }
+}, LEARNING_PATHS.map(p => /*#__PURE__*/React.createElement(LearningPathCard, {
+  key: p.id,
+  path: p,
+  onOpen: () => openPath(p)
+}))));
+const AcademyProgress = ({
+  openCourse,
+  openPath
+}) => {
+  const stats = academyStats();
+  const certs = certifiedCourses();
+  const inProgress = ACADEMY_COURSES.filter(c => courseDoneCount(c) > 0 && !isCourseComplete(c));
+  const nothing = inProgress.length === 0 && certs.length === 0;
+  const suggested = ACADEMY_POPULAR.map(courseById).filter(Boolean);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(StatCard, {
+    icon: "bookOpen",
+    tone: "accent",
+    label: "Lessons watched",
+    value: `${stats.lessonsDone}/${stats.totalLessons}`
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "graduation",
+    tone: "blue",
+    label: "Courses completed",
+    value: `${stats.coursesDone}/${ACADEMY_COURSES.length}`
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "clock",
+    tone: "amber",
+    label: "Minutes learned",
+    value: stats.minutes
+  }), /*#__PURE__*/React.createElement(StatCard, {
+    icon: "award",
+    tone: "green",
+    label: "Certificates",
+    value: stats.certificates
+  })), nothing ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflow: 'hidden',
+      borderRadius: T.radiusLg,
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      boxShadow: T.shadowSm
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 16,
+      padding: '20px 24px',
+      background: T.primarySofter,
+      borderBottom: `1px solid ${T.borderSoft}`,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "rocket",
+    tone: "accent",
+    size: 44,
+    gradient: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 220
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 800,
+      letterSpacing: -0.2
+    }
+  }, "Start your learning journey"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 12.5,
+      marginTop: 2,
+      maxWidth: 520
+    }
+  }, "Nothing here yet. Follow the recommended path or jump into a popular course \u2014 your progress and certificates will collect here as you go.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "graduation",
+    onClick: () => openPath(LEARNING_PATHS[0])
+  }, "Start recommended path")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 18px'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 12
+    }
+  }, "Popular to start with"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(240px,1fr))',
+      gap: 14
+    }
+  }, suggested.map(c => /*#__PURE__*/React.createElement(CourseCard, {
+    key: c.id,
+    course: c,
+    onOpen: () => openCourse(c)
+  }))))) : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 10
+    }
+  }, "Continue learning"), inProgress.length === 0 ? /*#__PURE__*/React.createElement(Banner, {
+    tone: "info",
+    icon: "bookOpen",
+    title: "Nothing in progress",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      onClick: () => {
+        window.location.hash = '#/practice/academy-courses';
+      }
+    }, "Browse courses")
+  }, "Start a course and it'll appear here so you can pick up where you left off.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    }
+  }, inProgress.map(c => {
+    const pct = courseProgressPct(c);
+    return /*#__PURE__*/React.createElement(Card, {
+      key: c.id,
+      hover: true,
+      onClick: () => openCourse(c),
+      style: {
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14
+      }
+    }, /*#__PURE__*/React.createElement(IconChip, {
+      icon: academyCatById(c.category).icon,
+      tone: "accent",
+      size: 40,
+      gradient: true
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 10,
+        alignItems: 'baseline'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 600
+      }
+    }, c.title), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.muted,
+        flexShrink: 0
+      }
+    }, courseDoneCount(c), " of ", c.lessons.length, " \xB7 ", pct, "%")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: 9
+      }
+    }, /*#__PURE__*/React.createElement(ProgressBar, {
+      pct: pct,
+      color: catColor(c),
+      height: 6
+    }))), /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      iconRight: "arrow"
+    }, "Resume"));
+  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 10
+    }
+  }, "Certificates ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 500,
+      color: T.muted
+    }
+  }, "\xB7 ", certs.length)), certs.length === 0 ? /*#__PURE__*/React.createElement(Banner, {
+    tone: "accent",
+    icon: "award",
+    title: "No certificates yet"
+  }, "Finish every lesson in a course to earn your first certificate.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))',
+      gap: 12
+    }
+  }, certs.map(c => {
+    const color = catColor(c);
+    return /*#__PURE__*/React.createElement(Card, {
+      key: c.id,
+      hover: true,
+      onClick: () => openCourse(c),
+      style: {
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 42,
+        height: 42,
+        borderRadius: 10,
+        background: `linear-gradient(135deg, ${color}, ${darkenHex(color, 0.4)})`,
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "award",
+      size: 20,
+      color: "#fff"
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0,
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: 700,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, c.title), /*#__PURE__*/React.createElement(Helper, {
+      style: {
+        fontSize: 11
+      }
+    }, ACADEMY_LEARNER)), /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronRight",
+      size: 16,
+      color: T.muted
+    }));
+  })))));
+};
+
+// Full course view — video-first player + lesson playlist + progress + cert.
+const CoursePlayerPage = ({
+  courseId,
+  fireToast
+}) => {
+  const course = courseById(courseId);
+  const {
+    isTablet
+  } = useViewport();
+  const [, tick] = useState(0);
+  const refresh = () => tick(t => t + 1);
+  const [activeId, setActiveId] = useState(() => course ? resumeLesson(course) : null);
+  const [playing, setPlaying] = useState(false);
+  const [tab, setTab] = useState('overview');
+  const [certFor, setCertFor] = useState(null);
+  useEffect(() => {
+    if (course && activeId) setLastLesson(course.id, activeId);
+    setPlaying(false);
+    setTab('overview');
+  }, [activeId]);
+  if (!course) {
+    return /*#__PURE__*/React.createElement("main", {
+      style: {
+        flex: 1,
+        minWidth: 0,
+        padding: '24px 28px 60px'
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "chevronLeft",
+      onClick: () => {
+        window.location.hash = '#/practice/academy-courses';
+      }
+    }, "Back to courses"), /*#__PURE__*/React.createElement(Card, {
+      style: {
+        marginTop: 16
+      }
+    }, /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "search",
+      title: "Course not found",
+      hint: "This training course may have moved.",
+      action: /*#__PURE__*/React.createElement(Btn, {
+        variant: "primary",
+        size: "sm",
+        icon: "bookOpen",
+        onClick: () => {
+          window.location.hash = '#/practice/academy-courses';
+        }
+      }, "Browse courses")
+    })));
+  }
+  const lessons = course.lessons;
+  const idx = Math.max(0, lessons.findIndex(l => l.id === activeId));
+  const lesson = lessons[idx];
+  const color = catColor(course);
+  const pct = courseProgressPct(course);
+  const done = courseDoneCount(course);
+  const complete = isLessonComplete(lesson.id);
+  const isLast = idx === lessons.length - 1;
+  const completeAndNext = () => {
+    const wasComplete = isCourseComplete(course);
+    markLessonComplete(lesson.id);
+    if (!isLast) setActiveId(lessons[idx + 1].id);else refresh();
+    if (!wasComplete && isCourseComplete(course)) {
+      setCertFor(course);
+      fireToast('🎓 Course complete — certificate earned!');
+    } else fireToast('Lesson marked complete');
+  };
+  const toggleComplete = () => {
+    setLessonComplete(lesson.id, !complete);
+    refresh();
+  };
+  const nextLesson = !isLast ? lessons[idx + 1] : null;
+  const inPaths = pathsForCourse(course.id);
+  const aboutRows = [['bookOpen', 'Lessons', `${lessons.length}`], ['clock', 'Duration', `${courseMins(course)} min`], [academyCatById(course.category).icon, 'Category', academyCatById(course.category).label], ['gauge', 'Level', course.level]];
+  const playlist = /*#__PURE__*/React.createElement(Card, {
+    padded: false,
+    style: {
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '14px 16px',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "Course content"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted
+    }
+  }, done, "/", lessons.length, " \xB7 ", pct, "%")), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: pct,
+    color: pct === 100 ? T.green : color,
+    height: 6
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 6,
+      maxHeight: isTablet ? 'none' : 520,
+      overflowY: 'auto'
+    }
+  }, lessons.map((l, i) => /*#__PURE__*/React.createElement(LessonRow, {
+    key: l.id,
+    lesson: l,
+    index: i,
+    active: l.id === lesson.id,
+    complete: isLessonComplete(l.id),
+    onClick: () => setActiveId(l.id)
+  }))));
+  const aboutCard = /*#__PURE__*/React.createElement(Card, {
+    padded: false,
+    style: {
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '13px 16px',
+      borderBottom: `1px solid ${T.borderSoft}`,
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "About this course"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '12px 16px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 11
+    }
+  }, aboutRows.map(([ic, label, val], i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      fontSize: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 7,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: ic,
+    size: 13,
+    color: T.mutedSoft
+  }), label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 600,
+      color: T.text
+    }
+  }, val))), inPaths.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `1px solid ${T.borderSoft}`,
+      paddingTop: 11,
+      marginTop: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 7
+    }
+  }, "Part of these paths"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: 6
+    }
+  }, inPaths.map(p => /*#__PURE__*/React.createElement("button", {
+    key: p.id,
+    onClick: () => {
+      window.location.hash = '#/practice/academy-paths';
+    },
+    style: {
+      border: `1px solid ${T.border}`,
+      background: T.card,
+      borderRadius: 999,
+      padding: '4px 10px',
+      fontSize: 10.5,
+      fontWeight: 600,
+      color: T.textSoft,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "graduation",
+    size: 11,
+    color: T.primary
+  }), p.title))))));
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "chevronLeft",
+    onClick: () => {
+      window.location.hash = '#/practice/academy-courses';
+    }
+  }, "Back to courses"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 12,
+      marginBottom: 16
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      fontSize: 11,
+      fontWeight: 600,
+      color
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: academyCatById(course.category).icon,
+    size: 13,
+    color: color
+  }), academyCatById(course.category).label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 3,
+      height: 3,
+      borderRadius: 999,
+      background: T.mutedSoft
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted
+    }
+  }, course.level), isCourseComplete(course) && /*#__PURE__*/React.createElement(Pill, {
+    color: "green",
+    style: {
+      fontSize: 9.5,
+      marginLeft: 2
+    }
+  }, "Completed")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 23,
+      fontWeight: 800,
+      letterSpacing: -0.4,
+      marginTop: 7
+    }
+  }, course.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 3,
+      fontSize: 13,
+      maxWidth: 640
+    }
+  }, course.summary)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : 'minmax(0,1fr) 340px',
+      gap: 22,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(VideoStage, {
+    lesson: lesson,
+    color: color,
+    catIcon: academyCatById(course.category).icon,
+    playing: playing,
+    onPlay: () => setPlaying(true)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+      marginTop: 16,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.muted,
+      fontWeight: 600
+    }
+  }, "Lesson ", idx + 1, " of ", lessons.length, " \xB7 ", lesson.mins, " min"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      fontWeight: 700,
+      marginTop: 2,
+      letterSpacing: -0.2
+    }
+  }, lesson.title)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      flexWrap: 'wrap'
+    }
+  }, complete ? /*#__PURE__*/React.createElement(Btn, {
+    key: "lesson-done",
+    variant: "soft",
+    size: "sm",
+    icon: "check",
+    onClick: toggleComplete
+  }, "Completed") : /*#__PURE__*/React.createElement(Btn, {
+    key: "lesson-todo",
+    variant: "primary",
+    size: "sm",
+    icon: "check",
+    iconRight: !isLast ? 'arrow' : undefined,
+    onClick: completeAndNext
+  }, isLast ? 'Mark complete' : 'Complete & next'), !isLast && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    iconRight: "arrow",
+    onClick: () => setActiveId(nextLesson.id)
+  }, "Next"))), /*#__PURE__*/React.createElement(Tabs, {
+    tabs: [{
+      id: 'overview',
+      label: 'Overview'
+    }, {
+      id: 'transcript',
+      label: 'Transcript'
+    }, {
+      id: 'resources',
+      label: 'Resources',
+      count: (lesson.resources || []).length || undefined
+    }],
+    value: tab,
+    onChange: setTab,
+    style: {
+      marginTop: 16
+    }
+  }), tab === 'overview' && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      color: T.textSoft,
+      lineHeight: 1.65
+    }
+  }, lesson.description), lesson.takeaways && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "What you'll learn"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 9,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 9
+    }
+  }, lesson.takeaways.map((t, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      gap: 9,
+      fontSize: 12.5,
+      color: T.textSoft,
+      lineHeight: 1.4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 16,
+    color: T.green
+  }), /*#__PURE__*/React.createElement("span", null, t))))), nextLesson && /*#__PURE__*/React.createElement("div", {
+    onClick: () => setActiveId(nextLesson.id),
+    "data-hover": "row",
+    style: {
+      marginTop: 18,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '11px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      background: T.primarySoft,
+      color: T.primary,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "play",
+    size: 15,
+    color: T.primary
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: T.muted,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, "Up next"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, nextLesson.title)), /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 15,
+    color: T.muted
+  }))), tab === 'transcript' && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.muted,
+      lineHeight: 1.7,
+      whiteSpace: 'pre-wrap'
+    }
+  }, lesson.transcript || 'A full transcript will be available when the lesson video is published.')), tab === 'resources' && /*#__PURE__*/React.createElement(Card, null, (lesson.resources || []).length ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, lesson.resources.map((r, i) => /*#__PURE__*/React.createElement("a", {
+    key: i,
+    href: r.href || '#',
+    onClick: e => {
+      if (!r.href || r.href === '#') {
+        e.preventDefault();
+        fireToast('Opening resource (demo)');
+      }
+    },
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      textDecoration: 'none',
+      color: T.text,
+      fontSize: 12.5,
+      fontWeight: 500
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "fileText",
+    size: 15,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }, r.label), /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 13,
+    color: T.muted
+  })))) : /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "paperclip",
+    title: "No resources for this lesson",
+    hint: "Downloadable templates and checklists will appear here."
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    }
+  }, playlist, isCourseComplete(course) && /*#__PURE__*/React.createElement(Card, {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      background: withAlpha(T.green, 0.07),
+      borderColor: withAlpha(T.green, 0.35)
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      background: T.green,
+      color: '#fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "award",
+    size: 19,
+    color: "#fff"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700
+    }
+  }, "Course complete"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      fontSize: 11
+    }
+  }, "Your certificate is ready.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    onClick: () => setCertFor(course)
+  }, "View")), aboutCard)), /*#__PURE__*/React.createElement(CertificateModal, {
+    course: certFor,
+    open: !!certFor,
+    onClose: () => setCertFor(null),
+    fireToast: fireToast
+  }));
+};
+
+// The Academy catalog page — Home / Courses / Learning paths / My progress.
+const AcademyPage = ({
+  view = 'home',
+  fireToast
+}) => {
+  const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('all');
+  useEffect(() => {
+    setSearch('');
+    setCat('all');
+  }, [view]);
+  const goView = v => {
+    window.location.hash = '#/practice/' + (v === 'home' ? 'academy' : v === 'courses' ? 'academy-courses' : v === 'paths' ? 'academy-paths' : 'academy-progress');
+  };
+  const openCourse = c => {
+    window.location.hash = '#/practice/course/' + c.id;
+  };
+  const openPath = p => {
+    const courses = p.courseIds.map(courseById).filter(Boolean);
+    const next = courses.find(c => !isCourseComplete(c)) || courses[0];
+    if (next) openCourse(next);
+  };
+  const tabs = [{
+    id: 'home',
+    label: 'Home',
+    icon: 'rocket'
+  }, {
+    id: 'courses',
+    label: 'Courses',
+    icon: 'bookOpen',
+    count: ACADEMY_COURSES.length
+  }, {
+    id: 'paths',
+    label: 'Learning paths',
+    icon: 'graduation',
+    count: LEARNING_PATHS.length
+  }, {
+    id: 'progress',
+    label: 'My progress',
+    icon: 'checkCircle'
+  }];
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      letterSpacing: -0.3,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "graduation",
+    size: 22,
+    color: T.primary
+  }), "Sole Academy"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Learn Sole Practice Manager at your own pace \u2014 short videos for every module, plus guided paths to get your whole team up to speed."))), /*#__PURE__*/React.createElement(Tabs, {
+    tabs: tabs,
+    value: view,
+    onChange: goView,
+    style: {
+      marginTop: 16
+    }
+  }), view === 'home' && /*#__PURE__*/React.createElement(AcademyHome, {
+    openCourse: openCourse,
+    openPath: openPath,
+    goView: goView
+  }), view === 'courses' && /*#__PURE__*/React.createElement(AcademyCourses, {
+    search: search,
+    setSearch: setSearch,
+    cat: cat,
+    setCat: setCat,
+    openCourse: openCourse
+  }), view === 'paths' && /*#__PURE__*/React.createElement(AcademyPaths, {
+    openPath: openPath
+  }), view === 'progress' && /*#__PURE__*/React.createElement(AcademyProgress, {
+    openCourse: openCourse,
+    openPath: openPath
+  }));
+};
 const PracticeApp = () => {
   const [route, setRoute] = useState(() => parsePracticeHash(window.location.hash));
   const [toast, setToast] = useState(null);
@@ -109853,7 +112590,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' || route.section === 'prompts-mine' || route.section === 'prompts-favs' ? 'prompts' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' || route.section === 'prompts-mine' || route.section === 'prompts-favs' ? 'prompts' : route.section === 'academy-courses' || route.section === 'academy-paths' || route.section === 'academy-progress' || route.section === 'course' ? 'academy' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -109962,6 +112699,32 @@ const PracticeApp = () => {
         return /*#__PURE__*/React.createElement(PromptLibraryPage, {
           view: "team",
           openId: route.id,
+          fireToast: fireToast
+        });
+      case 'academy':
+        return /*#__PURE__*/React.createElement(AcademyPage, {
+          view: "home",
+          fireToast: fireToast
+        });
+      case 'academy-courses':
+        return /*#__PURE__*/React.createElement(AcademyPage, {
+          view: "courses",
+          fireToast: fireToast
+        });
+      case 'academy-paths':
+        return /*#__PURE__*/React.createElement(AcademyPage, {
+          view: "paths",
+          fireToast: fireToast
+        });
+      case 'academy-progress':
+        return /*#__PURE__*/React.createElement(AcademyPage, {
+          view: "progress",
+          fireToast: fireToast
+        });
+      case 'course':
+        return /*#__PURE__*/React.createElement(CoursePlayerPage, {
+          key: route.id,
+          courseId: route.id,
           fireToast: fireToast
         });
       case 'spm-forecast':
