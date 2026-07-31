@@ -18,6 +18,11 @@
 <script src="resources/data.js"></script>
 <script src="resources/export.js"></script>
 <script src="resources/bundled.js"></script>
+<!-- Shared archive + logo gallery + Brandfetch. Loads BEFORE the app; degrades to
+     LOCAL (this-browser) mode until studio-config.js is filled in. See docs/STUDIO_BACKEND_SETUP.md. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="resources/studio-config.js"></script>
+<script src="resources/studio-cloud.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { margin: 0; padding: 0; height: 100%; }
@@ -67,6 +72,32 @@ const readImageAsDataURL = (file, onLoad) => {
   reader.onload = () => onLoad(reader.result);
   reader.readAsDataURL(file);
 };
+
+// Downscale + re-encode a logo data-URI so stored/exported logos stay small.
+// Caps the longest edge (keeps aspect), re-encodes to PNG (preserves transparency);
+// SVGs and already-tiny images are passed through untouched. Data-URI source ⇒ no taint.
+const compressImage = (src, max = 512) => new Promise((resolve) => {
+  if (!src || /^data:image\/svg/i.test(src)) return resolve(src);
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      if (!w || !h) return resolve(src);
+      const scale = Math.min(1, max / Math.max(w, h));
+      const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+      const out = cv.toDataURL('image/png');
+      resolve(out && out.length < src.length ? out : src); // keep whichever is smaller
+    } catch (_) { resolve(src); }
+  };
+  img.onerror = () => resolve(src);
+  img.src = src;
+});
+const dataUriBytes = (u) => { const i = String(u || '').indexOf(','); return i < 0 ? 0 : Math.round((u.length - i - 1) * 0.75); };
+const fmtBytes = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n > 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+const dateStamp = () => { const d = new Date(); return '' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); };
+const fmtWhen = (iso) => { try { const d = new Date(iso); return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (_) { return ''; } };
 
 const normalizeUrl = (raw) => {
   let u = String(raw || '').trim();
@@ -157,6 +188,9 @@ const proxiedPalette = async (url) => {
 };
 const slug = (s) => String(s || 'brand').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'brand';
 const escJson = (obj) => JSON.stringify(obj).replace(/<\//g, '<\\/');
+// Per-page-load cache-buster for the bundled preview/export so edits to the toolkit
+// files show up immediately instead of a stale browser-cached copy.
+const CACHE_BUST = '?v=' + Date.now();
 
 /* ============================================================================
    MULTI-FORMAT UPLOAD REBRANDING  (all client-side — no server, works offline)
@@ -548,6 +582,30 @@ function Studio() {
   const [resQuery, setResQuery] = useState('');
   const previewRef = useRef(null);
   const uploadFrameRef = useRef(null);
+  const toastTimer = useRef(null);
+
+  // ---- cloud: shared archive + logo gallery + Brandfetch (studio-cloud.js) ----
+  const CLOUD = window.SoleStudioCloud || null;
+  const cloudOn = !!(CLOUD && CLOUD.isCloud());
+  const needsAuth = !!(CLOUD && CLOUD.needsAuth && CLOUD.needsAuth());
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(!needsAuth);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authSent, setAuthSent] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [view, setView] = useState('home');              // 'home' (Designs) | 'assets' (Asset library) | 'editor'
+  const [archive, setArchive] = useState([]);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [currentArchiveId, setCurrentArchiveId] = useState(null);
+  const [assets, setAssets] = useState([]);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [bfQuery, setBfQuery] = useState('');
+  const [bfResults, setBfResults] = useState(null);      // null = idle, [] = searched-no-hits
+  const [bfBusy, setBfBusy] = useState(false);
+  const [designFilter, setDesignFilter] = useState('all');  // 'all' | 'mine' (Designs home)
+  const [designQuery, setDesignQuery] = useState('');
+  const [assetFilter, setAssetFilter] = useState('all');    // 'all' | 'mine' (Asset library)
+  const [assetQuery, setAssetQuery] = useState('');
 
   // Default to the 4 shared bundled toolkits. The 45 built-in archetype resources
   // are intentionally hidden from the Studio (kept safely in data.js / resource-*.html);
@@ -558,6 +616,8 @@ function Studio() {
   const [bundlePickerOpen, setBundlePickerOpen] = useState(false);
   const [bundleQuery, setBundleQuery] = useState('');
   const bundleMeta = BUNDLES.find((b) => b.id === selectedBundle) || null;
+  const [bundleVersion, setBundleVersion] = useState('standard');  // 'standard' (new, unified/cohesive) | 'classic' (original, untouched)
+  const bundleFile = bundleMeta ? ((bundleVersion === 'standard' && bundleMeta.fileStandard) ? bundleMeta.fileStandard : bundleMeta.file) : null;
   const filteredBundles = BUNDLES.filter((b) => (b.title + ' ' + (b.eyebrow || '') + ' ' + (b.audience || '')).toLowerCase().includes(bundleQuery.trim().toLowerCase()));
   const [upload, setUpload] = useState(null);                    // {name, type, buffer, text}
   const [uploadPreview, setUploadPreview] = useState(null);      // {srcdoc?|src?}
@@ -576,7 +636,12 @@ function Studio() {
   const setField = (k, v) => setBrand((b) => ({ ...b, fields: { ...(b.fields || {}), [k]: v } })); // per-toolkit content field
 
   useEffect(() => { persistLast(brand); }, [brand]);
-  const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
+  // One shared toast slot + timer — always clear the previous timer so a stale
+  // dismissal can't wipe a newer toast (e.g. an Undo) before its own window ends.
+  const showToast = (val, ms) => { if (toastTimer.current) clearTimeout(toastTimer.current); setToast(val); toastTimer.current = setTimeout(() => setToast(null), ms); };
+  const flash = (m) => showToast(m, 2600);
+  // Undo-style toast for destructive actions (deletes) — stays longer, shows an action.
+  const flashUndo = (m, onUndo) => showToast({ msg: m, action: { label: 'Undo', onClick: onUndo } }, 6000);
 
   // push brand to the live preview
   const pushBrand = () => {
@@ -591,6 +656,18 @@ function Studio() {
   });
   // load the chosen font into the Studio itself so the Font preview renders truthfully
   useEffect(() => { try { SB.ensureFontLink(brand.font, document); } catch (e) {} }, [brand.font]);
+
+  // resolve login (magic-link) then load the shared archive + logo gallery
+  useEffect(() => {
+    if (!CLOUD) return;
+    let sub = null;
+    CLOUD.getUser().then((u) => { setUser(u); setAuthReady(!needsAuth || !!u); });
+    if (CLOUD.onAuth) sub = CLOUD.onAuth((u) => { setUser(u); setAuthReady(!needsAuth || !!u); });
+    return () => { if (sub && sub.unsubscribe) sub.unsubscribe(); };
+  }, []);
+  const refreshArchive = () => { if (CLOUD) CLOUD.listBrands().then((r) => setArchive(r || [])).catch(() => {}); };
+  const refreshAssets = () => { if (CLOUD) CLOUD.listAssets().then((r) => setAssets(r || [])).catch(() => {}); };
+  useEffect(() => { if (authReady) { refreshArchive(); refreshAssets(); } }, [authReady, user]);
 
   /* ---- auto-fetch (layered; manual is always the reliable fallback) ---- */
   const doFetch = async () => {
@@ -654,11 +731,17 @@ function Studio() {
   };
 
   /* ---- logo upload / auto palette ---- */
-  const onLogoFile = (file) => readImageAsDataURL(file, async (dataUri) => {
+  const onLogoFile = (file) => readImageAsDataURL(file, async (raw) => {
+    const dataUri = await compressImage(raw);
+    const before = dataUriBytes(raw), after = dataUriBytes(dataUri);
     set({ logo: dataUri });
     setConfidence((c) => ({ ...c, logo: 'high' }));
     const pal = await paletteFromImage(dataUri);
-    if (pal && pal.primary) { setBrand((b) => ({ ...b, primaryColor: pal.primary, accentColor: pal.accent || b.accentColor })); setConfidence((c) => ({ ...c, primaryColor: 'high' })); flash('Colours picked from your logo'); }
+    if (pal && pal.primary) { setBrand((b) => ({ ...b, primaryColor: pal.primary, accentColor: pal.accent || b.accentColor })); setConfidence((c) => ({ ...c, primaryColor: 'high' })); }
+    if (CLOUD) { try { await CLOUD.saveAsset({ name: (file.name || 'logo').replace(/\.[^.]+$/, ''), dataUri, source: 'upload' }); refreshAssets(); } catch (_) {} }
+    flash(after && after < before
+      ? ('Logo added — optimised ' + fmtBytes(before) + ' → ' + fmtBytes(after))
+      : (pal && pal.primary ? 'Logo added — colours picked from it' : 'Logo added'));
   });
 
   /* ---- kits ---- */
@@ -669,7 +752,113 @@ function Studio() {
   };
   const loadKit = (name) => { if (kits[name]) { setBrand(SB.migrateBrand(kits[name])); setConfidence({}); setKitName(name); flash('Loaded “' + name + '”'); } };
   const deleteKit = (name) => { const k = { ...kits }; delete k[name]; setKits(k); persistKits(k); if (kitName === name) setKitName(''); };
-  const newKit = () => { setBrand(SB.migrateBrand(SB.SOLE_BRAND)); setConfidence({}); setKitName(''); setUrl(''); flash('Reset to Sole default'); };
+  const newKit = () => { setBrand(SB.migrateBrand(SB.SOLE_BRAND)); setConfidence({}); setKitName(''); setUrl(''); setCurrentArchiveId(null); flash('Reset to Sole default'); };
+
+  /* ---- auth (magic link) ---- */
+  const doSignIn = async () => {
+    const email = authEmail.trim(); if (!email) return;
+    setAuthBusy(true);
+    try { await CLOUD.signIn(email); setAuthSent(true); }
+    catch (e) { flash('Could not send link: ' + (e && e.message ? e.message : e)); }
+    setAuthBusy(false);
+  };
+
+  /* ---- archive (saved brandings) ---- */
+  const swatchOf = (b) => ({ primary: b.primaryColor, accent: b.accentColor });
+  const saveToArchive = async () => {
+    if (!CLOUD) return;
+    const name = (brand.orgName || 'Untitled brand').trim();
+    setArchiveBusy(true);
+    try {
+      if (currentArchiveId) {
+        await CLOUD.updateBrand(currentArchiveId, { name, config: { ...brand, _v: SB.VERSION }, swatch: swatchOf(brand) });
+        flash('Updated “' + name + '” in the archive');
+      } else {
+        const row = await CLOUD.saveBrand({ name, config: { ...brand, _v: SB.VERSION }, swatch: swatchOf(brand) });
+        if (row && row.id) setCurrentArchiveId(row.id);
+        flash('Saved “' + name + '” to the archive');
+      }
+      refreshArchive();
+    } catch (e) { flash('Could not save: ' + (e && e.message ? e.message : e)); }
+    setArchiveBusy(false);
+  };
+  const openArchived = (row) => {
+    setBrand(SB.migrateBrand(row.config || SB.SOLE_BRAND));
+    setConfidence({}); setCurrentArchiveId(row.id); setView('editor');
+    flash('Opened “' + (row.name || 'brand') + '” — edit and re-export');
+  };
+  const deleteArchived = async (row) => {
+    try {
+      await CLOUD.deleteBrand(row.id);
+      if (currentArchiveId === row.id) setCurrentArchiveId(null);
+      refreshArchive();
+      flashUndo('Deleted “' + (row.name || 'brand') + '”', async () => {
+        try { await CLOUD.saveBrand({ name: row.name, config: row.config, swatch: row.swatch, export_count: row.export_count, last_exported_at: row.last_exported_at }); refreshArchive(); } catch (_) {}
+      });
+    } catch (e) { flash('Could not delete: ' + (e && e.message ? e.message : e)); }
+  };
+  const renameArchived = async (row) => {
+    const name = window.prompt('Rename this saved brand', row.name || '');
+    if (name == null) return;
+    try { await CLOUD.updateBrand(row.id, { name: name.trim() || row.name }); refreshArchive(); } catch (e) { flash('Rename failed'); }
+  };
+  const duplicateArchived = async (row) => {
+    try { await CLOUD.saveBrand({ name: (row.name || 'brand') + ' copy', config: row.config, swatch: row.swatch }); refreshArchive(); flash('Duplicated'); }
+    catch (e) { flash('Duplicate failed'); }
+  };
+  const bumpExportCount = () => { if (CLOUD && currentArchiveId) CLOUD.bumpExport(currentArchiveId).then(refreshArchive).catch(() => {}); };
+
+  /* ---- logo gallery + Brandfetch ---- */
+  const useAssetLogo = async (asset) => {
+    try {
+      const dataUri = await CLOUD.assetDataUri(asset);
+      if (dataUri) { set({ logo: dataUri }); setConfidence((c) => ({ ...c, logo: 'high' })); flash('Logo applied'); }
+      else flash('Could not load that logo');
+    } catch (e) { flash('Could not load that logo'); }
+  };
+  const removeAsset = async (asset) => { try { await CLOUD.deleteAsset(asset.id); refreshAssets(); } catch (e) {} };
+  const renameAsset = async (asset) => { const name = window.prompt('Rename this logo', asset.name || ''); if (name == null) return; try { await CLOUD.updateAsset(asset.id, { name: name.trim() || asset.name }); refreshAssets(); } catch (e) {} };
+  const retagAsset = async (asset) => { const tags = window.prompt('Tags (comma-separated) — used for search & grouping', asset.tags || ''); if (tags == null) return; try { await CLOUD.updateAsset(asset.id, { tags: tags.trim() }); refreshAssets(); } catch (e) {} };
+  const uploadAssetToLibrary = (file) => readImageAsDataURL(file, async (raw) => {
+    const dataUri = await compressImage(raw);
+    try { await CLOUD.saveAsset({ name: (file.name || 'logo').replace(/\.[^.]+$/, ''), dataUri, source: 'upload' }); refreshAssets(); flash('Logo added to the library'); }
+    catch (e) { flash('Upload failed: ' + (e && e.message ? e.message : e)); }
+  });
+  const importAssetToLibrary = async (hit) => {
+    setBfBusy(true);
+    try { const res = await CLOUD.importLogo({ domain: hit.domain, src: hit.icon, name: hit.name }); if (res) { refreshAssets(); flash('Added ' + (hit.name || hit.domain) + ' to the library'); } setBfResults(null); setBfQuery(''); }
+    catch (e) { flash('Import failed: ' + (e && e.message ? e.message : e)); }
+    setBfBusy(false);
+  };
+  const startDesignWithLogo = async (asset) => {
+    let dataUri = null; try { dataUri = await CLOUD.assetDataUri(asset); } catch (_) {}
+    newKit(); if (dataUri) { set({ logo: dataUri }); setConfidence((c) => ({ ...c, logo: 'high' })); }
+    setView('editor'); flash('New design started with this logo');
+  };
+  const runBrandfetch = async () => {
+    const q = bfQuery.trim(); if (!q) return;
+    setBfBusy(true); setBfResults(null);
+    try { const r = await CLOUD.searchBrand(q); setBfResults(r || []); }
+    catch (e) { setBfResults([]); flash('Brandfetch search failed: ' + (e && e.message ? e.message : e)); }
+    setBfBusy(false);
+  };
+  const importBrandfetch = async (hit) => {
+    setBfBusy(true);
+    try {
+      const res = await CLOUD.importLogo({ domain: hit.domain, src: hit.icon, name: hit.name });
+      if (res && res.dataUri) {
+        setBrand((b) => ({ ...b, logo: res.dataUri, kind: 'partner', poweredBySole: true,
+          orgName: b.orgName && b.orgName !== 'Sole' ? b.orgName : (hit.name || titleFromHost(hit.domain)),
+          ctaUrl: (b.ctaUrl && b.ctaUrl !== SB.SOLE_BRAND.ctaUrl) ? b.ctaUrl : ('https://' + hit.domain) }));
+        setConfidence((c) => ({ ...c, logo: 'high' }));
+        const pal = await paletteFromImage(res.dataUri);
+        if (pal && pal.primary) { setBrand((b) => ({ ...b, primaryColor: pal.primary, accentColor: pal.accent || b.accentColor })); setConfidence((c) => ({ ...c, primaryColor: 'high' })); }
+        refreshAssets(); setBfResults(null); setBfQuery('');
+        flash('Logo imported from Brandfetch — review the colours');
+      } else { flash('No logo found for ' + hit.domain); }
+    } catch (e) { flash('Import failed: ' + (e && e.message ? e.message : e)); }
+    setBfBusy(false);
+  };
 
   /* ---- partner links ---- */
   const setLink = (i, key, val) => { const links = clone(brand.partnerLinks || []); links[i] = { ...links[i], [key]: val }; set({ partnerLinks: links }); };
@@ -775,8 +964,9 @@ function Studio() {
       const blob = new Blob([html], { type: 'text/html' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = slug(brand.orgName) + '-' + selected + '.html';
+      a.download = slug(brand.orgName || brand.productName) + '-' + selected + '-' + dateStamp() + '.html';
       document.body.appendChild(a); a.click(); a.remove();
+      bumpExportCount();
       const remoteLogo = brand.logo && !/^data:/.test(brand.logo);
       flash(remoteLogo ? 'Exported — note: the logo is a live URL (upload it for a fully-offline file)' : 'Exported a self-contained file ✓');
     } catch (e) {
@@ -790,7 +980,7 @@ function Studio() {
      These are standalone tools (not the archetype engine), so export just inlines
      the shared brand-adapter and bakes window.__BRAND__ — no shell/data/render inlining. */
   const buildBundledExport = async (bundle, cfg) => {
-    let html = await fetch(bundle.file).then((r) => r.text());
+    let html = await fetch((bundleFile || bundle.file) + CACHE_BUST).then((r) => r.text());
     const logo = await toDataUri(cfg.logo);
     const outCfg = { ...cfg, logo: logo };
     let adapter = '';
@@ -811,8 +1001,9 @@ function Studio() {
       const blob = new Blob([html], { type: 'text/html' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = slug(brand.orgName) + '-' + bundleMeta.id + '.html';
+      a.download = slug(brand.orgName || brand.productName) + '-' + bundleMeta.id + '-' + dateStamp() + '.html';
       document.body.appendChild(a); a.click(); a.remove();
+      bumpExportCount();
       const remoteLogo = brand.logo && !/^data:/.test(brand.logo);
       flash(remoteLogo ? 'Exported — note: the logo is a live URL (upload it for a fully-offline file)' : 'Exported a self-contained file ✓');
     } catch (e) { flash('Export failed: ' + (e && e.message ? e.message : e)); }
@@ -859,8 +1050,9 @@ function Studio() {
       const result = await rebrandFile(upload, brand, mapsForRun(), colorMaps);
       const a = document.createElement('a');
       a.href = URL.createObjectURL(result.blob);
-      a.download = slug(brand.orgName) + '-' + upload.name.replace(/\.[^.]+$/, '') + '.' + result.ext;
+      a.download = slug(brand.orgName || brand.productName) + '-' + upload.name.replace(/\.[^.]+$/, '') + '-' + dateStamp() + '.' + result.ext;
       document.body.appendChild(a); a.click(); a.remove();
+      bumpExportCount();
       flash('Exported ' + result.ext.toUpperCase() + ' ✓');
     } catch (e) { flash('Export failed: ' + (e && e.message ? e.message : e)); }
     setProcessing(false);
@@ -875,18 +1067,193 @@ function Studio() {
   const kitNames = Object.keys(kits);
   const logoIsRemote = brand.logo && !/^data:/.test(brand.logo);
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      {/* top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '12px 20px', background: T.card, borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: T.primaryDark, letterSpacing: '-.02em' }}>Sole · Rebranding Studio</div>
-          <span style={{ fontSize: 11.5, color: T.muted, background: T.primarySofter, border: `1px solid ${T.primarySoft}`, padding: '2px 8px', borderRadius: 999 }}>Marketing tool</span>
+  // ownership ("mine vs the team's") + Home/Library filtering
+  const myId = (user && user.id) || null;
+  const isMine = (r) => !!(myId && r && r.created_by === myId);
+  const creatorName = (r) => { const e = r && r.created_by_email; if (!e || e === 'this browser') return isMine(r) ? 'You' : 'Team'; return isMine(r) ? 'You' : e.split('@')[0]; };
+  const filteredDesigns = archive.filter((r) => (designFilter === 'all' || isMine(r)) && (r.name || '').toLowerCase().includes(designQuery.trim().toLowerCase()));
+  const filteredAssets = assets.filter((a) => (assetFilter === 'all' || isMine(a)) && (((a.name || '') + ' ' + (a.domain || '') + ' ' + (a.tags || '')).toLowerCase().includes(assetQuery.trim().toLowerCase())));
+
+  // Magic-link gate — only shown when Supabase auth is on and nobody's signed in yet.
+  if (needsAuth && !user) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: T.bg, padding: 20 }}>
+        <div style={{ width: 390, maxWidth: '100%', background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radiusCard, padding: 28, boxShadow: '0 12px 40px -12px rgba(16,24,40,0.28)' }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: T.primaryDark, letterSpacing: '-.02em' }}>Sole · Rebranding Studio</div>
+          <div style={{ fontSize: 13, color: T.muted, margin: '8px 0 18px', lineHeight: 1.5 }}>Sign in to open your team’s shared archive. We’ll email you a one-time link — no password to remember.</div>
+          {authSent ? (
+            <div style={{ padding: '12px 14px', background: T.primarySofter, border: `1px solid ${T.primarySoft}`, borderRadius: 10, fontSize: 13, color: T.primaryDark, lineHeight: 1.5 }}>
+              Check <b>{authEmail}</b> for your login link, open it, and you’ll land right back here.
+              <div style={{ marginTop: 8 }}><button onClick={() => setAuthSent(false)} style={{ border: 'none', background: 'transparent', color: T.primaryDark, cursor: 'pointer', fontWeight: 600, fontSize: 12, padding: 0 }}>Use a different email</button></div>
+            </div>
+          ) : (
+            <form onSubmit={(e) => { e.preventDefault(); doSignIn(); }}>
+              <IconInput icon={ICON.mail} type="email" inputMode="email" placeholder="you@yourteam.com" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
+              <Btn type="submit" disabled={authBusy || !authEmail.trim()} style={{ width: '100%', justifyContent: 'center', marginTop: 12 }}>{authBusy ? 'Sending…' : 'Email me a login link'}</Btn>
+            </form>
+          )}
         </div>
-        <Btn variant="ghost" onClick={newKit} title="Clear all fields back to the Sole default">Reset</Btn>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', height: '100vh' }}>
+      {/* left rail */}
+      <div style={{ width: 208, flex: '0 0 208px', background: T.card, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', padding: '16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '2px 8px 16px' }}>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: T.primary, display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: 14 }}>S</div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: T.primaryDark, letterSpacing: '-.01em' }}>Sole Studio</div>
+        </div>
+        <button onClick={() => { newKit(); setView('editor'); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, width: '100%', border: 'none', background: T.primary, color: '#fff', borderRadius: 9, padding: '10px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', marginBottom: 12 }}>＋ Create new</button>
+        {[{ id: 'home', label: 'Designs', icon: ICON.tag }, { id: 'assets', label: 'Asset library', icon: ICON.building }].map((n) => (
+          <button key={n.id} onClick={() => { setView(n.id); if (n.id === 'home') refreshArchive(); if (n.id === 'assets') refreshAssets(); }} data-hover="row"
+            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: 'none', background: view === n.id ? T.primarySoft : 'transparent', color: view === n.id ? T.primaryDark : T.textSoft, borderRadius: 9, padding: '9px 10px', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', marginBottom: 2 }}>
+            <span style={{ display: 'inline-flex', color: view === n.id ? T.primaryDark : T.mutedSoft }}>{n.icon}</span>{n.label}
+          </button>
+        ))}
+        {view === 'editor' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', background: T.primarySoft, color: T.primaryDark, borderRadius: 9, padding: '9px 10px', fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>
+            <span style={{ display: 'inline-flex', color: T.primaryDark }}>{ICON.text}</span>Editor
+          </div>
+        )}
+        <div style={{ flex: 1 }} />
+        {cloudOn
+          ? <div title="Shared with your team" style={{ fontSize: 10.5, fontWeight: 700, color: T.green, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px' }}><span style={{ width: 7, height: 7, borderRadius: 99, background: T.green }} />Shared</div>
+          : <div title="Local only — add Supabase keys to share" style={{ fontSize: 10.5, fontWeight: 700, color: T.amber, display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px' }}><span style={{ width: 7, height: 7, borderRadius: 99, background: T.amber }} />Local only</div>}
+        {needsAuth && user && (
+          <div style={{ borderTop: `1px solid ${T.borderSoft}`, marginTop: 8, padding: '10px 8px 0' }}>
+            <div title={user.email} style={{ fontSize: 11.5, color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+            <button onClick={() => CLOUD.signOut().then(() => { setUser(null); setAuthReady(false); setAuthSent(false); })} style={{ marginTop: 4, border: 'none', background: 'transparent', color: T.primaryDark, cursor: 'pointer', fontSize: 11.5, fontWeight: 600, padding: 0 }}>Sign out</button>
+          </div>
+        )}
       </div>
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      {/* main */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: T.bg }}>
+
+        {view === 'home' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: T.card, borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 800, fontSize: 18, color: T.text }}>Designs</div>
+              <span style={{ fontSize: 12, color: T.mutedSoft }}>{filteredDesigns.length} of {archive.length}</span>
+              <div style={{ flex: 1 }} />
+              {CLOUD && (
+                <div style={{ display: 'inline-flex', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: 2 }}>
+                  {['all', 'mine'].map((f) => (
+                    <button key={f} onClick={() => setDesignFilter(f)} style={{ border: 'none', background: designFilter === f ? T.card : 'transparent', color: designFilter === f ? T.primaryDark : T.muted, boxShadow: designFilter === f ? '0 1px 2px rgba(16,24,40,0.08)' : 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{f === 'all' ? 'All' : 'Mine'}</button>
+                  ))}
+                </div>
+              )}
+              <IconInput icon={ICON.text} style={{ width: 200 }} placeholder="Search designs…" value={designQuery} onChange={(e) => setDesignQuery(e.target.value)} />
+              <Btn onClick={() => { newKit(); setView('editor'); }}>＋ Create new</Btn>
+            </div>
+            <div className="scroll" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 16 }}>
+                <button onClick={() => { newKit(); setView('editor'); }} style={{ minHeight: 190, border: `2px dashed ${T.border}`, borderRadius: T.radiusCard, background: T.card, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: T.primaryDark }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: T.primarySoft, display: 'grid', placeItems: 'center', fontSize: 24, fontWeight: 400 }}>＋</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700 }}>Create new</div>
+                </button>
+                {filteredDesigns.map((row) => (
+                  <div key={row.id} style={{ background: T.card, border: `1px solid ${row.id === currentArchiveId ? T.primary : T.border}`, borderRadius: T.radiusCard, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <button onClick={() => openArchived(row)} title="Open in editor" style={{ border: 'none', padding: 0, cursor: 'pointer', height: 96, background: (row.swatch && row.swatch.primary) || T.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: 56, height: 56, borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.18)' }}>
+                        {row.config && row.config.logo
+                          ? <img src={row.config.logo} alt="" style={{ maxWidth: '82%', maxHeight: '82%', objectFit: 'contain' }} />
+                          : <span style={{ fontWeight: 800, fontSize: 22, color: (row.swatch && row.swatch.primary) || T.primaryDark }}>{(row.name || 'B')[0].toUpperCase()}</span>}
+                      </div>
+                    </button>
+                    <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</div>
+                        <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 2 }}>{creatorName(row)} · {fmtWhen(row.updated_at || row.created_at)} · {row.export_count || 0} export{(row.export_count || 0) === 1 ? '' : 's'}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 'auto' }}>
+                        <Btn onClick={() => openArchived(row)} style={{ flex: 1, justifyContent: 'center' }}>Open</Btn>
+                        <Btn variant="ghost" onClick={() => duplicateArchived(row)} title="Duplicate" style={{ padding: '9px 10px' }}>⧉</Btn>
+                        <Btn variant="ghost" onClick={() => renameArchived(row)} title="Rename" style={{ padding: '9px 10px' }}>✎</Btn>
+                        <Btn variant="ghost" onClick={() => deleteArchived(row)} title="Delete" style={{ padding: '9px 10px', color: T.red }}>×</Btn>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {archive.length === 0 && <div style={{ color: T.mutedSoft, fontSize: 13, padding: '18px 4px' }}>No designs yet — hit <b>Create new</b> to make your first white-label branding.</div>}
+            </div>
+          </div>
+        )}
+
+        {view === 'assets' && (
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 24px', background: T.card, borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
+              <div style={{ fontWeight: 800, fontSize: 18, color: T.text }}>Asset library</div>
+              <span style={{ fontSize: 12, color: T.mutedSoft }}>{filteredAssets.length} of {assets.length} logos</span>
+              <div style={{ flex: 1 }} />
+              {CLOUD && (
+                <div style={{ display: 'inline-flex', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: 2 }}>
+                  {['all', 'mine'].map((f) => (
+                    <button key={f} onClick={() => setAssetFilter(f)} style={{ border: 'none', background: assetFilter === f ? T.card : 'transparent', color: assetFilter === f ? T.primaryDark : T.muted, boxShadow: assetFilter === f ? '0 1px 2px rgba(16,24,40,0.08)' : 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{f === 'all' ? 'All' : 'Mine'}</button>
+                  ))}
+                </div>
+              )}
+              <IconInput icon={ICON.text} style={{ width: 200 }} placeholder="Search name or tag…" value={assetQuery} onChange={(e) => setAssetQuery(e.target.value)} />
+              <label data-btn="soft" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: T.primarySoft, color: T.primaryDark, border: '1px solid #C7C9FB', borderRadius: T.radius, padding: '9px 14px', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                Upload<input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files[0] && uploadAssetToLibrary(e.target.files[0])} />
+              </label>
+            </div>
+            {cloudOn && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '10px 24px', borderBottom: `1px solid ${T.borderSoft}`, background: T.card, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, color: T.mutedSoft }}>Fetch from Brandfetch:</span>
+                <IconInput icon={ICON.building} style={{ width: 220 }} placeholder="Company name or domain" value={bfQuery} onChange={(e) => setBfQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') runBrandfetch(); }} />
+                <Btn variant="soft" onClick={runBrandfetch} disabled={bfBusy}>{bfBusy ? '…' : 'Search'}</Btn>
+                {bfResults && bfResults.map((h, i) => (
+                  <button key={i} onClick={() => importAssetToLibrary(h)} disabled={bfBusy} data-hover="row" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: `1px solid ${T.border}`, background: T.card, borderRadius: 8, padding: '5px 9px', cursor: 'pointer' }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 4, overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#fff' }}>{h.icon ? <img src={h.icon} alt="" style={{ maxWidth: '100%', maxHeight: '100%' }} /> : '?'}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>{h.name || h.domain}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="scroll" style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+              {filteredAssets.length === 0 ? (
+                <div style={{ color: T.mutedSoft, fontSize: 13, padding: '18px 4px' }}>No logos yet — <b>Upload</b> one or fetch from Brandfetch above. They’re shared with your team and reusable in any design.</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+                  {filteredAssets.map((a) => (
+                    <div key={a.id} style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radiusCard, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ height: 110, background: T.field, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, borderBottom: `1px solid ${T.borderSoft}` }}>
+                        <img src={a.url || a.dataUri} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                      </div>
+                      <div style={{ padding: 11, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name || a.domain || 'logo'}</div>
+                          <div style={{ fontSize: 11, color: T.mutedSoft, marginTop: 2 }}>{creatorName(a)}{a.source === 'brandfetch' ? ' · Brandfetch' : ''}</div>
+                          {a.tags ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 5 }}>{String(a.tags).split(',').map((t) => t.trim()).filter(Boolean).map((t, i) => <span key={i} style={{ fontSize: 10, color: T.primaryDark, background: T.primarySofter, border: `1px solid ${T.primarySoft}`, borderRadius: 5, padding: '1px 6px' }}>{t}</span>)}</div> : null}
+                        </div>
+                        <div style={{ display: 'flex', gap: 5, marginTop: 'auto' }}>
+                          <Btn onClick={() => startDesignWithLogo(a)} style={{ flex: 1, justifyContent: 'center', padding: '7px 8px', fontSize: 12 }} title="Start a new design with this logo">Use</Btn>
+                          <Btn variant="ghost" onClick={() => retagAsset(a)} title="Edit tags" style={{ padding: '7px 8px' }}>#</Btn>
+                          <Btn variant="ghost" onClick={() => renameAsset(a)} title="Rename" style={{ padding: '7px 8px' }}>✎</Btn>
+                          <Btn variant="ghost" onClick={() => removeAsset(a)} title="Delete" style={{ padding: '7px 8px', color: T.red }}>×</Btn>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {view === 'editor' && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', background: T.card, borderBottom: `1px solid ${T.border}` }}>
+              <button onClick={() => { setView('home'); refreshArchive(); }} style={{ border: `1px solid ${T.border}`, background: T.card, color: T.textSoft, borderRadius: 8, padding: '6px 12px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>← Designs</button>
+              <div style={{ fontWeight: 700, fontSize: 14, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentArchiveId ? ((archive.find((r) => r.id === currentArchiveId) || {}).name || 'Design') : 'New design'}</div>
+              <div style={{ flex: 1 }} />
+              <Btn variant="ghost" onClick={newKit} title="Clear all fields back to the Sole default">Reset</Btn>
+            </div>
+            <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* control panel */}
         <div className="scroll" style={{ width: 380, flex: '0 0 380px', background: T.card, borderRight: `1px solid ${T.border}`, padding: '18px 20px 40px' }}>
 
@@ -920,6 +1287,50 @@ function Studio() {
                 {!brand.logo && <div style={{ fontSize: 11, color: T.mutedSoft, marginTop: 5 }}>No logo → the header shows the name as a wordmark.</div>}
               </div>
             </div>
+
+            {cloudOn && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: T.muted, marginBottom: 4 }}>Or fetch a logo (Brandfetch)</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <IconInput icon={ICON.building} style={{ flex: 1 }} placeholder="Company name or domain" value={bfQuery} onChange={(e) => setBfQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') runBrandfetch(); }} />
+                  <Btn variant="soft" onClick={runBrandfetch} disabled={bfBusy}>{bfBusy ? '…' : 'Search'}</Btn>
+                </div>
+                {bfResults && (
+                  <div className="scroll" style={{ marginTop: 8, border: `1px solid ${T.borderSoft}`, borderRadius: 10, background: T.field, padding: 6, maxHeight: 220, overflowY: 'auto' }}>
+                    {bfResults.length === 0
+                      ? <div style={{ padding: '8px 6px', fontSize: 12, color: T.mutedSoft }}>No matches — try the domain (e.g. acme.com.au), or upload the file above.</div>
+                      : bfResults.map((h, i) => (
+                        <button key={i} onClick={() => importBrandfetch(h)} disabled={bfBusy} data-hover="row" style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'transparent', borderRadius: 8, padding: '7px 8px', cursor: 'pointer', textAlign: 'left' }}>
+                          <span style={{ width: 30, height: 30, borderRadius: 6, background: '#fff', border: `1px solid ${T.border}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flex: '0 0 auto' }}>
+                            {h.icon ? <img src={h.icon} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} /> : <span style={{ fontWeight: 800, color: T.mutedSoft }}>{(h.name || h.domain || '?')[0]}</span>}
+                          </span>
+                          <span style={{ minWidth: 0 }}>
+                            <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name || h.domain}</span>
+                            <span style={{ display: 'block', fontSize: 11, color: T.mutedSoft }}>{h.domain}</span>
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {CLOUD && assets.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: T.muted, marginBottom: 6 }}>Saved logos ({assets.length})</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {assets.slice(0, galleryOpen ? assets.length : 8).map((a) => (
+                    <div key={a.id} style={{ position: 'relative' }}>
+                      <button onClick={() => useAssetLogo(a)} title={a.name || a.domain || 'logo'} style={{ width: 42, height: 42, borderRadius: 8, border: `1px solid ${T.border}`, background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', padding: 3 }}>
+                        <img src={a.url || a.dataUri} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                      </button>
+                      <button onClick={() => removeAsset(a)} title="Remove from gallery" style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: 99, border: `1px solid ${T.border}`, background: '#fff', color: T.mutedSoft, fontSize: 11, lineHeight: '13px', cursor: 'pointer', padding: 0 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+                {assets.length > 8 && <button onClick={() => setGalleryOpen((o) => !o)} style={{ marginTop: 6, border: 'none', background: 'transparent', color: T.primaryDark, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', padding: 0 }}>{galleryOpen ? 'Show fewer' : 'Show all ' + assets.length}</button>}
+              </div>
+            )}
           </Section>
 
           <Section title="3 · Colours">
@@ -1079,6 +1490,7 @@ function Studio() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderBottom: `1px solid ${T.border}`, background: T.card }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: T.mutedSoft }}>Live preview</div>
             <div style={{ flex: 1 }} />
+            {CLOUD && <Btn variant="ghost" onClick={saveToArchive} disabled={archiveBusy} title="Save this branding to the archive so you can reopen and re-export it later">{archiveBusy ? 'Saving…' : (currentArchiveId ? '✓ Update in archive' : 'Save to archive')}</Btn>}
             <Btn variant="ghost" onClick={doPrint} title="Save the current preview as a clean PDF">Save as PDF</Btn>
             <Btn onClick={doExportBundled} disabled={exporting} title="Download a self-contained, interactive HTML file (same as the preview)">{exporting ? 'Exporting…' : 'Export HTML'}</Btn>
           </div>
@@ -1166,11 +1578,16 @@ function Studio() {
                   </>
                 )}
               </div>
+              <div style={{ display: 'inline-flex', background: T.field, border: `1px solid ${T.border}`, borderRadius: 8, padding: 2, flex: '0 0 auto' }} title="Standard = the new, cohesive design that white-labels consistently. Classic = the original, untouched.">
+                {[{ k: 'standard', label: 'Standard' }, { k: 'classic', label: 'Classic' }].map((v) => (
+                  <button key={v.k} onClick={() => setBundleVersion(v.k)} style={{ border: 'none', background: bundleVersion === v.k ? T.card : 'transparent', color: bundleVersion === v.k ? T.primaryDark : T.muted, boxShadow: bundleVersion === v.k ? '0 1px 2px rgba(16,24,40,0.08)' : 'none', borderRadius: 6, padding: '5px 12px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{v.label}</button>
+                ))}
+              </div>
               {bundleMeta && <span style={{ fontSize: 11.5, color: T.mutedSoft, flexBasis: '100%' }}>{bundleMeta.description}</span>}
             </div>
             <div style={{ flex: 1, minHeight: 0, padding: 16 }}>
               {bundleMeta
-                ? <iframe key={bundleMeta.id} ref={previewRef} title="bundled-preview" src={bundleMeta.file} onLoad={pushBrand}
+                ? <iframe key={bundleMeta.id + bundleVersion} ref={previewRef} title="bundled-preview" src={bundleFile + CACHE_BUST} onLoad={pushBrand}
                     style={{ width: '100%', height: '100%', border: `1px solid ${T.border}`, borderRadius: 12, background: '#fff', boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }} />
                 : <div style={{ padding: 40, color: T.muted, fontSize: 14 }}>No bundled toolkits registered.</div>}
             </div>
@@ -1207,10 +1624,16 @@ function Studio() {
               )}
             </div>
           )}
-        </div>
+                </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {toast && <div style={{ position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', background: T.text, color: '#fff', padding: '11px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px -6px rgba(16,24,40,0.4)', animation: 'fadein .2s ease', zIndex: 100 }}>{toast}</div>}
+      {toast && <div style={{ position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', background: T.text, color: '#fff', padding: '11px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, boxShadow: '0 8px 24px -6px rgba(16,24,40,0.4)', animation: 'fadein .2s ease', zIndex: 100, display: 'inline-flex', alignItems: 'center' }}>
+        <span>{typeof toast === 'string' ? toast : toast.msg}</span>
+        {toast && toast.action && <button onClick={() => { toast.action.onClick(); setToast(null); }} style={{ marginLeft: 14, border: 'none', background: 'transparent', color: '#A5B4FC', fontWeight: 700, cursor: 'pointer', fontSize: 13, padding: 0 }}>{toast.action.label}</button>}
+      </div>}
     </div>
   );
 }

@@ -22,6 +22,7 @@
       eyebrow: 'Getting paid',
       audience: 'business',
       file: 'resources/bundled/invoice-rescue.html',
+      fileStandard: 'resources/bundled/invoice-rescue-standard.html',
       description: 'Guided invoice-recovery diagnostic — three questions pick the single best next step, with copy-ready messages and an escalation ladder.',
       fields: [
         { key: 'promoBody', label: 'Closing pitch', type: 'textarea', placeholder: "Late payments usually aren't about customers refusing to pay… {product} prevents that.", hint: 'The paragraph in the bottom “Fewer late payments next time” card.' },
@@ -34,6 +35,7 @@
       eyebrow: 'Getting started',
       audience: 'business',
       file: 'resources/bundled/business-launch-toolkit.html',
+      fileStandard: 'resources/bundled/business-launch-toolkit-standard.html',
       description: 'A five-question diagnostic that builds a new business owner an ordered, plain-English setup plan (ABN, GST, invoicing, tax).',
       fields: [
         { key: 'promoBody', label: 'Software pitch', type: 'textarea', placeholder: '{product} is Australian accounting software for small businesses…', hint: 'The blurb in the bottom “Where to do the doing” card.' },
@@ -46,6 +48,7 @@
       eyebrow: 'For accountants',
       audience: 'accountant',
       file: 'resources/bundled/client-cleanup-checklist.html',
+      fileStandard: 'resources/bundled/client-cleanup-checklist-standard.html',
       description: 'Score a client across five friction domains (documents, comms, records, workflow, billing) and get a health verdict plus recommended actions.',
       fields: [
         { group: 'How your product helps (shown in the results)' },
@@ -64,6 +67,7 @@
       eyebrow: 'For accountants',
       audience: 'accountant',
       file: 'resources/bundled/spm-white-label-firm-toolkit.html',
+      fileStandard: 'resources/bundled/spm-white-label-firm-toolkit-standard.html',
       description: 'A guided, firm-branded small-business health check an accountant hands to their clients — welcome, staged checklist, AI prompts and a booking CTA.',
       fields: [
         { group: 'About & welcome' },
