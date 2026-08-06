@@ -28521,18 +28521,27 @@ const AppSidebar = ({
     id: 'notifications',
     label: 'Notifications'
   }];
-  // Sole Academy is deliberately NOT in this group. Johann's call in the Aug-4
-  // review: "I don't think it'll sit in My focus — it'll be at the bottom." It's
-  // a utility you dip into, not part of your daily work queue, so it renders as
-  // its own bottom-pinned entry below the menu (see the footer block below).
-  //   "Our SOPs" (Module 16) sits in that same Learning block, directly under
-  //   Academy. It used to be a My-focus sub, back when Academy was too; when the
-  //   Aug-4 restructure moved Academy to the bottom it left Our SOPs stranded in
-  //   a group it has nothing to do with, while still calling itself "Part of Sole
-  //   Academy". Same reasoning as Johann's applies to it — a reference library you
-  //   dip into, not a daily queue — so the pair travels together.
-  const academyActive = activeSubId === 'academy';
-  const sopsActive = activeSubId === 'sops';
+  // Neither reference library sits in "My focus". Johann's call in the Aug-4
+  // review: "I don't think it'll sit in My focus — it'll be at the bottom." They're
+  // things you dip into, not part of your daily work queue.
+  //   Sole Academy (Module 15) teaches the software; Our SOPs (Module 16) is the
+  //   firm's own written procedures and calls itself "Part of Sole Academy". SOPs
+  //   was only ever a My-focus sub because Academy was; moving Academy out left it
+  //   stranded in a group it has nothing to do with. Same reasoning applies to it,
+  //   so the pair travels together in the pinned footer group below — Academy
+  //   first, its companion under it.
+  const learnSubs = [{
+    id: 'academy',
+    label: 'Sole Academy',
+    icon: 'graduation'
+  },
+  // Module 15
+  {
+    id: 'sops',
+    label: 'Our SOPs',
+    icon: 'clipboardCheck'
+  } // Module 16
+  ];
   // Client hub — the Clients Management surface plus the relationship map. The
   // parent click lands on Clients Management (the first sub); the map is the
   // built surface beneath it.
@@ -28841,66 +28850,51 @@ const AppSidebar = ({
       bottom: -20,
       zIndex: 2,
       margin: '0 -16px -20px',
-      padding: '10px 16px 14px',
+      padding: '8px 16px 14px',
       background: T.card,
       borderTop: `1px solid ${T.borderSoft}`
     }
-  }, /*#__PURE__*/React.createElement("button", {
-    "data-hover": "row",
-    "data-academy-nav": true,
-    onClick: () => goPractice('academy'),
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 9,
-      padding: '8px 10px',
-      border: 'none',
-      borderRadius: 8,
-      background: academyActive ? T.primarySoft : 'transparent',
-      color: academyActive ? T.primary : T.text,
-      fontSize: 13,
-      fontWeight: academyActive ? 700 : 600,
-      cursor: 'pointer',
-      textAlign: 'left'
+      fontSize: 10,
+      fontWeight: 700,
+      color: T.muted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      padding: '2px 10px 4px'
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "graduation",
-    size: 15,
-    color: academyActive ? T.primary : T.muted
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1
-    }
-  }, "Sole Academy")), /*#__PURE__*/React.createElement("button", {
-    "data-hover": "row",
-    "data-sops-nav": true,
-    onClick: () => goPractice('sops'),
-    style: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 9,
-      padding: '8px 10px',
-      border: 'none',
-      borderRadius: 8,
-      background: sopsActive ? T.primarySoft : 'transparent',
-      color: sopsActive ? T.primary : T.text,
-      fontSize: 13,
-      fontWeight: sopsActive ? 700 : 600,
-      cursor: 'pointer',
-      textAlign: 'left',
-      marginTop: 2
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "clipboardCheck",
-    size: 15,
-    color: sopsActive ? T.primary : T.muted
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1
-    }
-  }, "Our SOPs"))));
+  }, "Learn"), learnSubs.map(item => {
+    const on = activeSubId === item.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: item.id,
+      "data-hover": "row",
+      "data-learn-nav": item.id,
+      onClick: () => goPractice(item.id),
+      style: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        padding: '7px 10px',
+        border: 'none',
+        borderRadius: 8,
+        background: on ? T.primarySoft : 'transparent',
+        color: on ? T.primary : T.text,
+        fontSize: 13,
+        fontWeight: on ? 700 : 600,
+        cursor: 'pointer',
+        textAlign: 'left'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: item.icon,
+      size: 15,
+      color: on ? T.primary : T.muted
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1
+      }
+    }, item.label));
+  })));
 };
 
 // =================================================================
@@ -110156,6 +110150,7 @@ const ACADEMY_COURSES = [{
     title: 'Practice Dashboard',
     mins: 8,
     status: 'recording',
+    tour: 'practice-dashboard',
     description: 'The operational control center, section by section: the seven KPIs, Financial health, Workflow & jobs, WIP & billing efficiency, Capacity & utilisation, the review row, Risks & data quality, and Today’s focus.',
     takeaways: ['Read all seven top KPIs', 'Use the revenue-trend and WIP-ageing charts', 'Work the Risks & data quality queue by severity'],
     appRoute: 'practice-dashboard'
@@ -110164,6 +110159,7 @@ const ACADEMY_COURSES = [{
     title: 'Helicopter view',
     mins: 8,
     status: 'recording',
+    tour: 'helicopter-view',
     description: 'The daily ops matrix: the operational snapshot, AI insights, today’s management focus, the Client Experience Score, firm flow, Lifecycle health, and the client × service matrix.',
     takeaways: ['Read Lifecycle health and spot a Critical stage', 'Interpret the Client Experience Score', 'Drill into a cell of the client × service matrix'],
     appRoute: 'helicopter-view'
@@ -110182,6 +110178,7 @@ const ACADEMY_COURSES = [{
     mins: 6,
     status: 'published',
     videoUrl: ACADEMY_SAMPLE_2,
+    tour: 'pipeline-forecast',
     description: 'Read the forecast: open pipeline, committed forecast, forecast hours, the unallocated-hours staffing gap, and the Capacity Impact donuts.',
     takeaways: ['Tell committed from uncommitted pipeline', 'Read unallocated hours as a staffing gap', 'Use Capacity Impact before accepting work'],
     transcript: 'Pipeline Forecast answers one question: if we win what’s in front of us, can we actually deliver it?\n\nThe Forecast Pipeline tab gives you six numbers across the top — open pipeline, committed forecast, forecast hours, unallocated hours, people over capacity, and expected starts. Unallocated hours is the one to watch: that’s work you’re forecasting with nobody assigned to do it.\n\nThe Committed / Uncommitted toggle switches between deals that are effectively won and everything still in play. Then Capacity Impact shows three donuts — your current utilisation, the pipeline laid over it, and where you land if everything is accepted. If that third number is over 100%, you either need to move dates or add people.',
@@ -110814,6 +110811,14 @@ const recordingCount = course => (course ? course.lessons : []).filter(l => chap
 // guide: { shot, alt, pins:[{ n, x, y, title, body }] }. Everything here reads it
 // defensively so it lights up the moment the data lands.
 const hasGuide = lesson => !!(lesson && lesson.guide && (lesson.guide.pins || []).length);
+// Screen Tour (pages/screen-tour.html) is the OTHER written explanation: an
+// annotated screenshot of a real dashboard with a pin per metric. A chapter that
+// names a `tour` gets a link straight at that walkthrough — which is the meeting's
+// "I want the concept, not the whole video" case, answered with assets that exist
+// today rather than waiting on filming. Sibling path because the deploy workflow
+// flattens pages/ to the hosting root alongside index.html.
+const hasTour = lesson => !!(lesson && lesson.tour);
+const tourHref = lesson => `screen-tour.html#${lesson.tour}`;
 
 // Progress is measured over EVERY chapter (not just published ones) so the bar
 // never reads 100% on a module that's still half-recorded. Completion — and
@@ -113282,8 +113287,19 @@ const CoursePlayerPage = ({
     title: lessonState === 'recording' ? 'This chapter is being recorded' : 'This chapter is scripted, not yet filmed',
     style: {
       marginBottom: 14
-    },
-    action: lesson.appRoute ? /*#__PURE__*/React.createElement(Btn, {
+    }
+    /* When an annotated walkthrough exists it's the better answer than
+       the raw screen — it explains every number rather than just
+       showing them. Prefer it; fall back to the live screen. */,
+    action: hasTour(lesson) ? /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "image",
+      iconRight: "arrow",
+      onClick: () => {
+        window.open(tourHref(lesson), '_blank', 'noopener');
+      }
+    }, "Read the walkthrough") : lesson.appRoute ? /*#__PURE__*/React.createElement(Btn, {
       variant: "soft",
       size: "sm",
       iconRight: "arrow",
@@ -113291,7 +113307,7 @@ const CoursePlayerPage = ({
         window.location.hash = `#/practice/${lesson.appRoute}`;
       }
     }, "Open in the app") : undefined
-  }, lessonState === 'recording' ? 'The video lands shortly. In the meantime, here’s what it covers — and you can go and click through the real screen now.' : 'Here’s what it will cover. It’ll appear here as soon as it’s recorded.'), /*#__PURE__*/React.createElement("div", {
+  }, lessonState === 'recording' ? hasTour(lesson) ? 'The video lands shortly. Until then the annotated walkthrough already explains every number on this screen.' : 'The video lands shortly. In the meantime, here’s what it covers — and you can go and click through the real screen now.' : hasTour(lesson) ? 'Here’s what it will cover. The annotated walkthrough of this screen is ready now if you don’t want to wait.' : 'Here’s what it will cover. It’ll appear here as soon as it’s recorded.'), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13.5,
       color: T.textSoft,
@@ -113321,13 +113337,69 @@ const CoursePlayerPage = ({
     name: "checkCircle",
     size: 16,
     color: T.green
-  }), /*#__PURE__*/React.createElement("span", null, t))))), lessonPub && lesson.appRoute && /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement("span", null, t))))), hasTour(lesson) && /*#__PURE__*/React.createElement("a", {
+    href: tourHref(lesson),
+    target: "_blank",
+    rel: "noopener noreferrer",
+    "data-hover": "row",
+    "data-academy-tour": true,
+    style: {
+      marginTop: 18,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      padding: '11px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      textDecoration: 'none',
+      color: T.text
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 8,
+      background: withAlpha(color, 0.12),
+      color,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "image",
+    size: 15,
+    color: color
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: T.muted,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, "Read instead of watch"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Annotated walkthrough of this screen")), /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 15,
+    color: T.muted
+  })), lessonPub && lesson.appRoute && /*#__PURE__*/React.createElement("div", {
     onClick: () => {
       window.location.hash = `#/practice/${lesson.appRoute}`;
     },
     "data-hover": "row",
     style: {
-      marginTop: 18,
+      marginTop: 12,
       display: 'flex',
       alignItems: 'center',
       gap: 12,
