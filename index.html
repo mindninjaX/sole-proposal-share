@@ -3297,14 +3297,20 @@ const Pill = ({
     }
   }, children);
 };
+
+// `title` mirrors Pill's — optional and inert unless passed, so existing call
+// sites are unaffected; it exists because a filter chip sometimes needs to explain
+// itself (e.g. an Academy module's recording status).
 const Chip = ({
   selected,
   onClick,
   children,
   style,
-  size = 'md'
+  size = 'md',
+  title
 }) => /*#__PURE__*/React.createElement("button", {
   onClick: onClick,
+  title: title,
   "data-chip": true,
   "data-selected": selected ? 'true' : 'false',
   style: {
@@ -28507,11 +28513,6 @@ const AppSidebar = ({
     id: 'individual-staff',
     label: 'My dashboard'
   }, {
-    id: 'sops',
-    label: 'Our SOPs'
-  },
-  // the firm's own written procedures (Module 16)
-  {
     id: 'communications',
     label: 'Communications'
   },
@@ -28524,7 +28525,14 @@ const AppSidebar = ({
   // review: "I don't think it'll sit in My focus — it'll be at the bottom." It's
   // a utility you dip into, not part of your daily work queue, so it renders as
   // its own bottom-pinned entry below the menu (see the footer block below).
+  //   "Our SOPs" (Module 16) sits in that same Learning block, directly under
+  //   Academy. It used to be a My-focus sub, back when Academy was too; when the
+  //   Aug-4 restructure moved Academy to the bottom it left Our SOPs stranded in
+  //   a group it has nothing to do with, while still calling itself "Part of Sole
+  //   Academy". Same reasoning as Johann's applies to it — a reference library you
+  //   dip into, not a daily queue — so the pair travels together.
   const academyActive = activeSubId === 'academy';
+  const sopsActive = activeSubId === 'sops';
   // Client hub — the Clients Management surface plus the relationship map. The
   // parent click lands on Clients Management (the first sub); the map is the
   // built surface beneath it.
@@ -28864,7 +28872,35 @@ const AppSidebar = ({
     style: {
       flex: 1
     }
-  }, "Sole Academy"))));
+  }, "Sole Academy")), /*#__PURE__*/React.createElement("button", {
+    "data-hover": "row",
+    "data-sops-nav": true,
+    onClick: () => goPractice('sops'),
+    style: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      padding: '8px 10px',
+      border: 'none',
+      borderRadius: 8,
+      background: sopsActive ? T.primarySoft : 'transparent',
+      color: sopsActive ? T.primary : T.text,
+      fontSize: 13,
+      fontWeight: sopsActive ? 700 : 600,
+      cursor: 'pointer',
+      textAlign: 'left',
+      marginTop: 2
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clipboardCheck",
+    size: 15,
+    color: sopsActive ? T.primary : T.muted
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1
+    }
+  }, "Our SOPs"))));
 };
 
 // =================================================================
@@ -113902,10 +113938,15 @@ const AcademyPage = ({
 // shelf, different author: the content is 100% firm-owned, Sole only supplies the
 // structure, publishing states, starter templates and read-tracking.
 //
-// The design spine: AN SOP IS TO STEPS WHAT A COURSE IS TO LESSONS. That analogy
-// is why this is native to Academy — ordered items, per-item progress, a reader
-// with the item list in a right rail (mirrors CoursePlayerPage). Sole's video
-// lessons simply become the firm's written steps.
+// The design spine: AN SOP IS TO STEPS WHAT AN ACADEMY MODULE IS TO CHAPTERS.
+// That analogy is why this is native to Academy — ordered items, per-item
+// progress, a reader with the item list in a right rail (mirrors
+// CoursePlayerPage). Academy's videos simply become the firm's written steps.
+//   Vocabulary note: the Aug-4 restructure renamed Academy's courses/lessons to
+//   modules/chapters. User-facing copy here says "module"; the data field is still
+//   `relatedCourseIds` and the route is still `course/<id>`, matching Academy's own
+//   unrenamed internals (`ACADEMY_COURSES`, `courseById`) — renaming them would be
+//   churn for no gain, but don't let the old words leak into copy.
 //
 // Built by mirroring the AI Prompt Library (Module 14) + Academy (Module 15)
 // pattern: seed data + a versioned localStorage store + components + routed pages,
@@ -114074,7 +114115,7 @@ const SOP_LIBRARY = [{
   reviewDue: SOP_NOW + 210 * SOP_DAY,
   source: 'firm',
   tags: ['Onboarding', 'KYC', 'Engagement'],
-  relatedCourseIds: ['c-crm', 'c-proposals'],
+  relatedCourseIds: ['c-onboarding', 'c-clients'],
   links: [{
     label: 'Open Clients Management',
     href: '#/practice/clients-management'
@@ -114154,7 +114195,7 @@ const SOP_LIBRARY = [{
   reviewDue: SOP_NOW + 150 * SOP_DAY,
   source: 'firm',
   tags: ['Month-end', 'Xero', 'Reconciliation'],
-  relatedCourseIds: ['c-time'],
+  relatedCourseIds: ['c-deliver'],
   seedAcks: {
     tb: SOP_NOW - 20 * SOP_DAY,
     ek: SOP_NOW - 18 * SOP_DAY
@@ -114219,7 +114260,7 @@ const SOP_LIBRARY = [{
   reviewDue: SOP_NOW + 180 * SOP_DAY,
   source: 'firm',
   tags: ['BAS', 'ATO', 'Lodgement'],
-  relatedCourseIds: ['c-tax'],
+  relatedCourseIds: ['c-workflow', 'c-deliver'],
   links: [{
     label: 'Open Workflow',
     href: '#/practice/workflow'
@@ -114345,6 +114386,7 @@ const SOP_LIBRARY = [{
   reviewDue: SOP_NOW - 9 * SOP_DAY,
   source: 'firm',
   tags: ['Review', 'Quality', 'Risk'],
+  relatedCourseIds: ['c-deliver'],
   seedAcks: {
     sm: SOP_NOW - 170 * SOP_DAY,
     ac: SOP_NOW - 165 * SOP_DAY,
@@ -114395,7 +114437,7 @@ const SOP_LIBRARY = [{
   reviewDue: SOP_NOW + 130 * SOP_DAY,
   source: 'firm',
   tags: ['Invoicing', 'Debtors'],
-  relatedCourseIds: ['c-time'],
+  relatedCourseIds: ['c-finance'],
   seedAcks: {
     ac: SOP_NOW - 40 * SOP_DAY,
     kr: SOP_NOW - 22 * SOP_DAY
@@ -114448,7 +114490,7 @@ const SOP_LIBRARY = [{
   reviewDue: SOP_NOW + 195 * SOP_DAY,
   source: 'firm',
   tags: ['New starter', 'Training'],
-  relatedCourseIds: ['c-get-started'],
+  relatedCourseIds: ['c-get-started', 'c-teams'],
   links: [{
     label: 'Sole Academy',
     href: '#/practice/academy'
@@ -114470,7 +114512,7 @@ const SOP_LIBRARY = [{
     title: 'Day 1–2 — work through the Sole Academy starter path',
     mins: 90,
     role: 'New starter',
-    body: '<p>The "Getting started (new team member)" learning path in Sole Academy covers the tool. Do that before touching live client work — it saves everyone a fortnight of over-the-shoulder questions.</p>'
+    body: '<p>The "New team member" learning path in Sole Academy covers the tool. Do that before touching live client work — it saves everyone a fortnight of over-the-shoulder questions.</p>'
   }, {
     id: 'st-07-3',
     title: 'Day 2 — read the must-read SOPs',
@@ -114506,7 +114548,7 @@ const SOP_LIBRARY = [{
   updated: SOP_NOW - 2 * SOP_DAY,
   source: 'firm',
   tags: ['Advisory', 'Meetings'],
-  relatedCourseIds: ['c-ai'],
+  relatedCourseIds: ['c-prompts'],
   steps: [{
     id: 'st-08-1',
     title: 'Pull the numbers three days before',
@@ -114541,6 +114583,7 @@ const SOP_LIBRARY = [{
   updated: SOP_NOW - 4 * SOP_DAY,
   source: 'firm',
   tags: ['Offboarding', 'Handover'],
+  relatedCourseIds: ['c-clients'],
   steps: [{
     id: 'st-09-1',
     title: 'Find out why, and write it down',
@@ -116857,53 +116900,61 @@ const SopReaderPage = ({
       marginBottom: 7,
       lineHeight: 1.5
     }
-  }, "This is how we work; these cover how the software works."), /*#__PURE__*/React.createElement("div", {
+  }, "This is how we work; these Academy modules cover how the software works."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
       gap: 2,
       margin: '0 -6px'
     }
-  }, relatedCourses.map(c => /*#__PURE__*/React.createElement("button", {
-    key: c.id,
-    "data-hover": "row",
-    onClick: () => {
-      window.location.hash = '#/practice/course/' + c.id;
-    },
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      width: '100%',
-      paddingTop: 7,
-      paddingBottom: 7,
-      paddingLeft: 6,
-      paddingRight: 6,
-      border: 'none',
-      background: 'transparent',
-      borderRadius: 8,
-      cursor: 'pointer',
-      textAlign: 'left'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "play",
-    size: 12,
-    color: T.primary
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 12.5,
-      color: T.text,
-      flex: 1,
-      minWidth: 0,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
-    }
-  }, c.title), /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 12,
-    color: T.mutedSoft
-  }))))), (sop.links || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+  }, relatedCourses.map(c => {
+    const st = moduleStatus(c),
+      meta = ACADEMY_STATUS[st] || ACADEMY_STATUS.planned;
+    const live = st === 'published';
+    return /*#__PURE__*/React.createElement("button", {
+      key: c.id,
+      "data-hover": "row",
+      title: `Sole Academy · ${meta.label}`,
+      onClick: () => {
+        window.location.hash = '#/practice/course/' + c.id;
+      },
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        width: '100%',
+        paddingTop: 7,
+        paddingBottom: 7,
+        paddingLeft: 6,
+        paddingRight: 6,
+        border: 'none',
+        background: 'transparent',
+        borderRadius: 8,
+        cursor: 'pointer',
+        textAlign: 'left'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: live ? 'play' : st === 'recording' ? 'video' : 'clock',
+      size: 12,
+      color: live ? T.primary : T.mutedSoft
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        color: live ? T.text : T.muted,
+        flex: 1,
+        minWidth: 0,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, c.title), live ? /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronRight",
+      size: 12,
+      color: T.mutedSoft
+    }) : /*#__PURE__*/React.createElement(Pill, {
+      color: meta.pill
+    }, meta.label));
+  }))), (sop.links || []).length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       padding: T.space.lg,
       borderTop: `1px solid ${T.borderSoft}`
@@ -118303,23 +118354,24 @@ const SopEditorPage = ({
       color: T.muted,
       marginBottom: 2
     }
-  }, "Related Academy courses"), /*#__PURE__*/React.createElement(Helper, {
+  }, "Related Academy modules"), /*#__PURE__*/React.createElement(Helper, {
     style: {
       marginBottom: T.space.sm,
       lineHeight: 1.5
     }
-  }, "Point people at the course that teaches the software, so this SOP can stay about your process."), /*#__PURE__*/React.createElement("div", {
+  }, "Point people at the module that teaches the software, so this SOP can stay about your process. Watchable modules are listed first \u2014 ones still being filmed show readers a \u201CComing soon\u201D marker rather than a play button."), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       gap: 5,
       flexWrap: 'wrap'
     }
-  }, ACADEMY_COURSES.map(c => {
+  }, ACADEMY_COURSES.slice().sort((a, b) => (moduleStatus(b) === 'published' ? 1 : 0) - (moduleStatus(a) === 'published' ? 1 : 0)).map(c => {
     const on = (draft.relatedCourseIds || []).indexOf(c.id) !== -1;
     return /*#__PURE__*/React.createElement(Chip, {
       key: c.id,
       size: "sm",
       selected: on,
+      title: `Sole Academy · ${(ACADEMY_STATUS[moduleStatus(c)] || ACADEMY_STATUS.planned).label}`,
       onClick: () => set({
         relatedCourseIds: on ? (draft.relatedCourseIds || []).filter(x => x !== c.id) : (draft.relatedCourseIds || []).concat(c.id)
       })
