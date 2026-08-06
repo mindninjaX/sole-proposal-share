@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screen tour · Sole Practice Manager</title>
+<meta name="description" content="Hover a number on the screenshot to see what that part of Sole Practice Manager means.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Sole design system — palette + radii mirrored from the T tokens in index.html.
+     Deliberately restrained: the whole failure mode of an annotated screenshot is
+     visual clutter, so the image stays clean and the words live in a fixed rail. */
+  :root{
+    --primary:#5B5BF6; --primary-dark:#4F46E5; --primary-soft:#EEF0FF; --primary-softer:#F5F6FF;
+    --bg:#F5F4F8; --card:#FFFFFF; --border:#E5E7EB; --border-soft:#ECEDF2;
+    --text:#0F1117; --text-soft:#1F2937; --muted:#6B7280; --muted-soft:#9CA3AF;
+    --field:#F9FAFB; --green:#10B981; --green-dark:#059669; --green-soft:#ECFDF5;
+    --amber:#D97706; --amber-soft:#FEF3C7; --red:#EF4444;
+    --r:12px; --rs:8px;
+    --shadow-sm:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06);
+    --shadow-lg:0 8px 24px -6px rgba(16,24,40,.12);
+    --rail:376px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit}
+
+  /* ---------- header ---------- */
+  .hd{background:var(--card); border-bottom:1px solid var(--border-soft)}
+  .hd-in{max-width:1560px; margin:0 auto; padding:26px 32px 0}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:11.5px; font-weight:700; color:var(--primary);
+    letter-spacing:.06em; text-transform:uppercase;
+  }
+  .dot{width:7px;height:7px;border-radius:99px;background:var(--primary)}
+  h1{font-size:27px; font-weight:800; letter-spacing:-.5px; margin:9px 0 0}
+  .sub{margin:7px 0 0; font-size:14px; color:var(--muted); max-width:790px}
+  .sub kbd{
+    font:inherit; font-size:12px; font-weight:600; padding:1px 6px;
+    border:1px solid var(--border); border-bottom-width:2px; border-radius:5px;
+    background:var(--field); color:var(--text-soft);
+  }
+
+  /* ---------- screen tabs ---------- */
+  .tabs{display:flex; gap:2px; margin:20px 0 0; overflow-x:auto}
+  .tab{
+    border:0; background:none; cursor:pointer; flex-shrink:0;
+    padding:10px 15px 12px; margin-bottom:-1px;
+    font-size:13.5px; font-weight:500; color:var(--muted);
+    border-bottom:2px solid transparent;
+    transition:color .12s, border-color .12s;
+  }
+  .tab:hover{color:var(--text-soft)}
+  .tab[aria-selected=true]{color:var(--text); font-weight:700; border-bottom-color:var(--primary)}
+  .tab .n{
+    display:inline-block; margin-left:7px; padding:1px 7px; border-radius:99px;
+    background:var(--field); color:var(--muted); font-size:10.5px; font-weight:700;
+  }
+  .tab[aria-selected=true] .n{background:var(--primary-soft); color:var(--primary)}
+
+  /* ---------- layout ---------- */
+  .wrap{
+    max-width:1560px; margin:0 auto; padding:24px 32px 64px;
+    display:grid; grid-template-columns:minmax(0,1fr) var(--rail); gap:24px; align-items:start;
+  }
+
+  /* ---------- the screenshot stage ---------- */
+  .stage{min-width:0}
+  .shot{
+    position:relative; overflow:hidden; background:var(--card);
+    border:1px solid var(--border); border-radius:var(--r); box-shadow:var(--shadow-lg);
+    line-height:0;
+  }
+  .shot img{width:100%; height:auto; display:block}
+
+  /* Spotlight: a ring at the target with a huge outer shadow, which dims
+     everything else without needing a mask. Same trick the in-app PortalTour
+     uses, so the two surfaces feel related. */
+  .ring{
+    position:absolute; border-radius:9px; pointer-events:none;
+    border:2px solid var(--primary);
+    opacity:0; transition:opacity .16s, left .2s cubic-bezier(.4,0,.2,1), top .2s cubic-bezier(.4,0,.2,1),
+                          width .2s cubic-bezier(.4,0,.2,1), height .2s cubic-bezier(.4,0,.2,1);
+  }
+  .ring.on{opacity:1}
+  /* Light on purpose. A heavy scrim focuses the eye but hides the surrounding
+     screen, and the whole job here is to explain a number IN CONTEXT. */
+  .ring.dim{box-shadow:0 0 0 9999px rgba(15,17,23,.30)}
+
+  .pin{
+    position:absolute; transform:translate(-50%,-50%);
+    width:23px; height:23px; padding:0; border-radius:99px; cursor:pointer;
+    border:2px solid #fff; background:var(--primary); color:#fff;
+    font-size:11px; font-weight:700; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 5px rgba(15,17,23,.28);
+    transition:transform .14s cubic-bezier(.4,0,.2,1), background .14s;
+  }
+  .pin:hover{transform:translate(-50%,-50%) scale(1.22)}
+  .pin:focus-visible{outline:3px solid rgba(91,91,246,.4); outline-offset:2px}
+  .pin.active{background:var(--primary-dark); transform:translate(-50%,-50%) scale(1.22); z-index:3}
+  /* When one pin is chosen the others recede — they're still there, just quiet. */
+  .shot.picked .pin:not(.active){opacity:.42}
+  .shot.picked .pin:not(.active):hover{opacity:1}
+
+  .stage-foot{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    margin-top:12px; font-size:12px; color:var(--muted);
+  }
+  .stage-foot .grow{flex:1}
+  .btn{
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+    padding:6px 12px; border-radius:var(--rs); font-size:12.5px; font-weight:600;
+    background:var(--card); color:var(--text-soft); border:1px solid var(--border);
+    transition:background .12s, border-color .12s;
+  }
+  .btn:hover{background:var(--field); border-color:#D1D5DB}
+  .btn:disabled{opacity:.4; cursor:default}
+  .btn.pri{background:var(--primary); border-color:var(--primary); color:#fff}
+  .btn.pri:hover{background:var(--primary-dark); border-color:var(--primary-dark)}
+
+  /* ---------- the rail ---------- */
+  .rail{position:sticky; top:20px; min-width:0}
+  .rail-hd{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    padding:0 2px 9px;
+  }
+  .rail-hd h2{margin:0; font-size:14px; font-weight:700}
+  .rail-hd span{font-size:11.5px; color:var(--muted-soft)}
+  .list{
+    background:var(--card); border:1px solid var(--border-soft);
+    border-radius:var(--r); box-shadow:var(--shadow-sm); overflow:hidden;
+    max-height:calc(100vh - 150px); overflow-y:auto;
+  }
+  .item{border-top:1px solid var(--border-soft)}
+  .item:first-child{border-top:0}
+  .item-hd{
+    width:100%; display:flex; gap:11px; align-items:flex-start; text-align:left;
+    padding:12px 14px; border:0; background:none; cursor:pointer;
+    transition:background .12s;
+  }
+  .item-hd:hover{background:var(--primary-softer)}
+  .item.on .item-hd{background:var(--primary-softer)}
+  .item.on{box-shadow:inset 3px 0 0 var(--primary)}
+  .num{
+    flex-shrink:0; width:21px; height:21px; margin-top:1px; border-radius:99px;
+    background:var(--field); border:1px solid var(--border); color:var(--muted);
+    font-size:10.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .item.on .num{background:var(--primary); border-color:var(--primary); color:#fff}
+  .item-t{display:block; font-size:13px; font-weight:650; letter-spacing:-.1px}
+  .item-s{display:block; font-size:12px; color:var(--muted); line-height:1.5; margin-top:2px}
+  .band{
+    display:inline-block; margin-top:6px; padding:2px 8px; border-radius:99px;
+    background:var(--field); border:1px solid var(--border);
+    font-size:10px; font-weight:600; color:var(--muted);
+  }
+  .body{padding:0 14px 14px 46px; display:grid; gap:10px}
+  .lbl{
+    font-size:10.5px; font-weight:700; color:var(--muted-soft);
+    letter-spacing:.06em; text-transform:uppercase;
+  }
+  .body p{margin:3px 0 0; font-size:12.5px; color:var(--text-soft); line-height:1.6}
+  .good{
+    display:flex; gap:8px; padding:9px 11px; border-radius:var(--rs);
+    background:var(--green-soft); border:1px solid #C7F0DD;
+  }
+  .good svg{flex-shrink:0; margin-top:2px}
+  .good p{margin:0; font-size:12px; color:#065F46; line-height:1.55}
+  .lesson{
+    display:flex; align-items:center; gap:9px; text-decoration:none;
+    padding:8px 10px; border-radius:var(--rs);
+    background:var(--field); border:1px solid var(--border); color:var(--text);
+    transition:border-color .12s, background .12s;
+  }
+  .lesson:hover{background:var(--primary-softer); border-color:#C7C9FB}
+  .lesson .ic{
+    flex-shrink:0; width:23px; height:23px; border-radius:6px;
+    background:var(--primary-soft); color:var(--primary);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .lesson b{display:block; font-size:12px; font-weight:650}
+  .lesson small{display:block; font-size:10.5px; color:var(--muted); margin-top:1px}
+
+  .note{
+    margin-top:14px; padding:12px 14px; border-radius:var(--r);
+    background:var(--card); border:1px dashed var(--border);
+    font-size:11.5px; color:var(--muted); line-height:1.6;
+  }
+  .note b{color:var(--text-soft)}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1180px){
+    :root{--rail:330px}
+    .wrap{padding:20px 20px 56px; gap:18px}
+    .hd-in{padding:22px 20px 0}
+  }
+  @media (max-width:940px){
+    .wrap{grid-template-columns:minmax(0,1fr)}
+    .rail{position:static; max-height:none}
+    .list{max-height:none}
+    /* On a phone the pins are too small to hit reliably and the image is tiny —
+       the numbered list below IS the content, and it reads fine on its own. */
+    .pin{width:20px;height:20px;font-size:10px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important}
+  }
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-in">
+    <span class="eyebrow"><span class="dot"></span>Sole Practice Manager</span>
+    <h1>What am I looking at?</h1>
+    <p class="sub">
+      Every number on these screens, explained in one line. <b>Hover a marker</b> to see what it means;
+      <b>click it</b> for how it's worked out and what a normal figure looks like.
+      Use <kbd>←</kbd> <kbd>→</kbd> to step through, <kbd>Esc</kbd> to clear.
+    </p>
+    <nav class="tabs" id="tabs" role="tablist" aria-label="Screens"></nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="stage">
+    <div class="shot" id="shot">
+      <img id="shotimg" alt="">
+      <div class="ring" id="ring"></div>
+    </div>
+    <div class="stage-foot">
+      <span id="count"></span>
+      <span class="grow"></span>
+      <button class="btn" id="prev" type="button">← Previous</button>
+      <button class="btn pri" id="next" type="button">Next →</button>
+    </div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <aside class="rail">
+    <div class="rail-hd">
+      <h2>On this screen</h2>
+      <span id="railcount"></span>
+    </div>
+    <div class="list" id="list"></div>
+  </aside>
+</main>
+
+<script src="assets/annotated/pins.js"></script>
+<script>
+/* ============================================================================
+   AUTHORING — this is the only block you edit to change what the tour says.
+
+   One entry per on-screen label. `label` must match the label as it appears in
+   the app; that's how the copy is joined to the pin position measured from the
+   live DOM (assets/annotated/pins.js, written by scripts/capture-annotated.mjs).
+
+   You never type a coordinate. If the dashboard layout changes, re-run
+       node scripts/capture-annotated.mjs
+   and the markers move themselves.
+
+     short   one sentence, ≤18 words, second person, no formula
+     detail  the formula in words + how to read the number
+     good    what normal looks like — this is what answers "why is it 844%?!"
+     band    the unit/target, shown as a small chip
+     lesson  { course, title, mins } → deep link into Sole Academy
+
+   If `short` needs more than ~18 words, the LABEL is the problem, not the
+   explanation. Flag the label instead of writing a longer apology for it.
+   ========================================================================== */
+const SCREENS = [
+  {
+    id: 'practice-dashboard',
+    title: 'Practice Dashboard',
+    blurb: 'One page answering three questions: is the firm making money, is the work on time, and is anyone overloaded?',
+    terms: {
+      'Total Revenue (MTD)': {
+        band: 'invoiced this month · AUD',
+        short: 'What you have actually invoiced so far this calendar month.',
+        detail: 'Invoiced fees dated inside the current month, recurring plus one-off. It counts what you billed, not what you were paid — money still owed to you sits in Debtors, not here.',
+        good: 'Compare it with the same month last year rather than last month; most practices are seasonal around lodgement deadlines.',
+        lesson: { course: 'c-time', title: 'Turning time into invoices', mins: 5 },
+      },
+      'Net Profit Margin': {
+        band: 'target 30%+ · profit ÷ revenue',
+        short: 'What is left of every dollar you bill after the cost of doing the work.',
+        detail: '(Revenue − cost of delivery) ÷ revenue. Cost of delivery is staff time at cost rate plus recoverable expenses. It is calculated per service line, so a healthy overall figure can still hide one line losing money.',
+        good: 'Most practices target 30%+ overall. If one service line sits under 15%, that line is priced wrong, not busy.',
+        lesson: { course: 'c-time', title: 'Turning time into invoices', mins: 5 },
+      },
+      'Utilisation Rate': {
+        band: 'target 80% · billable ÷ available hrs',
+        short: "How much of the team's available time went on work you can bill for.",
+        detail: 'Billable hours ÷ available hours. Careful: this figure is measured against RAW available hours here, but against TARGET billable hours on Margin by Person — so the same person reads higher there. Compare a person to themselves over time, not across the two screens.',
+        good: 'Target is 80%. Above ~100% means someone is working beyond their contracted hours, which is a roster problem rather than a good result.',
+        lesson: { course: 'c-team', title: 'Service lines & capacity targets', mins: 6 },
+      },
+      'Realisation Rate': {
+        band: 'target 85–95% · billed ÷ recorded',
+        short: 'The share of the time you recorded that you actually billed.',
+        detail: 'Billed value ÷ the value of all time recorded, at standard rates. 100% means every logged hour reached an invoice. 89% means 11% never did — written off, absorbed into a fixed fee, or still sitting in WIP.',
+        good: 'Most firms sit 85–95%. Under 80% usually means scope creep, or fixed fees priced below the work it takes.',
+        lesson: { course: 'c-time', title: 'Turning time into invoices', mins: 5 },
+      },
+      'Total WIP Value': {
+        band: 'done, not yet invoiced · AUD',
+        short: 'Work you have already done but have not invoiced yet.',
+        detail: 'Recorded time plus recoverable expenses on open jobs, valued at charge rates, that has not yet reached an invoice. It is money you have earned and not asked for.',
+        good: 'Age matters more than size. Anything past 90 days is usually written off, so watch the ageing bands rather than the total.',
+        lesson: { course: 'c-time', title: 'Turning time into invoices', mins: 5 },
+      },
+      'Jobs Overdue': {
+        band: 'past internal due date',
+        short: 'Jobs that have gone past the due date you set internally.',
+        detail: 'Counted against your own internal deadline, not the ATO one — so a job can be overdue here while still being safely ahead of its lodgement date. Jobs marked "Waiting on client" are paused and excluded.',
+        good: 'Rising is bad even when the number is small. Watch the direction more than the count.',
+        lesson: { course: 'c-projects', title: 'Jobs, tasks & deadlines', mins: 7 },
+      },
+      'Available Capacity': {
+        band: 'unbooked hrs · next 7 days',
+        short: 'Team hours in the next week that nothing is booked into yet.',
+        detail: 'Contracted hours minus already-assigned work across the team, for the next seven days. Leave and public holidays are already taken out.',
+        good: 'Some slack is healthy — a team at zero free hours cannot absorb a single urgent job.',
+        lesson: { course: 'c-capacity', title: 'Assigning work by availability & skill', mins: 6 },
+      },
+      'Financial health': {
+        short: 'Where the money came from this month, and which work actually earned.',
+        detail: 'Revenue trend, WIP ageing, the split between recurring and one-off fees, and profitability per service line. "Drill in" on any card opens the jobs or contracts behind the number.',
+        lesson: { course: 'c-time', title: 'Turning time into invoices', mins: 5 },
+      },
+      'Revenue trend': {
+        short: 'Invoiced fees week by week, so you can see the shape rather than one total.',
+        detail: 'Each point is the running invoiced value at that date. A flat stretch mid-month usually means invoicing has stalled, not that work has.',
+        good: 'A step pattern is normal — most firms invoice in batches. A long flat tail near month-end is the warning sign.',
+      },
+      'WIP ageing': {
+        band: 'unbilled work by age',
+        short: 'How long your unbilled work has been sitting there, in four age bands.',
+        detail: 'Splits open WIP by the age of its oldest time entry: 0–30, 31–60, 61–90 and 90+ days. The colour is the risk of never collecting it.',
+        good: 'Treat 60 days as your deadline to invoice or write off deliberately. Past 90 days, most of it is gone.',
+        lesson: { course: 'c-time', title: 'Turning time into invoices', mins: 5 },
+      },
+    },
+  },
+  {
+    id: 'pipeline-forecast',
+    title: 'Pipeline Forecast',
+    blurb: 'Answers one question before you say yes to more work: if these deals land, can we actually deliver them?',
+    terms: {
+      'Open pipeline': {
+        band: 'unwon deal value · AUD',
+        short: 'Everything you have quoted that has not been won or lost yet.',
+        detail: 'Total value of deals still open, at full value — not discounted by likelihood. The committed forecast is the realistic version of this number.',
+        good: 'Compare against the revenue you need. A pipeline smaller than one quarter of target is a selling problem, not a delivery one.',
+        lesson: { course: 'c-pipeline', title: 'The Pipeline forecast dashboard', mins: 6 },
+      },
+      'Committed forecast': {
+        band: 'deal value × likelihood',
+        short: 'Your open deals discounted by how likely each one is to close.',
+        detail: "Each deal's value multiplied by the likelihood of its current stage, which you can override per deal. A $100k deal at 40% counts as $40k. The uncommitted view instead treats every open deal as won — that is the ceiling, not the forecast.",
+        good: 'Use committed for planning cash, and uncommitted for stress-testing whether you could actually deliver it all.',
+        lesson: { course: 'c-pipeline', title: 'The Pipeline forecast dashboard', mins: 6 },
+      },
+      'Forecast hours': {
+        band: 'delivery load · hrs',
+        short: 'The hours it would take to deliver the work in your pipeline.',
+        detail: 'Budgeted hours on open deals, weighted by the same likelihood used for the committed forecast, spread across the months the work is expected to land in.',
+        good: 'Read it next to Available Capacity. Winning work you cannot staff is how a good month becomes a bad one.',
+        lesson: { course: 'c-pipeline', title: 'The Pipeline forecast dashboard', mins: 6 },
+      },
+      'Unallocated hours': {
+        band: 'work with nobody on it',
+        short: 'Work that has been sold but not yet given to anyone to do.',
+        detail: 'Budgeted hours on live jobs with no staff member assigned. It is the gap between what you promised and what is actually rostered.',
+        good: 'Should trend to zero as the month starts. Anything still unallocated inside a fortnight of the deadline will slip.',
+        lesson: { course: 'c-capacity', title: 'Assigning work by availability & skill', mins: 6 },
+      },
+      'People over capacity': {
+        band: 'count · booked beyond contracted hrs',
+        short: 'How many of your team are booked for more hours than they have.',
+        detail: 'Counts staff whose assigned work exceeds their contracted hours for the period. One person badly over is usually worse than three slightly over.',
+        good: 'Zero is the target. Rebalance in the Staff Scheduler rather than hoping it absorbs.',
+        lesson: { course: 'c-capacity', title: 'Spotting bottlenecks early', mins: 5 },
+      },
+      'Expected starts': {
+        band: 'dated pipeline · count',
+        short: 'Deals with a start date, so you know when the work would actually arrive.',
+        detail: 'Open deals that carry an expected start date, counted in the selected period. Deals with no date are excluded — they cannot be planned for.',
+        good: 'A big pipeline with few dated starts means your forecast is a guess. Chase start dates before trusting the capacity view.',
+        lesson: { course: 'c-pipeline', title: 'The Pipeline forecast dashboard', mins: 6 },
+      },
+      'Open renewal value': {
+        band: 'recurring up for renewal · AUD',
+        short: 'Recurring fees that are due to renew and have not been confirmed yet.',
+        detail: 'Annual value of retainers and recurring engagements whose renewal date falls in the period and which the client has not yet re-signed.',
+        good: 'This is usually your cheapest revenue to win. Treat it before chasing new deals.',
+        lesson: { course: 'c-pipeline', title: 'Tracking prospects & opportunities', mins: 5 },
+      },
+      'Renewals due': {
+        band: 'count · next 90 days',
+        short: 'How many recurring clients are up for renewal in the next quarter.',
+        detail: 'Count of recurring engagements with a renewal date inside 90 days, regardless of value.',
+        good: 'Work these in date order. A renewal chased after its date has already become a negotiation.',
+        lesson: { course: 'c-pipeline', title: 'Tracking prospects & opportunities', mins: 5 },
+      },
+      'At high churn risk': {
+        band: 'needs attention · count',
+        short: 'Renewing clients showing the warning signs of leaving.',
+        detail: 'Flags renewals where the client experience score, responsiveness or on-time delivery has dropped since the last renewal. It is a prediction, not a decision they have made.',
+        good: 'Ring these before you send the renewal, not after. The score usually fell for a reason you can still fix.',
+        lesson: { course: 'c-crm', title: 'Your client workspace in one place', mins: 6 },
+      },
+      'Pipeline forecast': {
+        short: 'Month by month, what you expect to win and what it takes to deliver.',
+        detail: 'Two scenarios side by side: committed (each deal discounted by its likelihood) and uncommitted (every open deal treated as won). The gap between them is your risk.',
+        lesson: { course: 'c-pipeline', title: 'The Pipeline forecast dashboard', mins: 6 },
+      },
+      'Resource impact': {
+        band: 'green <85% · amber 85–100% · red >100%',
+        short: 'What your open pipeline would do to each person if every deal landed.',
+        detail: "Committed hours plus pipeline hours for the period ÷ that person's billable target hours. It deliberately ignores whether you will actually win the work, which is why it can read far over 100%.",
+        good: 'Green under 85%, amber to 100%, red above. Anything past ~150% is an allocation error rather than a capacity problem — the same person has been named on too many open deals. Check the deal allocations before you panic.',
+        lesson: { course: 'c-capacity', title: 'Spotting bottlenecks early', mins: 5 },
+      },
+    },
+  },
+  {
+    id: 'helicopter-view',
+    title: 'Helicopter view',
+    blurb: 'The firm-wide read for a partner: how the practice is performing and where work is stuck, without opening a single job.',
+    terms: {
+      'Jobs at risk': {
+        band: 'will miss unless something changes',
+        short: 'Jobs still on time today that are on track to be late.',
+        detail: 'Jobs whose remaining work will not fit before the deadline at the current rate of progress. They are a warning, not yet a failure — unlike overdue jobs, there is still time to act.',
+        good: 'This is the list to work from in a morning stand-up. Overdue is already too late.',
+        lesson: { course: 'c-projects', title: 'Jobs, tasks & deadlines', mins: 7 },
+      },
+      'Overdue jobs': {
+        band: 'past internal due date',
+        short: 'Jobs that have gone past the due date you set internally.',
+        detail: 'Counted against your own internal deadline, not the ATO one — so a job can be overdue here while still being safely ahead of its lodgement date. Jobs marked "Waiting on client" are paused and excluded.',
+        good: 'Rising is bad even when the number is small. Watch the direction more than the count.',
+        lesson: { course: 'c-projects', title: 'Jobs, tasks & deadlines', mins: 7 },
+      },
+      'Value at risk': {
+        band: 'fees on overdue jobs · AUD',
+        short: 'The fees attached to the jobs that are running late.',
+        detail: 'Total agreed fee value of all overdue jobs. It shows which delays actually matter — five late $500 jobs are a smaller problem than one late $40k job.',
+        good: 'Sort by this rather than by job count when you have to choose what to rescue first.',
+        lesson: { course: 'c-projects', title: 'Jobs, tasks & deadlines', mins: 7 },
+      },
+      'Team overload': {
+        band: 'people booked past their hours',
+        short: 'Whether anyone is booked to do more hours than they actually have.',
+        detail: 'Flags any team member whose assigned work exceeds their contracted hours for the period, and names the worst case.',
+        good: 'HIGH means someone will miss a deadline or work unpaid overtime. Rebalance in the Staff Scheduler.',
+        lesson: { course: 'c-capacity', title: 'Spotting bottlenecks early', mins: 5 },
+      },
+      'Blocked jobs': {
+        band: 'stopped, waiting on something',
+        short: 'Jobs that cannot move until someone else does something.',
+        detail: 'Usually waiting on client information, an internal review, or a lodgement window. Time marked "Waiting on client" is paused and does not count against your experience score.',
+        good: 'Blocked is fine for a day and expensive for a fortnight. Chase anything over a week.',
+        lesson: { course: 'c-projects', title: 'Approvals & accountability', mins: 5 },
+      },
+      'Avg delay': {
+        band: 'days late · overdue jobs only',
+        short: 'When a job is late, how late it typically is.',
+        detail: 'Average days past due across currently overdue jobs only. On-time jobs are not counted, so this measures severity rather than how often you are late.',
+        good: 'A small count with a big average delay means a few jobs are badly stuck — find them rather than reading the average.',
+        lesson: { course: 'c-projects', title: 'Jobs, tasks & deadlines', mins: 7 },
+      },
+      'Operational snapshot': {
+        short: 'Eight signals to read in the morning before you plan the day.',
+        detail: 'A read-only strip. Every signal here has a fuller section further down the page — this row exists so you can spot which one to open.',
+        lesson: { course: 'c-get-started', title: 'Navigating the sidebar & dashboards', mins: 6 },
+      },
+    },
+  },
+];
+
+/* ---------- wiring (no coordinates below this line) ---------- */
+const PINS  = window.SCREEN_TOUR_PINS || {};
+const $     = (id) => document.getElementById(id);
+const esc   = (s) => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+const ICON_PLAY  = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 3 14 9-14 9V3z"/></svg>';
+
+// Join authored copy to measured geometry. A term with no measured pin is
+// dropped (and reported in the console) rather than guessed at.
+function build(screen) {
+  const geo = PINS[screen.id];
+  if (!geo) return [];
+  const missing = [];
+  const rows = geo.pins.map((p) => {
+    const copy = screen.terms[p.label];
+    if (!copy) { missing.push(p.label); return null; }
+    return Object.assign({}, copy, { label: p.label, x: p.x, y: p.y, rect: p.rect });
+  }).filter(Boolean);
+  if (missing.length) console.warn(`[screen-tour] ${screen.id}: no copy for ${missing.join(', ')}`);
+  return rows;
+}
+
+let si = 0;      // screen index
+let ai = -1;     // active pin index, -1 = none
+let rows = [];
+
+function renderTabs() {
+  $('tabs').innerHTML = SCREENS.map((s, i) => {
+    const n = (PINS[s.id] ? PINS[s.id].pins.length : 0);
+    return `<button class="tab" role="tab" type="button" data-i="${i}"
+      aria-selected="${i === si}">${esc(s.title)}<span class="n">${n}</span></button>`;
+  }).join('');
+}
+
+function renderScreen() {
+  const s = SCREENS[si];
+  rows = build(s);
+  ai = -1;
+
+  $('shotimg').src = `assets/annotated/${s.id}.png`;
+  $('shotimg').alt = `${s.title} — annotated screenshot`;
+
+  // Pins are appended after the <img>, before the ring, so the ring's dimming
+  // shadow sits above the image but below nothing that needs to stay bright.
+  $('shot').querySelectorAll('.pin').forEach(n => n.remove());
+  const frag = document.createDocumentFragment();
+  rows.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pin';
+    b.style.left = r.x + '%';
+    b.style.top = r.y + '%';
+    b.textContent = i + 1;
+    b.setAttribute('aria-label', `${r.label}: ${r.short}`);
+    b.addEventListener('click', () => select(i === ai ? -1 : i));
+    b.addEventListener('mouseenter', () => { if (ai === -1) ring(i, false); });
+    b.addEventListener('mouseleave', () => { if (ai === -1) ring(-1); });
+    frag.appendChild(b);
+  });
+  $('shot').insertBefore(frag, $('ring'));
+
+  $('list').innerHTML = rows.map((r, i) => `
+    <div class="item" data-i="${i}">
+      <button class="item-hd" type="button" aria-expanded="false">
+        <span class="num">${i + 1}</span>
+        <span style="min-width:0">
+          <span class="item-t">${esc(r.label)}</span>
+          <span class="item-s">${esc(r.short)}</span>
+          ${r.band ? `<span class="band">${esc(r.band)}</span>` : ''}
+        </span>
+      </button>
+    </div>`).join('');
+
+  $('list').querySelectorAll('.item-hd').forEach((b, i) => {
+    b.addEventListener('click', () => select(i === ai ? -1 : i));
+    b.addEventListener('mouseenter', () => { if (ai === -1) ring(i, false); });
+    b.addEventListener('mouseleave', () => { if (ai === -1) ring(-1); });
+  });
+
+  $('railcount').textContent = `${rows.length} explained`;
+  $('count').innerHTML = `<b style="color:var(--text-soft)">${esc(s.title)}</b> — ${esc(s.blurb)}`;
+  $('note').innerHTML = `<b>Design prototype.</b> Markers are positioned from the live app by
+    <code>scripts/capture-annotated.mjs</code>, not placed by hand — when a dashboard changes,
+    the script is re-run and they move themselves. Screens shown with sample data.`;
+  sync();
+}
+
+function ring(i, dim) {
+  const el = $('ring');
+  if (i < 0 || !rows[i]) { el.className = 'ring'; return; }
+  const r = rows[i].rect;
+  const pad = 6;
+  el.style.left   = `calc(${r.x}% - ${pad}px)`;
+  el.style.top    = `calc(${r.y}% - ${pad}px)`;
+  el.style.width  = `calc(${r.w}% + ${pad * 2}px)`;
+  el.style.height = `calc(${r.h}% + ${pad * 2}px)`;
+  el.className = 'ring on' + (dim ? ' dim' : '');
+}
+
+function select(i) {
+  ai = i;
+  sync();
+  if (i >= 0) {
+    const item = $('list').querySelector(`.item[data-i="${i}"]`);
+    if (item) item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function sync() {
+  $('shot').classList.toggle('picked', ai >= 0);
+  $('shot').querySelectorAll('.pin').forEach((p, i) => p.classList.toggle('active', i === ai));
+
+  $('list').querySelectorAll('.item').forEach((el, i) => {
+    const on = i === ai;
+    el.classList.toggle('on', on);
+    el.querySelector('.item-hd').setAttribute('aria-expanded', String(on));
+    const old = el.querySelector('.body');
+    if (old) old.remove();
+    if (!on) return;
+    const r = rows[i];
+    const d = document.createElement('div');
+    d.className = 'body';
+    d.innerHTML = [
+      r.detail ? `<div><div class="lbl">How it's worked out</div><p>${esc(r.detail)}</p></div>` : '',
+      r.good ? `<div class="good">${ICON_CHECK}<p>${esc(r.good)}</p></div>` : '',
+      // Sibling path, not "../index.html": the deploy workflow flattens pages/
+      // to the hosting root, so screen-tour.html and index.html end up side by
+      // side. Same convention as hub.html. Links to the COURSE rather than the
+      // lesson because the app's router currently drops a 3rd hash segment.
+      r.lesson ? `<a class="lesson" href="index.html#/practice/course/${esc(r.lesson.course)}">
+          <span class="ic">${ICON_PLAY}</span>
+          <span style="flex:1;min-width:0"><b>${esc(r.lesson.title)}</b>
+          <small>Sole Academy · ${esc(r.lesson.mins)} min</small></span>
+        </a>` : '',
+    ].join('');
+    el.appendChild(d);
+  });
+
+  ring(ai, true);
+  $('prev').disabled = ai <= 0;
+  $('next').disabled = rows.length === 0 || ai >= rows.length - 1;
+  $('next').textContent = ai === -1 ? 'Start →' : 'Next →';
+}
+
+$('tabs').addEventListener('click', (e) => {
+  const t = e.target.closest('.tab');
+  if (!t) return;
+  si = +t.dataset.i;
+  renderTabs();
+  renderScreen();
+});
+$('prev').addEventListener('click', () => select(Math.max(0, ai - 1)));
+$('next').addEventListener('click', () => select(Math.min(rows.length - 1, ai + 1)));
+document.addEventListener('keydown', (e) => {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target.tagName || '')) || e.target.isContentEditable) return;
+  if (e.key === 'Escape') { select(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); select(Math.min(rows.length - 1, ai + 1)); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); if (ai > 0) select(ai - 1); }
+  else return;
+});
+
+renderTabs();
+renderScreen();
+</script>
+</body>
+</html>
