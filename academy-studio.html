@@ -1,0 +1,2801 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sole Academy Studio</title>
+<link rel="icon" type="image/png" href="assets/sole-icon.png" />
+<meta name="description" content="Internal tool — build and publish the Sole Academy curriculum for both products: courses, lessons, video links, learning paths and production status." />
+<!-- React + Babel from unpkg. Babel PINNED to 7.29.7 (a floating tag rolls to v8 → blank page). See docs/MEMORY.md. -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!-- Starter curricula + the product registry. Loads BEFORE the app. -->
+<script src="resources/academy-seed.js"></script>
+<!-- Shared draft, media library and publishing. Degrades to LOCAL (this-browser)
+     mode until academy-config.js is filled in. See docs/ACADEMY_STUDIO_SETUP.md. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="resources/academy-config.js"></script>
+<script src="resources/academy-cloud.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, #root { margin: 0; padding: 0; height: 100%; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; font-size: 13px; line-height: 1.45; color: #0F1117; background: #F5F4F8; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; font-size: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #5B5BF6 !important; box-shadow: 0 0 0 3px rgba(91,91,246,0.12); }
+  button[data-btn] { transition: background .12s, border-color .12s, box-shadow .12s, transform .05s; }
+  button[data-btn]:active { transform: translateY(0.5px); }
+  .scroll { overflow-y: auto; }
+  .scroll::-webkit-scrollbar { width: 8px; }
+  .scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+  .scroll::-webkit-scrollbar-track { background: transparent; }
+  /* Tree rows reveal their actions on hover so the default state stays quiet. */
+  .row-actions { opacity: 0; transition: opacity .12s; }
+  [data-row]:hover .row-actions, [data-row]:focus-within .row-actions { opacity: 1; }
+  [data-drop-before] { box-shadow: inset 0 2px 0 0 #5B5BF6; }
+  [data-drop-after]  { box-shadow: inset 0 -2px 0 0 #5B5BF6; }
+  [data-dragging] { opacity: 0.4; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @keyframes slidein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+const SEED = window.SOLE_ACADEMY_SEED || {};
+const PRODUCTS = window.SOLE_ACADEMY_PRODUCTS || [{ id: 'spm', label: 'SPM', short: 'SPM', blurb: '' }];
+const CLOUD = window.SoleAcademyCloud || null;
+
+/* ===== design tokens ======================================================
+   Copied verbatim from index.html's `T` block so anything the Studio previews
+   is colour-accurate against the real app. Never hardcode a colour below. */
+const T = {
+  primary: '#5B5BF6', primaryDark: '#4F46E5', primarySoft: '#EEF0FF', primarySofter: '#F5F6FF',
+  bg: '#F5F4F8', card: '#FFFFFF', border: '#E5E7EB', borderStrong: '#D1D5DB', borderSoft: '#ECEDF2',
+  text: '#0F1117', textSoft: '#1F2937', muted: '#6B7280', mutedSoft: '#9CA3AF', fieldBg: '#F9FAFB',
+  green: '#10B981', greenDark: '#059669', greenSoft: '#ECFDF5',
+  amber: '#D97706', amberSoft: '#FEF3C7',
+  red: '#EF4444', redSoft: '#FEE2E2',
+  blue: '#3B82F6', blueSoft: '#EFF6FF',
+  radius: 8, radiusCard: 12, radiusLg: 14,
+  shadowSm: '0 1px 2px rgba(15,17,23,0.05)',
+};
+
+/* Colours a category may use — the four the live Academy's palette supports. */
+const CATEGORY_COLORS = [
+  { hex: T.primary, label: 'Indigo' },
+  { hex: T.blue,    label: 'Blue' },
+  { hex: T.green,   label: 'Green' },
+  { hex: T.amber,   label: 'Amber' },
+];
+
+/* ===== icons ==============================================================
+   The subset of index.html's `Icon` map this tool needs. CATEGORY_ICONS is the
+   allow-list offered to the team: every name in it exists in the live app's map,
+   so a category can never be saved with an icon the app can't render. */
+const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
+  const paths = {
+    rocket: <><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.74 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" /><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" /><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" /><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" /></>,
+    target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></>,
+    briefcase: <><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="2" y1="13" x2="22" y2="13" /></>,
+    gauge: <><path d="M3.6 18a9 9 0 1 1 16.8 0" /><line x1="12" y1="14" x2="16" y2="9" /><circle cx="12" cy="14" r="1.3" fill="currentColor" /></>,
+    wallet: <><rect x="3" y="6" width="18" height="14" rx="2" /><line x1="3" y1="11" x2="21" y2="11" /><circle cx="17" cy="15" r="1.2" /></>,
+    creditCard: <><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /><line x1="6" y1="15" x2="9" y2="15" /></>,
+    sparkle2: <><path d="M12 4l1.6 5L19 10.5l-5.4 1.5L12 17l-1.6-5L5 10.5 10.4 9z" /></>,
+    link: <><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" /><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></>,
+    bookOpen: <><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></>,
+    graduation: <><path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" /><line x1="22" y1="10" x2="22" y2="16" /></>,
+    award: <><circle cx="12" cy="8" r="6" /><path d="M15.5 13L17 22l-5-3-5 3 1.5-9" /></>,
+    video: <><polygon points="22 7 16 12 22 17 22 7" /><rect x="2" y="5" width="14" height="14" rx="2" /></>,
+    clock: <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    fileText: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" /></>,
+    chartBar: <><line x1="3" y1="20" x2="21" y2="20" /><rect x="6" y="11" width="3" height="8" /><rect x="11" y="6" width="3" height="13" /><rect x="16" y="14" width="3" height="5" /></>,
+    shield: <path d="M12 2L4 5v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V5z" />,
+    bolt: <polygon points="13 2 3 14 11 14 10 22 21 10 13 10 13 2" />,
+    receipt: <><path d="M6 2h12v20l-2.4-1.6L13.2 22 12 20.4 10.8 22 8.4 20.4 6 22z" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="9" y1="12" x2="15" y2="12" /></>,
+    clipboardCheck: <><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><polyline points="9 14 11 16 15 12" /></>,
+    flow: <><line x1="6" y1="3" x2="6" y2="15" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="6" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></>,
+    bank: <><line x1="3" y1="21" x2="21" y2="21" /><path d="M3 10l9-6 9 6" /><line x1="6" y1="10" x2="6" y2="21" /><line x1="10" y1="10" x2="10" y2="21" /><line x1="14" y1="10" x2="14" y2="21" /><line x1="18" y1="10" x2="18" y2="21" /></>,
+    percent: <><line x1="19" y1="5" x2="5" y2="19" /><circle cx="7" cy="7" r="2" /><circle cx="17" cy="17" r="2" /></>,
+    tag: <><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6z" /><circle cx="7.5" cy="7.5" r="1.1" fill="currentColor" /></>,
+    star: <polygon points="12 2 15 8.6 22 9.3 17 14.1 18.2 21 12 17.5 5.8 21 7 14.1 2 9.3 9 8.6 12 2" />,
+    // — chrome —
+    layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
+    image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>,
+    eye: <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7" /><circle cx="12" cy="12" r="3" /></>,
+    send: <><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>,
+    plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+    close: <><line x1="6" y1="6" x2="18" y2="18" /><line x1="6" y1="18" x2="18" y2="6" /></>,
+    check: <polyline points="5 12 10 17 19 7" />,
+    checkCircle: <><circle cx="12" cy="12" r="9" /><polyline points="8 12 11 15 16 9" /></>,
+    xCircle: <><circle cx="12" cy="12" r="9" /><line x1="9" y1="9" x2="15" y2="15" /><line x1="15" y1="9" x2="9" y2="15" /></>,
+    alertTriangle: <><path d="M10.3 3.86l-8.7 15a2 2 0 0 0 1.71 3h17.4a2 2 0 0 0 1.7-3l-8.7-15a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
+    info: <><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></>,
+    trash: <><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></>,
+    edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></>,
+    copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
+    download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>,
+    upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>,
+    search: <><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.65" y2="16.65" /></>,
+    chevronDown: <polyline points="6 9 12 15 18 9" />,
+    chevronRight: <polyline points="9 18 15 12 9 6" />,
+    chevronLeft: <polyline points="15 18 9 12 15 6" />,
+    chevronUp: <polyline points="18 15 12 9 6 15" />,
+    arrow: <><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></>,
+    play: <polygon points="6 4 20 12 6 20 6 4" />,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="16" y1="3" x2="16" y2="7" /></>,
+    user: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
+    filter: <polygon points="3 5 21 5 14 13 14 20 10 20 10 13 3 5" />,
+    refresh: <><polyline points="21 4 21 10 15 10" /><polyline points="3 20 3 14 9 14" /><path d="M3.5 9a9 9 0 0 1 15-3.4L21 8" /><path d="M20.5 15a9 9 0 0 1-15 3.4L3 16" /></>,
+    save: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /></>,
+    archive: <><rect x="3" y="3" width="18" height="5" rx="1" /><path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" /><line x1="10" y1="12" x2="14" y2="12" /></>,
+    list: <><line x1="9" y1="6" x2="20" y2="6" /><line x1="9" y1="12" x2="20" y2="12" /><line x1="9" y1="18" x2="20" y2="18" /><circle cx="5" cy="6" r="0.5" /><circle cx="5" cy="12" r="0.5" /><circle cx="5" cy="18" r="0.5" /></>,
+    grip: <><circle cx="9" cy="6" r="1.3" fill="currentColor" /><circle cx="15" cy="6" r="1.3" fill="currentColor" /><circle cx="9" cy="12" r="1.3" fill="currentColor" /><circle cx="15" cy="12" r="1.3" fill="currentColor" /><circle cx="9" cy="18" r="1.3" fill="currentColor" /><circle cx="15" cy="18" r="1.3" fill="currentColor" /></>,
+    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
+    mail: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 7l-10 6L2 7" /></>,
+    undo: <><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-15-6.7L3 13" /></>,
+  };
+  const p = paths[name] || paths.info;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
+      style={{ flexShrink: 0, display: 'block' }} aria-hidden="true">{p}</svg>
+  );
+};
+
+const CATEGORY_ICONS = ['rocket', 'target', 'briefcase', 'gauge', 'wallet', 'creditCard', 'sparkle2',
+  'link', 'bookOpen', 'graduation', 'award', 'video', 'clock', 'users', 'fileText', 'chartBar',
+  'shield', 'bolt', 'receipt', 'clipboardCheck', 'flow', 'bank', 'percent', 'tag', 'star'];
+
+/* ===== helpers ============================================================ */
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const uid = (prefix) => prefix + '-' + Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-3);
+const withAlpha = (hex, a) => {
+  const h = String(hex).replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
+const darkenHex = (hex, amt) => {
+  const h = String(hex).replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  const f = (v) => Math.max(0, Math.min(255, Math.round(v * (1 - amt))));
+  return '#' + [f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map(v => v.toString(16).padStart(2, '0')).join('');
+};
+const fmtWhen = (iso) => {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  } catch (_) { return ''; }
+};
+const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
+
+/* ===== video links ========================================================
+   The team pastes a link; we work out the rest. Deterministic derivation first
+   (provider + embed URL + thumbnail from the id), then a best-effort oEmbed call
+   for the title/duration/poster. oEmbed is allowed to fail silently — the
+   derived values are what the live app actually needs. */
+const parseVideoLink = (raw) => {
+  const url = String(raw || '').trim();
+  if (!url) return null;
+  let m = url.match(/(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{6,})/i);
+  if (m) return {
+    provider: 'youtube', label: 'YouTube', id: m[1],
+    watchUrl: 'https://www.youtube.com/watch?v=' + m[1],
+    embedUrl: 'https://www.youtube.com/embed/' + m[1],
+    thumbUrl: 'https://i.ytimg.com/vi/' + m[1] + '/hqdefault.jpg',
+    oembed: 'https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + m[1]),
+  };
+  m = url.match(/vimeo\.com\/(?:video\/|channels\/[\w]+\/)?(\d{6,})/i);
+  if (m) return {
+    provider: 'vimeo', label: 'Vimeo', id: m[1],
+    watchUrl: 'https://vimeo.com/' + m[1],
+    embedUrl: 'https://player.vimeo.com/video/' + m[1],
+    thumbUrl: '',
+    oembed: 'https://vimeo.com/api/oembed.json?url=' + encodeURIComponent('https://vimeo.com/' + m[1]),
+  };
+  m = url.match(/loom\.com\/(?:share|embed)\/([0-9a-f]{8,})/i);
+  if (m) return {
+    provider: 'loom', label: 'Loom', id: m[1],
+    watchUrl: 'https://www.loom.com/share/' + m[1],
+    embedUrl: 'https://www.loom.com/embed/' + m[1],
+    thumbUrl: 'https://cdn.loom.com/sessions/thumbnails/' + m[1] + '-with-play.gif',
+    oembed: 'https://www.loom.com/v1/oembed?url=' + encodeURIComponent('https://www.loom.com/share/' + m[1]),
+  };
+  if (/\.(mp4|webm|ogv|ogg|mov|m4v)(\?|#|$)/i.test(url)) return {
+    provider: 'file', label: 'Video file', id: '', watchUrl: url, embedUrl: '', fileUrl: url, thumbUrl: '', oembed: '',
+  };
+  if (/^https?:\/\//i.test(url)) return {
+    provider: 'unknown', label: 'Other link', id: '', watchUrl: url, embedUrl: url, thumbUrl: '', oembed: '',
+  };
+  return { provider: 'invalid', label: 'Not a link', id: '', watchUrl: '', embedUrl: '', thumbUrl: '', oembed: '' };
+};
+
+// Best-effort metadata. Resolves to {} on any failure — never throws, never blocks.
+const fetchVideoMeta = (parsed) => {
+  if (!parsed || !parsed.oembed) return Promise.resolve({});
+  return fetch(parsed.oembed)
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      if (!j) return {};
+      const out = {};
+      if (j.title) out.title = String(j.title);
+      if (j.thumbnail_url) out.thumbUrl = String(j.thumbnail_url);
+      // Vimeo returns seconds; Loom returns milliseconds on some payloads.
+      let secs = Number(j.duration);
+      if (isFinite(secs) && secs > 0) {
+        if (secs > 60 * 60 * 12) secs = secs / 1000;   // clearly ms, not s
+        out.mins = Math.max(1, Math.round(secs / 60));
+      }
+      return out;
+    })
+    .catch(() => ({}));
+};
+
+/* ===== production statuses ================================================ */
+const STATUSES = [
+  { id: 'idea',      label: 'Idea',      color: T.mutedSoft, blurb: 'Not started' },
+  { id: 'outlined',  label: 'Outlined',  color: T.blue,      blurb: 'Script or outline written' },
+  { id: 'recording', label: 'Recording', color: T.primary,   blurb: 'Being recorded' },
+  { id: 'editing',   label: 'Editing',   color: T.amber,     blurb: 'In the edit' },
+  { id: 'review',    label: 'In review', color: T.amber,     blurb: 'Waiting on sign-off' },
+  { id: 'published', label: 'Published', color: T.green,     blurb: 'Live for learners' },
+];
+const statusById = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
+const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
+
+/* ===== atoms ============================================================== */
+const Btn = ({ variant = 'primary', size = 'md', icon, iconRight, children, style, disabled, ...rest }) => {
+  const pad = size === 'sm' ? '5px 10px' : size === 'lg' ? '10px 18px' : '7px 13px';
+  const fs = size === 'sm' ? 11.5 : size === 'lg' ? 13.5 : 12.5;
+  const map = {
+    primary: { background: T.primary, color: '#fff', border: `1px solid ${T.primary}` },
+    soft: { background: T.primarySoft, color: T.primaryDark, border: `1px solid ${T.primarySoft}` },
+    ghost: { background: 'transparent', color: T.textSoft, border: '1px solid transparent' },
+    outline: { background: T.card, color: T.textSoft, border: `1px solid ${T.border}` },
+    danger: { background: T.card, color: T.red, border: `1px solid ${T.redSoft}` },
+    success: { background: T.green, color: '#fff', border: `1px solid ${T.green}` },
+  };
+  return (
+    <button data-btn disabled={disabled} style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: pad,
+      borderRadius: T.radius, fontSize: fs, fontWeight: 600, whiteSpace: 'nowrap',
+      opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer',
+      ...map[variant], ...style,
+    }} {...rest}>
+      {icon && <Icon name={icon} size={fs + 1.5} color="currentColor" />}
+      {children}
+      {iconRight && <Icon name={iconRight} size={fs + 1.5} color="currentColor" />}
+    </button>
+  );
+};
+
+const inputStyle = {
+  width: '100%', padding: '7px 10px', border: `1px solid ${T.border}`, borderRadius: T.radius,
+  background: T.card, fontSize: 12.5, color: T.text, transition: 'border-color .12s, box-shadow .12s',
+};
+const Input = ({ style, ...p }) => <input style={{ ...inputStyle, ...style }} {...p} />;
+const Textarea = ({ style, rows = 4, ...p }) => <textarea rows={rows} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55, ...style }} {...p} />;
+// Native select chrome varies wildly across platforms, so we draw our own caret
+// — without it these read as text inputs and nobody thinks to click them.
+const CARET = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")";
+const Select = ({ style, children, ...p }) => (
+  <select style={{
+    ...inputStyle, appearance: 'none', WebkitAppearance: 'none', cursor: 'pointer',
+    backgroundImage: CARET, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+    paddingRight: 26, ...style,
+  }} {...p}>{children}</select>
+);
+
+const Field = ({ label, hint, children, style }) => (
+  <label style={{ display: 'block', ...style }}>
+    {label && <div style={{ fontSize: 11, fontWeight: 600, color: T.textSoft, marginBottom: 5 }}>{label}</div>}
+    {children}
+    {hint && <div style={{ fontSize: 10.5, color: T.mutedSoft, marginTop: 4, lineHeight: 1.45 }}>{hint}</div>}
+  </label>
+);
+
+const Helper = ({ children, style }) => <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.5, ...style }}>{children}</div>;
+const SectionTitle = ({ children, style }) => <div style={{ fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: -0.1, ...style }}>{children}</div>;
+
+const Card = ({ children, style, pad = 16 }) => (
+  <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: T.radiusCard, padding: pad, boxShadow: T.shadowSm, ...style }}>{children}</div>
+);
+
+const Chip = ({ selected, onClick, children, tone, style }) => (
+  <button data-btn onClick={onClick} style={{
+    padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+    border: `1px solid ${selected ? (tone || T.primary) : T.border}`,
+    background: selected ? withAlpha(tone || T.primary, 0.10) : T.card,
+    color: selected ? (tone || T.primaryDark) : T.muted, ...style,
+  }}>{children}</button>
+);
+
+const Pill = ({ color = T.muted, children, icon, style }) => (
+  <span style={{
+    display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999,
+    fontSize: 10.5, fontWeight: 700, color: color, background: withAlpha(color, 0.11),
+    border: `1px solid ${withAlpha(color, 0.22)}`, whiteSpace: 'nowrap', ...style,
+  }}>{icon && <Icon name={icon} size={11} color={color} />}{children}</span>
+);
+
+const Banner = ({ tone = 'info', icon, title, children, action, style }) => {
+  const map = { info: [T.blueSoft, T.blue], warn: [T.amberSoft, T.amber], danger: [T.redSoft, T.red], accent: [T.primarySofter, T.primary], success: [T.greenSoft, T.greenDark] };
+  const [bg, fg] = map[tone] || map.info;
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 14px', background: bg, border: `1px solid ${withAlpha(fg, 0.22)}`, borderRadius: T.radiusCard, ...style }}>
+      <Icon name={icon || 'info'} size={15} color={fg} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {title && <div style={{ fontSize: 12.5, fontWeight: 700, color: T.text }}>{title}</div>}
+        {children && <div style={{ fontSize: 11.5, color: T.textSoft, lineHeight: 1.5, marginTop: title ? 2 : 0 }}>{children}</div>}
+      </div>
+      {action}
+    </div>
+  );
+};
+
+const EmptyState = ({ icon, title, hint, action }) => (
+  <div style={{ textAlign: 'center', padding: '40px 24px' }}>
+    <div style={{ width: 42, height: 42, margin: '0 auto 12px', borderRadius: 12, background: T.primarySofter, border: `1px solid ${T.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={icon || 'info'} size={19} color={T.primary} />
+    </div>
+    <div style={{ fontSize: 13.5, fontWeight: 700 }}>{title}</div>
+    {hint && <Helper style={{ marginTop: 5, maxWidth: 340, marginLeft: 'auto', marginRight: 'auto' }}>{hint}</Helper>}
+    {action && <div style={{ marginTop: 14 }}>{action}</div>}
+  </div>
+);
+
+const Modal = ({ open, onClose, title, children, footer, width = 520 }) => {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(15,17,23,0.42)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: width, maxHeight: '86vh', display: 'flex', flexDirection: 'column', background: T.card, borderRadius: T.radiusLg, boxShadow: '0 24px 64px rgba(15,17,23,0.28)', animation: 'slidein 160ms ease' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', borderBottom: `1px solid ${T.borderSoft}` }}>
+          <SectionTitle>{title}</SectionTitle>
+          <button data-btn onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'transparent', padding: 4, color: T.muted }}><Icon name="close" size={15} /></button>
+        </div>
+        <div className="scroll" style={{ padding: 18, flex: 1 }}>{children}</div>
+        {footer && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '12px 18px', borderTop: `1px solid ${T.borderSoft}` }}>{footer}</div>}
+      </div>
+    </div>
+  );
+};
+
+const Toast = ({ toast }) => {
+  if (!toast) return null;
+  const tone = toast.tone === 'error' ? T.red : toast.tone === 'warn' ? T.amber : T.text;
+  return (
+    <div style={{ position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', zIndex: 300,
+      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 999,
+      background: tone, color: '#fff', fontSize: 12.5, fontWeight: 600,
+      boxShadow: '0 12px 30px rgba(15,17,23,0.26)', animation: 'slidein 180ms ease' }}>
+      <Icon name={toast.tone === 'error' ? 'alertTriangle' : 'checkCircle'} size={14} color="#fff" />
+      {toast.message}
+      {toast.action && (
+        <button data-btn onClick={toast.action.onClick} style={{ marginLeft: 4, border: 'none', background: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 700, fontSize: 11.5, padding: '3px 9px', borderRadius: 999 }}>{toast.action.label}</button>
+      )}
+    </div>
+  );
+};
+
+const ProgressBar = ({ pct, color = T.primary, height = 5 }) => (
+  <div style={{ width: '100%', height, borderRadius: 999, background: T.borderSoft, overflow: 'hidden' }}>
+    <div style={{ width: `${Math.max(0, Math.min(100, pct))}%`, height: '100%', background: color, borderRadius: 999, transition: 'width .2s' }} />
+  </div>
+);
+
+/* A label + rows list editor used for takeaways and tags (plain string lists). */
+const StringListEditor = ({ items, onChange, placeholder, addLabel }) => {
+  const list = items || [];
+  const set = (i, v) => { const n = list.slice(); n[i] = v; onChange(n); };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {list.map((v, i) => (
+        <div key={i} style={{ display: 'flex', gap: 6 }}>
+          <Input value={v} placeholder={placeholder} onChange={e => set(i, e.target.value)} />
+          <Btn variant="ghost" size="sm" icon="close" aria-label="Remove"
+            onClick={() => onChange(list.filter((_, j) => j !== i))} style={{ color: T.mutedSoft, padding: '5px 7px' }} />
+        </div>
+      ))}
+      <Btn variant="outline" size="sm" icon="plus" onClick={() => onChange(list.concat(''))} style={{ alignSelf: 'flex-start' }}>{addLabel || 'Add'}</Btn>
+    </div>
+  );
+};
+
+/* Resource rows — {label, href} pairs the learner sees as download links. */
+const ResourceListEditor = ({ items, onChange }) => {
+  const list = items || [];
+  const set = (i, patch) => { const n = list.slice(); n[i] = { ...n[i], ...patch }; onChange(n); };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {list.map((r, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.3fr) auto', gap: 6 }}>
+          <Input value={r.label || ''} placeholder="Checklist (PDF)" onChange={e => set(i, { label: e.target.value })} />
+          <Input value={r.href || ''} placeholder="https://…" onChange={e => set(i, { href: e.target.value })} />
+          <Btn variant="ghost" size="sm" icon="close" aria-label="Remove"
+            onClick={() => onChange(list.filter((_, j) => j !== i))} style={{ color: T.mutedSoft, padding: '5px 7px' }} />
+        </div>
+      ))}
+      <Btn variant="outline" size="sm" icon="plus" onClick={() => onChange(list.concat({ label: '', href: '' }))} style={{ alignSelf: 'flex-start' }}>Add resource</Btn>
+    </div>
+  );
+};
+
+/* ===== document helpers ===================================================
+   Everything below reads/writes the curriculum document. Kept as pure functions
+   so the screens stay thin and the shapes are easy to reason about. */
+const emptyLesson = () => ({
+  id: uid('l'), title: '', mins: 5, type: 'video',
+  videoUrl: '', embedUrl: '', thumbUrl: '',
+  description: '', takeaways: [], transcript: '', tags: [], resources: [],
+  production: { status: 'idea', owner: '', due: '', notes: '' },
+});
+const emptyCourse = (categoryId) => ({
+  id: uid('c'), title: '', category: categoryId || '', level: 'Beginner', popular: false,
+  summary: '', lessons: [],
+});
+const emptyCategory = () => ({ id: uid('cat'), label: '', icon: 'bookOpen', color: T.primary, blurb: '' });
+const emptyPath = () => ({ id: uid('path'), title: '', forRole: '', blurb: '', courseIds: [] });
+
+const allLessons = (doc) => (doc.courses || []).flatMap(c => (c.lessons || []).map(l => ({ lesson: l, course: c })));
+const courseMins = (c) => (c.lessons || []).reduce((s, l) => s + (Number(l.mins) || 0), 0);
+const lessonHasVideo = (l) => !!(l.embedUrl || l.videoUrl);
+const catById = (doc, id) => (doc.categories || []).find(c => c.id === id) || null;
+const catColorOf = (doc, course) => { const c = catById(doc, course.category); return (c && c.color) || T.primary; };
+const catIconOf = (doc, course) => { const c = catById(doc, course.category); return (c && c.icon) || 'bookOpen'; };
+
+/* Move an item within an array, returning a new array. */
+const moveItem = (arr, from, to) => {
+  const a = arr.slice();
+  if (from < 0 || from >= a.length) return a;
+  const clamped = Math.max(0, Math.min(a.length - 1, to));
+  a.splice(clamped, 0, a.splice(from, 1)[0]);
+  return a;
+};
+
+/* ---- readiness checks ----------------------------------------------------
+   What would embarrass us if it shipped. Severity: 'block' stops a publish,
+   'warn' is advisory. Every issue carries enough to jump straight to the fix. */
+const computeIssues = (doc) => {
+  const issues = [];
+  const push = (severity, category, label, detail, target) => issues.push({ id: uid('i'), severity, category, label, detail, target });
+  const cats = doc.categories || [];
+  const courses = doc.courses || [];
+  const paths = doc.paths || [];
+
+  // duplicate ids anywhere — these silently break progress tracking in the app
+  const seen = {};
+  const dupe = (id, what, target) => {
+    if (!id) { push('block', 'Missing id', `${what} has no id`, 'Every item needs a stable id — progress tracking keys off it.', target); return; }
+    if (seen[id]) push('block', 'Duplicate id', `"${id}" is used twice`, `${what} reuses an id that already exists. Learner progress would be shared between them.`, target);
+    seen[id] = true;
+  };
+  cats.forEach(c => dupe(c.id, `Category "${c.label || 'Untitled'}"`, { kind: 'category', id: c.id }));
+  courses.forEach(c => {
+    dupe(c.id, `Course "${c.title || 'Untitled'}"`, { kind: 'course', id: c.id });
+    (c.lessons || []).forEach(l => dupe(l.id, `Lesson "${l.title || 'Untitled'}"`, { kind: 'lesson', id: l.id, courseId: c.id }));
+  });
+
+  cats.forEach(c => {
+    if (!String(c.label || '').trim()) push('block', 'Untitled', 'A category has no name', 'Learners see this as a filter chip — it cannot be blank.', { kind: 'category', id: c.id });
+    if (CATEGORY_ICONS.indexOf(c.icon) < 0) push('block', 'Bad icon', `"${c.label || c.id}" uses an unknown icon`, `"${c.icon}" is not an icon the app can render — pick one from the list.`, { kind: 'category', id: c.id });
+    if (!courses.some(x => x.category === c.id)) push('warn', 'Empty category', `"${c.label || c.id}" has no courses`, 'It will not appear anywhere for learners. Delete it or add a course.', { kind: 'category', id: c.id });
+  });
+
+  courses.forEach(c => {
+    if (!String(c.title || '').trim()) push('block', 'Untitled', 'A course has no title', 'Course cards would render blank.', { kind: 'course', id: c.id });
+    if (!catById(doc, c.category)) push('block', 'Orphan course', `"${c.title || c.id}" has no valid category`, 'It will not show under any filter. Pick a category.', { kind: 'course', id: c.id });
+    if (!(c.lessons || []).length) push('block', 'Empty course', `"${c.title || c.id}" has no lessons`, 'Opening it would show an empty player.', { kind: 'course', id: c.id });
+    if (!String(c.summary || '').trim()) push('warn', 'No summary', `"${c.title || c.id}" has no summary`, 'The card body would be blank in the catalog.', { kind: 'course', id: c.id });
+    (c.lessons || []).forEach(l => {
+      if (!String(l.title || '').trim()) push('block', 'Untitled', `A lesson in "${c.title || c.id}" has no title`, 'Playlist rows would render blank.', { kind: 'lesson', id: l.id, courseId: c.id });
+      if (!lessonHasVideo(l)) push('warn', 'No video', `"${l.title || l.id}" has no video`, 'Learners get the "preview coming soon" poster instead of a video.', { kind: 'lesson', id: l.id, courseId: c.id });
+      if (!String(l.description || '').trim()) push('warn', 'No description', `"${l.title || l.id}" has no description`, 'The lesson page would have no text under the player.', { kind: 'lesson', id: l.id, courseId: c.id });
+      if (!(Number(l.mins) > 0)) push('warn', 'No duration', `"${l.title || l.id}" has no length`, 'Duration chips would read "0 min".', { kind: 'lesson', id: l.id, courseId: c.id });
+      (l.resources || []).forEach(r => {
+        if (String(r.label || '').trim() && !String(r.href || '').trim()) push('warn', 'Dead resource link', `"${r.label}" in "${l.title || l.id}" has no URL`, 'It would render as a link that goes nowhere.', { kind: 'lesson', id: l.id, courseId: c.id });
+      });
+    });
+  });
+
+  paths.forEach(p => {
+    if (!String(p.title || '').trim()) push('block', 'Untitled', 'A learning path has no title', 'Path cards would render blank.', { kind: 'path', id: p.id });
+    if (!(p.courseIds || []).length) push('block', 'Empty path', `"${p.title || p.id}" has no courses`, 'Opening it would go nowhere.', { kind: 'path', id: p.id });
+    (p.courseIds || []).forEach(cid => {
+      if (!courses.some(c => c.id === cid)) push('block', 'Broken path', `"${p.title || p.id}" points at a deleted course`, `Course "${cid}" no longer exists. Remove it from the path.`, { kind: 'path', id: p.id });
+    });
+  });
+
+  return issues;
+};
+
+/* ---- the published document ---------------------------------------------
+   Strips internal-only fields so what engineering consumes is exactly the
+   learner-facing contract. Documented in docs/ACADEMY_INTEGRATION.md. */
+const toPublished = (doc) => ({
+  product: doc.product,
+  meta: { title: (doc.meta && doc.meta.title) || 'Sole Academy', blurb: (doc.meta && doc.meta.blurb) || '' },
+  categories: (doc.categories || []).map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color, blurb: c.blurb || '' })),
+  courses: (doc.courses || []).map(c => ({
+    id: c.id, title: c.title, category: c.category, level: c.level || 'Beginner',
+    summary: c.summary || '', popular: !!c.popular,
+    lessons: (c.lessons || []).map(l => {
+      const out = {
+        id: l.id, title: l.title, mins: Number(l.mins) || 0, type: l.type || 'video',
+        description: l.description || '',
+        takeaways: (l.takeaways || []).filter(t => String(t).trim()),
+        transcript: l.transcript || '',
+        tags: (l.tags || []).filter(t => String(t).trim()),
+        resources: (l.resources || []).filter(r => String(r.label || '').trim() && String(r.href || '').trim()),
+      };
+      // Only emit the video keys that are actually set — the app branches on
+      // their presence (videoUrl → <video>, embedUrl → <iframe>).
+      if (l.videoUrl) out.videoUrl = l.videoUrl;
+      if (l.embedUrl) out.embedUrl = l.embedUrl;
+      if (l.thumbUrl) out.thumbUrl = l.thumbUrl;
+      if (l.guide) out.guide = l.guide;   // reserved for annotated-screenshot lessons
+      return out;
+    }),
+  })),
+  paths: (doc.paths || []).map(p => ({ id: p.id, title: p.title, forRole: p.forRole || '', blurb: p.blurb || '', courseIds: (p.courseIds || []).slice() })),
+});
+
+/* ===== local persistence ==================================================
+   Always on, even in shared mode — a refresh or a dropped connection must never
+   lose in-progress work. Mirrors the Studio's approach (swallow quota errors). */
+const LS_DOCS = 'sole.academy.studio.docs.v1';
+const LS_UI = 'sole.academy.studio.ui.v1';
+const lsRead = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch (_) { return fallback; } };
+const lsWrite = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
+
+const seedDocs = () => {
+  const out = {};
+  PRODUCTS.forEach(p => { out[p.id] = clone(SEED[p.id] || { product: p.id, meta: { title: 'Sole Academy', blurb: '' }, categories: [], courses: [], paths: [] }); });
+  return out;
+};
+// Fill in anything a hand-edited or older document is missing, so the editor
+// never has to null-check its way through a screen.
+const normaliseDoc = (d, productId) => {
+  const doc = d && typeof d === 'object' ? clone(d) : {};
+  doc.product = productId;
+  doc.meta = doc.meta || { title: 'Sole Academy', blurb: '' };
+  doc.categories = Array.isArray(doc.categories) ? doc.categories : [];
+  doc.courses = Array.isArray(doc.courses) ? doc.courses : [];
+  doc.paths = Array.isArray(doc.paths) ? doc.paths : [];
+  doc.courses.forEach(c => {
+    c.lessons = Array.isArray(c.lessons) ? c.lessons : [];
+    c.level = c.level || 'Beginner';
+    c.lessons.forEach(l => {
+      l.type = l.type || 'video';
+      l.takeaways = Array.isArray(l.takeaways) ? l.takeaways : [];
+      l.tags = Array.isArray(l.tags) ? l.tags : [];
+      l.resources = Array.isArray(l.resources) ? l.resources : [];
+      l.production = l.production || { status: 'idea', owner: '', due: '', notes: '' };
+    });
+  });
+  doc.paths.forEach(p => { p.courseIds = Array.isArray(p.courseIds) ? p.courseIds : []; });
+  return doc;
+};
+
+const findCourse = (doc, id) => (doc.courses || []).find(c => c.id === id) || null;
+const findLesson = (doc, courseId, lessonId) => {
+  const c = findCourse(doc, courseId);
+  return c ? ((c.lessons || []).find(l => l.id === lessonId) || null) : null;
+};
+
+/* ===== drag to reorder ====================================================
+   HTML5 drag-and-drop for speed, with ↑/↓ buttons on every row as the reliable
+   path (and the only one that works from a keyboard). Nested lists stopPropagation
+   so dragging a lesson doesn't also drag its course. */
+const useDragOrder = (onMove) => {
+  // The source index lives in a REF, not state. dragstart → dragover → drop can
+  // all land in one tick (any synthetic drag, and some real fast ones), and a
+  // state update wouldn't have committed yet, so the drop would read `null` and
+  // silently do nothing. State is only mirrored for the visual highlight.
+  const fromRef = useRef(null);
+  const [from, setFrom] = useState(null);
+  const [over, setOver] = useState(null);
+  const reset = () => { fromRef.current = null; setFrom(null); setOver(null); };
+  return (i) => ({
+    draggable: true,
+    onDragStart: (e) => {
+      e.stopPropagation();
+      fromRef.current = i; setFrom(i);
+      // dataTransfer is absent on synthetic events; the reorder works without it.
+      try { if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); } } catch (_) {}
+    },
+    onDragOver: (e) => { e.preventDefault(); e.stopPropagation(); if (over !== i) setOver(i); },
+    onDragEnd: (e) => { e.stopPropagation(); reset(); },
+    onDrop: (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const f = fromRef.current;
+      reset();
+      if (f !== null && f !== i) onMove(f, i);
+    },
+    ...(from === i ? { 'data-dragging': '' } : {}),
+    ...(over === i && from !== null && from !== i ? (from < i ? { 'data-drop-after': '' } : { 'data-drop-before': '' }) : {}),
+  });
+};
+
+/* Small ↑/↓/delete cluster shown on row hover. */
+const RowActions = ({ onUp, onDown, onDelete, canUp, canDown, extra }) => (
+  <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: 1 }} onClick={e => e.stopPropagation()}>
+    {extra}
+    <button data-btn onClick={onUp} disabled={!canUp} aria-label="Move up"
+      style={{ border: 'none', background: 'transparent', padding: 2, color: canUp ? T.muted : T.borderStrong, cursor: canUp ? 'pointer' : 'default' }}><Icon name="chevronUp" size={13} /></button>
+    <button data-btn onClick={onDown} disabled={!canDown} aria-label="Move down"
+      style={{ border: 'none', background: 'transparent', padding: 2, color: canDown ? T.muted : T.borderStrong, cursor: canDown ? 'pointer' : 'default' }}><Icon name="chevronDown" size={13} /></button>
+    {onDelete && <button data-btn onClick={onDelete} aria-label="Delete"
+      style={{ border: 'none', background: 'transparent', padding: 2, color: T.mutedSoft }}><Icon name="trash" size={13} /></button>}
+  </div>
+);
+
+/* ===== the curriculum tree ================================================
+   Category → course → lesson, collapsible, drag or arrow to reorder. Selecting
+   any row opens it in the editor pane on the right. */
+const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setCollapsed }) => {
+  const cats = doc.categories || [];
+  const moveCat = useDragOrder((f, t) => edit(d => { d.categories = moveItem(d.categories, f, t); }));
+
+  const isOpen = (id) => !collapsed[id];
+  const toggle = (id) => setCollapsed(c => ({ ...c, [id]: !c[id] }));
+
+  const addCategory = () => {
+    const c = emptyCategory();
+    c.label = 'New category';
+    edit(d => { d.categories.push(c); });
+    setSel({ kind: 'category', id: c.id });
+  };
+  const addCourse = (categoryId) => {
+    const c = emptyCourse(categoryId);
+    c.title = 'New course';
+    edit(d => { d.courses.push(c); });
+    setCollapsed(s => ({ ...s, [categoryId]: false }));
+    setSel({ kind: 'course', id: c.id });
+  };
+  const addLesson = (courseId) => {
+    const l = emptyLesson();
+    l.title = 'New lesson';
+    edit(d => { const c = findCourse(d, courseId); if (c) c.lessons.push(l); });
+    setCollapsed(s => ({ ...s, [courseId]: false }));
+    setSel({ kind: 'lesson', id: l.id, courseId });
+  };
+
+  const deleteCategory = (cat) => {
+    const owned = (doc.courses || []).filter(c => c.category === cat.id);
+    if (owned.length) { fireToast({ message: `Move or delete its ${plural(owned.length, 'course')} first`, tone: 'warn' }); return; }
+    const snapshot = clone(doc.categories);
+    edit(d => { d.categories = d.categories.filter(c => c.id !== cat.id); });
+    if (sel.kind === 'category' && sel.id === cat.id) setSel({ kind: null });
+    fireToast({ message: `Deleted "${cat.label || 'category'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.categories = snapshot; }) } });
+  };
+  const deleteCourse = (course) => {
+    const snapshot = clone(doc.courses);
+    const snapPaths = clone(doc.paths);
+    edit(d => {
+      d.courses = d.courses.filter(c => c.id !== course.id);
+      d.paths.forEach(p => { p.courseIds = p.courseIds.filter(id => id !== course.id); });
+    });
+    if (sel.id === course.id || sel.courseId === course.id) setSel({ kind: null });
+    fireToast({ message: `Deleted "${course.title || 'course'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.courses = snapshot; d.paths = snapPaths; }) } });
+  };
+  const deleteLesson = (course, lesson) => {
+    const snapshot = clone(course.lessons);
+    edit(d => { const c = findCourse(d, course.id); if (c) c.lessons = c.lessons.filter(l => l.id !== lesson.id); });
+    if (sel.kind === 'lesson' && sel.id === lesson.id) setSel({ kind: 'course', id: course.id });
+    fireToast({ message: `Deleted "${lesson.title || 'lesson'}"`, action: { label: 'Undo', onClick: () => edit(d => { const c = findCourse(d, course.id); if (c) c.lessons = snapshot; }) } });
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700 }}>Curriculum</div>
+          <Helper style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{plural((doc.courses || []).length, 'course')} · {plural(allLessons(doc).length, 'lesson')}</Helper>
+        </div>
+        <Btn variant="soft" size="sm" icon="plus" onClick={addCategory} style={{ flexShrink: 0 }}>Category</Btn>
+      </div>
+
+      <div className="scroll" style={{ flex: 1, padding: '8px 8px 40px' }}>
+        {cats.length === 0 && (
+          <EmptyState icon="layers" title="No categories yet"
+            hint="Categories are the filter chips learners see across the top of the catalog. Start with one, then add courses inside it."
+            action={<Btn variant="primary" size="sm" icon="plus" onClick={addCategory}>Add the first category</Btn>} />
+        )}
+        {cats.map((cat, ci) => {
+          const courses = (doc.courses || []).filter(c => c.category === cat.id);
+          const open = isOpen(cat.id);
+          const selectedCat = sel.kind === 'category' && sel.id === cat.id;
+          return (
+            <div key={cat.id} {...moveCat(ci)} style={{ marginBottom: 3, borderRadius: T.radius }}>
+              <div data-row onClick={() => setSel({ kind: 'category', id: cat.id })}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: T.radius, cursor: 'pointer',
+                  background: selectedCat ? T.primarySoft : 'transparent' }}
+                onMouseEnter={e => { if (!selectedCat) e.currentTarget.style.background = T.fieldBg; }}
+                onMouseLeave={e => { if (!selectedCat) e.currentTarget.style.background = 'transparent'; }}>
+                <button data-btn onClick={e => { e.stopPropagation(); toggle(cat.id); }} aria-label={open ? 'Collapse' : 'Expand'}
+                  style={{ border: 'none', background: 'transparent', padding: 0, color: T.mutedSoft, display: 'flex' }}>
+                  <Icon name={open ? 'chevronDown' : 'chevronRight'} size={13} />
+                </button>
+                <span style={{ width: 20, height: 20, borderRadius: 6, background: withAlpha(cat.color || T.primary, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name={cat.icon || 'bookOpen'} size={12} color={cat.color || T.primary} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {cat.label || <span style={{ color: T.red }}>Untitled category</span>}
+                </span>
+                <span style={{ fontSize: 10, color: T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>{courses.length}</span>
+                <RowActions
+                  canUp={ci > 0} canDown={ci < cats.length - 1}
+                  onUp={() => edit(d => { d.categories = moveItem(d.categories, ci, ci - 1); })}
+                  onDown={() => edit(d => { d.categories = moveItem(d.categories, ci, ci + 1); })}
+                  onDelete={() => deleteCategory(cat)}
+                  extra={<button data-btn onClick={(e) => { e.stopPropagation(); addCourse(cat.id); }} aria-label="Add course"
+                    style={{ border: 'none', background: 'transparent', padding: 2, color: T.muted }}><Icon name="plus" size={13} /></button>} />
+              </div>
+
+              {open && (
+                <div style={{ marginLeft: 14, borderLeft: `1px solid ${T.borderSoft}`, paddingLeft: 6, marginTop: 2 }}>
+                  {courses.length === 0 && (
+                    <button data-btn onClick={() => addCourse(cat.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', padding: '5px 8px', color: T.mutedSoft, fontSize: 11, textAlign: 'left' }}>
+                      <Icon name="plus" size={12} />Add a course
+                    </button>
+                  )}
+                  {courses.map((course) => (
+                    <CourseBranch key={course.id} doc={doc} cat={cat} course={course} courses={courses}
+                      sel={sel} setSel={setSel} edit={edit}
+                      open={isOpen(course.id)} toggle={() => toggle(course.id)}
+                      onAddLesson={() => addLesson(course.id)}
+                      onDeleteCourse={() => deleteCourse(course)}
+                      onDeleteLesson={(l) => deleteLesson(course, l)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/* One course row plus its lesson list. Split out so each course owns its own
+   drag state — a single shared one would make every list jump at once. */
+const CourseBranch = ({ doc, cat, course, courses, sel, setSel, edit, open, toggle, onAddLesson, onDeleteCourse, onDeleteLesson }) => {
+  const idx = courses.indexOf(course);
+  const globalIdx = (doc.courses || []).indexOf(course);
+  // Reorder within the category: translate a local swap into the global array.
+  const moveWithinCat = (from, to) => edit(d => {
+    const ids = courses.map(c => c.id);
+    const reordered = moveItem(ids, from, to);
+    const others = d.courses.filter(c => c.category !== cat.id);
+    const mine = reordered.map(id => d.courses.find(c => c.id === id)).filter(Boolean);
+    // Keep the category's courses contiguous at the position of its first member.
+    const firstAt = d.courses.findIndex(c => c.category === cat.id);
+    const out = others.slice();
+    out.splice(Math.max(0, firstAt), 0, ...mine);
+    d.courses = out;
+  });
+  const courseDnd = useDragOrder(moveWithinCat);
+  const moveLesson = (f, t) => edit(d => { const c = findCourse(d, course.id); if (c) c.lessons = moveItem(c.lessons, f, t); });
+  const lessonDnd = useDragOrder(moveLesson);
+  const selectedCourse = sel.kind === 'course' && sel.id === course.id;
+  const lessons = course.lessons || [];
+  const withVideo = lessons.filter(lessonHasVideo).length;
+
+  return (
+    <div {...courseDnd(idx)} style={{ marginBottom: 2, borderRadius: T.radius }}>
+      <div data-row onClick={() => setSel({ kind: 'course', id: course.id })}
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: T.radius, cursor: 'pointer',
+          background: selectedCourse ? T.primarySoft : 'transparent' }}
+        onMouseEnter={e => { if (!selectedCourse) e.currentTarget.style.background = T.fieldBg; }}
+        onMouseLeave={e => { if (!selectedCourse) e.currentTarget.style.background = 'transparent'; }}>
+        <button data-btn onClick={e => { e.stopPropagation(); toggle(); }} aria-label={open ? 'Collapse' : 'Expand'}
+          style={{ border: 'none', background: 'transparent', padding: 0, color: T.mutedSoft, display: 'flex' }}>
+          <Icon name={open ? 'chevronDown' : 'chevronRight'} size={12} />
+        </button>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {course.title || <span style={{ color: T.red }}>Untitled course</span>}
+        </span>
+        {course.popular && <Icon name="star" size={10} color={T.amber} />}
+        <span style={{ fontSize: 9.5, color: withVideo === lessons.length && lessons.length ? T.greenDark : T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>
+          {withVideo}/{lessons.length}
+        </span>
+        <RowActions
+          canUp={idx > 0} canDown={idx < courses.length - 1}
+          onUp={() => moveWithinCat(idx, idx - 1)}
+          onDown={() => moveWithinCat(idx, idx + 1)}
+          onDelete={onDeleteCourse}
+          extra={<button data-btn onClick={(e) => { e.stopPropagation(); onAddLesson(); }} aria-label="Add lesson"
+            style={{ border: 'none', background: 'transparent', padding: 2, color: T.muted }}><Icon name="plus" size={12} /></button>} />
+      </div>
+
+      {open && (
+        <div style={{ marginLeft: 12, borderLeft: `1px solid ${T.borderSoft}`, paddingLeft: 6, marginTop: 1 }}>
+          {lessons.length === 0 && (
+            <button data-btn onClick={onAddLesson}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', padding: '4px 8px', color: T.mutedSoft, fontSize: 10.5, textAlign: 'left' }}>
+              <Icon name="plus" size={11} />Add a lesson
+            </button>
+          )}
+          {lessons.map((l, li) => {
+            const selectedLesson = sel.kind === 'lesson' && sel.id === l.id;
+            const st = statusById(l.production && l.production.status);
+            return (
+              <div key={l.id} {...lessonDnd(li)} data-row
+                onClick={() => setSel({ kind: 'lesson', id: l.id, courseId: course.id })}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', marginBottom: 1, borderRadius: 6, cursor: 'pointer',
+                  background: selectedLesson ? T.primarySoft : 'transparent' }}
+                onMouseEnter={e => { if (!selectedLesson) e.currentTarget.style.background = T.fieldBg; }}
+                onMouseLeave={e => { if (!selectedLesson) e.currentTarget.style.background = 'transparent'; }}>
+                <span title={st.label} style={{ width: 6, height: 6, borderRadius: 999, background: st.color, flexShrink: 0 }} />
+                <Icon name={lessonHasVideo(l) ? 'video' : 'clock'} size={11} color={lessonHasVideo(l) ? T.greenDark : T.borderStrong} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 11, color: selectedLesson ? T.text : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {l.title || <span style={{ color: T.red }}>Untitled lesson</span>}
+                </span>
+                <span style={{ fontSize: 9.5, color: T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>{l.mins || 0}m</span>
+                <RowActions
+                  canUp={li > 0} canDown={li < lessons.length - 1}
+                  onUp={() => moveLesson(li, li - 1)}
+                  onDown={() => moveLesson(li, li + 1)}
+                  onDelete={() => onDeleteLesson(l)} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ===== editors ============================================================ */
+const EditorShell = ({ eyebrow, title, icon, color, children, actions }) => (
+  <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: withAlpha(color || T.primary, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon name={icon} size={17} color={color || T.primary} />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: T.mutedSoft }}>{eyebrow}</div>
+          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: -0.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
+        </div>
+      </div>
+      {actions && <div style={{ display: 'flex', gap: 7, flexShrink: 0 }}>{actions}</div>}
+    </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>{children}</div>
+  </div>
+);
+
+const CategoryEditor = ({ doc, cat, edit }) => {
+  const set = (patch) => edit(d => { const c = (d.categories || []).find(x => x.id === cat.id); if (c) Object.assign(c, patch); });
+  const owned = (doc.courses || []).filter(c => c.category === cat.id);
+  return (
+    <EditorShell eyebrow="Category" title={cat.label || 'Untitled category'} icon={cat.icon || 'bookOpen'} color={cat.color}>
+      <Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Field label="Name" hint="Learners see this as a filter chip above the course grid. Keep it short and plain — “Payroll & tax”, not “Payroll and taxation management”.">
+            <Input value={cat.label || ''} onChange={e => set({ label: e.target.value })} placeholder="Get started" />
+          </Field>
+          <Field label="One-line description" hint="Shown under the category name in some views. Say what the learner will be able to do.">
+            <Input value={cat.blurb || ''} onChange={e => set({ blurb: e.target.value })} placeholder="Set up your practice and find your way around" />
+          </Field>
+          <Field label="Icon" hint="This exact set is what the app can draw. Anything else would render as a fallback.">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {CATEGORY_ICONS.map(n => (
+                <button key={n} data-btn onClick={() => set({ icon: n })} title={n}
+                  style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `1px solid ${cat.icon === n ? (cat.color || T.primary) : T.border}`,
+                    background: cat.icon === n ? withAlpha(cat.color || T.primary, 0.12) : T.card }}>
+                  <Icon name={n} size={15} color={cat.icon === n ? (cat.color || T.primary) : T.muted} />
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Colour" hint="Tints the course thumbnails in this category, so learners can tell modules apart at a glance.">
+            <div style={{ display: 'flex', gap: 7 }}>
+              {CATEGORY_COLORS.map(c => (
+                <button key={c.hex} data-btn onClick={() => set({ color: c.hex })} title={c.label}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
+                    border: `1px solid ${cat.color === c.hex ? c.hex : T.border}`, background: cat.color === c.hex ? withAlpha(c.hex, 0.10) : T.card, color: cat.color === c.hex ? c.hex : T.muted }}>
+                  <span style={{ width: 11, height: 11, borderRadius: 999, background: c.hex }} />{c.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Id" hint="Used by the app to remember which chip a course belongs to. Changing it detaches every course below — rename the label instead unless you know why you're doing this.">
+            <Input value={cat.id} onChange={e => {
+              const next = slug(e.target.value) || cat.id;
+              edit(d => {
+                (d.courses || []).forEach(c => { if (c.category === cat.id) c.category = next; });
+                const c = (d.categories || []).find(x => x.id === cat.id); if (c) c.id = next;
+              });
+            }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
+          </Field>
+        </div>
+      </Card>
+      <Card>
+        <SectionTitle style={{ marginBottom: 10 }}>Courses in this category</SectionTitle>
+        {owned.length === 0
+          ? <Helper>None yet. Use the + on the category row in the tree.</Helper>
+          : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {owned.map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <Icon name="bookOpen" size={13} color={T.mutedSoft} />
+                  <span style={{ flex: 1 }}>{c.title || 'Untitled'}</span>
+                  <span style={{ color: T.mutedSoft, fontSize: 11 }}>{plural((c.lessons || []).length, 'lesson')} · {courseMins(c)} min</span>
+                </div>
+              ))}
+            </div>}
+      </Card>
+    </EditorShell>
+  );
+};
+
+const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, otherProductLabel, setSel }) => {
+  const set = (patch) => edit(d => { const c = findCourse(d, course.id); if (c) Object.assign(c, patch); });
+  const cats = doc.categories || [];
+  const lessons = course.lessons || [];
+  const inPaths = (doc.paths || []).filter(p => (p.courseIds || []).includes(course.id));
+
+  // The YouTube-description helper Johann asked for: a course's lesson list as
+  // chapter text, ready to paste into a video description.
+  const contentPack = () => {
+    const lines = [];
+    lines.push(course.title || 'Untitled course');
+    if (course.summary) lines.push('', course.summary);
+    lines.push('', 'In this course:');
+    let t = 0;
+    lessons.forEach((l) => {
+      const mm = String(Math.floor(t / 60)).padStart(2, '0');
+      const ss = String(t % 60).padStart(2, '0');
+      lines.push(`${mm}:${ss} ${l.title || 'Untitled lesson'}`);
+      t += (Number(l.mins) || 0) * 60;
+    });
+    const text = lines.join('\n');
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(
+      () => fireToast('Course content pack copied'),
+      () => fireToast({ message: 'Could not copy — check clipboard permissions', tone: 'error' }));
+    else fireToast({ message: 'Clipboard not available in this browser', tone: 'warn' });
+  };
+
+  return (
+    <EditorShell eyebrow="Course" title={course.title || 'Untitled course'} icon={catIconOf(doc, course)} color={catColorOf(doc, course)}
+      actions={<>
+        <Btn variant="outline" size="sm" icon="copy" onClick={contentPack}>Content pack</Btn>
+        {onCopyToOtherProduct && <Btn variant="outline" size="sm" icon="layers" onClick={onCopyToOtherProduct}>Copy to {otherProductLabel}</Btn>}
+      </>}>
+      <Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Field label="Title" hint="What learners scan in the catalog. Name it after the thing they want to do.">
+            <Input value={course.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Running a payrun, step by step" />
+          </Field>
+          <Field label="Summary" hint="Two lines max — it fills the body of the course card.">
+            <Textarea rows={2} value={course.summary || ''} onChange={e => set({ summary: e.target.value })} placeholder="Run compliant Australian payroll end-to-end — from employers to a finalised, STP-reported payrun." />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <Field label="Category">
+              <Select value={course.category || ''} onChange={e => set({ category: e.target.value })}>
+                <option value="">— none —</option>
+                {cats.map(c => <option key={c.id} value={c.id}>{c.label || c.id}</option>)}
+              </Select>
+            </Field>
+            <Field label="Level">
+              <Select value={course.level || 'Beginner'} onChange={e => set({ level: e.target.value })}>
+                {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+              </Select>
+            </Field>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!course.popular} onChange={e => set({ popular: e.target.checked })} style={{ marginTop: 2, accentColor: T.primary }} />
+            <span>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Feature on the Academy home page</span>
+              <Helper style={{ fontSize: 10.5 }}>Shows under “Popular courses”. Three or four is about right — feature everything and you've featured nothing.</Helper>
+            </span>
+          </label>
+          <Field label="Id" hint="Learner progress is stored against this. Changing it resets everyone's progress for this course.">
+            <Input value={course.id} onChange={e => {
+              const next = slug(e.target.value) || course.id;
+              edit(d => {
+                (d.paths || []).forEach(p => { p.courseIds = p.courseIds.map(id => id === course.id ? next : id); });
+                const c = findCourse(d, course.id); if (c) c.id = next;
+              });
+              setSel({ kind: 'course', id: next });
+            }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <SectionTitle>Lessons</SectionTitle>
+          <Helper style={{ fontSize: 11 }}>{plural(lessons.length, 'lesson')} · {courseMins(course)} min total</Helper>
+        </div>
+        {lessons.length === 0
+          ? <Helper>No lessons yet. Add them from the tree on the left.</Helper>
+          : <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {lessons.map((l, i) => {
+                const st = statusById(l.production && l.production.status);
+                return (
+                  <div key={l.id} onClick={() => setSel({ kind: 'lesson', id: l.id, courseId: course.id })}
+                    style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: T.radius, border: `1px solid ${T.borderSoft}`, cursor: 'pointer', background: T.fieldBg }}>
+                    <span style={{ fontSize: 10.5, color: T.mutedSoft, fontVariantNumeric: 'tabular-nums', width: 14 }}>{i + 1}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || 'Untitled lesson'}</span>
+                    {!lessonHasVideo(l) && <Pill color={T.amber}>No video</Pill>}
+                    <Pill color={st.color}>{st.label}</Pill>
+                    <span style={{ fontSize: 10.5, color: T.mutedSoft }}>{l.mins || 0} min</span>
+                  </div>
+                );
+              })}
+            </div>}
+      </Card>
+
+      {inPaths.length > 0 && (
+        <Card>
+          <SectionTitle style={{ marginBottom: 8 }}>Part of these learning paths</SectionTitle>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {inPaths.map(p => <Pill key={p.id} color={T.primary} icon="graduation">{p.title || p.id}</Pill>)}
+          </div>
+        </Card>
+      )}
+    </EditorShell>
+  );
+};
+
+/* ---- the video field ------------------------------------------------------
+   Paste a link, get everything else. We derive the provider, embed URL and
+   poster from the id (deterministic, works offline), then try oEmbed for the
+   real title/length/poster. The embed renders live underneath so a wrong or
+   private link is obvious in the editor rather than in front of a learner. */
+const VideoField = ({ lesson, onApply, fireToast }) => {
+  const [raw, setRaw] = useState(lesson.videoUrl || lesson.embedUrl || '');
+  const [busy, setBusy] = useState(false);
+  const [meta, setMeta] = useState(null);
+  const [showEmbed, setShowEmbed] = useState(false);
+
+  // Reset when the selected lesson changes.
+  useEffect(() => {
+    setRaw(lesson.videoUrl || lesson.embedUrl || '');
+    setMeta(null);
+    setShowEmbed(false);
+  }, [lesson.id]);
+
+  const parsed = useMemo(() => parseVideoLink(raw), [raw]);
+  const attached = lessonHasVideo(lesson);
+
+  const attach = () => {
+    if (!parsed || parsed.provider === 'invalid') { fireToast({ message: 'That does not look like a video link', tone: 'error' }); return; }
+    const patch = parsed.provider === 'file'
+      ? { videoUrl: parsed.fileUrl, embedUrl: '', thumbUrl: lesson.thumbUrl || '' }
+      : { videoUrl: '', embedUrl: parsed.embedUrl, thumbUrl: parsed.thumbUrl || lesson.thumbUrl || '' };
+    onApply(patch);
+    setBusy(true);
+    fetchVideoMeta(parsed).then(m => {
+      setBusy(false);
+      if (m && (m.title || m.mins || m.thumbUrl)) setMeta(m);
+      if (m && m.thumbUrl && !parsed.thumbUrl) onApply({ thumbUrl: m.thumbUrl });
+    });
+    fireToast(`${parsed.label} video attached`);
+  };
+
+  const clear = () => { onApply({ videoUrl: '', embedUrl: '', thumbUrl: '' }); setRaw(''); setMeta(null); setShowEmbed(false); };
+
+  const providerTone = parsed && parsed.provider === 'invalid' ? T.red
+    : parsed && parsed.provider === 'unknown' ? T.amber : T.greenDark;
+
+  return (
+    <Card style={{ borderColor: attached ? withAlpha(T.green, 0.35) : T.border }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+        <SectionTitle>Video</SectionTitle>
+        {attached
+          ? <Pill color={T.greenDark} icon="checkCircle">Attached</Pill>
+          : <Pill color={T.amber} icon="alertTriangle">No video yet</Pill>}
+      </div>
+
+      <Field hint="Paste the YouTube, Vimeo or Loom link. Unlisted links are fine — that's what we recommend. We work out the embed and the thumbnail from it.">
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Input value={raw} onChange={e => setRaw(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); attach(); } }}
+            placeholder="https://www.youtube.com/watch?v=…" />
+          <Btn variant="primary" size="sm" icon="link" onClick={attach} disabled={!raw.trim()}>Attach</Btn>
+          {attached && <Btn variant="ghost" size="sm" icon="close" onClick={clear} style={{ color: T.muted }}>Clear</Btn>}
+        </div>
+      </Field>
+
+      {raw.trim() && parsed && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5 }}>
+          <Pill color={providerTone} icon={parsed.provider === 'invalid' ? 'xCircle' : 'video'}>{parsed.label}</Pill>
+          {parsed.provider === 'unknown' && <Helper style={{ fontSize: 11 }}>We'll embed it as-is. Check the preview below actually plays.</Helper>}
+          {busy && <Helper style={{ fontSize: 11 }}>Looking up the details…</Helper>}
+        </div>
+      )}
+
+      {meta && (
+        <div style={{ marginTop: 12, padding: 11, borderRadius: T.radius, background: T.primarySofter, border: `1px solid ${T.borderSoft}` }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.primaryDark, marginBottom: 7 }}>Found on the video — use it?</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {meta.title && <Btn variant="outline" size="sm" icon="check" onClick={() => { onApply({ title: meta.title }); setMeta({ ...meta, title: null }); }}>Title: “{meta.title.length > 42 ? meta.title.slice(0, 42) + '…' : meta.title}”</Btn>}
+            {meta.mins && <Btn variant="outline" size="sm" icon="check" onClick={() => { onApply({ mins: meta.mins }); setMeta({ ...meta, mins: null }); }}>Length: {meta.mins} min</Btn>}
+          </div>
+        </div>
+      )}
+
+      {attached && (
+        <div style={{ marginTop: 13 }}>
+          {showEmbed ? (
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radius, overflow: 'hidden', background: '#000' }}>
+              {lesson.videoUrl
+                ? <video src={lesson.videoUrl} controls autoPlay preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
+                : <iframe src={lesson.embedUrl} title={lesson.title || 'Lesson video'} frameBorder="0"
+                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowFullScreen
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} />}
+            </div>
+          ) : (
+            <button data-btn onClick={() => setShowEmbed(true)}
+              style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radius, overflow: 'hidden', border: `1px solid ${T.border}`, padding: 0,
+                background: lesson.thumbUrl ? `#000 center/cover no-repeat url("${lesson.thumbUrl}")` : T.fieldBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(0,0,0,0.3)' }}>
+                <Icon name="play" size={18} color={T.primary} />
+              </span>
+              <span style={{ position: 'absolute', bottom: 9, left: 11, fontSize: 10.5, fontWeight: 700, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>Click to test the embed</span>
+            </button>
+          )}
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Helper style={{ fontSize: 10.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', wordBreak: 'break-all', flex: 1, minWidth: 200 }}>
+              {lesson.embedUrl || lesson.videoUrl}
+            </Helper>
+            {(lesson.embedUrl || lesson.videoUrl) && (
+              <a href={lesson.embedUrl || lesson.videoUrl} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 11, fontWeight: 600, color: T.primary, textDecoration: 'none', whiteSpace: 'nowrap' }}>Open in a new tab →</a>
+            )}
+          </div>
+          <Field label="Thumbnail override" hint="Leave blank to use the video's own poster. Paste an image URL to use something else." style={{ marginTop: 12 }}>
+            <Input value={lesson.thumbUrl || ''} onChange={e => onApply({ thumbUrl: e.target.value })} placeholder="https://… (optional)" />
+          </Field>
+        </div>
+      )}
+
+      {!attached && (
+        <Banner tone="info" icon="info" style={{ marginTop: 12 }}>
+          Until a video is attached, learners see a branded poster and “Preview coming soon”. The lesson still appears in the catalog, so it's safe to publish an outline first and add footage later.
+        </Banner>
+      )}
+    </Card>
+  );
+};
+
+const LessonEditor = ({ doc, course, lesson, edit, fireToast, owners, setSel }) => {
+  const set = (patch) => edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) Object.assign(l, patch); });
+  const setProd = (patch) => edit(d => {
+    const l = findLesson(d, course.id, lesson.id);
+    if (l) l.production = { ...(l.production || {}), ...patch };
+  });
+  const prod = lesson.production || {};
+  const lessons = course.lessons || [];
+  const idx = lessons.indexOf(lesson);
+
+  return (
+    <EditorShell eyebrow={`Lesson ${idx + 1} of ${lessons.length} · ${course.title || 'Untitled course'}`}
+      title={lesson.title || 'Untitled lesson'} icon="video" color={catColorOf(doc, course)}
+      actions={<>
+        <Btn variant="outline" size="sm" icon="chevronUp" disabled={idx <= 0}
+          onClick={() => setSel({ kind: 'lesson', id: lessons[idx - 1].id, courseId: course.id })}>Prev</Btn>
+        <Btn variant="outline" size="sm" iconRight="chevronDown" disabled={idx >= lessons.length - 1}
+          onClick={() => setSel({ kind: 'lesson', id: lessons[idx + 1].id, courseId: course.id })}>Next</Btn>
+      </>}>
+
+      <Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Field label="Lesson title" hint="Phrase it as the thing the learner will be able to do — “Running a payrun, step by step”.">
+            <Input value={lesson.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Running a payrun, step by step" />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 12 }}>
+            <Field label="Length (min)" hint="Rounded up.">
+              <Input type="number" min="0" value={lesson.mins || 0} onChange={e => set({ mins: Math.max(0, Number(e.target.value) || 0) })} />
+            </Field>
+            <Field label="Search keywords" hint="Extra words that should find this lesson. Add the phrases people would actually type — “life cycle”, “helicopter view”.">
+              <Input value={(lesson.tags || []).join(', ')}
+                onChange={e => set({ tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                placeholder="payrun, wizard, payslips" />
+            </Field>
+          </div>
+          <Field label="Description" hint="One or two sentences shown under the player.">
+            <Textarea rows={3} value={lesson.description || ''} onChange={e => set({ description: e.target.value })}
+              placeholder="Walk the payrun wizard: Basic info → Pay list → Expenses → Deductions → Review." />
+          </Field>
+        </div>
+      </Card>
+
+      <VideoField lesson={lesson} onApply={set} fireToast={fireToast} />
+
+      <Card>
+        <SectionTitle style={{ marginBottom: 4 }}>What they'll be able to do</SectionTitle>
+        <Helper style={{ marginBottom: 11 }}>Three is the sweet spot. Shown as a checklist beside the video — skip it and the lesson still works.</Helper>
+        <StringListEditor items={lesson.takeaways} onChange={v => set({ takeaways: v })}
+          placeholder="Start a payrun and pick the pay period" addLabel="Add a takeaway" />
+      </Card>
+
+      <Card>
+        <SectionTitle style={{ marginBottom: 4 }}>Transcript</SectionTitle>
+        <Helper style={{ marginBottom: 11 }}>
+          Paste the transcript here. It makes the lesson findable by search and gives people who'd rather read than watch something to read. Blank lines become paragraphs.
+        </Helper>
+        <Textarea rows={8} value={lesson.transcript || ''} onChange={e => set({ transcript: e.target.value })}
+          placeholder="Welcome to Sole Practice Manager. In the next few minutes we'll walk through…" />
+        <Helper style={{ fontSize: 10.5, marginTop: 6 }}>
+          {(lesson.transcript || '').trim() ? `${(lesson.transcript || '').trim().split(/\s+/).length} words` : 'Empty'}
+        </Helper>
+      </Card>
+
+      <Card>
+        <SectionTitle style={{ marginBottom: 4 }}>Downloads &amp; links</SectionTitle>
+        <Helper style={{ marginBottom: 11 }}>Checklists, templates or reference pages that go with the lesson. Upload files in Media first, then paste the link here.</Helper>
+        <ResourceListEditor items={lesson.resources} onChange={v => set({ resources: v })} />
+      </Card>
+
+      <Card style={{ background: T.fieldBg }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <Icon name="clipboardCheck" size={15} color={T.muted} />
+          <SectionTitle>Production</SectionTitle>
+          <Pill color={T.mutedSoft}>Internal only</Pill>
+        </div>
+        <Helper style={{ marginBottom: 13 }}>Just for us — none of this reaches learners or gets published.</Helper>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+          <Field label="Status">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {STATUSES.map(s => (
+                <Chip key={s.id} tone={s.color} selected={(prod.status || 'idea') === s.id} onClick={() => setProd({ status: s.id })}>{s.label}</Chip>
+              ))}
+            </div>
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 12 }}>
+            <Field label="Owner" hint="Who's got this one.">
+              <Input list="academy-owners" value={prod.owner || ''} onChange={e => setProd({ owner: e.target.value })} placeholder="Juhi" />
+              <datalist id="academy-owners">{(owners || []).map(o => <option key={o} value={o} />)}</datalist>
+            </Field>
+            <Field label="Due">
+              <Input type="date" value={prod.due || ''} onChange={e => setProd({ due: e.target.value })} />
+            </Field>
+          </div>
+          <Field label="Notes" hint="Anything the next person needs to know — “re-record intro”, “waiting on Johann”.">
+            <Textarea rows={2} value={prod.notes || ''} onChange={e => setProd({ notes: e.target.value })} placeholder="" />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <Field label="Lesson id" hint="Learner progress is stored against this. Changing it marks the lesson unwatched for everyone.">
+          <Input value={lesson.id} onChange={e => {
+            const next = slug(e.target.value) || lesson.id;
+            edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) l.id = next; });
+            setSel({ kind: 'lesson', id: next, courseId: course.id });
+          }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
+        </Field>
+      </Card>
+    </EditorShell>
+  );
+};
+
+/* ===== learning paths ===================================================== */
+const PathsScreen = ({ doc, edit, fireToast }) => {
+  const paths = doc.paths || [];
+  const [selId, setSelId] = useState(paths.length ? paths[0].id : null);
+  const path = paths.find(p => p.id === selId) || null;
+  const pathDnd = useDragOrder((f, t) => edit(d => { d.paths = moveItem(d.paths, f, t); }));
+
+  const addPath = () => {
+    const p = emptyPath();
+    p.title = 'New learning path';
+    edit(d => { d.paths.push(p); });
+    setSelId(p.id);
+  };
+  const set = (patch) => edit(d => { const p = (d.paths || []).find(x => x.id === selId); if (p) Object.assign(p, patch); });
+  const deletePath = (p) => {
+    const snapshot = clone(doc.paths);
+    edit(d => { d.paths = d.paths.filter(x => x.id !== p.id); });
+    if (selId === p.id) setSelId(null);
+    fireToast({ message: `Deleted "${p.title || 'path'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.paths = snapshot; }) } });
+  };
+
+  const inPath = (path ? path.courseIds : []) || [];
+  const available = (doc.courses || []).filter(c => !inPath.includes(c.id));
+  const moveCourse = (f, t) => set({ courseIds: moveItem(inPath, f, t) });
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '280px minmax(0,1fr)', height: '100%', minHeight: 0 }}>
+      <div style={{ borderRight: `1px solid ${T.border}`, background: T.card, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700 }}>Learning paths</div>
+            <Helper style={{ fontSize: 10.5 }}>{plural(paths.length, 'path')}</Helper>
+          </div>
+          <Btn variant="soft" size="sm" icon="plus" onClick={addPath}>Path</Btn>
+        </div>
+        <div className="scroll" style={{ flex: 1, padding: 8 }}>
+          {paths.length === 0 && <EmptyState icon="graduation" title="No paths yet" hint="A path is a recommended order of courses for one kind of person — “new team member”, “payroll specialist”." action={<Btn variant="primary" size="sm" icon="plus" onClick={addPath}>Add a path</Btn>} />}
+          {paths.map((p, i) => {
+            const selected = p.id === selId;
+            const missing = (p.courseIds || []).filter(id => !findCourse(doc, id)).length;
+            return (
+              <div key={p.id} {...pathDnd(i)} data-row onClick={() => setSelId(p.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 9px', marginBottom: 3, borderRadius: T.radius, cursor: 'pointer', background: selected ? T.primarySoft : 'transparent' }}
+                onMouseEnter={e => { if (!selected) e.currentTarget.style.background = T.fieldBg; }}
+                onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent'; }}>
+                <Icon name="graduation" size={13} color={selected ? T.primary : T.mutedSoft} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || 'Untitled path'}</div>
+                  <div style={{ fontSize: 10, color: T.mutedSoft }}>{plural((p.courseIds || []).length, 'course')}{missing ? ` · ${missing} broken` : ''}</div>
+                </div>
+                {missing > 0 && <Icon name="alertTriangle" size={12} color={T.red} />}
+                <RowActions canUp={i > 0} canDown={i < paths.length - 1}
+                  onUp={() => edit(d => { d.paths = moveItem(d.paths, i, i - 1); })}
+                  onDown={() => edit(d => { d.paths = moveItem(d.paths, i, i + 1); })}
+                  onDelete={() => deletePath(p)} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {!path ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <EmptyState icon="graduation" title="Pick a path" hint="Or add a new one to get started." />
+        </div>
+      ) : (
+        <EditorShell eyebrow="Learning path" title={path.title || 'Untitled path'} icon="graduation" color={T.primary}>
+          <Card>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Field label="Title">
+                <Input value={path.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Getting started (new team member)" />
+              </Field>
+              <Field label="Who it's for" hint="Appears as a small line on the card — “Everyone · first week”.">
+                <Input value={path.forRole || ''} onChange={e => set({ forRole: e.target.value })} placeholder="Everyone · first week" />
+              </Field>
+              <Field label="Blurb" hint="One sentence on why someone would take this path.">
+                <Textarea rows={2} value={path.blurb || ''} onChange={e => set({ blurb: e.target.value })} placeholder="The essentials every new user needs before touching live client work." />
+              </Field>
+            </div>
+          </Card>
+
+          <Card>
+            <SectionTitle style={{ marginBottom: 4 }}>Courses, in order</SectionTitle>
+            <Helper style={{ marginBottom: 12 }}>Learners are pointed at the first one they haven't finished, so the order matters.</Helper>
+            {inPath.length === 0
+              ? <Helper style={{ marginBottom: 12 }}>Nothing added yet.</Helper>
+              : <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                  {inPath.map((cid, i) => {
+                    const c = findCourse(doc, cid);
+                    return (
+                      <div key={cid + i} data-row style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: T.radius, border: `1px solid ${c ? T.borderSoft : withAlpha(T.red, 0.4)}`, background: c ? T.fieldBg : T.redSoft }}>
+                        <span style={{ fontSize: 10.5, color: T.mutedSoft, width: 14, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
+                        {c ? (
+                          <>
+                            <Icon name={catIconOf(doc, c)} size={13} color={catColorOf(doc, c)} />
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || 'Untitled'}</span>
+                            <span style={{ fontSize: 10.5, color: T.mutedSoft }}>{plural((c.lessons || []).length, 'lesson')}</span>
+                          </>
+                        ) : (
+                          <span style={{ flex: 1, fontSize: 12, color: T.red }}>Deleted course — “{cid}”. Remove it.</span>
+                        )}
+                        <RowActions canUp={i > 0} canDown={i < inPath.length - 1}
+                          onUp={() => moveCourse(i, i - 1)} onDown={() => moveCourse(i, i + 1)}
+                          onDelete={() => set({ courseIds: inPath.filter((_, j) => j !== i) })} />
+                      </div>
+                    );
+                  })}
+                </div>}
+            <Select value="" onChange={e => { if (e.target.value) set({ courseIds: inPath.concat(e.target.value) }); }}>
+              <option value="">+ Add a course to this path…</option>
+              {available.map(c => <option key={c.id} value={c.id}>{c.title || c.id}</option>)}
+            </Select>
+            {available.length === 0 && inPath.length > 0 && <Helper style={{ fontSize: 10.5, marginTop: 6 }}>Every course is already in this path.</Helper>}
+          </Card>
+        </EditorShell>
+      )}
+    </div>
+  );
+};
+
+/* ===== production board ===================================================
+   Every lesson in one list, grouped by where it's up to. This is the screen that
+   answers "what's left and who has it" without anyone calling a meeting. */
+const ProductionScreen = ({ doc, edit, jumpToLesson, owners }) => {
+  const [q, setQ] = useState('');
+  const [owner, setOwner] = useState('all');
+  const [courseId, setCourseId] = useState('all');
+  const rows = allLessons(doc);
+
+  const counts = STATUSES.map(s => ({ ...s, n: rows.filter(r => (r.lesson.production && r.lesson.production.status || 'idea') === s.id).length }));
+  const total = rows.length;
+  const done = counts.find(c => c.id === 'published');
+  const query = q.trim().toLowerCase();
+
+  const filtered = rows.filter(({ lesson, course }) => {
+    const p = lesson.production || {};
+    if (owner !== 'all' && (p.owner || '') !== owner) return false;
+    if (courseId !== 'all' && course.id !== courseId) return false;
+    if (query && !((lesson.title || '') + ' ' + (course.title || '') + ' ' + (p.owner || '') + ' ' + (p.notes || '')).toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  const setStatus = (course, lesson, status) => edit(d => {
+    const l = findLesson(d, course.id, lesson.id);
+    if (l) l.production = { ...(l.production || {}), status };
+  });
+  const setOwnerOn = (course, lesson, v) => edit(d => {
+    const l = findLesson(d, course.id, lesson.id);
+    if (l) l.production = { ...(l.production || {}), owner: v };
+  });
+  const setDue = (course, lesson, v) => edit(d => {
+    const l = findLesson(d, course.id, lesson.id);
+    if (l) l.production = { ...(l.production || {}), due: v };
+  });
+
+  const overdue = (p) => {
+    if (!p || !p.due || p.status === 'published') return false;
+    const d = new Date(p.due + 'T23:59:59');
+    return !isNaN(d.getTime()) && d.getTime() < Date.now();
+  };
+
+  return (
+    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
+      <div style={{ marginBottom: 16 }}>
+        <SectionTitle style={{ fontSize: 16 }}>Production</SectionTitle>
+        <Helper style={{ marginTop: 2 }}>Where every lesson is up to. Internal only — none of this is published.</Helper>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 9, marginBottom: 14 }}>
+        {counts.map(c => (
+          <Card key={c.id} pad={12}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 700, color: c.color, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+              <span style={{ width: 7, height: 7, borderRadius: 999, background: c.color }} />{c.label}
+            </div>
+            <div style={{ fontSize: 21, fontWeight: 800, marginTop: 5, letterSpacing: -0.5 }}>{c.n}</div>
+          </Card>
+        ))}
+      </div>
+
+      <Card style={{ marginBottom: 14 }} pad={13}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 12, fontWeight: 600 }}>{done ? done.n : 0} of {total} lessons published</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.primary }}>{total ? Math.round(((done ? done.n : 0) / total) * 100) : 0}%</div>
+        </div>
+        <ProgressBar pct={total ? ((done ? done.n : 0) / total) * 100 : 0} color={T.green} height={7} />
+      </Card>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card, minWidth: 220 }}>
+          <Icon name="search" size={13} color={T.muted} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search lessons, owners, notes…"
+            style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5 }} />
+          {q && <button data-btn onClick={() => setQ('')} aria-label="Clear" style={{ border: 'none', background: 'transparent', padding: 0, color: T.muted }}><Icon name="close" size={12} /></button>}
+        </div>
+        <Select value={owner} onChange={e => setOwner(e.target.value)} style={{ width: 'auto', minWidth: 130 }}>
+          <option value="all">Everyone</option>
+          <option value="">Unassigned</option>
+          {owners.map(o => <option key={o} value={o}>{o}</option>)}
+        </Select>
+        <Select value={courseId} onChange={e => setCourseId(e.target.value)} style={{ width: 'auto', maxWidth: 240 }}>
+          <option value="all">All courses</option>
+          {(doc.courses || []).map(c => <option key={c.id} value={c.id}>{c.title || c.id}</option>)}
+        </Select>
+        <Helper style={{ fontSize: 11 }}>{filtered.length} of {total}</Helper>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card><EmptyState icon="search" title="Nothing matches" hint="Try a different owner, course or search." /></Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {STATUSES.map(s => {
+            const group = filtered.filter(r => ((r.lesson.production && r.lesson.production.status) || 'idea') === s.id);
+            if (!group.length) return null;
+            return (
+              <div key={s.id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: s.color }} />
+                  <div style={{ fontSize: 12.5, fontWeight: 700 }}>{s.label}</div>
+                  <Helper style={{ fontSize: 11 }}>{s.blurb} · {group.length}</Helper>
+                </div>
+                <Card pad={0} style={{ overflow: 'hidden' }}>
+                  {group.map(({ lesson, course }, i) => {
+                    const p = lesson.production || {};
+                    const late = overdue(p);
+                    return (
+                      <div key={lesson.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1.2fr) 130px 132px 118px', gap: 10, alignItems: 'center',
+                        padding: '9px 13px', borderTop: i ? `1px solid ${T.borderSoft}` : 'none' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <button data-btn onClick={() => jumpToLesson(course.id, lesson.id)}
+                            style={{ border: 'none', background: 'transparent', padding: 0, textAlign: 'left', fontSize: 12.5, fontWeight: 600, color: T.text, display: 'flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+                            <Icon name={lessonHasVideo(lesson) ? 'video' : 'clock'} size={12} color={lessonHasVideo(lesson) ? T.greenDark : T.borderStrong} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lesson.title || 'Untitled lesson'}</span>
+                          </button>
+                          {p.notes && <div style={{ fontSize: 10.5, color: T.mutedSoft, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.notes}</div>}
+                        </div>
+                        <div style={{ fontSize: 11, color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{course.title || 'Untitled course'}</div>
+                        <Input list="academy-owners" value={p.owner || ''} placeholder="Unassigned"
+                          onChange={e => setOwnerOn(course, lesson, e.target.value)} style={{ padding: '4px 8px', fontSize: 11.5 }} />
+                        <Input type="date" value={p.due || ''} onChange={e => setDue(course, lesson, e.target.value)}
+                          style={{ padding: '4px 8px', fontSize: 11.5, borderColor: late ? T.red : T.border, color: late ? T.red : T.text }} />
+                        <Select value={p.status || 'idea'} onChange={e => setStatus(course, lesson, e.target.value)} style={{ padding: '4px 8px', fontSize: 11.5 }}>
+                          {STATUSES.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <datalist id="academy-owners">{owners.map(o => <option key={o} value={o} />)}</datalist>
+    </div>
+  );
+};
+
+/* ===== preview ============================================================
+   Ports the live Academy's presentation components (AcademyThumb, CourseCard,
+   LearningPathCard, LessonRow, VideoStage from index.html) so the team sees the
+   real thing, not an approximation. Progress is always shown as "not started" —
+   this previews content, not a particular learner's state. */
+const AcademyThumb = ({ doc, course, playSize = 54, watermark = 132, radius = T.radiusLg }) => {
+  const color = catColorOf(doc, course);
+  const icon = catIconOf(doc, course);
+  const lessons = course.lessons || [];
+  const firstThumb = (lessons.find(l => l.thumbUrl) || {}).thumbUrl;
+  return (
+    <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: radius, overflow: 'hidden',
+      background: firstThumb ? `#000 center/cover no-repeat url("${firstThumb}")` : `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.44)} 100%)` }}>
+      {!firstThumb && <>
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(120% 84% at 12% -8%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 52%)` }} />
+        <div style={{ position: 'absolute', right: -20, bottom: -26, opacity: 0.15, transform: 'rotate(-8deg)', pointerEvents: 'none' }}>
+          <Icon name={icon} size={watermark} color="#fff" strokeWidth={1.3} />
+        </div>
+      </>}
+      {firstThumb && <div style={{ position: 'absolute', inset: 0, background: withAlpha('#0F1117', 0.28) }} />}
+      <div style={{ position: 'absolute', top: 12, right: 12, display: 'inline-flex', alignItems: 'center', gap: 5, background: withAlpha('#0F1117', 0.34), color: '#fff', fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, backdropFilter: 'blur(4px)' }}>
+        <Icon name="clock" size={11} color="#fff" />{courseMins(course)} min
+      </div>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: playSize, height: playSize, borderRadius: '50%', background: withAlpha('#FFFFFF', 0.97), display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 28px rgba(0,0,0,0.30)' }}>
+          <svg width={Math.round(playSize * 0.33)} height={Math.round(playSize * 0.33)} viewBox="0 0 24 24" fill={color} style={{ marginLeft: 2 }}><polygon points="6,4 20,12 6,20" /></svg>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PreviewCourseCard = ({ doc, course, onOpen }) => {
+  const cat = catById(doc, course.category);
+  const color = catColorOf(doc, course);
+  return (
+    <div onClick={onOpen} role="button" tabIndex={0}
+      style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusCard, background: T.card, overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column', boxShadow: T.shadowSm }}>
+      <AcademyThumb doc={doc} course={course} radius={0} />
+      <div style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color }}>
+            <Icon name={catIconOf(doc, course)} size={12} color={color} />{cat ? cat.label : 'No category'}
+          </span>
+          <span style={{ width: 3, height: 3, borderRadius: 999, background: T.mutedSoft }} />
+          <span style={{ fontSize: 10.5, color: T.muted }}>{course.level || 'Beginner'}</span>
+        </div>
+        <div style={{ fontSize: 14.5, fontWeight: 700, color: T.text, lineHeight: 1.3, letterSpacing: -0.2 }}>{course.title || 'Untitled course'}</div>
+        <Helper style={{ fontSize: 11.5, lineHeight: 1.5, flex: 1 }}>{course.summary || <span style={{ color: T.mutedSoft, fontStyle: 'italic' }}>No summary yet</span>}</Helper>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: T.muted }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{plural((course.lessons || []).length, 'lesson')}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color }}>Start<Icon name="arrow" size={12} color={color} /></span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PreviewPathCard = ({ doc, path }) => {
+  const courses = (path.courseIds || []).map(id => findCourse(doc, id)).filter(Boolean);
+  const lessons = courses.flatMap(c => c.lessons || []);
+  const mins = courses.reduce((s, c) => s + courseMins(c), 0);
+  const next = courses[0];
+  return (
+    <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusCard, background: T.card, padding: 16, boxShadow: T.shadowSm, display: 'flex', flexDirection: 'column', gap: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: T.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon name="graduation" size={17} color={T.primary} />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -0.2 }}>{path.title || 'Untitled path'}</div>
+          <div style={{ fontSize: 10.5, color: T.muted, marginTop: 1 }}>{path.forRole || '—'}</div>
+        </div>
+      </div>
+      <Helper style={{ fontSize: 11.5 }}>{path.blurb || <span style={{ color: T.mutedSoft, fontStyle: 'italic' }}>No blurb yet</span>}</Helper>
+      <div style={{ display: 'flex', gap: 3 }}>
+        {courses.map(c => <div key={c.id} style={{ flex: 1, height: 4, borderRadius: 999, background: withAlpha(catColorOf(doc, c), 0.35) }} />)}
+      </div>
+      {next && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: T.radius, background: T.fieldBg, border: `1px solid ${T.borderSoft}` }}>
+          <span style={{ width: 28, height: 28, borderRadius: 8, background: T.card, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name={catIconOf(doc, next)} size={14} color={catColorOf(doc, next)} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: T.mutedSoft }}>Start with</div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{next.title || 'Untitled'}</div>
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11, color: T.muted }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="layers" size={12} color={T.mutedSoft} />{plural(courses.length, 'course')}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{plural(lessons.length, 'lesson')}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="clock" size={12} color={T.mutedSoft} />{mins} min</span>
+      </div>
+    </div>
+  );
+};
+
+/* The 16:9 stage, matching index.html's VideoStage: a real player when there's a
+   video, otherwise the branded poster learners actually get. */
+const PreviewStage = ({ doc, course, lesson }) => {
+  const [playing, setPlaying] = useState(false);
+  const color = catColorOf(doc, course);
+  useEffect(() => { setPlaying(false); }, [lesson.id]);
+  const stage = { position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radiusLg, overflow: 'hidden' };
+
+  if (playing && lesson.videoUrl) return (
+    <div style={{ ...stage, background: '#000' }}>
+      <video src={lesson.videoUrl} controls autoPlay preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
+    </div>
+  );
+  if (playing && lesson.embedUrl) {
+    const src = lesson.embedUrl + (lesson.embedUrl.includes('?') ? '&' : '?') + 'autoplay=1';
+    return (
+      <div style={{ ...stage, background: '#000' }}>
+        <iframe src={src} title={lesson.title} frameBorder="0" allow="autoplay; encrypted-media; fullscreen" allowFullScreen
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} />
+      </div>
+    );
+  }
+  // Matches index.html: the poster always offers a play button; a lesson with no
+  // footage yet only reveals "coming soon" once the learner actually clicks it.
+  const comingSoon = playing && !lessonHasVideo(lesson);
+  return (
+    <div style={{ ...stage, background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.46)} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(110% 80% at 14% -6%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 50%)` }} />
+      <div style={{ position: 'absolute', right: -26, bottom: -32, opacity: 0.13, transform: 'rotate(-8deg)', pointerEvents: 'none' }}>
+        <Icon name={catIconOf(doc, course)} size={210} color="#fff" strokeWidth={1.2} />
+      </div>
+      <div style={{ position: 'absolute', top: 16, left: 18, zIndex: 2, maxWidth: '70%' }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Video lesson</div>
+        <div style={{ fontSize: 17, fontWeight: 700, marginTop: 3, color: '#fff', letterSpacing: -0.2 }}>{lesson.title || 'Untitled lesson'}</div>
+      </div>
+      <div style={{ position: 'absolute', top: 16, right: 18, zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 5, background: withAlpha('#0F1117', 0.34), color: '#fff', fontSize: 11.5, fontWeight: 600, padding: '4px 9px', borderRadius: 999 }}>
+        <Icon name="clock" size={12} color="#fff" />{lesson.mins || 0} min
+      </div>
+      {comingSoon ? (
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', color: '#fff', padding: '0 24px' }}>
+          <div style={{ fontSize: 14.5, fontWeight: 700 }}>Preview coming soon</div>
+          <div style={{ fontSize: 12.5, opacity: 0.88, marginTop: 5, maxWidth: 380, lineHeight: 1.5 }}>The full video for this lesson is being recorded. Explore the feature live in your dashboard, then mark it complete.</div>
+        </div>
+      ) : (
+        <button data-btn onClick={() => setPlaying(true)} aria-label="Play lesson" style={{
+          position: 'relative', zIndex: 2, width: 82, height: 82, borderRadius: '50%', border: 'none',
+          background: withAlpha('#FFFFFF', 0.97), display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 16px 40px rgba(0,0,0,0.30)' }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill={color} style={{ marginLeft: 4 }}><polygon points="6,4 20,12 6,20" /></svg>
+        </button>
+      )}
+    </div>
+  );
+};
+
+const PreviewScreen = ({ doc }) => {
+  const [tab, setTab] = useState('catalog');
+  const [openCourseId, setOpenCourseId] = useState(null);
+  const [lessonId, setLessonId] = useState(null);
+  const courses = doc.courses || [];
+  const paths = doc.paths || [];
+  const cats = doc.categories || [];
+  const [cat, setCat] = useState('all');
+
+  const openCourse = courses.find(c => c.id === openCourseId) || null;
+  const lessons = openCourse ? (openCourse.lessons || []) : [];
+  const lesson = lessons.find(l => l.id === lessonId) || lessons[0] || null;
+  const popular = courses.filter(c => c.popular);
+  const shown = cat === 'all' ? courses : courses.filter(c => c.category === cat);
+
+  const open = (c) => { setOpenCourseId(c.id); setLessonId((c.lessons || [])[0] ? c.lessons[0].id : null); setTab('player'); };
+
+  return (
+    <div className="scroll" style={{ flex: 1, minHeight: 0, background: T.bg }}>
+      <div style={{ padding: '16px 24px 0' }}>
+        <Banner tone="accent" icon="eye" title="This is what learners see">
+          The real Academy components, rendered from your draft. Progress always shows as “not started” — this previews the content, not one person's history.
+        </Banner>
+        <div style={{ display: 'flex', gap: 6, margin: '14px 0 0' }}>
+          {[{ id: 'catalog', label: 'Catalog', icon: 'layers' }, { id: 'paths', label: 'Learning paths', icon: 'graduation' }, { id: 'player', label: 'Course player', icon: 'play' }].map(t => (
+            <Chip key={t.id} selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Chip>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: '18px 24px 60px' }}>
+        {tab === 'catalog' && (
+          <>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="graduation" size={22} color={T.primary} />{(doc.meta && doc.meta.title) || 'Sole Academy'}
+            </div>
+            <Helper style={{ marginTop: 3, maxWidth: 640 }}>{(doc.meta && doc.meta.blurb) || ''}</Helper>
+
+            {popular.length > 0 && (
+              <div style={{ marginTop: 22 }}>
+                <SectionTitle style={{ marginBottom: 10 }}>Popular courses</SectionTitle>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 14 }}>
+                  {popular.map(c => <PreviewCourseCard key={c.id} doc={doc} course={c} onOpen={() => open(c)} />)}
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: 24 }}>
+              <SectionTitle style={{ marginBottom: 10 }}>All courses</SectionTitle>
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
+                <Chip selected={cat === 'all'} onClick={() => setCat('all')}>{`All · ${courses.length}`}</Chip>
+                {cats.map(c => {
+                  const n = courses.filter(x => x.category === c.id).length;
+                  return n ? <Chip key={c.id} tone={c.color} selected={cat === c.id} onClick={() => setCat(c.id)}>{`${c.label} · ${n}`}</Chip> : null;
+                })}
+              </div>
+              {shown.length === 0
+                ? <Card><EmptyState icon="layers" title="Nothing to show" hint="Add a course in Curriculum and it appears here." /></Card>
+                : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 14 }}>
+                    {shown.map(c => <PreviewCourseCard key={c.id} doc={doc} course={c} onOpen={() => open(c)} />)}
+                  </div>}
+            </div>
+          </>
+        )}
+
+        {tab === 'paths' && (
+          paths.length === 0
+            ? <Card><EmptyState icon="graduation" title="No learning paths" hint="Build one on the Learning paths screen." /></Card>
+            : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))', gap: 14 }}>
+                {paths.map(p => <PreviewPathCard key={p.id} doc={doc} path={p} />)}
+              </div>
+        )}
+
+        {tab === 'player' && (
+          !openCourse || !lesson ? (
+            <Card><EmptyState icon="play" title="Pick a course first"
+              hint="Open one from the Catalog tab to see the lesson player."
+              action={<Btn variant="soft" size="sm" onClick={() => setTab('catalog')}>Go to the catalog</Btn>} /></Card>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 300px', gap: 18, alignItems: 'start' }}>
+              <div>
+                <PreviewStage doc={doc} course={openCourse} lesson={lesson} />
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: -0.3 }}>{lesson.title || 'Untitled lesson'}</div>
+                  <Helper style={{ marginTop: 6, fontSize: 12.5 }}>{lesson.description || ''}</Helper>
+                </div>
+                {(lesson.takeaways || []).filter(Boolean).length > 0 && (
+                  <Card style={{ marginTop: 16 }}>
+                    <SectionTitle style={{ marginBottom: 9 }}>What you'll be able to do</SectionTitle>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                      {lesson.takeaways.filter(Boolean).map((t, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12.5 }}>
+                          <Icon name="checkCircle" size={14} color={T.greenDark} />{t}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+                {(lesson.resources || []).filter(r => r.label).length > 0 && (
+                  <Card style={{ marginTop: 14 }}>
+                    <SectionTitle style={{ marginBottom: 9 }}>Downloads</SectionTitle>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {lesson.resources.filter(r => r.label).map((r, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: r.href ? T.primary : T.mutedSoft }}>
+                          <Icon name="download" size={13} color={r.href ? T.primary : T.mutedSoft} />{r.label}{!r.href && <span style={{ fontSize: 10.5 }}>(no link)</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+                {(lesson.transcript || '').trim() && (
+                  <Card style={{ marginTop: 14 }}>
+                    <SectionTitle style={{ marginBottom: 9 }}>Transcript</SectionTitle>
+                    {lesson.transcript.split('\n').filter(p => p.trim()).map((p, i) => (
+                      <p key={i} style={{ margin: '0 0 9px', fontSize: 12.5, lineHeight: 1.62, color: T.textSoft }}>{p}</p>
+                    ))}
+                  </Card>
+                )}
+              </div>
+              <Card pad={0} style={{ overflow: 'hidden' }}>
+                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700 }}>{openCourse.title || 'Untitled course'}</div>
+                  <Helper style={{ fontSize: 10.5, marginTop: 2 }}>{plural(lessons.length, 'lesson')} · {courseMins(openCourse)} min</Helper>
+                </div>
+                {lessons.map((l, i) => {
+                  const active = l.id === lesson.id;
+                  return (
+                    <div key={l.id} onClick={() => setLessonId(l.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer',
+                        borderTop: i ? `1px solid ${T.borderSoft}` : 'none', background: active ? T.primarySofter : 'transparent' }}>
+                      <span style={{ width: 22, height: 22, borderRadius: 999, border: `1px solid ${active ? T.primary : T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: active ? T.primary : T.mutedSoft, flexShrink: 0 }}>{i + 1}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: active ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || 'Untitled lesson'}</div>
+                        <div style={{ fontSize: 10, color: T.mutedSoft, display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+                          <Icon name={lessonHasVideo(l) ? 'video' : 'clock'} size={10} color={T.mutedSoft} />{l.mins || 0} min
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </Card>
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ===== media library ======================================================
+   Thumbnails, checklists and screenshots — the files that go WITH lessons.
+   Videos are never uploaded here; they live on YouTube/Vimeo/Loom and the lesson
+   stores the link. Shared across both products on purpose: a logo or a checklist
+   is rarely product-specific. */
+const MediaScreen = ({ assets, onUpload, onDelete, cloud, fireToast, busy, doc }) => {
+  const [q, setQ] = useState('');
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const fileRef = useRef(null);
+  const query = q.trim().toLowerCase();
+  const shown = assets.filter(a => !query || ((a.name || '') + ' ' + (a.tags || '')).toLowerCase().includes(query));
+
+  // Deleting a file removes the bytes from storage — there's nothing to undo, so
+  // this confirms instead. It also checks whether any lesson still links to the
+  // file, because a silent 404 in a published lesson is the worst outcome here.
+  const usedBy = (asset) => {
+    const url = asset && (asset.url || asset.public_url);
+    if (!url || !doc) return [];
+    const hits = [];
+    (doc.courses || []).forEach(c => (c.lessons || []).forEach(l => {
+      const inResources = (l.resources || []).some(r => r.href === url);
+      const inThumb = l.thumbUrl === url;
+      if (inResources || inThumb) hits.push(`${l.title || 'Untitled lesson'} (${c.title || 'Untitled course'})`);
+    }));
+    return hits;
+  };
+
+  const copy = (url) => {
+    if (!url) return;
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => fireToast('Link copied'), () => fireToast({ message: 'Could not copy', tone: 'error' }));
+    else fireToast({ message: 'Clipboard not available', tone: 'warn' });
+  };
+
+  return (
+    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div>
+          <SectionTitle style={{ fontSize: 16 }}>Media</SectionTitle>
+          <Helper style={{ marginTop: 2, maxWidth: 560 }}>
+            Thumbnails, checklists and screenshots. Upload once, paste the link into any lesson's Downloads. Shared across both products.
+          </Helper>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.docx,.xlsx,.csv" style={{ display: 'none' }}
+            onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) onUpload(fs); e.target.value = ''; }} />
+          <Btn variant="primary" size="sm" icon="upload" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}>
+            {busy ? 'Uploading…' : 'Upload files'}
+          </Btn>
+        </div>
+      </div>
+
+      {!cloud && (
+        <Banner tone="warn" icon="alertTriangle" title="Local only — these files are in this browser" style={{ marginBottom: 16 }}>
+          Uploads are held in this browser until the shared backend is connected, so teammates can't see them and a cleared cache loses them. Fine for trying things out; connect Supabase before you rely on it. See <b>docs/ACADEMY_STUDIO_SETUP.md</b>.
+        </Banner>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card, maxWidth: 300, marginBottom: 16 }}>
+        <Icon name="search" size={13} color={T.muted} />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search files…"
+          style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5 }} />
+      </div>
+
+      {shown.length === 0 ? (
+        <Card><EmptyState icon="image" title={assets.length ? 'Nothing matches' : 'No files yet'}
+          hint={assets.length ? 'Try a different search.' : 'Upload a checklist PDF or a custom thumbnail and it appears here, ready to link from any lesson.'}
+          action={!assets.length ? <Btn variant="soft" size="sm" icon="upload" onClick={() => fileRef.current && fileRef.current.click()}>Upload a file</Btn> : null} /></Card>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px,1fr))', gap: 13 }}>
+          {shown.map(a => {
+            const url = a.url || a.public_url || a.dataUri;
+            const isImg = /^image\//.test(a.mime || '') || /\.(png|jpe?g|gif|webp|svg)$/i.test(a.name || '');
+            return (
+              <Card key={a.id} pad={0} style={{ overflow: 'hidden' }}>
+                <div style={{ height: 104, background: T.fieldBg, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: `1px solid ${T.borderSoft}` }}>
+                  {isImg && url
+                    ? <img src={url} alt={a.name || ''} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    : <Icon name="fileText" size={26} color={T.mutedSoft} />}
+                </div>
+                <div style={{ padding: 10 }}>
+                  <div title={a.name} style={{ fontSize: 11.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name || 'Untitled'}</div>
+                  <div style={{ fontSize: 10, color: T.mutedSoft, marginTop: 2 }}>{a.created_by_email || ''}</div>
+                  <div style={{ display: 'flex', gap: 5, marginTop: 9 }}>
+                    <Btn variant="outline" size="sm" icon="copy" onClick={() => copy(url)} style={{ flex: 1 }}>Link</Btn>
+                    <Btn variant="ghost" size="sm" icon="trash" aria-label="Delete" onClick={() => setPendingDelete(a)} style={{ color: T.mutedSoft, padding: '5px 7px' }} />
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <Modal open={!!pendingDelete} onClose={() => setPendingDelete(null)} title="Delete this file?"
+        footer={<>
+          <Btn variant="outline" onClick={() => setPendingDelete(null)}>Cancel</Btn>
+          <Btn variant="danger" icon="trash" onClick={() => { onDelete(pendingDelete); setPendingDelete(null); }}>Delete for good</Btn>
+        </>}>
+        <Helper>
+          <b>{pendingDelete && pendingDelete.name}</b> will be removed permanently. Unlike everything else in the Studio, this one can't be undone.
+        </Helper>
+        {pendingDelete && usedBy(pendingDelete).length > 0 && (
+          <Banner tone="danger" icon="alertTriangle" title={`Still used by ${plural(usedBy(pendingDelete).length, 'lesson')}`} style={{ marginTop: 12 }}>
+            Those links will break for learners. Point them somewhere else first:
+            <div style={{ marginTop: 6 }}>
+              {usedBy(pendingDelete).map((s, i) => <div key={i} style={{ fontSize: 11 }}>· {s}</div>)}
+            </div>
+          </Banner>
+        )}
+      </Modal>
+    </div>
+  );
+};
+
+/* ===== readiness + publish ================================================ */
+const IssuesPanel = ({ issues, onJump }) => {
+  const [open, setOpen] = useState({});
+  const blocks = issues.filter(i => i.severity === 'block');
+  const warns = issues.filter(i => i.severity === 'warn');
+
+  const groups = [];
+  issues.forEach(i => {
+    let g = groups.find(x => x.category === i.category && x.severity === i.severity);
+    if (!g) { g = { category: i.category, severity: i.severity, items: [] }; groups.push(g); }
+    g.items.push(i);
+  });
+  groups.sort((a, b) => (a.severity === b.severity ? b.items.length - a.items.length : a.severity === 'block' ? -1 : 1));
+
+  if (!issues.length) return (
+    <Banner tone="success" icon="checkCircle" title="Everything checks out">
+      No blockers and nothing missing. This curriculum is ready to publish.
+    </Banner>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {blocks.length > 0 && <Pill color={T.red} icon="xCircle">{plural(blocks.length, 'blocker')}</Pill>}
+        {warns.length > 0 && <Pill color={T.amber} icon="alertTriangle">{plural(warns.length, 'warning')}</Pill>}
+      </div>
+      {blocks.length > 0 && (
+        <Banner tone="danger" icon="xCircle" title="Fix these before publishing">
+          Each of these would visibly break something for a learner, so publishing is held until they're resolved.
+        </Banner>
+      )}
+      <Card pad={0} style={{ overflow: 'hidden' }}>
+        {groups.map((g, gi) => {
+          const key = g.severity + ':' + g.category;
+          const isOpen = !!open[key];
+          const tone = g.severity === 'block' ? T.red : T.amber;
+          return (
+            <div key={key} style={{ borderTop: gi ? `1px solid ${T.borderSoft}` : 'none' }}>
+              <button data-btn onClick={() => setOpen(o => ({ ...o, [key]: !o[key] }))}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', border: 'none', background: 'transparent', padding: '10px 14px', textAlign: 'left' }}>
+                <Icon name={isOpen ? 'chevronDown' : 'chevronRight'} size={13} color={T.mutedSoft} />
+                <Icon name={g.severity === 'block' ? 'xCircle' : 'alertTriangle'} size={14} color={tone} />
+                <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600 }}>{g.category}</span>
+                <Pill color={tone}>{g.items.length}</Pill>
+              </button>
+              {isOpen && (
+                <div style={{ padding: '0 14px 10px 44px' }}>
+                  {g.items.map(i => (
+                    <div key={i.id} style={{ padding: '7px 0', borderTop: `1px solid ${T.borderSoft}` }}>
+                      <button data-btn onClick={() => onJump(i.target)}
+                        style={{ border: 'none', background: 'transparent', padding: 0, textAlign: 'left', fontSize: 12, fontWeight: 600, color: T.primary }}>
+                        {i.label} →
+                      </button>
+                      <Helper style={{ fontSize: 11, marginTop: 2 }}>{i.detail}</Helper>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </Card>
+    </div>
+  );
+};
+
+const indexDoc = (d) => {
+  const map = {};
+  ((d && d.categories) || []).forEach(c => { map['category:' + c.id] = { kind: 'Category', label: c.label || c.id, obj: c }; });
+  ((d && d.courses) || []).forEach(c => {
+    map['course:' + c.id] = { kind: 'Course', label: c.title || c.id, obj: { ...c, lessons: (c.lessons || []).map(l => l.id) } };
+    (c.lessons || []).forEach(l => { map['lesson:' + l.id] = { kind: 'Lesson', label: l.title || l.id, obj: l, parent: c.title || c.id }; });
+  });
+  ((d && d.paths) || []).forEach(p => { map['path:' + p.id] = { kind: 'Path', label: p.title || p.id, obj: p }; });
+  return map;
+};
+const diffDocs = (a, b) => {
+  const A = indexDoc(a), B = indexDoc(b);
+  const added = [], removed = [], changed = [];
+  Object.keys(B).forEach(k => {
+    if (!A[k]) added.push(B[k]);
+    else if (JSON.stringify(A[k].obj) !== JSON.stringify(B[k].obj)) changed.push(B[k]);
+  });
+  Object.keys(A).forEach(k => { if (!B[k]) removed.push(A[k]); });
+  return { added, removed, changed, total: added.length + removed.length + changed.length };
+};
+
+const PublishScreen = ({ doc, product, productLabel, versions, latest, onPublish, onRollback, onJump, cloud, fireToast, publishing, onRefresh }) => {
+  const issues = useMemo(() => computeIssues(doc), [doc]);
+  const blockers = issues.filter(i => i.severity === 'block');
+  const published = useMemo(() => toPublished(doc), [doc]);
+  const diff = useMemo(() => diffDocs(latest ? latest.doc : null, published), [latest, published]);
+  const [note, setNote] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [showJson, setShowJson] = useState(false);
+
+  const download = (filename, text, mime) => {
+    try {
+      const blob = new Blob([text], { type: mime || 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (_) { fireToast({ message: 'Download failed in this browser', tone: 'error' }); }
+  };
+
+  const asSeedCode = () => {
+    const cats = published.categories.map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color, blurb: c.blurb }));
+    const courses = published.courses.map(c => ({ id: c.id, title: c.title, category: c.category, level: c.level, summary: c.summary, lessons: c.lessons }));
+    const popular = published.courses.filter(c => c.popular).map(c => c.id);
+    return [
+      '// Generated by Sole Academy Studio — ' + productLabel + ' — ' + new Date().toISOString(),
+      '// Paste over the matching consts in index.html. See docs/ACADEMY_INTEGRATION.md.',
+      'const ACADEMY_CATEGORIES = ' + JSON.stringify(cats, null, 2) + ';',
+      'const ACADEMY_COURSES = ' + JSON.stringify(courses, null, 2) + ';',
+      'const ACADEMY_POPULAR = ' + JSON.stringify(popular) + ';',
+      'const LEARNING_PATHS = ' + JSON.stringify(published.paths, null, 2) + ';',
+    ].join('\n\n');
+  };
+  const copySeed = () => {
+    const text = asSeedCode();
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => fireToast('Seed code copied'), () => fireToast({ message: 'Could not copy', tone: 'error' }));
+    else fireToast({ message: 'Clipboard not available', tone: 'warn' });
+  };
+
+  const changeLine = (g) => `${g.kind} · ${g.label}${g.parent ? ` (in ${g.parent})` : ''}`;
+
+  return (
+    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
+      <div style={{ marginBottom: 16 }}>
+        <SectionTitle style={{ fontSize: 16 }}>Publish</SectionTitle>
+        <Helper style={{ marginTop: 2, maxWidth: 620 }}>
+          Publishing takes a snapshot of this curriculum and makes it the live one for <b>{productLabel}</b>. Your draft keeps working after — nothing you edit reaches learners until you publish again.
+        </Helper>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 820 }}>
+        <div>
+          <SectionTitle style={{ marginBottom: 9 }}>1 · Readiness</SectionTitle>
+          <IssuesPanel issues={issues} onJump={onJump} />
+        </div>
+
+        <div>
+          <SectionTitle style={{ marginBottom: 9 }}>2 · What's changing</SectionTitle>
+          {!cloud ? (
+            <Banner tone="warn" icon="alertTriangle" title="Not connected — publishing is off">
+              Publishing needs the shared backend so the live app has somewhere to read from. Until then, use <b>Download curriculum.json</b> below and hand the file over. See <b>docs/ACADEMY_STUDIO_SETUP.md</b>.
+            </Banner>
+          ) : !latest ? (
+            <Banner tone="accent" icon="send" title="Nothing published yet">
+              This would be version 1 — {plural(published.courses.length, 'course')}, {plural(published.courses.reduce((s, c) => s + c.lessons.length, 0), 'lesson')} and {plural(published.paths.length, 'learning path')}.
+            </Banner>
+          ) : diff.total === 0 ? (
+            <Banner tone="info" icon="checkCircle" title={`No changes since version ${latest.version}`}>
+              Your draft matches what's live. Published {fmtWhen(latest.published_at)}{latest.published_by_email ? ` by ${latest.published_by_email}` : ''}.
+            </Banner>
+          ) : (
+            <Card>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                {diff.added.length > 0 && <Pill color={T.greenDark} icon="plus">{diff.added.length} new</Pill>}
+                {diff.changed.length > 0 && <Pill color={T.blue} icon="edit">{diff.changed.length} edited</Pill>}
+                {diff.removed.length > 0 && <Pill color={T.red} icon="trash">{diff.removed.length} removed</Pill>}
+                <Helper style={{ fontSize: 11 }}>vs live version {latest.version}</Helper>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 260, overflowY: 'auto' }}>
+                {diff.added.map((g, i) => <div key={'a' + i} style={{ fontSize: 11.5, color: T.greenDark, display: 'flex', gap: 7 }}><Icon name="plus" size={12} color={T.greenDark} />{changeLine(g)}</div>)}
+                {diff.changed.map((g, i) => <div key={'c' + i} style={{ fontSize: 11.5, color: T.textSoft, display: 'flex', gap: 7 }}><Icon name="edit" size={12} color={T.blue} />{changeLine(g)}</div>)}
+                {diff.removed.map((g, i) => <div key={'r' + i} style={{ fontSize: 11.5, color: T.red, display: 'flex', gap: 7 }}><Icon name="trash" size={12} color={T.red} />{changeLine(g)}</div>)}
+              </div>
+            </Card>
+          )}
+        </div>
+
+        <div>
+          <SectionTitle style={{ marginBottom: 9 }}>3 · Go live</SectionTitle>
+          <Card>
+            <Field label="What changed in this release?" hint="Shows in the version history so anyone can see why a version exists.">
+              <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Added the four payroll videos" />
+            </Field>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+              <Btn variant="success" icon="send" disabled={!cloud || blockers.length > 0 || publishing}
+                onClick={() => setConfirming(true)}>
+                {publishing ? 'Publishing…' : latest ? `Publish version ${latest.version + 1}` : 'Publish version 1'}
+              </Btn>
+              <Btn variant="outline" icon="download" onClick={() => download(`academy-${product}-curriculum.json`, JSON.stringify(published, null, 2))}>Download curriculum.json</Btn>
+              <Btn variant="outline" icon="copy" onClick={copySeed}>Copy as code</Btn>
+              <Btn variant="ghost" icon="eye" onClick={() => setShowJson(true)} style={{ color: T.muted }}>View JSON</Btn>
+            </div>
+            {blockers.length > 0 && <Helper style={{ marginTop: 10, color: T.red }}>{plural(blockers.length, 'blocker')} above must be fixed first.</Helper>}
+          </Card>
+        </div>
+
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 9 }}>
+            <SectionTitle>Version history</SectionTitle>
+            {cloud && <Btn variant="ghost" size="sm" icon="refresh" onClick={onRefresh} style={{ color: T.muted }}>Refresh</Btn>}
+          </div>
+          {!versions.length ? (
+            <Card><Helper>Nothing published yet.</Helper></Card>
+          ) : (
+            <Card pad={0} style={{ overflow: 'hidden' }}>
+              {versions.map((v, i) => (
+                <div key={v.id || v.version} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${T.borderSoft}` : 'none' }}>
+                  <Pill color={i === 0 ? T.greenDark : T.mutedSoft}>{i === 0 ? 'Live' : 'v' + v.version}</Pill>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{v.note || `Version ${v.version}`}</div>
+                    <Helper style={{ fontSize: 10.5 }}>{fmtWhen(v.published_at)}{v.published_by_email ? ` · ${v.published_by_email}` : ''}</Helper>
+                  </div>
+                  <Helper style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>
+                    {((v.doc && v.doc.courses) || []).length}c · {((v.doc && v.doc.courses) || []).reduce((s, c) => s + ((c.lessons || []).length), 0)}l
+                  </Helper>
+                  <Btn variant="outline" size="sm" icon="undo" onClick={() => onRollback(v)}>Load into draft</Btn>
+                </div>
+              ))}
+            </Card>
+          )}
+        </div>
+      </div>
+
+      <Modal open={confirming} onClose={() => setConfirming(false)} title="Publish this curriculum?"
+        footer={<>
+          <Btn variant="outline" onClick={() => setConfirming(false)}>Cancel</Btn>
+          <Btn variant="success" icon="send" onClick={() => { setConfirming(false); onPublish(note); setNote(''); }}>Publish</Btn>
+        </>}>
+        <Helper style={{ marginBottom: 12 }}>
+          This becomes the live curriculum for <b>{productLabel}</b> — {plural(published.courses.length, 'course')}, {plural(published.courses.reduce((s, c) => s + c.lessons.length, 0), 'lesson')}, {plural(published.paths.length, 'learning path')}.
+        </Helper>
+        {issues.filter(i => i.severity === 'warn').length > 0 && (
+          <Banner tone="warn" icon="alertTriangle" title={`${plural(issues.filter(i => i.severity === 'warn').length, 'warning')} — publishing anyway is fine`}>
+            Mostly lessons without video yet. They'll show the “coming soon” poster until footage is attached.
+          </Banner>
+        )}
+        <Helper style={{ marginTop: 12 }}>Previous versions stay in the history, so this is reversible.</Helper>
+      </Modal>
+
+      <Modal open={showJson} onClose={() => setShowJson(false)} title="Published curriculum JSON" width={720}
+        footer={<Btn variant="outline" onClick={() => setShowJson(false)}>Close</Btn>}>
+        <Helper style={{ marginBottom: 10 }}>Exactly what a consumer receives. Internal production fields are stripped.</Helper>
+        <pre style={{ margin: 0, fontSize: 10.5, lineHeight: 1.5, background: T.fieldBg, border: `1px solid ${T.borderSoft}`, borderRadius: T.radius, padding: 12, overflow: 'auto', maxHeight: '55vh', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+          {JSON.stringify(published, null, 2)}
+        </pre>
+      </Modal>
+    </div>
+  );
+};
+
+/* ===== shell ============================================================== */
+const NAV = [
+  { id: 'curriculum', label: 'Curriculum', icon: 'layers' },
+  { id: 'paths', label: 'Learning paths', icon: 'graduation' },
+  { id: 'production', label: 'Production', icon: 'clipboardCheck' },
+  { id: 'media', label: 'Media', icon: 'image' },
+  { id: 'preview', label: 'Preview', icon: 'eye' },
+  { id: 'publish', label: 'Publish', icon: 'send' },
+];
+
+const AcademyStudio = () => {
+  const savedUI = lsRead(LS_UI, {});
+  const [product, setProduct] = useState(savedUI.product && PRODUCTS.some(p => p.id === savedUI.product) ? savedUI.product : PRODUCTS[0].id);
+  const [screen, setScreen] = useState('curriculum');
+  const [docs, setDocs] = useState(() => {
+    const stored = lsRead(LS_DOCS, null);
+    const base = seedDocs();
+    if (!stored) return base;
+    const out = {};
+    PRODUCTS.forEach(p => { out[p.id] = normaliseDoc(stored[p.id] || base[p.id], p.id); });
+    return out;
+  });
+  const [sel, setSel] = useState({ kind: null });
+  const [collapsed, setCollapsed] = useState(savedUI.collapsed || {});
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+
+  // cloud. `localOnly` lets someone use the whole tool before any backend setup
+  // has happened — every authoring feature works against localStorage, so gating
+  // it behind a login would be a wall for no benefit. Signing in is what turns
+  // *sharing* on, not what unlocks the tool.
+  const cloudConfigured = !!(CLOUD && CLOUD.isConfigured && CLOUD.isConfigured());
+  const [localOnly, setLocalOnly] = useState(!!savedUI.localOnly);
+  // Push the preference into the cloud layer before anything reads its state, so
+  // "work locally" also means media/uploads stay local. Idempotent by design.
+  if (CLOUD && CLOUD.forceLocal) CLOUD.forceLocal(localOnly);
+  const cloudReady = !!(CLOUD && CLOUD.isCloud && CLOUD.isCloud());
+  const needsAuth = !!(CLOUD && CLOUD.needsAuth && CLOUD.needsAuth());
+  const [cloudError, setCloudError] = useState('');
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(!needsAuth);
+  const [email, setEmail] = useState('');
+  const [authSent, setAuthSent] = useState(false);
+  const [authErr, setAuthErr] = useState('');
+  const [saveState, setSaveState] = useState('idle');   // idle | saving | saved | error | conflict
+  const [conflictBy, setConflictBy] = useState('');
+  const [versions, setVersions] = useState({});          // product → [rows]
+  const [assets, setAssets] = useState([]);
+  const [publishing, setPublishing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const stamps = useRef({});                             // product → server updated_at
+  const loadedFromCloud = useRef({});                    // product → bool
+  const skipNextSave = useRef(true);
+
+  const fireToast = useCallback((t) => {
+    const obj = typeof t === 'string' ? { message: t } : t;
+    setToast(obj);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), obj && obj.action ? 5000 : 2400);
+  }, []);
+
+  const doc = docs[product] || seedDocs()[product];
+  const productMeta = PRODUCTS.find(p => p.id === product) || PRODUCTS[0];
+  const other = PRODUCTS.find(p => p.id !== product) || null;
+
+  const edit = useCallback((mutator) => {
+    setDocs(prev => {
+      const next = { ...prev };
+      const d = clone(prev[product]);
+      mutator(d);
+      next[product] = d;
+      return next;
+    });
+  }, [product]);
+
+  const owners = useMemo(() => {
+    const set = {};
+    PRODUCTS.forEach(p => {
+      const d = docs[p.id];
+      if (!d) return;
+      allLessons(d).forEach(({ lesson }) => {
+        const o = (lesson.production && lesson.production.owner || '').trim();
+        if (o) set[o] = true;
+      });
+    });
+    return Object.keys(set).sort();
+  }, [docs]);
+
+  const issues = useMemo(() => computeIssues(doc), [doc]);
+  const blockerCount = issues.filter(i => i.severity === 'block').length;
+
+  /* ---- local mirror (always) + shared draft (when connected) ------------ */
+  useEffect(() => { lsWrite(LS_UI, { product, collapsed, localOnly }); }, [product, collapsed, localOnly]);
+
+  useEffect(() => {
+    lsWrite(LS_DOCS, docs);
+    if (skipNextSave.current) { skipNextSave.current = false; return; }
+    if (!cloudReady || (needsAuth && !user)) return;
+    if (!loadedFromCloud.current[product]) return;   // don't overwrite the server before we've read it
+    setSaveState('saving');
+    const t = setTimeout(() => {
+      CLOUD.saveDraft(product, docs[product], stamps.current[product])
+        .then(res => {
+          if (res && res.conflict) {
+            setSaveState('conflict');
+            setConflictBy(res.updated_by_email || 'someone else');
+            return;
+          }
+          stamps.current[product] = (res && res.updated_at) || stamps.current[product];
+          setCloudError('');
+          setSaveState('saved');
+        })
+        .catch((e) => {
+          setSaveState('error');
+          setCloudError((e && e.message) || 'Could not reach the shared curriculum');
+        });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [docs, product, cloudReady, user, needsAuth]);
+
+  /* ---- auth ------------------------------------------------------------- */
+  useEffect(() => {
+    if (!CLOUD || !cloudReady) { setAuthChecked(true); return; }
+    let sub = null;
+    CLOUD.getUser().then(u => { setUser(u); setAuthChecked(true); });
+    if (CLOUD.onAuth) sub = CLOUD.onAuth(u => { setUser(u); setAuthChecked(true); });
+    return () => { if (sub && sub.unsubscribe) sub.unsubscribe(); };
+  }, [cloudReady]);
+
+  /* ---- pull the shared draft + versions + assets ------------------------ */
+  // The save effect needs the newest docs without re-subscribing, and seeding a
+  // fresh backend needs whatever this browser already has.
+  const docsRef = useRef(docs);
+  useEffect(() => { docsRef.current = docs; }, [docs]);
+
+  const pullProduct = useCallback((pid) => {
+    if (!cloudReady || (needsAuth && !user)) return;
+    CLOUD.loadDraft(pid).then(row => {
+      if (row && row.doc) {
+        stamps.current[pid] = row.updated_at;
+        skipNextSave.current = true;
+        setDocs(prev => ({ ...prev, [pid]: normaliseDoc(row.doc, pid) }));
+        loadedFromCloud.current[pid] = true;
+      } else {
+        // Nothing shared yet — seed the backend from what's in this browser so
+        // the first person to open the tool populates the team's draft.
+        stamps.current[pid] = null;
+        loadedFromCloud.current[pid] = true;
+        CLOUD.saveDraft(pid, docsRef.current[pid], null)
+          .then(res => { if (res && res.updated_at) stamps.current[pid] = res.updated_at; })
+          .catch(e => setCloudError((e && e.message) || 'Could not write to the shared curriculum'));
+      }
+    }).catch(e => {
+      loadedFromCloud.current[pid] = true;
+      setCloudError((e && e.message) || 'Could not read the shared curriculum');
+    });
+    CLOUD.listVersions(pid).then(rows => setVersions(v => ({ ...v, [pid]: rows || [] }))).catch(() => {});
+  }, [cloudReady, needsAuth, user]);
+
+  useEffect(() => {
+    if (!cloudReady || (needsAuth && !user)) return;
+    PRODUCTS.forEach(p => { if (!loadedFromCloud.current[p.id]) pullProduct(p.id); });
+  }, [cloudReady, needsAuth, user, pullProduct]);
+
+  // Media works in local mode too (data URIs in this browser), so this is only
+  // gated on the sign-in step, not on having a backend.
+  useEffect(() => {
+    if (!CLOUD) return;
+    if (cloudReady && needsAuth && !user) return;
+    CLOUD.listAssets().then(a => setAssets(a || [])).catch(() => {});
+  }, [cloudReady, needsAuth, user]);
+
+  /* ---- selection helpers ----------------------------------------------- */
+  const jumpTo = useCallback((target) => {
+    if (!target) return;
+    if (target.kind === 'path') { setScreen('paths'); return; }
+    setScreen('curriculum');
+    if (target.kind === 'lesson') {
+      setCollapsed(c => {
+        const n = { ...c };
+        const course = findCourse(doc, target.courseId);
+        if (course) { n[target.courseId] = false; n[course.category] = false; }
+        return n;
+      });
+      setSel({ kind: 'lesson', id: target.id, courseId: target.courseId });
+    } else if (target.kind === 'course') {
+      const course = findCourse(doc, target.id);
+      if (course) setCollapsed(c => ({ ...c, [course.category]: false }));
+      setSel({ kind: 'course', id: target.id });
+    } else {
+      setSel({ kind: 'category', id: target.id });
+    }
+  }, [doc]);
+
+  const jumpToLesson = useCallback((courseId, lessonId) => jumpTo({ kind: 'lesson', id: lessonId, courseId }), [jumpTo]);
+
+  /* ---- publish / rollback ---------------------------------------------- */
+  const latest = (versions[product] || [])[0] || null;
+
+  const onPublish = (note) => {
+    if (!cloudReady) return;
+    setPublishing(true);
+    CLOUD.publishVersion(product, toPublished(doc), note)
+      .then(row => {
+        setVersions(v => ({ ...v, [product]: [row].concat(v[product] || []) }));
+        fireToast(`Published version ${row.version} of ${productMeta.label}`);
+      })
+      .catch(e => fireToast({ message: 'Publish failed — ' + ((e && e.message) || 'unknown error'), tone: 'error' }))
+      .then(() => setPublishing(false));
+  };
+
+  const onRollback = (v) => {
+    const snapshot = clone(doc);
+    // A published snapshot has no production metadata; keep what the draft knows
+    // so loading an old version doesn't wipe the team's status board.
+    const merged = normaliseDoc(clone(v.doc), product);
+    const prodBy = {};
+    allLessons(doc).forEach(({ lesson }) => { if (lesson.production) prodBy[lesson.id] = lesson.production; });
+    merged.courses.forEach(c => c.lessons.forEach(l => { if (prodBy[l.id]) l.production = prodBy[l.id]; }));
+    setDocs(prev => ({ ...prev, [product]: merged }));
+    fireToast({ message: `Loaded version ${v.version} into your draft`, action: { label: 'Undo', onClick: () => setDocs(prev => ({ ...prev, [product]: snapshot })) } });
+  };
+
+  /* ---- media ------------------------------------------------------------ */
+  const onUpload = (files) => {
+    if (!CLOUD) { fireToast({ message: 'Media needs resources/academy-cloud.js — it did not load', tone: 'error' }); return; }
+    setUploading(true);
+    const readOne = (file) => new Promise((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve({ name: file.name, mime: file.type || 'application/octet-stream', dataUri: fr.result, product });
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(file);
+    });
+    Promise.all(files.map(readOne))
+      .then(recs => Promise.all(recs.filter(Boolean).map(r => CLOUD.saveAsset(r).catch(() => null))))
+      .then(saved => {
+        const ok = (saved || []).filter(Boolean);
+        if (ok.length) setAssets(prev => ok.concat(prev.filter(a => !ok.some(s => s.id === a.id))));
+        fireToast(ok.length ? `${plural(ok.length, 'file')} uploaded` : { message: 'Upload failed', tone: 'error' });
+      })
+      .then(() => setUploading(false), () => setUploading(false));
+  };
+  const onDeleteAsset = (a) => {
+    if (!CLOUD) return;
+    CLOUD.deleteAsset(a.id).then(() => {
+      setAssets(prev => prev.filter(x => x.id !== a.id));
+      fireToast('File deleted');
+    }).catch(() => fireToast({ message: 'Could not delete', tone: 'error' }));
+  };
+
+  /* ---- copy a course across products ----------------------------------- */
+  const copyCourseToOther = (course) => {
+    if (!other) return;
+    const copy = clone(course);
+    const taken = {};
+    (docs[other.id].courses || []).forEach(c => { taken[c.id] = true; (c.lessons || []).forEach(l => { taken[l.id] = true; }); });
+    if (taken[copy.id]) copy.id = copy.id + '-copy';
+    copy.lessons.forEach(l => { if (taken[l.id]) l.id = l.id + '-copy'; });
+    // Carry the category across if the other product has one with the same id;
+    // otherwise leave it unset so the readiness check flags it for a decision.
+    const hasCat = (docs[other.id].categories || []).some(c => c.id === copy.category);
+    if (!hasCat) copy.category = '';
+    setDocs(prev => {
+      const next = { ...prev };
+      const d = clone(prev[other.id]);
+      d.courses.push(copy);
+      next[other.id] = d;
+      return next;
+    });
+    fireToast({
+      message: `Copied to ${other.label}`,
+      action: { label: 'Go there', onClick: () => { setProduct(other.id); setScreen('curriculum'); setSel({ kind: 'course', id: copy.id }); } },
+    });
+  };
+
+  /* ---- backup / restore the draft -------------------------------------- */
+  const fileRef = useRef(null);
+  const exportDraft = () => {
+    try {
+      const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `academy-${product}-draft.json`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      fireToast('Draft downloaded');
+    } catch (_) { fireToast({ message: 'Download failed', tone: 'error' }); }
+  };
+  const importDraft = (file) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        const parsed = JSON.parse(fr.result);
+        const snapshot = clone(doc);
+        setDocs(prev => ({ ...prev, [product]: normaliseDoc(parsed, product) }));
+        fireToast({ message: 'Draft replaced from file', action: { label: 'Undo', onClick: () => setDocs(prev => ({ ...prev, [product]: snapshot })) } });
+      } catch (_) { fireToast({ message: 'That file is not a valid curriculum', tone: 'error' }); }
+    };
+    fr.onerror = () => fireToast({ message: 'Could not read that file', tone: 'error' });
+    fr.readAsText(file);
+  };
+  const resetToSeed = () => {
+    const snapshot = clone(doc);
+    setDocs(prev => ({ ...prev, [product]: normaliseDoc(clone(SEED[product] || {}), product) }));
+    setSel({ kind: null });
+    fireToast({ message: 'Reset to the starter curriculum', action: { label: 'Undo', onClick: () => setDocs(prev => ({ ...prev, [product]: snapshot })) } });
+  };
+
+  /* ---- auth gate ------------------------------------------------------- */
+  const doSignIn = () => {
+    setAuthErr('');
+    const e = email.trim();
+    if (!e) return;
+    CLOUD.signIn(e).then(() => setAuthSent(true)).catch(err => setAuthErr((err && err.message) || 'Could not send the link'));
+  };
+
+  if (cloudReady && needsAuth && !authChecked) {
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2.5px solid ${T.border}`, borderTopColor: T.primary, animation: 'spin 700ms linear infinite' }} />
+      </div>
+    );
+  }
+
+  if (cloudReady && needsAuth && !user) {
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Card style={{ width: '100%', maxWidth: 400, textAlign: 'center' }} pad={28}>
+          <div style={{ width: 42, height: 42, margin: '0 auto 14px', borderRadius: 12, background: T.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="graduation" size={21} color={T.primary} />
+          </div>
+          <SectionTitle style={{ fontSize: 17 }}>Sole Academy Studio</SectionTitle>
+          <Helper style={{ margin: '8px 0 18px' }}>
+            Sign in to open the team's curriculum. We'll email you a one-time link — no password to remember.
+          </Helper>
+          {authSent ? (
+            <Banner tone="success" icon="mail" title="Check your email">
+              We sent a sign-in link to <b>{email.trim()}</b>. Open it on this device.
+            </Banner>
+          ) : (
+            <form onSubmit={e => { e.preventDefault(); doSignIn(); }}>
+              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@soleapp.com.au" style={{ textAlign: 'center' }} />
+              <Btn variant="primary" size="lg" icon="mail" type="submit" style={{ width: '100%', marginTop: 10 }}>Email me a link</Btn>
+              {authErr && <Helper style={{ color: T.red, marginTop: 10 }}>{authErr}</Helper>}
+              <Helper style={{ fontSize: 10.5, marginTop: 12 }}>Only teammates who've been invited can sign in.</Helper>
+            </form>
+          )}
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.borderSoft}` }}>
+            <Btn variant="ghost" size="sm" onClick={() => setLocalOnly(true)} style={{ color: T.muted }}>Work in this browser instead →</Btn>
+            <Helper style={{ fontSize: 10.5, marginTop: 6 }}>
+              Everything works without signing in — your curriculum just stays on this computer instead of being shared, and publishing is off.
+            </Helper>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  /* ---- editor pane for the curriculum screen --------------------------- */
+  const renderEditor = () => {
+    if (sel.kind === 'category') {
+      const cat = catById(doc, sel.id);
+      if (cat) return <CategoryEditor doc={doc} cat={cat} edit={edit} />;
+    }
+    if (sel.kind === 'course') {
+      const course = findCourse(doc, sel.id);
+      if (course) return (
+        <CourseEditor doc={doc} course={course} edit={edit} fireToast={fireToast} setSel={setSel}
+          otherProductLabel={other ? other.short : ''}
+          onCopyToOtherProduct={other ? () => copyCourseToOther(course) : null} />
+      );
+    }
+    if (sel.kind === 'lesson') {
+      const course = findCourse(doc, sel.courseId);
+      const lesson = findLesson(doc, sel.courseId, sel.id);
+      if (course && lesson) return <LessonEditor doc={doc} course={course} lesson={lesson} edit={edit} fireToast={fireToast} owners={owners} setSel={setSel} />;
+    }
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <EmptyState icon="layers" title="Pick something to edit"
+          hint="Choose a category, course or lesson from the tree. Drag rows, or use the little arrows, to reorder them." />
+      </div>
+    );
+  };
+
+  const saveLabel = saveState === 'saving' ? 'Saving…'
+    : saveState === 'saved' ? 'Saved'
+    : saveState === 'error' ? 'Save failed'
+    : saveState === 'conflict' ? 'Out of date'
+    : cloudReady ? 'Up to date' : 'Saved in this browser';
+  const saveColor = saveState === 'error' || saveState === 'conflict' ? T.red : saveState === 'saving' ? T.amber : T.greenDark;
+
+  return (
+    <div style={{ height: '100%', display: 'grid', gridTemplateColumns: '212px minmax(0,1fr)', background: T.bg }}>
+      {/* rail */}
+      <aside style={{ background: T.card, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ padding: '15px 14px 12px', borderBottom: `1px solid ${T.borderSoft}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 26, height: 26, borderRadius: 8, background: T.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="graduation" size={14} color="#fff" />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: -0.2 }}>Academy Studio</div>
+              <div style={{ fontSize: 9.5, color: T.mutedSoft }}>Internal · content team</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '12px 12px 10px', borderBottom: `1px solid ${T.borderSoft}` }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: T.mutedSoft, marginBottom: 7 }}>Curriculum for</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {PRODUCTS.map(p => {
+              const active = p.id === product;
+              const d = docs[p.id];
+              return (
+                <button key={p.id} data-btn onClick={() => { setProduct(p.id); setSel({ kind: null }); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: T.radius, textAlign: 'left',
+                    border: `1px solid ${active ? T.primary : T.border}`, background: active ? T.primarySoft : T.card }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 6, background: active ? T.primary : T.fieldBg, color: active ? '#fff' : T.muted,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, flexShrink: 0 }}>{p.short}</span>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: active ? T.primaryDark : T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.label}</span>
+                    <span style={{ display: 'block', fontSize: 9.5, color: T.mutedSoft }}>{d ? `${(d.courses || []).length}c · ${allLessons(d).length}l` : ''}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <nav className="scroll" style={{ flex: 1, padding: '10px 10px 20px' }}>
+          {NAV.map(n => {
+            const active = screen === n.id;
+            const badge = n.id === 'publish' && blockerCount > 0 ? blockerCount : null;
+            return (
+              <button key={n.id} data-btn onClick={() => setScreen(n.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', marginBottom: 2, borderRadius: T.radius,
+                  border: 'none', background: active ? T.primarySoft : 'transparent', color: active ? T.primaryDark : T.textSoft,
+                  fontSize: 12, fontWeight: active ? 700 : 500, textAlign: 'left' }}>
+                <Icon name={n.icon} size={14} color={active ? T.primary : T.mutedSoft} />
+                <span style={{ flex: 1 }}>{n.label}</span>
+                {badge && <Pill color={T.red}>{badge}</Pill>}
+              </button>
+            );
+          })}
+
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${T.borderSoft}` }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: T.mutedSoft, marginBottom: 7, paddingLeft: 10 }}>This draft</div>
+            <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
+              onChange={e => { const f = (e.target.files || [])[0]; if (f) importDraft(f); e.target.value = ''; }} />
+            <button data-btn onClick={exportDraft} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '7px 10px', borderRadius: T.radius, border: 'none', background: 'transparent', color: T.muted, fontSize: 11.5, textAlign: 'left' }}>
+              <Icon name="download" size={13} color={T.mutedSoft} />Back up to a file
+            </button>
+            <button data-btn onClick={() => fileRef.current && fileRef.current.click()} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '7px 10px', borderRadius: T.radius, border: 'none', background: 'transparent', color: T.muted, fontSize: 11.5, textAlign: 'left' }}>
+              <Icon name="upload" size={13} color={T.mutedSoft} />Restore from a file
+            </button>
+            <button data-btn onClick={resetToSeed} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '7px 10px', borderRadius: T.radius, border: 'none', background: 'transparent', color: T.muted, fontSize: 11.5, textAlign: 'left' }}>
+              <Icon name="undo" size={13} color={T.mutedSoft} />Reset to starter
+            </button>
+          </div>
+        </nav>
+
+        <div style={{ padding: '10px 12px', borderTop: `1px solid ${T.borderSoft}` }}>
+          {cloudReady
+            ? <div title="Shared with your team" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: T.greenDark }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: T.green }} />Shared
+              </div>
+            : <div title="This browser only — sign in to share with the team">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: T.amber }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: T.amber }} />Local only
+                </div>
+                {cloudConfigured && (
+                  <button data-btn onClick={() => setLocalOnly(false)}
+                    style={{ border: 'none', background: 'transparent', padding: '3px 0 0', color: T.primary, fontSize: 10, fontWeight: 700 }}>Sign in to share →</button>
+                )}
+              </div>}
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 9.5, color: T.mutedSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</span>
+              <button data-btn onClick={() => CLOUD.signOut().then(() => setUser(null))} aria-label="Sign out"
+                style={{ border: 'none', background: 'transparent', padding: 2, color: T.mutedSoft }}><Icon name="logout" size={12} /></button>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* main */}
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+        <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', background: T.card, borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {(NAV.find(n => n.id === screen) || {}).label}
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: T.muted }}>· {productMeta.label}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 600, color: saveColor }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999, background: saveColor }} />{saveLabel}
+          </div>
+          {latest && <Pill color={T.mutedSoft} icon="send">Live: v{latest.version}</Pill>}
+          <Btn variant="outline" size="sm" icon="eye" onClick={() => setScreen('preview')}>Preview</Btn>
+          <Btn variant="primary" size="sm" icon="send" onClick={() => setScreen('publish')}>Publish</Btn>
+        </header>
+
+        {cloudError && saveState !== 'conflict' && (
+          <div style={{ padding: '10px 20px 0' }}>
+            <Banner tone="warn" icon="alertTriangle" title="Can't reach the shared curriculum"
+              action={<Btn variant="outline" size="sm" onClick={() => setCloudError('')}>Dismiss</Btn>}>
+              Your work is still being saved in this browser, so nothing is lost. If this is a fresh setup, the database tables probably aren't created yet — run <b>supabase/migrations/0003_academy_cms.sql</b> once (see <b>docs/ACADEMY_STUDIO_SETUP.md</b>). Details: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 10.5 }}>{cloudError}</span>
+            </Banner>
+          </div>
+        )}
+
+        {saveState === 'conflict' && (
+          <div style={{ padding: '10px 20px', background: T.redSoft, borderBottom: `1px solid ${withAlpha(T.red, 0.25)}` }}>
+            <Banner tone="danger" icon="alertTriangle" title={`${conflictBy} saved changes while you were editing`}
+              action={<div style={{ display: 'flex', gap: 7 }}>
+                <Btn variant="outline" size="sm" icon="refresh" onClick={() => {
+                  loadedFromCloud.current[product] = false;
+                  setSaveState('idle');
+                  pullProduct(product);
+                  fireToast('Reloaded the shared version');
+                }}>Load theirs</Btn>
+                <Btn variant="danger" size="sm" onClick={() => {
+                  stamps.current[product] = null;   // force-win the next write
+                  setSaveState('idle');
+                  fireToast('Your next edit will overwrite theirs');
+                }}>Keep mine</Btn>
+              </div>}>
+              To avoid clobbering their work, saving has paused. Load their version (you'll lose your unsaved edits), or keep yours and overwrite.
+            </Banner>
+          </div>
+        )}
+
+        {screen === 'curriculum' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '330px minmax(0,1fr)', flex: 1, minHeight: 0 }}>
+            <div style={{ background: T.card, borderRight: `1px solid ${T.border}`, minHeight: 0 }}>
+              <CurriculumTree doc={doc} sel={sel} setSel={setSel} edit={edit} fireToast={fireToast}
+                collapsed={collapsed} setCollapsed={setCollapsed} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>{renderEditor()}</div>
+          </div>
+        )}
+        {screen === 'paths' && <PathsScreen doc={doc} edit={edit} fireToast={fireToast} />}
+        {screen === 'production' && <ProductionScreen doc={doc} edit={edit} jumpToLesson={jumpToLesson} owners={owners} />}
+        {screen === 'media' && <MediaScreen assets={assets} onUpload={onUpload} onDelete={onDeleteAsset} cloud={cloudReady} fireToast={fireToast} busy={uploading} doc={doc} />}
+        {screen === 'preview' && <PreviewScreen doc={doc} />}
+        {screen === 'publish' && (
+          <PublishScreen doc={doc} product={product} productLabel={productMeta.label}
+            versions={versions[product] || []} latest={latest}
+            onPublish={onPublish} onRollback={onRollback} onJump={jumpTo}
+            cloud={cloudReady} fireToast={fireToast} publishing={publishing}
+            onRefresh={() => { CLOUD.listVersions(product).then(rows => { setVersions(v => ({ ...v, [product]: rows || [] })); fireToast('History refreshed'); }).catch(() => {}); }} />
+        )}
+      </div>
+
+      <Toast toast={toast} />
+    </div>
+  );
+};
+
+class ErrorBoundary extends React.Component {
+  constructor(p) { super(p); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div style={{ padding: 28 }}>
+        <div style={{ background: T.redSoft, border: `1px solid ${T.red}`, borderRadius: T.radiusCard, padding: 20, maxWidth: 760 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.red, marginBottom: 8 }}>Something broke</div>
+          <div style={{ fontSize: 12.5, marginBottom: 12 }}>
+            Your work is saved in this browser, so a refresh should bring it back. If it keeps happening, send this message to Rishabh.
+          </div>
+          <pre style={{ margin: 0, fontSize: 11, whiteSpace: 'pre-wrap', color: T.textSoft, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
+            {String(this.state.error && this.state.error.stack || this.state.error)}
+          </pre>
+        </div>
+      </div>
+    );
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <ErrorBoundary><AcademyStudio /></ErrorBoundary>
+);
+</script>
+</body>
+</html>
