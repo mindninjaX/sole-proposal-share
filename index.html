@@ -2168,6 +2168,37 @@ const Icon = ({
       r: "6"
     }), /*#__PURE__*/React.createElement("path", {
       d: "M15.5 13L17 22l-5-3-5 3 1.5-9"
+    })),
+    gripVertical: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("circle", {
+      cx: "9",
+      cy: "6",
+      r: "1.2",
+      fill: "currentColor"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "9",
+      cy: "12",
+      r: "1.2",
+      fill: "currentColor"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "9",
+      cy: "18",
+      r: "1.2",
+      fill: "currentColor"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "15",
+      cy: "6",
+      r: "1.2",
+      fill: "currentColor"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "15",
+      cy: "12",
+      r: "1.2",
+      fill: "currentColor"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "15",
+      cy: "18",
+      r: "1.2",
+      fill: "currentColor"
     }))
   };
   return /*#__PURE__*/React.createElement("svg", {
@@ -28480,6 +28511,11 @@ const AppSidebar = ({
     label: 'Sole Academy'
   },
   // video-first training (Module 15)
+  {
+    id: 'sops',
+    label: 'Our SOPs'
+  },
+  // the firm's own written procedures (Module 16)
   {
     id: 'communications',
     label: 'Communications'
@@ -111544,7 +111580,93 @@ const AcademyHome = ({
     key: c.id,
     course: c,
     onOpen: () => openCourse(c)
-  })))));
+  })))), /*#__PURE__*/React.createElement(AcademySopPromo, {
+    isTablet: isTablet
+  }));
+};
+
+// The bridge to Module 16. Academy teaches the software; Our SOPs is the firm's
+// own way of working. Putting the entry point at the bottom of Academy Home is
+// how "go through Sole Academy" reaches it without a second sidebar hunt.
+const AcademySopPromo = ({
+  isTablet
+}) => {
+  const visible = allSops().filter(s => sopVisibleToMe(s) && sopIsLive(s));
+  const outstanding = visible.filter(sopMustReadForMe).length;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusLg,
+      background: T.primarySofter,
+      padding: isTablet ? T.space.lg : T.space.xl,
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.xl,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: "clipboardCheck",
+    tone: "accent",
+    size: 44,
+    gradient: true
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 220,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement(SectionLabelText, {
+    style: {
+      color: T.primary
+    }
+  }, "Your firm\u2019s own"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 17,
+      fontWeight: 800,
+      letterSpacing: -0.3,
+      color: T.text,
+      marginTop: 2
+    }
+  }, "How we work here"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4,
+      lineHeight: 1.55,
+      maxWidth: 520
+    }
+  }, "Academy covers the software. ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: T.textSoft
+    }
+  }, "Our SOPs"), " is where your firm writes down its own processes \u2014 so a new starter follows the same steps as everyone else, on day one."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: T.space.lg,
+      marginTop: T.space.md,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.muted
+    }
+  }, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: T.text
+    }
+  }, visible.length), " SOP", visible.length === 1 ? '' : 's', " published"), outstanding > 0 && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.amber,
+      fontWeight: 600
+    }
+  }, outstanding, " for you to read"))), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "clipboardCheck",
+    iconRight: "arrow",
+    onClick: () => {
+      window.location.hash = '#/practice/sops';
+    }
+  }, "Open Our SOPs"));
 };
 const AcademyCourses = ({
   search,
@@ -112568,6 +112690,4505 @@ const AcademyPage = ({
     openPath: openPath
   }));
 };
+
+// --- Firm SOPs / Process library (Module 16) ---
+// Sole Academy (Module 15) answers "how does the software work?" — Sole's videos.
+// This answers "how do we work HERE?" — the firm's OWN written procedures. Same
+// shelf, different author: the content is 100% firm-owned, Sole only supplies the
+// structure, publishing states, starter templates and read-tracking.
+//
+// The design spine: AN SOP IS TO STEPS WHAT A COURSE IS TO LESSONS. That analogy
+// is why this is native to Academy — ordered items, per-item progress, a reader
+// with the item list in a right rail (mirrors CoursePlayerPage). Sole's video
+// lessons simply become the firm's written steps.
+//
+// Built by mirroring the AI Prompt Library (Module 14) + Academy (Module 15)
+// pattern: seed data + a versioned localStorage store + components + routed pages,
+// all self-contained here and wired into PracticeApp via switch cases + one
+// sidebar sub-item (directly under "Sole Academy") + a sidebarActive branch.
+//   NOTE — do NOT call any of this "Onboarding", "Docs", "Templates" or
+//   "Training": all four labels are already taken elsewhere in the app with a
+//   different meaning (see docs/PLATFORM_INVENTORY.md — six things are already
+//   called "onboarding"). User-facing noun is "SOP"; the section is "Our SOPs".
+// ============================================================================
+
+// The firm's own roster. ISD_STAFF (not SPM_STAFF) because it carries `team`,
+// which team-level visibility needs, and it has 9 people so the owner's
+// read-tracking panel has something to show.
+const SOP_STAFF = ISD_STAFF;
+const SOP_ME = ISD_STAFF[0]; // mock signed-in staff (Sarah Mitchell — matches ACADEMY_LEARNER)
+const SOP_MANAGER_IDS = ['sm', 'md', 'kr']; // explicit, not a regex on role: who counts as "manager" for editableBy
+const SOP_TEAMS = ISD_STAFF.map(s => s.team).filter((t, i, a) => a.indexOf(t) === i);
+const SOP_NOW = Date.now();
+const SOP_DAY = 86400000;
+const SOP_AREAS = [{
+  id: 'client-onboarding',
+  label: 'Client onboarding',
+  icon: 'userPlus',
+  color: T.primary,
+  blurb: 'Taking on (and letting go of) a client'
+}, {
+  id: 'bookkeeping',
+  label: 'Bookkeeping',
+  icon: 'receipt',
+  color: T.green,
+  blurb: 'Day-to-day ledger work and month-end'
+}, {
+  id: 'tax',
+  label: 'Tax & compliance',
+  icon: 'shield',
+  color: T.blue,
+  blurb: 'BAS, returns and lodgements'
+}, {
+  id: 'payroll',
+  label: 'Payroll',
+  icon: 'wallet',
+  color: T.primary,
+  blurb: 'Payruns, STP and leave'
+}, {
+  id: 'advisory',
+  label: 'Advisory',
+  icon: 'bulb',
+  color: T.amber,
+  blurb: 'Meetings, forecasts and client conversations'
+}, {
+  id: 'billing',
+  label: 'Billing & getting paid',
+  icon: 'creditCard',
+  color: T.green,
+  blurb: 'Invoicing, debtors and write-offs'
+}, {
+  id: 'quality',
+  label: 'Quality & review',
+  icon: 'clipboardCheck',
+  color: T.blue,
+  blurb: 'What gets checked before work leaves the firm'
+}, {
+  id: 'team',
+  label: 'Team & internal',
+  icon: 'users',
+  color: T.amber,
+  blurb: 'How we run ourselves'
+}];
+const sopAreaById = id => SOP_AREAS.find(a => a.id === id) || {
+  id,
+  label: id || 'Uncategorised',
+  icon: 'clipboard',
+  color: T.primary,
+  blurb: ''
+};
+
+// Status vocabulary — snake_case keys + {label,color} matching PAYRUN_STATUS /
+// COMPLIANCE_STATUS. `review_due` is derived, never stored (see sopStatusOf).
+const SOP_STATUS = {
+  draft: {
+    label: 'Draft',
+    color: 'neutral'
+  },
+  in_review: {
+    label: 'In review',
+    color: 'amber'
+  },
+  published: {
+    label: 'Published',
+    color: 'green'
+  },
+  review_due: {
+    label: 'Review due',
+    color: 'amber'
+  },
+  archived: {
+    label: 'Archived',
+    color: 'neutral'
+  }
+};
+const sopStatusMeta = key => SOP_STATUS[key] || SOP_STATUS.draft;
+const SOP_VISIBILITY = {
+  firm: {
+    label: 'Everyone in the firm',
+    short: 'Firm-wide',
+    icon: 'users',
+    help: 'Anyone with an SPM login at your firm can read this.'
+  },
+  teams: {
+    label: 'Specific teams',
+    short: 'Teams',
+    icon: 'shield',
+    help: 'Only the teams you pick — plus the owner — can find and read this.'
+  },
+  private: {
+    label: 'Only me',
+    short: 'Private',
+    icon: 'lock',
+    help: 'Nobody else can see it. Use this while you are still writing.'
+  }
+};
+const SOP_EDITABLE = {
+  owner: {
+    label: 'Owner only'
+  },
+  managers: {
+    label: 'Owner & managers'
+  },
+  anyone: {
+    label: 'Anyone in the firm'
+  }
+};
+const SOP_REVIEW_EVERY = [{
+  v: 0,
+  l: 'No review reminder'
+}, {
+  v: 3,
+  l: 'Every 3 months'
+}, {
+  v: 6,
+  l: 'Every 6 months'
+}, {
+  v: 12,
+  l: 'Every 12 months'
+}, {
+  v: 24,
+  l: 'Every 2 years'
+}];
+
+// Demo firm content. Deliberately reads like a real practice wrote it — the whole
+// point of the feature is that Sole did NOT write this.
+const SOP_LIBRARY = [{
+  id: 'sop-01',
+  title: 'New client onboarding — the first 10 days',
+  area: 'client-onboarding',
+  summary: 'Everything between "they signed" and "we can actually do the work" — ID checks, ledger access, and the internal handover.',
+  status: 'published',
+  version: 4,
+  ownerId: 'md',
+  visibility: 'firm',
+  editableBy: 'managers',
+  mustRead: true,
+  reviewEvery: 12,
+  updated: SOP_NOW - 11 * SOP_DAY,
+  reviewDue: SOP_NOW + 210 * SOP_DAY,
+  source: 'firm',
+  tags: ['Onboarding', 'KYC', 'Engagement'],
+  relatedCourseIds: ['c-crm', 'c-proposals'],
+  links: [{
+    label: 'Open Clients Management',
+    href: '#/practice/clients-management'
+  }, {
+    label: 'Onboarding template builder',
+    href: '#/practice/questionnaires-forms'
+  }],
+  seedAcks: {
+    ac: SOP_NOW - 9 * SOP_DAY,
+    jl: SOP_NOW - 8 * SOP_DAY,
+    tb: SOP_NOW - 6 * SOP_DAY,
+    kr: SOP_NOW - 3 * SOP_DAY,
+    ek: SOP_NOW - 2 * SOP_DAY
+  },
+  steps: [{
+    id: 'st-01-1',
+    title: 'Create the client record before anything else',
+    mins: 5,
+    role: 'Client manager',
+    tools: ['SPM'],
+    body: '<p>Every new client starts as a record in Clients Management — not a folder, not an email thread. If it is not in SPM, it does not exist as far as the firm is concerned.</p><p>Use the legal entity name exactly as it appears on the ASIC extract, then add the trading name as an alias.</p>',
+    checklist: ['Legal entity name matches ASIC', 'Entity type set (company / trust / partnership / sole trader)', 'ABN and TFN recorded', 'Primary contact has a real email and mobile']
+  }, {
+    id: 'st-01-2',
+    title: 'Run ID and beneficial-ownership checks',
+    mins: 20,
+    role: 'Client manager',
+    tools: ['SPM', 'ASIC'],
+    body: '<p>We do not touch a ledger before KYC clears. Collect photo ID for every director and anyone holding 25% or more, and record the verification date against each person.</p>',
+    warning: 'If anything looks off — a nominee director, an offshore trustee, a reluctance to provide ID — stop and escalate to a partner before continuing. Do not "sort it out later".',
+    checklist: ['Photo ID for all directors', 'Beneficial owners at 25%+ identified', 'Trust deed sighted (trusts only)', 'Risk rating set']
+  }, {
+    id: 'st-01-3',
+    title: 'Send the engagement letter and wait for it to come back',
+    mins: 10,
+    role: 'Client manager',
+    tools: ['SPM Proposals'],
+    body: '<p>Build the engagement from the proposal that was accepted, so scope and price match what the client actually agreed to. Do not re-type the scope from memory.</p><p>Work does not start until it is signed. There are no exceptions to this one.</p>'
+  }, {
+    id: 'st-01-4',
+    title: 'Get ledger and portal access',
+    mins: 15,
+    role: 'Bookkeeper',
+    tools: ['Xero', 'ATO Online'],
+    body: '<p>Request adviser access to the ledger and add the client to our ATO agent list. Both usually take a day or two, so start them the moment the engagement is signed rather than the day you need them.</p>',
+    checklist: ['Ledger adviser access accepted', 'Added to ATO agent list', 'Bank feeds connected', 'Prior-year files received from the outgoing accountant']
+  }, {
+    id: 'st-01-5',
+    title: 'Do the opening-balance sanity check',
+    mins: 45,
+    role: 'Senior accountant',
+    tools: ['Xero'],
+    body: '<p>Compare the opening balances against the last lodged return before you trust a single number in the file. Roughly one in three new clients arrives with a ledger that does not tie.</p>',
+    warning: 'Never quietly fix a prior-year discrepancy. Document it, tell the client in writing, and let a partner decide whether it needs an amendment.'
+  }, {
+    id: 'st-01-6',
+    title: 'Hand over internally',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>A 15-minute handover call with whoever is doing the work, plus a written summary on the client record. The person doing the work should never have to reconstruct the deal from the proposal.</p>',
+    checklist: ['Recurring jobs created with real due dates', 'Named owner for the client', 'Client told who to contact and how']
+  }]
+}, {
+  id: 'sop-02',
+  title: 'Month-end close for a bookkeeping client',
+  area: 'bookkeeping',
+  summary: 'The checks we run before a client\'s month is called closed. If any of these fail, the month is not closed.',
+  status: 'published',
+  version: 7,
+  ownerId: 'ac',
+  visibility: 'teams',
+  teams: ['Bookkeeping', 'Tax'],
+  editableBy: 'managers',
+  mustRead: true,
+  reviewEvery: 6,
+  updated: SOP_NOW - 24 * SOP_DAY,
+  reviewDue: SOP_NOW + 150 * SOP_DAY,
+  source: 'firm',
+  tags: ['Month-end', 'Xero', 'Reconciliation'],
+  relatedCourseIds: ['c-time'],
+  seedAcks: {
+    tb: SOP_NOW - 20 * SOP_DAY,
+    ek: SOP_NOW - 18 * SOP_DAY
+  },
+  steps: [{
+    id: 'st-02-1',
+    title: 'Reconcile every bank and card account to zero',
+    mins: 40,
+    role: 'Bookkeeper',
+    tools: ['Xero'],
+    body: '<p>Every account, to the cent, against the statement — not against the feed. Feeds drop transactions silently and you will not notice until a client asks why their profit moved.</p>'
+  }, {
+    id: 'st-02-2',
+    title: 'Clear the suspense and unallocated accounts',
+    mins: 30,
+    role: 'Bookkeeper',
+    tools: ['Xero'],
+    body: '<p>Suspense should be empty at month-end. Anything you genuinely cannot code goes on the client query list with a plain-English question — never a guess.</p>',
+    warning: 'A guessed account code is worse than an open query. It looks resolved, so nobody ever revisits it.'
+  }, {
+    id: 'st-02-3',
+    title: 'Check GST coding on anything unusual',
+    mins: 20,
+    role: 'Bookkeeper',
+    tools: ['Xero'],
+    body: '<p>Scan for the usual suspects: international subscriptions, insurance, government charges, entertainment, and anything over $1,000 that is coded to a new account.</p>',
+    checklist: ['No GST on GST-free purchases', 'Capital items not expensed', 'Entertainment coded correctly']
+  }, {
+    id: 'st-02-4',
+    title: 'Reconcile payroll to the ledger',
+    mins: 25,
+    role: 'Bookkeeper',
+    tools: ['SPM Payroll', 'Xero'],
+    body: '<p>Wages, PAYG withheld and super in the ledger should match what was actually reported through STP for the month. A mismatch here is the single most common cause of a messy year-end.</p>'
+  }, {
+    id: 'st-02-5',
+    title: 'Send the client query list',
+    mins: 15,
+    role: 'Bookkeeper',
+    body: '<p>One consolidated list, in plain English, with a deadline. Not a drip of five separate emails across the week.</p>'
+  }, {
+    id: 'st-02-6',
+    title: 'Lock the period and note the close',
+    mins: 5,
+    role: 'Bookkeeper',
+    tools: ['Xero'],
+    body: '<p>Set the lock date and record the close on the client record so the next person knows where the line is.</p>'
+  }]
+}, {
+  id: 'sop-03',
+  title: 'BAS preparation and lodgement',
+  area: 'tax',
+  summary: 'How we prepare, review and lodge a BAS — including who is allowed to press lodge.',
+  status: 'published',
+  version: 3,
+  ownerId: 'jl',
+  visibility: 'firm',
+  editableBy: 'managers',
+  mustRead: true,
+  reviewEvery: 12,
+  updated: SOP_NOW - 38 * SOP_DAY,
+  reviewDue: SOP_NOW + 180 * SOP_DAY,
+  source: 'firm',
+  tags: ['BAS', 'ATO', 'Lodgement'],
+  relatedCourseIds: ['c-tax'],
+  links: [{
+    label: 'Open Workflow',
+    href: '#/practice/workflow'
+  }],
+  seedAcks: {
+    sm: SOP_NOW - 30 * SOP_DAY,
+    ac: SOP_NOW - 28 * SOP_DAY,
+    tb: SOP_NOW - 25 * SOP_DAY,
+    np: SOP_NOW - 20 * SOP_DAY,
+    kr: SOP_NOW - 14 * SOP_DAY
+  },
+  steps: [{
+    id: 'st-03-1',
+    title: 'Confirm the month is closed first',
+    mins: 5,
+    role: 'Tax senior',
+    body: '<p>No BAS gets prepared from an unreconciled ledger. Check the month-end close is recorded for every month in the period before you start.</p>'
+  }, {
+    id: 'st-03-2',
+    title: 'Prepare the BAS and reconcile GST to the ledger',
+    mins: 45,
+    role: 'Tax senior',
+    tools: ['Xero', 'ATO Online'],
+    body: '<p>Run the activity statement, then tie the GST control accounts back to the report. Explain every variance in the working paper — "rounding" is not an explanation for anything over $2.</p>'
+  }, {
+    id: 'st-03-3',
+    title: 'Second-person review',
+    mins: 20,
+    role: 'Senior accountant',
+    body: '<p>Someone who did not prepare it reviews it. They are checking the reconciliation and the variance explanations, not re-doing the work.</p>',
+    warning: 'The preparer never reviews their own BAS, no matter how tight the deadline is.'
+  }, {
+    id: 'st-03-4',
+    title: 'Get client sign-off in writing',
+    mins: 10,
+    role: 'Tax senior',
+    body: '<p>Email the client the BAS summary and the amount payable, and wait for a written yes. A verbal approval on a call does not count.</p>'
+  }, {
+    id: 'st-03-5',
+    title: 'Lodge, then tell the client what happens next',
+    mins: 10,
+    role: 'Tax senior',
+    tools: ['ATO Online'],
+    body: '<p>Lodge, save the receipt against the client record, and send the client the payment reference and due date in the same message. Most late payments are our fault for not making the next step obvious.</p>',
+    checklist: ['Lodgement receipt saved', 'Payment reference and due date sent', 'Next period\'s job scheduled']
+  }]
+}, {
+  id: 'sop-04',
+  title: 'Running a weekly payrun',
+  area: 'payroll',
+  summary: 'The Thursday payrun, start to finish — including what to do when a timesheet is missing.',
+  status: 'published',
+  version: 5,
+  ownerId: 'np',
+  visibility: 'teams',
+  teams: ['Payroll'],
+  editableBy: 'managers',
+  mustRead: false,
+  reviewEvery: 6,
+  updated: SOP_NOW - 6 * SOP_DAY,
+  reviewDue: SOP_NOW + 160 * SOP_DAY,
+  source: 'firm',
+  tags: ['STP', 'Payrun', 'Timesheets'],
+  relatedCourseIds: ['c-payroll'],
+  links: [{
+    label: 'Open the Payrun wizard',
+    href: '#/practice/payrun'
+  }, {
+    label: 'Employees',
+    href: '#/practice/employees'
+  }],
+  seedAcks: {
+    tb: SOP_NOW - 5 * SOP_DAY
+  },
+  steps: [{
+    id: 'st-04-1',
+    title: 'Chase missing timesheets on Wednesday, not Thursday',
+    mins: 20,
+    role: 'Payroll specialist',
+    body: '<p>Run the missing-timesheet check a full day before the payrun. Chasing on payrun day is how people get paid late.</p>'
+  }, {
+    id: 'st-04-2',
+    title: 'Check the readiness panel and clear every blocker',
+    mins: 25,
+    role: 'Payroll specialist',
+    tools: ['SPM Payroll'],
+    body: '<p>The payrun wizard flags profile gaps — missing bank details, missing TFN declarations, missing super fund. Clear them all before you continue; none of them get better by being ignored.</p>',
+    checklist: ['Bank details present for everyone being paid', 'Super fund recorded', 'TFN declaration on file', 'Leave requests approved or declined']
+  }, {
+    id: 'st-04-3',
+    title: 'Review the variance against last week',
+    mins: 20,
+    role: 'Payroll specialist',
+    body: '<p>Anything more than 15% off last week gets explained before you go further. Overtime, a termination and a keying error all look identical in a total — only the variance check tells them apart.</p>',
+    warning: 'A payrun that is materially different from last week and has no explanation is an error until proven otherwise.'
+  }, {
+    id: 'st-04-4',
+    title: 'Get the employer to approve',
+    mins: 15,
+    role: 'Payroll specialist',
+    body: '<p>Send the summary to the employer contact and wait for written approval. We prepare payroll; the employer authorises it.</p>'
+  }, {
+    id: 'st-04-5',
+    title: 'Lodge STP and file the payslips',
+    mins: 10,
+    role: 'Payroll specialist',
+    tools: ['SPM Payroll', 'ATO'],
+    body: '<p>Lodge on the day of payment, not after. Save the lodgement confirmation and confirm payslips went out.</p>'
+  }]
+}, {
+  id: 'sop-05',
+  title: 'Quality review before anything leaves the firm',
+  area: 'quality',
+  summary: 'The one-page standard every deliverable is checked against. Non-negotiable, and it applies to everyone including partners.',
+  status: 'published',
+  version: 2,
+  ownerId: 'kr',
+  visibility: 'firm',
+  editableBy: 'owner',
+  mustRead: true,
+  reviewEvery: 6,
+  updated: SOP_NOW - 190 * SOP_DAY,
+  reviewDue: SOP_NOW - 9 * SOP_DAY,
+  source: 'firm',
+  tags: ['Review', 'Quality', 'Risk'],
+  seedAcks: {
+    sm: SOP_NOW - 170 * SOP_DAY,
+    ac: SOP_NOW - 165 * SOP_DAY,
+    jl: SOP_NOW - 160 * SOP_DAY,
+    md: SOP_NOW - 150 * SOP_DAY,
+    np: SOP_NOW - 140 * SOP_DAY,
+    kr: SOP_NOW - 185 * SOP_DAY
+  },
+  steps: [{
+    id: 'st-05-1',
+    title: 'Does it answer the question the client actually asked?',
+    mins: 10,
+    role: 'Reviewer',
+    body: '<p>Start here, before any technical check. A technically perfect answer to the wrong question is still a rework.</p>'
+  }, {
+    id: 'st-05-2',
+    title: 'Do the numbers tie to a source?',
+    mins: 20,
+    role: 'Reviewer',
+    body: '<p>Every figure in a deliverable traces to a working paper, and every working paper traces to a source document. If you cannot follow the chain in under a minute, it is not finished.</p>'
+  }, {
+    id: 'st-05-3',
+    title: 'Would a client understand it without us in the room?',
+    mins: 10,
+    role: 'Reviewer',
+    body: '<p>Read it as the client. Jargon, unexplained acronyms, and tables with no takeaway all get sent back.</p>'
+  }, {
+    id: 'st-05-4',
+    title: 'Is it signed, dated and filed in the right place?',
+    mins: 5,
+    role: 'Reviewer',
+    body: '<p>Reviewer name and date on the file. An unsigned review did not happen.</p>',
+    checklist: ['Reviewer recorded', 'Filed against the client record', 'Client-facing version has no internal notes in it']
+  }]
+}, {
+  id: 'sop-06',
+  title: 'Getting paid — invoicing and following up',
+  area: 'billing',
+  summary: 'When we invoice, how we chase, and when a debt gets escalated instead of chased again.',
+  status: 'published',
+  version: 2,
+  ownerId: 'ek',
+  visibility: 'firm',
+  editableBy: 'anyone',
+  mustRead: false,
+  reviewEvery: 12,
+  updated: SOP_NOW - 47 * SOP_DAY,
+  reviewDue: SOP_NOW + 130 * SOP_DAY,
+  source: 'firm',
+  tags: ['Invoicing', 'Debtors'],
+  relatedCourseIds: ['c-time'],
+  seedAcks: {
+    ac: SOP_NOW - 40 * SOP_DAY,
+    kr: SOP_NOW - 22 * SOP_DAY
+  },
+  steps: [{
+    id: 'st-06-1',
+    title: 'Invoice when the work is delivered, not at month-end',
+    mins: 10,
+    role: 'Client manager',
+    body: '<p>Bill on delivery while the value is still obvious to the client. A four-week-old invoice for work they have forgotten about is the hardest kind to collect.</p>'
+  }, {
+    id: 'st-06-2',
+    title: 'Make the invoice readable',
+    mins: 10,
+    role: 'Client manager',
+    body: '<p>Reference the engagement, describe what was delivered in the client\'s language, and show the period. "Professional services" is not a description.</p>'
+  }, {
+    id: 'st-06-3',
+    title: 'Day 7 — a soft nudge',
+    mins: 5,
+    role: 'Admin',
+    body: '<p>Automated, friendly, assumes it was missed. Most invoices are paid at this step.</p>'
+  }, {
+    id: 'st-06-4',
+    title: 'Day 21 — a person picks up the phone',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>Not another email. A short call to find out whether there is a dispute, a cash-flow problem, or just an inbox problem — because all three need a different response.</p>'
+  }, {
+    id: 'st-06-5',
+    title: 'Day 45 — stop chasing and escalate',
+    mins: 10,
+    role: 'Partner',
+    body: '<p>Hand it to a partner with the history attached. The decision from here is a payment plan, a write-off, or ceasing work — and only a partner makes it.</p>',
+    warning: 'Never threaten to cease work without a partner\'s approval. It is a contractual decision, not a collections tactic.'
+  }]
+}, {
+  id: 'sop-07',
+  title: 'New team member — first week',
+  area: 'team',
+  summary: 'What a new starter does in their first five days, and who is responsible for each part of it.',
+  status: 'published',
+  version: 3,
+  ownerId: 'md',
+  visibility: 'firm',
+  editableBy: 'managers',
+  mustRead: true,
+  reviewEvery: 12,
+  updated: SOP_NOW - 15 * SOP_DAY,
+  reviewDue: SOP_NOW + 195 * SOP_DAY,
+  source: 'firm',
+  tags: ['New starter', 'Training'],
+  relatedCourseIds: ['c-get-started'],
+  links: [{
+    label: 'Sole Academy',
+    href: '#/practice/academy'
+  }],
+  seedAcks: {
+    sm: SOP_NOW - 12 * SOP_DAY,
+    jl: SOP_NOW - 10 * SOP_DAY,
+    ek: SOP_NOW - 13 * SOP_DAY
+  },
+  steps: [{
+    id: 'st-07-1',
+    title: 'Day 1 — accounts, desk, and someone to have lunch with',
+    mins: 60,
+    role: 'Manager',
+    body: '<p>Logins working before they arrive, not on the day. Assign a buddy who is not their manager — the questions people are embarrassed to ask their manager are the ones that matter most in week one.</p>',
+    checklist: ['SPM login and permissions set', 'Email and calendar working', 'Buddy assigned', 'Payroll and super details collected']
+  }, {
+    id: 'st-07-2',
+    title: 'Day 1–2 — work through the Sole Academy starter path',
+    mins: 90,
+    role: 'New starter',
+    body: '<p>The "Getting started (new team member)" learning path in Sole Academy covers the tool. Do that before touching live client work — it saves everyone a fortnight of over-the-shoulder questions.</p>'
+  }, {
+    id: 'st-07-3',
+    title: 'Day 2 — read the must-read SOPs',
+    mins: 45,
+    role: 'New starter',
+    body: '<p>Every SOP flagged as must-read, acknowledged as you go. That is how we know you have actually seen how we do things rather than guessing from how your last firm did.</p>'
+  }, {
+    id: 'st-07-4',
+    title: 'Day 3–4 — shadow, then do one with someone watching',
+    mins: 120,
+    role: 'Buddy',
+    body: '<p>Watch a real job end to end, then do the next one with the buddy watching. Reading an SOP and following it are different skills.</p>'
+  }, {
+    id: 'st-07-5',
+    title: 'Day 5 — a proper check-in',
+    mins: 30,
+    role: 'Manager',
+    body: '<p>What was confusing? What was missing from the SOPs? Anything they flag gets fixed in the SOP that week, while it is still fresh.</p>',
+    warning: 'This is the highest-value feedback you will ever get on your SOPs. A new starter is the only person who reads them without already knowing the answer.'
+  }]
+}, {
+  id: 'sop-08',
+  title: 'Quarterly advisory meeting prep',
+  area: 'advisory',
+  summary: 'Still being written — the agenda structure and the numbers we always bring.',
+  status: 'draft',
+  version: 1,
+  ownerId: 'sm',
+  visibility: 'private',
+  editableBy: 'owner',
+  mustRead: false,
+  reviewEvery: 12,
+  updated: SOP_NOW - 2 * SOP_DAY,
+  source: 'firm',
+  tags: ['Advisory', 'Meetings'],
+  relatedCourseIds: ['c-ai'],
+  steps: [{
+    id: 'st-08-1',
+    title: 'Pull the numbers three days before',
+    mins: 45,
+    role: 'Advisor',
+    body: '<p>Rolling 12-month P&L, cash position, debtor days and the top five expense movements. Never walk into an advisory meeting building the pack live.</p>'
+  }, {
+    id: 'st-08-2',
+    title: 'Write three wins, three risks, three decisions',
+    mins: 30,
+    role: 'Advisor',
+    body: '<p>One page. If a topic does not fit into wins, risks or decisions, it is a status update and belongs in an email instead.</p>'
+  }, {
+    id: 'st-08-3',
+    title: 'Send the pack 24 hours ahead',
+    mins: 10,
+    role: 'Advisor',
+    body: '<p>So the client arrives having thought about it. Reading the pack together in the meeting wastes the most expensive hour of the quarter.</p>'
+  }]
+}, {
+  id: 'sop-09',
+  title: 'Client offboarding',
+  area: 'client-onboarding',
+  summary: 'How we hand a client over cleanly when they leave — with a partner sign-off before anything is sent.',
+  status: 'in_review',
+  version: 1,
+  ownerId: 'as',
+  visibility: 'firm',
+  editableBy: 'managers',
+  mustRead: false,
+  reviewEvery: 12,
+  updated: SOP_NOW - 4 * SOP_DAY,
+  source: 'firm',
+  tags: ['Offboarding', 'Handover'],
+  steps: [{
+    id: 'st-09-1',
+    title: 'Find out why, and write it down',
+    mins: 20,
+    role: 'Partner',
+    body: '<p>A short honest conversation before any paperwork. Half of the departures we thought were about price turned out to be about responsiveness.</p>'
+  }, {
+    id: 'st-09-2',
+    title: 'Settle the account',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>Final invoice out, work in progress either billed or written off with approval. Do not let an unbilled WIP balance follow a departed client around for six months.</p>'
+  }, {
+    id: 'st-09-3',
+    title: 'Prepare the handover pack',
+    mins: 60,
+    role: 'Senior accountant',
+    body: '<p>Last lodged returns, working papers, ledger export, depreciation schedule and any ATO correspondence. Assume the incoming accountant will judge our work by this pack, because they will.</p>',
+    checklist: ['Ethical clearance responded to', 'Working papers included', 'Ledger access transferred', 'Removed from our ATO agent list']
+  }, {
+    id: 'st-09-4',
+    title: 'Close the record and end the recurring work',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>Status set, recurring jobs stopped, and the reason recorded. An offboarded client that still generates jobs every month is how phantom capacity happens.</p>'
+  }]
+}];
+
+// Sole-authored STARTER templates. These are the "additional tools" Academy
+// provides — deliberately framed as starting points, never prescription, because
+// the whole premise is that every firm works differently.
+const SOP_TEMPLATES = [{
+  id: 'tpl-onboarding',
+  title: 'New client onboarding',
+  area: 'client-onboarding',
+  source: 'sole',
+  summary: 'A 6-step skeleton covering ID checks, engagement, ledger access and the internal handover.',
+  steps: [{
+    id: 'ts-on-1',
+    title: 'Create the client record',
+    mins: 5,
+    role: 'Client manager',
+    body: '<p>Set up the client in SPM with the legal entity name, entity type, ABN and primary contact before any other step.</p>'
+  }, {
+    id: 'ts-on-2',
+    title: 'Run ID / KYC checks',
+    mins: 20,
+    role: 'Client manager',
+    body: '<p>Collect photo ID for directors and beneficial owners, record verification dates, and set a risk rating.</p>',
+    warning: 'Decide as a firm what your stop-and-escalate triggers are, and write them here.'
+  }, {
+    id: 'ts-on-3',
+    title: 'Send and receive the engagement letter',
+    mins: 10,
+    role: 'Client manager',
+    body: '<p>Build it from the accepted proposal so scope and price match. Decide whether work can start before it is signed — most firms say no.</p>'
+  }, {
+    id: 'ts-on-4',
+    title: 'Request ledger and tax agent access',
+    mins: 15,
+    role: 'Bookkeeper',
+    body: '<p>Adviser access to the ledger, add to the ATO agent list, connect bank feeds, request prior-year files.</p>'
+  }, {
+    id: 'ts-on-5',
+    title: 'Check opening balances',
+    mins: 45,
+    role: 'Senior accountant',
+    body: '<p>Tie the opening ledger to the last lodged return and document anything that does not agree.</p>'
+  }, {
+    id: 'ts-on-6',
+    title: 'Hand over internally',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>Written summary plus a short call with whoever is doing the work. Create the recurring jobs.</p>'
+  }]
+}, {
+  id: 'tpl-month-end',
+  title: 'Month-end close',
+  area: 'bookkeeping',
+  source: 'sole',
+  summary: 'The standard reconciliation sequence, ending with a locked period.',
+  steps: [{
+    id: 'ts-me-1',
+    title: 'Reconcile bank and card accounts',
+    mins: 40,
+    role: 'Bookkeeper',
+    body: '<p>Every account against the statement, not the feed.</p>'
+  }, {
+    id: 'ts-me-2',
+    title: 'Clear suspense and unallocated',
+    mins: 30,
+    role: 'Bookkeeper',
+    body: '<p>Anything you cannot code becomes a client query, not a guess.</p>'
+  }, {
+    id: 'ts-me-3',
+    title: 'Review GST coding',
+    mins: 20,
+    role: 'Bookkeeper',
+    body: '<p>Check the categories your clients typically get wrong — add your own list here.</p>'
+  }, {
+    id: 'ts-me-4',
+    title: 'Reconcile payroll to the ledger',
+    mins: 25,
+    role: 'Bookkeeper',
+    body: '<p>Wages, PAYG and super should match what was reported through STP.</p>'
+  }, {
+    id: 'ts-me-5',
+    title: 'Send the client query list and lock the period',
+    mins: 20,
+    role: 'Bookkeeper',
+    body: '<p>One consolidated list with a deadline, then set the lock date.</p>'
+  }]
+}, {
+  id: 'tpl-bas',
+  title: 'BAS preparation and lodgement',
+  area: 'tax',
+  source: 'sole',
+  summary: 'Prepare, reconcile, second-person review, client sign-off, lodge.',
+  steps: [{
+    id: 'ts-bas-1',
+    title: 'Confirm the ledger is closed',
+    mins: 5,
+    role: 'Tax senior',
+    body: '<p>No BAS from an unreconciled ledger.</p>'
+  }, {
+    id: 'ts-bas-2',
+    title: 'Prepare and reconcile GST',
+    mins: 45,
+    role: 'Tax senior',
+    body: '<p>Tie the GST control accounts to the activity statement and explain every variance.</p>'
+  }, {
+    id: 'ts-bas-3',
+    title: 'Second-person review',
+    mins: 20,
+    role: 'Senior accountant',
+    body: '<p>Decide your rule here: who reviews, and what materiality triggers a partner review.</p>',
+    warning: 'Most firms make "the preparer never reviews their own work" an absolute rule.'
+  }, {
+    id: 'ts-bas-4',
+    title: 'Client sign-off in writing',
+    mins: 10,
+    role: 'Tax senior',
+    body: '<p>Send the summary and the amount payable; wait for a written yes.</p>'
+  }, {
+    id: 'ts-bas-5',
+    title: 'Lodge and confirm next steps',
+    mins: 10,
+    role: 'Tax senior',
+    body: '<p>Save the receipt, send the payment reference and due date, schedule the next period.</p>'
+  }]
+}, {
+  id: 'tpl-payrun',
+  title: 'Weekly or fortnightly payrun',
+  area: 'payroll',
+  source: 'sole',
+  summary: 'Timesheets, readiness checks, variance review, employer approval, STP.',
+  steps: [{
+    id: 'ts-pr-1',
+    title: 'Chase timesheets a day early',
+    mins: 20,
+    role: 'Payroll specialist',
+    body: '<p>Set your cut-off at least a day before the payrun.</p>'
+  }, {
+    id: 'ts-pr-2',
+    title: 'Clear every readiness blocker',
+    mins: 25,
+    role: 'Payroll specialist',
+    body: '<p>Bank details, super fund, TFN declarations, approved leave.</p>'
+  }, {
+    id: 'ts-pr-3',
+    title: 'Review variance against last period',
+    mins: 20,
+    role: 'Payroll specialist',
+    body: '<p>Pick your threshold — many firms use 15% — and require an explanation above it.</p>'
+  }, {
+    id: 'ts-pr-4',
+    title: 'Employer approval',
+    mins: 15,
+    role: 'Payroll specialist',
+    body: '<p>We prepare; the employer authorises. Get it in writing.</p>'
+  }, {
+    id: 'ts-pr-5',
+    title: 'Lodge STP and issue payslips',
+    mins: 10,
+    role: 'Payroll specialist',
+    body: '<p>On the day of payment. Save the confirmation.</p>'
+  }]
+}, {
+  id: 'tpl-review',
+  title: 'Quality review before work leaves the firm',
+  area: 'quality',
+  source: 'sole',
+  summary: 'A short reviewer checklist that works for almost any deliverable.',
+  steps: [{
+    id: 'ts-qr-1',
+    title: 'Does it answer the question asked?',
+    mins: 10,
+    role: 'Reviewer',
+    body: '<p>Scope check before technical check.</p>'
+  }, {
+    id: 'ts-qr-2',
+    title: 'Do the numbers tie to a source?',
+    mins: 20,
+    role: 'Reviewer',
+    body: '<p>Every figure traces to a working paper; every working paper to a source document.</p>'
+  }, {
+    id: 'ts-qr-3',
+    title: 'Would a client understand it unaided?',
+    mins: 10,
+    role: 'Reviewer',
+    body: '<p>Read it as the client would.</p>'
+  }, {
+    id: 'ts-qr-4',
+    title: 'Signed, dated, filed',
+    mins: 5,
+    role: 'Reviewer',
+    body: '<p>An unsigned review did not happen.</p>'
+  }]
+}, {
+  id: 'tpl-docs',
+  title: 'Requesting and chasing client documents',
+  area: 'client-onboarding',
+  source: 'sole',
+  summary: 'One request, a fixed chase cadence, and a clear escalation point.',
+  steps: [{
+    id: 'ts-dc-1',
+    title: 'Send one consolidated request',
+    mins: 15,
+    role: 'Admin',
+    body: '<p>A single list with a deadline beats a drip of emails. Say why each item is needed.</p>'
+  }, {
+    id: 'ts-dc-2',
+    title: 'First reminder at day 5',
+    mins: 5,
+    role: 'Admin',
+    body: '<p>Friendly, assumes it was missed, restates only what is still outstanding.</p>'
+  }, {
+    id: 'ts-dc-3',
+    title: 'Phone call at day 12',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>A person, not another email. Find out whether there is a real obstacle.</p>'
+  }, {
+    id: 'ts-dc-4',
+    title: 'Escalate or re-plan at day 20',
+    mins: 10,
+    role: 'Manager',
+    body: '<p>Decide your rule: push the deadline, lodge on best estimates, or pause the job.</p>'
+  }]
+}, {
+  id: 'tpl-offboard',
+  title: 'Client offboarding',
+  area: 'client-onboarding',
+  source: 'sole',
+  summary: 'Exit conversation, final billing, handover pack, close the record.',
+  steps: [{
+    id: 'ts-of-1',
+    title: 'Exit conversation',
+    mins: 20,
+    role: 'Partner',
+    body: '<p>Understand why, and record it — this is your best source of retention insight.</p>'
+  }, {
+    id: 'ts-of-2',
+    title: 'Settle the account',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>Final invoice; WIP billed or written off with approval.</p>'
+  }, {
+    id: 'ts-of-3',
+    title: 'Prepare the handover pack',
+    mins: 60,
+    role: 'Senior accountant',
+    body: '<p>Returns, working papers, ledger export, ATO correspondence. Respond to ethical clearance.</p>'
+  }, {
+    id: 'ts-of-4',
+    title: 'Close the record',
+    mins: 15,
+    role: 'Client manager',
+    body: '<p>Stop recurring jobs, transfer access, set the status.</p>'
+  }]
+}, {
+  id: 'tpl-starter',
+  title: 'New team member — first week',
+  area: 'team',
+  source: 'sole',
+  summary: 'Day-by-day for a new starter, including the Academy path and your must-read SOPs.',
+  steps: [{
+    id: 'ts-st-1',
+    title: 'Day 1 — access, desk, buddy',
+    mins: 60,
+    role: 'Manager',
+    body: '<p>Logins working before they arrive. Assign a buddy who is not their manager.</p>'
+  }, {
+    id: 'ts-st-2',
+    title: 'Day 1–2 — Sole Academy starter path',
+    mins: 90,
+    role: 'New starter',
+    body: '<p>Learn the tool before touching live client work.</p>'
+  }, {
+    id: 'ts-st-3',
+    title: 'Day 2 — read the must-read SOPs',
+    mins: 45,
+    role: 'New starter',
+    body: '<p>Acknowledge each one as you go.</p>'
+  }, {
+    id: 'ts-st-4',
+    title: 'Day 3–4 — shadow, then do one observed',
+    mins: 120,
+    role: 'Buddy',
+    body: '<p>Reading an SOP and following it are different skills.</p>'
+  }, {
+    id: 'ts-st-5',
+    title: 'Day 5 — check-in and fix the SOPs',
+    mins: 30,
+    role: 'Manager',
+    body: '<p>Whatever confused them gets fixed this week, while it is fresh.</p>'
+  }]
+}];
+
+// Persistence — firm-authored SOPs, edits to seeded ones, my acknowledgements,
+// my step ticks and favourites survive reload. Own versioned key (like
+// sole.prompts.v1 / sole.academy.v1), NOT the shared editor prefs. Seeded SOPs
+// are module consts, so an edit is stored as a full-object override keyed by id.
+// Bump the key on any schema change.
+const SOP_STORE_KEY = 'sole.sops.v1';
+const loadSopStore = () => {
+  try {
+    return JSON.parse(localStorage.getItem(SOP_STORE_KEY) || '{}');
+  } catch (_) {
+    return {};
+  }
+};
+const saveSopStore = patch => {
+  try {
+    localStorage.setItem(SOP_STORE_KEY, JSON.stringify({
+      ...loadSopStore(),
+      ...patch
+    }));
+  } catch (_) {}
+};
+const sopCreated = () => loadSopStore().created || [];
+const sopEdits = () => loadSopStore().edits || {};
+const sopDeletedIds = () => loadSopStore().deletedIds || [];
+const sopAckStore = () => loadSopStore().acks || {};
+const sopStepStore = () => loadSopStore().stepDone || {};
+const sopFavIds = () => loadSopStore().favIds || [];
+const sopIsSeeded = id => SOP_LIBRARY.some(s => s.id === id);
+const sopUid = prefix => prefix + Math.random().toString(36).slice(2, 8);
+const allSops = () => {
+  const edits = sopEdits(),
+    gone = sopDeletedIds();
+  return SOP_LIBRARY.map(s => edits[s.id] || s).concat(sopCreated()).filter(s => gone.indexOf(s.id) === -1);
+};
+const sopById = id => allSops().find(s => s.id === id) || null;
+const saveSop = sop => {
+  const next = {
+    ...sop,
+    updated: Date.now()
+  };
+  if (sopIsSeeded(next.id)) saveSopStore({
+    edits: {
+      ...sopEdits(),
+      [next.id]: next
+    }
+  });else {
+    const created = sopCreated();
+    const i = created.findIndex(s => s.id === next.id);
+    saveSopStore({
+      created: i >= 0 ? created.map((s, j) => j === i ? next : s) : created.concat(next)
+    });
+  }
+  return next;
+};
+const deleteSop = id => {
+  const removed = sopById(id);
+  if (sopIsSeeded(id)) saveSopStore({
+    deletedIds: sopDeletedIds().concat(id)
+  });else saveSopStore({
+    created: sopCreated().filter(s => s.id !== id)
+  });
+  return removed;
+};
+// Undo re-instates the edited version, not the pristine seed.
+const restoreSop = sop => {
+  if (sopIsSeeded(sop.id)) saveSopStore({
+    deletedIds: sopDeletedIds().filter(x => x !== sop.id),
+    edits: {
+      ...sopEdits(),
+      [sop.id]: sop
+    }
+  });else saveSopStore({
+    created: sopCreated().concat(sop)
+  });
+};
+
+// `review_due` is DERIVED, never stored — a published SOP past its review date
+// shows as Review due without anyone having to run a job.
+const sopStatusOf = sop => {
+  if (!sop) return 'draft';
+  if (sop.status !== 'published') return sop.status || 'draft';
+  return sop.reviewDue && sop.reviewDue < Date.now() ? 'review_due' : 'published';
+};
+const sopIsLive = sop => {
+  const st = sopStatusOf(sop);
+  return st === 'published' || st === 'review_due';
+};
+const sopOwner = sop => isdStaff(sop && sop.ownerId) || {
+  id: sop && sop.ownerId || '',
+  name: 'Unassigned',
+  short: 'Unassigned',
+  initials: '?',
+  role: '',
+  team: ''
+};
+const sopMins = sop => (sop && sop.steps || []).reduce((n, s) => n + (s.mins || 0), 0);
+const sopStepCount = sop => (sop && sop.steps || []).length;
+
+// Visibility. There is no auth in this build, so this is evaluated against the
+// single mock identity SOP_ME — real ACLs need a backend (see docs/BACKLOG.md).
+const sopVisibleTo = (sop, person) => {
+  const v = sop && sop.visibility || 'firm';
+  if (sop.ownerId === person.id) return true;
+  if (v === 'firm') return true;
+  if (v === 'private') return false;
+  return (sop.teams || []).indexOf(person.team) !== -1;
+};
+const sopAudience = sop => SOP_STAFF.filter(p => sopVisibleTo(sop, p));
+const sopVisibleToMe = sop => sopVisibleTo(sop, SOP_ME);
+
+// Acknowledgements. Other people's are mocked on the seed (seedAcks); mine live
+// in the store so they persist and can be undone.
+const sopAckMap = sop => {
+  const mine = sopAckStore()[sop.id];
+  const base = {
+    ...(sop && sop.seedAcks || {})
+  };
+  if (mine) base[SOP_ME.id] = mine;else delete base[SOP_ME.id];
+  return base;
+};
+const isSopAcked = sop => !!sopAckStore()[sop.id];
+const ackSop = (id, on) => {
+  const a = {
+    ...sopAckStore()
+  };
+  if (on) a[id] = Date.now();else delete a[id];
+  saveSopStore({
+    acks: a
+  });
+};
+const sopReadStats = sop => {
+  const audience = sopAudience(sop),
+    acked = sopAckMap(sop);
+  return {
+    audience,
+    read: audience.filter(p => acked[p.id]),
+    unread: audience.filter(p => !acked[p.id]),
+    acked
+  };
+};
+const sopMustReadForMe = sop => !!sop.mustRead && sopIsLive(sop) && sopVisibleToMe(sop) && !isSopAcked(sop);
+const sopChangedSinceRead = sop => {
+  const t = sopAckStore()[sop.id];
+  return !!t && (sop.updated || 0) > t;
+};
+
+// Personal step ticks — "run this SOP now" checklist mode. Separate from
+// acknowledgement: ticking steps is doing the work, acknowledging is agreeing.
+const isSopStepDone = stepId => !!sopStepStore()[stepId];
+const setSopStepDone = (stepId, on) => {
+  const d = {
+    ...sopStepStore()
+  };
+  if (on) d[stepId] = Date.now();else delete d[stepId];
+  saveSopStore({
+    stepDone: d
+  });
+};
+const sopStepsDone = sop => (sop && sop.steps || []).filter(s => isSopStepDone(s.id)).length;
+const resetSopSteps = sop => {
+  const d = {
+    ...sopStepStore()
+  };
+  (sop && sop.steps || []).forEach(s => {
+    delete d[s.id];
+  });
+  saveSopStore({
+    stepDone: d
+  });
+};
+const isSopFav = id => sopFavIds().indexOf(id) !== -1;
+const toggleSopFav = id => {
+  const cur = sopFavIds();
+  saveSopStore({
+    favIds: cur.indexOf(id) !== -1 ? cur.filter(x => x !== id) : cur.concat(id)
+  });
+};
+const sopCanEdit = sop => {
+  const e = sop && sop.editableBy || 'managers';
+  if (e === 'anyone') return true;
+  if (sop.ownerId === SOP_ME.id) return true;
+  return e === 'managers' && SOP_MANAGER_IDS.indexOf(SOP_ME.id) !== -1;
+};
+const sopEditBlockedReason = sop => {
+  const e = sop && sop.editableBy || 'managers';
+  return e === 'owner' ? 'Only ' + sopOwner(sop).short + ' (the owner) can edit this SOP.' : 'Only the owner and managers can edit this SOP.';
+};
+const sopShareLink = sop => window.location.origin + window.location.pathname + '#/practice/sop/' + sop.id;
+const sopReviewDueFrom = months => months ? Date.now() + months * 30 * SOP_DAY : null;
+
+// Cloning a Sole template gives the firm a private draft they own outright —
+// new ids everywhere so editing it can never mutate the template.
+const sopFromTemplate = tpl => ({
+  id: sopUid('sop-'),
+  title: tpl.title,
+  area: tpl.area,
+  summary: tpl.summary,
+  status: 'draft',
+  version: 1,
+  ownerId: SOP_ME.id,
+  visibility: 'private',
+  editableBy: 'managers',
+  mustRead: false,
+  reviewEvery: 12,
+  updated: Date.now(),
+  source: 'firm',
+  fromTemplate: tpl.id,
+  tags: (tpl.tags || []).slice(),
+  relatedCourseIds: (tpl.relatedCourseIds || []).slice(),
+  links: [],
+  attachments: [],
+  steps: (tpl.steps || []).map(s => ({
+    ...s,
+    id: sopUid('st-'),
+    tools: (s.tools || []).slice(),
+    checklist: (s.checklist || []).slice()
+  }))
+});
+const sopBlank = () => ({
+  id: sopUid('sop-'),
+  title: '',
+  area: SOP_AREAS[0].id,
+  summary: '',
+  status: 'draft',
+  version: 1,
+  ownerId: SOP_ME.id,
+  visibility: 'private',
+  editableBy: 'managers',
+  mustRead: false,
+  reviewEvery: 12,
+  updated: Date.now(),
+  source: 'firm',
+  tags: [],
+  relatedCourseIds: [],
+  links: [],
+  attachments: [],
+  steps: [{
+    id: sopUid('st-'),
+    title: 'First step',
+    body: '',
+    mins: 10,
+    role: '',
+    tools: [],
+    checklist: []
+  }]
+});
+
+// --- Our SOPs — shared bits ---
+// No relative-time helper exists in the app; SOPs need one because "updated 4
+// months ago" is the signal that a procedure has gone stale.
+const sopAgo = ts => {
+  if (!ts) return '';
+  const days = Math.floor((Date.now() - ts) / SOP_DAY);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return days + ' days ago';
+  const months = Math.round(days / 30);
+  if (months <= 1) return 'last month';
+  return months < 18 ? months + ' months ago' : Math.round(days / 365) + ' years ago';
+};
+const sopClamp = lines => ({
+  display: '-webkit-box',
+  WebkitLineClamp: lines,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden'
+});
+// A "first week" SOP legitimately runs to 345 minutes; printing that as minutes
+// reads like a mistake. Switch to hours once it stops being a sitting.
+const sopDuration = mins => {
+  if (!mins) return '';
+  if (mins < 90) return mins + ' min';
+  const h = Math.floor(mins / 60),
+    m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+};
+const SOP_SORTS = [{
+  id: 'recent',
+  label: 'Recently updated'
+}, {
+  id: 'az',
+  label: 'A to Z'
+}, {
+  id: 'short',
+  label: 'Quickest to read'
+}];
+const sortSops = (list, sortId) => list.slice().sort((a, b) => sortId === 'az' ? a.title.localeCompare(b.title) : sortId === 'short' ? sopMins(a) - sopMins(b) : (b.updated || 0) - (a.updated || 0));
+const SopStatusPill = ({
+  sop,
+  style
+}) => {
+  const key = sopStatusOf(sop),
+    meta = sopStatusMeta(key);
+  return /*#__PURE__*/React.createElement(Pill, {
+    color: meta.color,
+    style: style,
+    title: key === 'review_due' ? 'Past its review date — someone should check it is still accurate.' : undefined
+  }, meta.label);
+};
+
+// Card grid item. Follows WfRecipeCard (role=button, Enter/Space guard, JS hover
+// lift) so it reads as native, but with a strict hierarchy: ONE hero (the title),
+// everything else muted, and colour ONLY where it carries meaning.
+//   - No "Published" pill: published is the normal state, so a green pill on every
+//     card is pure noise. A pill appears only when the state is NOT normal.
+//   - A single 3px left stripe carries "this one needs you" (the same at-a-glance
+//     device as STATUS_STRIPE on the proposals list). Rendered as an absolute
+//     child, not a borderLeft, so the hover handler can still set borderColor
+//     without React's shorthand/longhand conflict warning.
+//   - Uniform height: a flex spacer pushes the footer down and title/summary are
+//     line-clamped, so a 3-step SOP and a 12-step one line up in the grid.
+const SopCard = ({
+  sop,
+  fav,
+  onToggleFav,
+  onOpen,
+  actions
+}) => {
+  const owner = sopOwner(sop),
+    steps = sopStepCount(sop),
+    mins = sopMins(sop);
+  const area = sopAreaById(sop.area),
+    st = sopStatusOf(sop);
+  const mustRead = sopMustReadForMe(sop),
+    changed = sopChangedSinceRead(sop),
+    acked = isSopAcked(sop) && !changed;
+  const stripe = mustRead ? T.primary : st === 'review_due' || changed ? T.amber : null;
+  const badge = st === 'draft' ? {
+    label: 'Draft',
+    color: 'neutral'
+  } : st === 'in_review' ? {
+    label: 'In review',
+    color: 'amber'
+  } : changed ? {
+    label: 'Changed',
+    color: 'amber'
+  } : st === 'review_due' ? {
+    label: 'Review due',
+    color: 'amber'
+  } : null;
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onOpen,
+    role: "button",
+    tabIndex: 0,
+    onKeyDown: e => {
+      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+    style: {
+      position: 'relative',
+      overflow: 'hidden',
+      textAlign: 'left',
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusCard,
+      background: T.card,
+      paddingTop: 14,
+      paddingBottom: 14,
+      paddingLeft: T.space.lg,
+      paddingRight: T.space.lg,
+      cursor: 'pointer',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 5,
+      transition: 'border-color 0.12s, box-shadow 0.12s'
+    },
+    onMouseEnter: e => {
+      e.currentTarget.style.borderColor = T.borderStrong;
+      e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,17,23,0.08)';
+    },
+    onMouseLeave: e => {
+      e.currentTarget.style.borderColor = T.border;
+      e.currentTarget.style.boxShadow = 'none';
+    }
+  }, stripe && /*#__PURE__*/React.createElement("span", {
+    style: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 3,
+      background: stripe
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 5,
+      minHeight: 18
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: area.icon,
+    size: 12,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, area.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), badge && /*#__PURE__*/React.createElement(Pill, {
+    color: badge.color
+  }, badge.label), onToggleFav && /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      onToggleFav();
+    },
+    title: fav ? 'Remove from your shortcuts' : 'Add to your shortcuts',
+    style: {
+      border: 'none',
+      background: 'transparent',
+      padding: 2,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "star",
+    size: 14,
+    color: fav ? T.amber : T.mutedSoft
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15.5,
+      fontWeight: 700,
+      color: T.text,
+      letterSpacing: -0.25,
+      lineHeight: 1.32,
+      ...sopClamp(2)
+    }
+  }, sop.title || 'Untitled SOP'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      lineHeight: 1.5,
+      ...sopClamp(2)
+    }
+  }, sop.summary || 'No summary yet.'), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minHeight: T.space.md
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm
+    }
+  }, mustRead && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.primary,
+      fontWeight: 600,
+      whiteSpace: 'nowrap'
+    }
+  }, "Must read"), acked && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.greenDark,
+      fontWeight: 600,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 3,
+      whiteSpace: 'nowrap'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: T.greenDark
+  }), "Read"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.mutedSoft,
+      whiteSpace: 'nowrap'
+    }
+  }, steps, " step", steps === 1 ? '' : 's', mins ? ` · ${sopDuration(mins)}` : ''), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), actions ? /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      display: 'flex',
+      gap: 2
+    }
+  }, actions) : /*#__PURE__*/React.createElement("span", {
+    title: `Owned by ${owner.name}`,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: owner.name,
+    size: 20
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      maxWidth: 92
+    }
+  }, owner.short || owner.name))));
+};
+
+// Sole-authored starter. Same skeleton as SopCard so the two read as one family;
+// the dashed border is the only thing that says "not yours yet". The
+// "copies into your drafts, yours to rewrite" caveat lives once in the banner
+// above the grid, not repeated on all eight cards.
+const SopTemplateCard = ({
+  tpl,
+  onPreview,
+  onUse
+}) => {
+  const area = sopAreaById(tpl.area),
+    steps = (tpl.steps || []).length;
+  const mins = (tpl.steps || []).reduce((n, s) => n + (s.mins || 0), 0);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px dashed ${T.borderStrong}`,
+      borderRadius: T.radiusCard,
+      background: T.surface,
+      paddingTop: 14,
+      paddingBottom: 14,
+      paddingLeft: T.space.lg,
+      paddingRight: T.space.lg,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 5,
+      minHeight: 18
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: area.icon,
+    size: 12,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, area.label)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15.5,
+      fontWeight: 700,
+      color: T.text,
+      letterSpacing: -0.25,
+      lineHeight: 1.32,
+      ...sopClamp(2)
+    }
+  }, tpl.title), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      lineHeight: 1.5,
+      ...sopClamp(3)
+    }
+  }, tpl.summary), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minHeight: T.space.md
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.mutedSoft
+    },
+    title: "Written by Sole as a starting point."
+  }, "Sole starter \xB7 ", steps, " steps \xB7 ", sopDuration(mins)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      marginTop: 5
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "copy",
+    onClick: onUse
+  }, "Use this"), /*#__PURE__*/React.createElement("button", {
+    onClick: onPreview,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      fontSize: 11.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      padding: 4
+    }
+  }, "Preview")));
+};
+
+// Step jump-list row in the reader's right rail. Mirrors Academy's LessonRow so
+// the reader feels like the course player.
+const SopStepNavRow = ({
+  step,
+  index,
+  active,
+  done,
+  onClick
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  "data-hover": "row",
+  style: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '9px 10px',
+    border: 'none',
+    textAlign: 'left',
+    borderRadius: 8,
+    background: active ? T.primarySoft : 'transparent',
+    cursor: 'pointer'
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    width: 22,
+    height: 22,
+    borderRadius: '50%',
+    flexShrink: 0,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: done ? T.green : active ? T.primary : T.fieldBg,
+    color: done || active ? '#fff' : T.muted,
+    border: done || active ? 'none' : `1px solid ${T.border}`,
+    fontSize: 11,
+    fontWeight: 700
+  }
+}, done ? /*#__PURE__*/React.createElement(Icon, {
+  name: "check",
+  size: 12,
+  color: "#fff"
+}) : index + 1), /*#__PURE__*/React.createElement("span", {
+  style: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12.5,
+    fontWeight: active ? 600 : 500,
+    color: active ? T.primary : T.text,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  }
+}, step.title || 'Untitled step'), !!step.mins && /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 11,
+    color: T.muted,
+    flexShrink: 0
+  }
+}, step.mins, "m"));
+
+// Small uppercase rail label — the reader's right column uses it repeatedly.
+const SectionLabelText = ({
+  children,
+  style
+}) => /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 10.5,
+    fontWeight: 700,
+    color: T.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    ...style
+  }
+}, children);
+
+// Owner-facing: who has and has not acknowledged. This is the whole point of the
+// must-read flag — visibility means people CAN read it, acknowledgement is how a
+// partner knows the firm is actually aligned.
+const SopReadTrackingCard = ({
+  sop,
+  fireToast
+}) => {
+  const [showAll, setShowAll] = useState(false);
+  const {
+    audience,
+    read,
+    unread
+  } = sopReadStats(sop);
+  if (!audience.length) return null;
+  const pct = audience.length ? Math.round(read.length / audience.length * 100) : 0;
+  // The counts stay honest (they include you), but you are not in the chase list —
+  // you have your own acknowledge button at the end of the SOP, and "remind
+  // yourself" is nonsense.
+  const meUnread = unread.some(p => p.id === SOP_ME.id);
+  const others = unread.filter(p => p.id !== SOP_ME.id);
+  const shown = showAll ? others : others.slice(0, 4);
+  return /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: T.space.sm,
+      marginBottom: T.space.sm
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Who has read it"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: pct === 100 ? T.greenDark : T.text
+    }
+  }, read.length, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft,
+      fontWeight: 600
+    }
+  }, " of ", audience.length))), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: pct,
+    color: pct === 100 ? T.green : T.primary,
+    height: 6
+  }), unread.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: T.space.md,
+      fontSize: 12,
+      color: T.greenDark,
+      fontWeight: 600
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 13,
+    color: T.greenDark
+  }), "Everyone who can see this has read it.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, meUnread && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 6,
+      marginBottom: others.length ? T.space.md : 0,
+      fontSize: 11.5,
+      color: T.amber,
+      lineHeight: 1.45
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 12,
+    color: T.amber
+  }), /*#__PURE__*/React.createElement("span", null, "You have not acknowledged this yet \u2014 the button is at the end of the SOP.")), others.length > 0 && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 6
+    }
+  }, "Not read yet"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, shown.map(p => /*#__PURE__*/React.createElement("div", {
+    key: p.id,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: p.name,
+    size: 22
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      color: T.text,
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, p.name), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10.5,
+      color: T.mutedSoft,
+      flexShrink: 0
+    }
+  }, p.team)))), others.length > 4 && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowAll(v => !v),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.primary,
+      fontSize: 11.5,
+      fontWeight: 600,
+      cursor: 'pointer',
+      paddingTop: 6,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      paddingRight: 0
+    }
+  }, showAll ? 'Show fewer' : `+${others.length - 4} more`), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "bell",
+    style: {
+      marginTop: T.space.md,
+      width: '100%'
+    },
+    onClick: () => fireToast(`Reminder sent to ${others.length} ${others.length === 1 ? 'person' : 'people'} (demo)`)
+  }, "Remind ", others.length, " ", others.length === 1 ? 'person' : 'people'))));
+};
+
+// --- Our SOPs — library views ---
+const goSopsView = v => {
+  window.location.hash = '#/practice/' + (v === 'all' ? 'sops' : v === 'mine' ? 'sops-mine' : v === 'drafts' ? 'sops-drafts' : 'sops-templates');
+};
+const goSop = id => {
+  window.location.hash = '#/practice/sop/' + id;
+};
+const goSopEdit = id => {
+  window.location.hash = '#/practice/sop-edit/' + id;
+};
+
+// One titled block of cards. Used by every grouped view so the section rhythm is
+// identical across My reading and Drafts & review. The count is quiet text, not a
+// pill — a pill per group turns the page into a scoreboard and steals attention
+// from the cards, which are the thing you actually want people to read.
+const SopGroup = ({
+  title,
+  hint,
+  tone,
+  children,
+  count
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    marginBottom: 28
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: 7,
+    marginBottom: hint ? 2 : T.space.md
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: T.text,
+    letterSpacing: -0.2
+  }
+}, title), count != null && /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: tone === 'accent' ? T.primary : tone === 'amber' ? T.amber : T.mutedSoft
+  }
+}, count)), hint && /*#__PURE__*/React.createElement(Helper, {
+  style: {
+    marginBottom: T.space.md
+  }
+}, hint), children);
+const SopGrid = ({
+  sops,
+  fireToast,
+  refresh,
+  min = 280
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'grid',
+    gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))`,
+    gap: T.space.md
+  }
+}, sops.map(s => /*#__PURE__*/React.createElement(SopCard, {
+  key: s.id,
+  sop: s,
+  fav: isSopFav(s.id),
+  onToggleFav: () => {
+    toggleSopFav(s.id);
+    refresh();
+  },
+  onOpen: () => goSop(s.id)
+})));
+const SopTemplatePreview = ({
+  tpl,
+  onClose,
+  onUse
+}) => {
+  if (!tpl) return null;
+  const a = sopAreaById(tpl.area);
+  return /*#__PURE__*/React.createElement(Modal, {
+    open: !!tpl,
+    onClose: onClose,
+    title: tpl.title,
+    subtitle: `Sole starter · ${a.label} · ${(tpl.steps || []).length} steps`,
+    width: 640
+  }, /*#__PURE__*/React.createElement(Banner, {
+    tone: "info",
+    icon: "info",
+    title: "This is a starting point, not a rule"
+  }, "Sole wrote this to save you a blank page. Copy it, then rewrite it until it matches how your firm actually works \u2014 every firm is different."), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      margin: `${T.space.lg}px 0 ${T.space.sm}px`
+    }
+  }, tpl.summary), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: T.space.sm
+    }
+  }, (tpl.steps || []).map((s, i) => /*#__PURE__*/React.createElement("div", {
+    key: s.id,
+    style: {
+      display: 'flex',
+      gap: T.space.md,
+      padding: T.space.md,
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusSm,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 22,
+      height: 22,
+      borderRadius: '50%',
+      flexShrink: 0,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      color: T.muted,
+      fontSize: 11,
+      fontWeight: 700,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, i + 1), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, s.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginTop: 2,
+      flexWrap: 'wrap'
+    }
+  }, s.role && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.muted
+    }
+  }, s.role), !!s.mins && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, s.mins, " min")), s.body && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: T.textSoft,
+      lineHeight: 1.55,
+      marginTop: 4
+    },
+    dangerouslySetInnerHTML: {
+      __html: s.body
+    }
+  }))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: T.space.sm,
+      marginTop: T.space.xl
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "copy",
+    onClick: onUse
+  }, "Use this as a starting point"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: onClose
+  }, "Close")));
+};
+const SopLibraryPage = ({
+  view = 'all',
+  fireToast
+}) => {
+  const [, forceTick] = useState(0);
+  const refresh = () => forceTick(t => t + 1);
+  const [search, setSearch] = useState('');
+  const [area, setArea] = useState('all');
+  const [sort, setSort] = useState(SOP_SORTS[0]);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
+  useEffect(() => {
+    setSearch('');
+    setArea('all');
+  }, [view]);
+  const mine = allSops().filter(sopVisibleToMe);
+  const live = mine.filter(sopIsLive);
+  const drafts = mine.filter(s => !sopIsLive(s) && sopStatusOf(s) !== 'archived');
+  const reviewDue = mine.filter(s => sopStatusOf(s) === 'review_due');
+  const mustRead = live.filter(sopMustReadForMe);
+  const changed = live.filter(sopChangedSinceRead);
+  const readAlready = live.filter(s => isSopAcked(s) && !sopChangedSinceRead(s));
+  const forMyTeam = live.filter(s => s.visibility === 'teams' && (s.teams || []).indexOf(SOP_ME.team) !== -1 && !sopMustReadForMe(s) && !isSopAcked(s));
+  const otherToRead = live.filter(s => !sopMustReadForMe(s) && !isSopAcked(s) && forMyTeam.indexOf(s) === -1);
+  const useTemplate = tpl => {
+    const created = sopFromTemplate(tpl);
+    saveSop(created);
+    setPreview(null);
+    fireToast({
+      message: `"${tpl.title}" copied into your drafts — make it yours`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          deleteSop(created.id);
+          refresh();
+        }
+      }
+    });
+    goSopEdit(created.id);
+  };
+  const q = search.trim().toLowerCase();
+  const bySearch = s => !q || (s.title + ' ' + (s.summary || '') + ' ' + (s.tags || []).join(' ') + ' ' + sopAreaById(s.area).label + ' ' + (s.steps || []).map(x => x.title).join(' ')).toLowerCase().indexOf(q) !== -1;
+  const byArea = s => area === 'all' || s.area === area;
+  const filtered = sortSops(live.filter(byArea).filter(bySearch), sort.id);
+  const tabs = [{
+    id: 'all',
+    label: 'All SOPs',
+    icon: 'clipboardCheck',
+    count: live.length
+  }, {
+    id: 'mine',
+    label: 'My reading',
+    icon: 'checkCircle',
+    count: mustRead.length + changed.length,
+    badgeTone: mustRead.length + changed.length ? 'alert' : 'neutral'
+  }, {
+    id: 'drafts',
+    label: 'Drafts & review',
+    icon: 'edit',
+    count: drafts.length + reviewDue.length,
+    badgeTone: reviewDue.length ? 'alert' : 'neutral'
+  }, {
+    id: 'templates',
+    label: 'Start from a template',
+    icon: 'copy',
+    count: SOP_TEMPLATES.length
+  }];
+  const firstRun = /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "clipboardCheck",
+    title: "Your firm has not written any SOPs yet",
+    hint: "This is where your own way of working lives \u2014 the processes everyone should follow. Start from one of Sole's skeletons and rewrite it, or write your first one from scratch.",
+    action: /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: T.space.sm,
+        flexWrap: 'wrap',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "copy",
+      onClick: () => goSopsView('templates')
+    }, "Browse starters"), /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "plus",
+      onClick: () => goSopEdit('new')
+    }, "Write from scratch"))
+  }));
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: T.space.lg,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = '#/practice/academy';
+    },
+    style: {
+      border: 'none',
+      background: 'transparent',
+      padding: 0,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "graduation",
+    size: 12,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement(SectionLabelText, {
+    style: {
+      color: T.mutedSoft
+    }
+  }, "Part of Sole Academy")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      letterSpacing: -0.3,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clipboardCheck",
+    size: 22,
+    color: T.primary
+  }), "Our SOPs"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "How we do things here \u2014 written by your team, owned by your firm.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "md",
+    icon: "plus",
+    onClick: () => goSopEdit('new')
+  }, "New SOP")), /*#__PURE__*/React.createElement(Tabs, {
+    tabs: tabs,
+    value: view,
+    onChange: goSopsView,
+    style: {
+      marginTop: T.space.lg
+    }
+  }), view === 'all' && (live.length === 0 ? firstRun : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      marginBottom: T.space.md,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 240,
+      maxWidth: 320,
+      flex: '0 1 320px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      padding: '7px 12px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "search",
+    size: 14,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("input", {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: "Search SOPs and steps\u2026",
+    style: {
+      flex: 1,
+      minWidth: 0,
+      border: 'none',
+      background: 'transparent',
+      outline: 'none',
+      fontSize: 13
+    }
+  }), search && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSearch(''),
+    "aria-label": "Clear",
+    style: {
+      border: 'none',
+      background: 'transparent',
+      color: T.muted,
+      padding: 2,
+      cursor: 'pointer'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 12
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(SortMenu, {
+    open: sortOpen,
+    setOpen: setSortOpen,
+    value: sort,
+    onChange: setSort,
+    sorts: SOP_SORTS
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      flexWrap: 'wrap',
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement(Chip, {
+    size: "sm",
+    selected: area === 'all',
+    onClick: () => setArea('all')
+  }, `All · ${live.length}`), SOP_AREAS.map(a => {
+    const n = live.filter(s => s.area === a.id).length;
+    return n ? /*#__PURE__*/React.createElement(Chip, {
+      key: a.id,
+      size: "sm",
+      selected: area === a.id,
+      onClick: () => setArea(a.id)
+    }, a.label) : null;
+  })), filtered.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "search",
+    title: "No SOPs match",
+    hint: "Try a different area or clear your search."
+  })) : /*#__PURE__*/React.createElement(SopGrid, {
+    sops: filtered,
+    fireToast: fireToast,
+    refresh: refresh
+  }))), view === 'mine' && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.lg,
+      marginBottom: 26,
+      maxWidth: 560
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 19,
+      fontWeight: 800,
+      color: T.text,
+      letterSpacing: -0.3
+    }
+  }, mustRead.length === 0 && changed.length === 0 ? 'You are up to date' : `${mustRead.length + changed.length} SOP${mustRead.length + changed.length === 1 ? '' : 's'} need your attention`), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 3
+    }
+  }, mustRead.length === 0 && changed.length === 0 ? `Nothing outstanding for you as ${SOP_ME.role.toLowerCase()} in ${SOP_ME.team}.` : `What to read to work the way this firm works · ${SOP_ME.role} · ${SOP_ME.team}`), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 240,
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: T.space.sm,
+      marginBottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, "Read"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, readAlready.length, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.mutedSoft,
+      fontWeight: 600
+    }
+  }, " of ", live.length))), /*#__PURE__*/React.createElement(ProgressBar, {
+    pct: live.length ? Math.round(readAlready.length / live.length * 100) : 0,
+    color: T.primary,
+    height: 5
+  }))), mustRead.length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: "Must read",
+    count: mustRead.length,
+    tone: "accent",
+    hint: "Your firm has flagged these as required reading. Open each one and acknowledge it at the end."
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(mustRead, 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), changed.length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: "Changed since you read it",
+    count: changed.length,
+    tone: "amber",
+    hint: "These were updated after you acknowledged them \u2014 worth a re-read."
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(changed, 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), forMyTeam.length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: `Shared with ${SOP_ME.team}`,
+    count: forMyTeam.length,
+    hint: "Not required reading, but written specifically for your team."
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(forMyTeam, 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), otherToRead.length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: "Everything else you can read",
+    count: otherToRead.length
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(otherToRead, 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), readAlready.length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: "Read",
+    count: readAlready.length,
+    tone: "green"
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(readAlready, 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), live.length === 0 && firstRun), view === 'drafts' && /*#__PURE__*/React.createElement(Fragment, null, reviewDue.length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: "Review due",
+    count: reviewDue.length,
+    tone: "amber",
+    hint: "Past their review date. Someone should confirm they are still how the firm works \u2014 or update them."
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(reviewDue, 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), drafts.filter(s => sopStatusOf(s) === 'in_review').length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: "In review",
+    count: drafts.filter(s => sopStatusOf(s) === 'in_review').length,
+    tone: "amber",
+    hint: "Written and waiting on a second pair of eyes before they go firm-wide."
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(drafts.filter(s => sopStatusOf(s) === 'in_review'), 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), drafts.filter(s => sopStatusOf(s) === 'draft').length > 0 && /*#__PURE__*/React.createElement(SopGroup, {
+    title: "Drafts",
+    count: drafts.filter(s => sopStatusOf(s) === 'draft').length,
+    hint: "Nobody else can see these until you publish them."
+  }, /*#__PURE__*/React.createElement(SopGrid, {
+    sops: sortSops(drafts.filter(s => sopStatusOf(s) === 'draft'), 'recent'),
+    fireToast: fireToast,
+    refresh: refresh
+  })), drafts.length === 0 && reviewDue.length === 0 && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "check",
+    title: "Nothing waiting on you",
+    hint: "No drafts, nothing in review, and nothing past its review date.",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "ghost",
+      size: "sm",
+      icon: "plus",
+      onClick: () => goSopEdit('new')
+    }, "New SOP")
+  }))), view === 'templates' && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Banner, {
+    tone: "accent",
+    icon: "bulb",
+    title: "Starting points, not rules",
+    style: {
+      marginBottom: T.space.xl
+    }
+  }, "Every firm works differently, so these are deliberately generic skeletons \u2014 the right steps in the right order, with the decisions left to you. Copy one, then rewrite it until it sounds like your firm. Nothing here is prescriptive."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+      gap: T.space.md
+    }
+  }, SOP_TEMPLATES.map(t => /*#__PURE__*/React.createElement(SopTemplateCard, {
+    key: t.id,
+    tpl: t,
+    onPreview: () => setPreview(t),
+    onUse: () => useTemplate(t)
+  })))), /*#__PURE__*/React.createElement(SopTemplatePreview, {
+    tpl: preview,
+    onClose: () => setPreview(null),
+    onUse: () => useTemplate(preview)
+  }));
+};
+
+// --- Our SOPs — reader ---
+// One step, rendered. The tick is "I did this" (personal, resettable); the
+// acknowledgement at the bottom of the page is "I agree this is how we work".
+// Two different things, deliberately kept apart.
+const SopStepBlock = ({
+  step,
+  index,
+  total,
+  done,
+  onToggleDone,
+  innerRef
+}) => /*#__PURE__*/React.createElement("div", {
+  ref: innerRef,
+  style: {
+    border: `1px solid ${done ? '#A7F3D0' : T.border}`,
+    borderRadius: T.radiusCard,
+    background: done ? T.greenSoft : T.card,
+    padding: T.space.lg,
+    transition: 'background 0.15s, border-color 0.15s'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: T.space.md
+  }
+}, /*#__PURE__*/React.createElement("button", {
+  onClick: onToggleDone,
+  title: done ? 'Mark as not done' : 'Mark this step done',
+  style: {
+    width: 26,
+    height: 26,
+    borderRadius: '50%',
+    flexShrink: 0,
+    cursor: 'pointer',
+    marginTop: 1,
+    background: done ? T.green : T.card,
+    border: done ? 'none' : `1.5px solid ${T.borderStrong}`,
+    color: done ? '#fff' : T.muted,
+    fontSize: 12,
+    fontWeight: 700,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
+}, done ? /*#__PURE__*/React.createElement(Icon, {
+  name: "check",
+  size: 14,
+  color: "#fff"
+}) : index + 1), /*#__PURE__*/React.createElement("div", {
+  style: {
+    minWidth: 0,
+    flex: 1
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 15.5,
+    fontWeight: 700,
+    color: T.text,
+    letterSpacing: -0.25,
+    lineHeight: 1.35
+  }
+}, step.title || 'Untitled step'), (step.role || step.mins || (step.tools || []).length > 0) && /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 7,
+    flexWrap: 'wrap',
+    marginTop: 5,
+    fontSize: 11.5,
+    color: T.mutedSoft
+  }
+}, step.role && /*#__PURE__*/React.createElement("span", null, step.role), step.role && !!step.mins && /*#__PURE__*/React.createElement("span", null, "\xB7"), !!step.mins && /*#__PURE__*/React.createElement("span", null, step.mins, " min"), (step.tools || []).length > 0 && (step.role || !!step.mins) && /*#__PURE__*/React.createElement("span", null, "\xB7"), (step.tools || []).length > 0 && /*#__PURE__*/React.createElement("span", null, step.tools.join(', '))), step.body && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 13.5,
+    color: T.textSoft,
+    lineHeight: 1.65,
+    marginTop: T.space.md
+  },
+  dangerouslySetInnerHTML: {
+    __html: step.body
+  }
+}), step.warning && /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: T.space.sm,
+    marginTop: T.space.md,
+    padding: T.space.md,
+    background: T.amberSoft,
+    border: '1px solid #FCD34D',
+    borderRadius: T.radiusSm
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "alertTriangle",
+  size: 14,
+  color: T.amber
+}), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 12.5,
+    color: '#92400E',
+    lineHeight: 1.55,
+    fontWeight: 500
+  }
+}, step.warning)), (step.checklist || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+  style: {
+    marginTop: T.space.md,
+    paddingTop: T.space.md,
+    borderTop: `1px solid ${T.borderSoft}`
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11.5,
+    fontWeight: 600,
+    color: T.muted
+  }
+}, "Check before moving on"), /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+    marginTop: 6
+  }
+}, step.checklist.map((c, i) => /*#__PURE__*/React.createElement("div", {
+  key: i,
+  style: {
+    display: 'flex',
+    gap: 7,
+    alignItems: 'flex-start'
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "check",
+  size: 12,
+  color: T.mutedSoft
+}), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: 12.5,
+    color: T.textSoft,
+    lineHeight: 1.5
+  }
+}, c))))))));
+const SopReaderPage = ({
+  sopId,
+  fireToast
+}) => {
+  const [, forceTick] = useState(0);
+  const refresh = () => forceTick(t => t + 1);
+  const sop = sopById(sopId);
+  const [activeId, setActiveId] = useState(() => {
+    const s = sopById(sopId);
+    return s && s.steps && s.steps.length ? s.steps[0].id : null;
+  });
+  const stepRefs = useRef({});
+  const {
+    isTablet
+  } = useViewport();
+  const back = () => {
+    window.location.hash = '#/practice/sops';
+  };
+  if (!sop) return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: back
+  }, "Our SOPs"), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginTop: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "search",
+    title: "SOP not found",
+    hint: "It may have been deleted, or the link is out of date.",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      onClick: back
+    }, "Back to Our SOPs")
+  })));
+
+  // Visibility is enforced here, not just in the list — otherwise a shared link
+  // would leak a private or team-only SOP to anyone who pasted the URL.
+  if (!sopVisibleToMe(sop)) return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: back
+  }, "Our SOPs"), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginTop: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "lock",
+    title: "You do not have access to this SOP",
+    hint: (sop.visibility === 'private' ? 'It is private to its owner.' : `It is shared with ${(sop.teams || []).join(', ') || 'specific teams'} only.`) + ' Ask ' + sopOwner(sop).short + ' if you need it.',
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      onClick: back
+    }, "Back to Our SOPs")
+  })));
+  const steps = sop.steps || [];
+  const owner = sopOwner(sop);
+  const acked = isSopAcked(sop);
+  const ackedAt = sopAckStore()[sop.id];
+  const changed = sopChangedSinceRead(sop);
+  const doneCount = sopStepsDone(sop);
+  const canEdit = sopCanEdit(sop);
+  const showTracking = sop.ownerId === SOP_ME.id || SOP_MANAGER_IDS.indexOf(SOP_ME.id) !== -1;
+  const relatedCourses = (sop.relatedCourseIds || []).map(courseById).filter(Boolean);
+  const area = sopAreaById(sop.area);
+  const visMeta = SOP_VISIBILITY[sop.visibility || 'firm'] || SOP_VISIBILITY.firm;
+  const jumpTo = id => {
+    setActiveId(id);
+    const el = stepRefs.current[id];
+    if (el && el.scrollIntoView) el.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  };
+  const doAck = () => {
+    ackSop(sop.id, true);
+    refresh();
+    fireToast({
+      message: 'Thanks — recorded that you have read this',
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          ackSop(sop.id, false);
+          refresh();
+        }
+      }
+    });
+  };
+  const doUnack = () => {
+    ackSop(sop.id, false);
+    refresh();
+    fireToast('Acknowledgement removed');
+  };
+  const copyLink = () => {
+    try {
+      navigator.clipboard && navigator.clipboard.writeText(sopShareLink(sop));
+    } catch (_) {}
+    fireToast('Link copied — anyone at your firm who can see this SOP can open it');
+  };
+  const railCard = (title, children) => /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: T.space.sm
+    }
+  }, title), children);
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: back
+  }, "Our SOPs"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "share",
+    onClick: copyLink
+  }, "Copy link"), canEdit ? /*#__PURE__*/React.createElement(Btn, {
+    key: "sop-edit-on",
+    variant: "soft",
+    size: "sm",
+    icon: "edit",
+    onClick: () => goSopEdit(sop.id)
+  }, "Edit") : /*#__PURE__*/React.createElement(Btn, {
+    key: "sop-edit-off",
+    variant: "ghost",
+    size: "sm",
+    icon: "lock",
+    disabled: true,
+    title: sopEditBlockedReason(sop)
+  }, "Edit")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      fontWeight: 800,
+      letterSpacing: -0.5,
+      color: T.text,
+      lineHeight: 1.2
+    }
+  }, sop.title || 'Untitled SOP'), sop.summary && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6,
+      fontSize: 13.5,
+      maxWidth: 660,
+      lineHeight: 1.6
+    }
+  }, sop.summary), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 7,
+      flexWrap: 'wrap',
+      marginTop: 10,
+      fontSize: 12,
+      color: T.mutedSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: area.icon,
+    size: 12,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement("span", null, area.label), /*#__PURE__*/React.createElement("span", null, "\xB7"), /*#__PURE__*/React.createElement("span", null, owner.name), /*#__PURE__*/React.createElement("span", null, "\xB7"), /*#__PURE__*/React.createElement("span", null, "Updated ", sopAgo(sop.updated)), /*#__PURE__*/React.createElement("span", null, "\xB7"), /*#__PURE__*/React.createElement("span", null, "v", sop.version || 1), sopStatusOf(sop) !== 'published' && /*#__PURE__*/React.createElement(SopStatusPill, {
+    sop: sop,
+    style: {
+      marginLeft: 2
+    }
+  }), sop.mustRead && sopIsLive(sop) && /*#__PURE__*/React.createElement(Pill, {
+    color: "accent",
+    title: "Everyone who can see this is expected to read and acknowledge it."
+  }, "Must read"))), changed && /*#__PURE__*/React.createElement(Banner, {
+    tone: "warn",
+    icon: "refresh",
+    title: "This changed after you read it",
+    style: {
+      marginTop: T.space.lg
+    },
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "check",
+      onClick: doAck
+    }, "Acknowledge again")
+  }, owner.short, " updated this ", sopAgo(sop.updated), ". You acknowledged the previous version on ", fmtDate(new Date(ackedAt)), "."), sopStatusOf(sop) === 'review_due' && /*#__PURE__*/React.createElement(Banner, {
+    tone: "warn",
+    icon: "alertTriangle",
+    title: "Past its review date",
+    style: {
+      marginTop: T.space.lg
+    },
+    action: canEdit ? /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "edit",
+      onClick: () => goSopEdit(sop.id)
+    }, "Review it") : undefined
+  }, "This was due for a check ", sopAgo(sop.reviewDue), ". Treat it as probably-still-right rather than definitely-right until ", owner.short, " confirms it."), sopStatusOf(sop) === 'draft' && /*#__PURE__*/React.createElement(Banner, {
+    tone: "info",
+    icon: "edit",
+    title: "This is a draft",
+    style: {
+      marginTop: T.space.lg
+    }
+  }, "Only you can see it. Publish it from the editor when it is ready for the firm."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) 340px',
+      gap: T.space.xl,
+      marginTop: T.space.xl,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      marginBottom: T.space.md,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Follow the steps"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), doneCount > 0 && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      fontWeight: 600
+    }
+  }, doneCount, " of ", steps.length, " ticked"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "refresh",
+    onClick: () => {
+      resetSopSteps(sop);
+      refresh();
+    },
+    title: "Clear your ticks so you can run this again"
+  }, "Reset"))), steps.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "listNumbered",
+    title: "No steps yet",
+    hint: "This SOP has no steps written.",
+    action: canEdit ? /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "edit",
+      onClick: () => goSopEdit(sop.id)
+    }, "Add the steps") : undefined
+  })) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: T.space.md
+    }
+  }, steps.map((s, i) => /*#__PURE__*/React.createElement(SopStepBlock, {
+    key: s.id,
+    step: s,
+    index: i,
+    total: steps.length,
+    done: isSopStepDone(s.id),
+    innerRef: el => {
+      stepRefs.current[s.id] = el;
+    },
+    onToggleDone: () => {
+      setSopStepDone(s.id, !isSopStepDone(s.id));
+      setActiveId(s.id);
+      refresh();
+    }
+  }))), sopIsLive(sop) && /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginTop: T.space.xl,
+      padding: T.space.lg,
+      background: acked && !changed ? T.greenSoft : T.card,
+      borderColor: acked && !changed ? '#A7F3D0' : T.border
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.md,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(IconChip, {
+    icon: acked && !changed ? 'checkCircle' : 'clipboardCheck',
+    tone: acked && !changed ? 'green' : 'accent',
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 240,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, acked && !changed ? 'You have acknowledged this SOP' : 'Have you read and understood this?'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, acked && !changed ? `Recorded on ${fmtDate(new Date(ackedAt))}. ${owner.short} can see that you have read it.` : 'Acknowledging tells the firm you have seen how we do this — it is how we know everyone is working the same way.')), acked && !changed ? /*#__PURE__*/React.createElement(Btn, {
+    key: "sop-ack-on",
+    variant: "ghost",
+    size: "sm",
+    icon: "undo",
+    onClick: doUnack
+  }, "Undo") : /*#__PURE__*/React.createElement(Btn, {
+    key: "sop-ack-off",
+    variant: "primary",
+    size: "md",
+    icon: "check",
+    onClick: doAck
+  }, "I have read and understood this")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: T.space.md,
+      minWidth: 0
+    }
+  }, steps.length > 1 && railCard('Steps', /*#__PURE__*/React.createElement("div", {
+    className: "scroll-area",
+    style: {
+      maxHeight: 300,
+      overflowY: 'auto',
+      margin: '0 -4px'
+    }
+  }, steps.map((s, i) => /*#__PURE__*/React.createElement(SopStepNavRow, {
+    key: s.id,
+    step: s,
+    index: i,
+    active: activeId === s.id,
+    done: isSopStepDone(s.id),
+    onClick: () => jumpTo(s.id)
+  })))), showTracking && sopIsLive(sop) && /*#__PURE__*/React.createElement(SopReadTrackingCard, {
+    sop: sop,
+    fireToast: fireToast
+  }), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 7
+    }
+  }, "Who can see this"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 7
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: visMeta.icon,
+    size: 14,
+    color: T.textSoft
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, visMeta.label)), sop.visibility === 'teams' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 5,
+      flexWrap: 'wrap',
+      marginTop: 7
+    }
+  }, (sop.teams || []).map(t => /*#__PURE__*/React.createElement(Pill, {
+    key: t,
+    color: t === SOP_ME.team ? 'accent' : 'neutral'
+  }, t))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6,
+      lineHeight: 1.5
+    }
+  }, visMeta.help), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "Editable by ", (SOP_EDITABLE[sop.editableBy || 'managers'] || SOP_EDITABLE.managers).label.toLowerCase(), ".")), relatedCourses.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 2
+    }
+  }, "Learn the tool"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 7,
+      lineHeight: 1.5
+    }
+  }, "This is how we work; these cover how the software works."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+      margin: '0 -6px'
+    }
+  }, relatedCourses.map(c => /*#__PURE__*/React.createElement("button", {
+    key: c.id,
+    "data-hover": "row",
+    onClick: () => {
+      window.location.hash = '#/practice/course/' + c.id;
+    },
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      width: '100%',
+      paddingTop: 7,
+      paddingBottom: 7,
+      paddingLeft: 6,
+      paddingRight: 6,
+      border: 'none',
+      background: 'transparent',
+      borderRadius: 8,
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "play",
+    size: 12,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.text,
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, c.title), /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 12,
+    color: T.mutedSoft
+  }))))), (sop.links || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 5
+    }
+  }, "Do it in Sole"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+      margin: '0 -6px'
+    }
+  }, sop.links.map((l, i) => /*#__PURE__*/React.createElement("button", {
+    key: i,
+    "data-hover": "row",
+    onClick: () => {
+      window.location.hash = l.href;
+    },
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      width: '100%',
+      paddingTop: 7,
+      paddingBottom: 7,
+      paddingLeft: 6,
+      paddingRight: 6,
+      border: 'none',
+      background: 'transparent',
+      borderRadius: 8,
+      cursor: 'pointer',
+      textAlign: 'left'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "arrow",
+    size: 12,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.text,
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, l.label))))), (sop.attachments || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 7
+    }
+  }, "Attachments"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, sop.attachments.map((f, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      fontSize: 12.5,
+      color: T.text
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "docs",
+    size: 12,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, f.name), f.size && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, f.size))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 7
+    }
+  }, "Details"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      marginBottom: T.space.sm
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: owner.name,
+    size: 26
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, owner.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, "Owner \xB7 ", owner.role))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: T.space.sm,
+      fontSize: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Time to run"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.text,
+      fontWeight: 600
+    }
+  }, steps.length, " steps \xB7 ", sopDuration(sopMins(sop)) || '—')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: T.space.sm,
+      fontSize: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Reviewed"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.text,
+      fontWeight: 600
+    }
+  }, sop.reviewEvery ? `every ${sop.reviewEvery} months` : 'no reminder')), sop.reviewDue && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: T.space.sm,
+      fontSize: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: T.muted
+    }
+  }, "Next review"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: sop.reviewDue < Date.now() ? T.amber : T.text,
+      fontWeight: 600
+    }
+  }, fmtDate(new Date(sop.reviewDue))))), (sop.tags || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 5,
+      flexWrap: 'wrap',
+      marginTop: T.space.md
+    }
+  }, sop.tags.map(t => /*#__PURE__*/React.createElement(Pill, {
+    key: t,
+    color: "neutral"
+  }, t))), sop.fromTemplate && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: T.space.sm
+    }
+  }, "Started from a Sole template."))))));
+};
+
+// --- Our SOPs — editor ---
+const SOP_ROLES = ['Partner', 'Manager', 'Client manager', 'Senior accountant', 'Tax senior', 'Bookkeeper', 'Payroll specialist', 'Advisor', 'Reviewer', 'Admin', 'New starter', 'Buddy'];
+
+// Add-with-Enter chip list. Used for tools on a step and tags on the SOP.
+const SopChipInput = ({
+  items,
+  onChange,
+  placeholder
+}) => {
+  const [text, setText] = useState('');
+  const add = () => {
+    const v = text.trim();
+    if (!v || (items || []).indexOf(v) !== -1) {
+      setText('');
+      return;
+    }
+    onChange((items || []).concat(v));
+    setText('');
+  };
+  return /*#__PURE__*/React.createElement("div", null, (items || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 5,
+      flexWrap: 'wrap',
+      marginBottom: 6
+    }
+  }, items.map(t => /*#__PURE__*/React.createElement("span", {
+    key: t,
+    style: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
+      borderRadius: 999,
+      paddingTop: 3,
+      paddingBottom: 3,
+      paddingLeft: 9,
+      paddingRight: 5,
+      fontSize: 11.5,
+      color: T.textSoft
+    }
+  }, t, /*#__PURE__*/React.createElement("button", {
+    onClick: () => onChange(items.filter(x => x !== t)),
+    "aria-label": `Remove ${t}`,
+    style: {
+      border: 'none',
+      background: 'transparent',
+      padding: 0,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      color: T.mutedSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "close",
+    size: 10
+  }))))), /*#__PURE__*/React.createElement(Input, {
+    value: text,
+    onChange: e => setText(e.target.value),
+    placeholder: placeholder,
+    onKeyDown: e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        add();
+      }
+    },
+    suffix: text.trim() ? /*#__PURE__*/React.createElement("button", {
+      onClick: add,
+      style: {
+        border: 'none',
+        background: 'transparent',
+        color: T.primary,
+        fontSize: 11.5,
+        fontWeight: 600,
+        cursor: 'pointer'
+      }
+    }, "Add") : undefined
+  }));
+};
+
+// Ordered list of plain strings — a step's "check before moving on" items.
+const SopListEditor = ({
+  items,
+  onChange,
+  placeholder,
+  addLabel
+}) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6
+  }
+}, (items || []).map((c, i) => /*#__PURE__*/React.createElement("div", {
+  key: i,
+  style: {
+    display: 'flex',
+    gap: 6,
+    alignItems: 'center'
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: "check",
+  size: 12,
+  color: T.mutedSoft
+}), /*#__PURE__*/React.createElement(Input, {
+  style: {
+    flex: 1
+  },
+  value: c,
+  placeholder: placeholder,
+  onChange: e => onChange(items.map((x, j) => j === i ? e.target.value : x))
+}), /*#__PURE__*/React.createElement(Btn, {
+  variant: "ghost",
+  size: "sm",
+  icon: "trash",
+  title: "Remove",
+  onClick: () => onChange(items.filter((x, j) => j !== i))
+})))), /*#__PURE__*/React.createElement(Btn, {
+  variant: "ghost",
+  size: "sm",
+  icon: "plus",
+  style: {
+    marginTop: (items || []).length ? 6 : 0
+  },
+  onClick: () => onChange((items || []).concat(''))
+}, addLabel));
+
+// Deep-links into SPM so an SOP is followable, not just readable. Label and href
+// stack rather than sit side by side — this lives in the 340px rail, where two
+// inputs plus a delete button wrap into a mess.
+const SopLinksEditor = ({
+  links,
+  onChange
+}) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: T.space.sm
+  }
+}, (links || []).map((l, i) => /*#__PURE__*/React.createElement("div", {
+  key: i,
+  style: {
+    border: `1px solid ${T.border}`,
+    borderRadius: T.radiusSm,
+    padding: T.space.sm,
+    background: T.fieldBg
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: 4,
+    alignItems: 'center'
+  }
+}, /*#__PURE__*/React.createElement(Input, {
+  style: {
+    flex: 1,
+    minWidth: 0
+  },
+  value: l.label,
+  placeholder: "What it opens",
+  onChange: e => onChange(links.map((x, j) => j === i ? {
+    ...x,
+    label: e.target.value
+  } : x))
+}), /*#__PURE__*/React.createElement(Btn, {
+  variant: "ghost",
+  size: "sm",
+  icon: "trash",
+  title: "Remove this link",
+  onClick: () => onChange(links.filter((x, j) => j !== i))
+})), /*#__PURE__*/React.createElement(Input, {
+  style: {
+    marginTop: 5
+  },
+  value: l.href,
+  placeholder: "#/practice/payrun",
+  onChange: e => onChange(links.map((x, j) => j === i ? {
+    ...x,
+    href: e.target.value
+  } : x))
+})))), /*#__PURE__*/React.createElement(Btn, {
+  variant: "ghost",
+  size: "sm",
+  icon: "plus",
+  style: {
+    marginTop: (links || []).length ? T.space.sm : 0
+  },
+  onClick: () => onChange((links || []).concat({
+    label: '',
+    href: ''
+  }))
+}, "Add a link"));
+
+// Reuses MediaSlot's value shape ({ name, url, size, mime }) — the only
+// attachment representation in the app that actually round-trips content.
+const SopAttachmentsEditor = ({
+  files,
+  onChange,
+  fireToast
+}) => {
+  const inputRef = useRef(null);
+  const pick = fileList => {
+    const picked = Array.from(fileList || []);
+    if (!picked.length) return;
+    const next = picked.map(f => ({
+      name: f.name,
+      url: '',
+      size: `${Math.round(f.size / 1024)} KB`,
+      mime: f.type
+    }));
+    onChange((files || []).concat(next));
+    fireToast(`${next.length} file${next.length === 1 ? '' : 's'} attached (demo — not uploaded)`);
+  };
+  return /*#__PURE__*/React.createElement("div", null, (files || []).length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+      marginBottom: 6
+    }
+  }, files.map((f, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '6px 8px',
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusSm,
+      background: T.fieldBg
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "docs",
+    size: 13,
+    color: T.mutedSoft
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.text,
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap'
+    }
+  }, f.name), f.size && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, f.size), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "trash",
+    title: "Remove",
+    onClick: () => onChange(files.filter((x, j) => j !== i))
+  })))), /*#__PURE__*/React.createElement("input", {
+    ref: inputRef,
+    type: "file",
+    multiple: true,
+    accept: "application/pdf,image/*,.csv,.xlsx,.docx",
+    style: {
+      display: 'none'
+    },
+    onChange: e => {
+      pick(e.target.files);
+      e.target.value = '';
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "paperclip",
+    onClick: () => inputRef.current && inputRef.current.click()
+  }, "Attach a file"));
+};
+
+// Who can see it. Shared between the Sharing tab and the publish dialog, because
+// "who should be able to read this?" is exactly the question publishing raises.
+const SopVisibilityEditor = ({
+  sop,
+  set
+}) => {
+  const v = sop.visibility || 'firm';
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, Object.keys(SOP_VISIBILITY).map(key => {
+    const meta = SOP_VISIBILITY[key],
+      on = v === key;
+    return /*#__PURE__*/React.createElement("button", {
+      key: key,
+      onClick: () => set({
+        visibility: key
+      }),
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: T.space.md,
+        textAlign: 'left',
+        width: '100%',
+        cursor: 'pointer',
+        paddingTop: 10,
+        paddingBottom: 10,
+        paddingLeft: 12,
+        paddingRight: 12,
+        border: `1px solid ${on ? T.primary : T.border}`,
+        borderRadius: T.radiusSm,
+        background: on ? T.primarySoft : T.card
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: meta.icon,
+      size: 15,
+      color: on ? T.primary : T.mutedSoft
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'block',
+        fontSize: 13,
+        fontWeight: 600,
+        color: on ? T.primary : T.text
+      }
+    }, meta.label), /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'block',
+        fontSize: 11.5,
+        color: T.muted,
+        lineHeight: 1.45,
+        marginTop: 1
+      }
+    }, meta.help)));
+  })), v === 'teams' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Which teams"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 6,
+      flexWrap: 'wrap'
+    }
+  }, SOP_TEAMS.map(t => {
+    const on = (sop.teams || []).indexOf(t) !== -1;
+    return /*#__PURE__*/React.createElement(Chip, {
+      key: t,
+      size: "sm",
+      selected: on,
+      onClick: () => set({
+        teams: on ? (sop.teams || []).filter(x => x !== t) : (sop.teams || []).concat(t)
+      })
+    }, t);
+  })), (sop.teams || []).length === 0 && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6,
+      color: T.amber
+    }
+  }, "Pick at least one team, or only you will be able to see it.")));
+};
+const SopEditorPage = ({
+  sopId,
+  fireToast
+}) => {
+  const isNew = sopId === 'new';
+  const existing = isNew ? null : sopById(sopId);
+  const [draft, setDraft] = useState(() => isNew ? sopBlank() : existing ? {
+    ...existing
+  } : null);
+  const [dirty, setDirty] = useState(false);
+  const [tab, setTab] = useState('content');
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [dragIdx, setDragIdx] = useState(null); // visual only (dim the source row)
+  const [overIdx, setOverIdx] = useState(null);
+  const dragFrom = useRef(null); // authoritative — see dropStep
+  const {
+    isTablet
+  } = useViewport();
+  const set = patch => {
+    setDraft(d => ({
+      ...d,
+      ...patch
+    }));
+    setDirty(true);
+  };
+  const back = () => {
+    window.location.hash = '#/practice/sops';
+  };
+  if (!draft) return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: back
+  }, "Our SOPs"), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginTop: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "search",
+    title: "SOP not found",
+    hint: "It may have been deleted.",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      onClick: back
+    }, "Back to Our SOPs")
+  })));
+  if (!isNew && !sopCanEdit(draft)) return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: back
+  }, "Our SOPs"), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginTop: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "lock",
+    title: "You cannot edit this SOP",
+    hint: sopEditBlockedReason(draft),
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "eye",
+      onClick: () => goSop(draft.id)
+    }, "Read it instead")
+  })));
+  const steps = draft.steps || [];
+  const step = steps[Math.min(activeIdx, Math.max(0, steps.length - 1))] || null;
+  const status = sopStatusOf(draft);
+  const wasPublished = draft.status === 'published';
+
+  // Every write goes through here so the store and the local draft never diverge.
+  // On a brand-new SOP the URL is corrected with replaceState (not by setting the
+  // hash) so the editor is not remounted mid-edit.
+  const persist = patch => {
+    const saved = saveSop({
+      ...draft,
+      ...(patch || {})
+    });
+    setDraft(saved);
+    setDirty(false);
+    if (isNew) window.history.replaceState(null, '', '#/practice/sop-edit/' + saved.id);
+    return saved;
+  };
+  const setStep = (i, patch) => set({
+    steps: steps.map((s, j) => j === i ? {
+      ...s,
+      ...patch
+    } : s)
+  });
+  const addStep = () => {
+    const s = {
+      id: sopUid('st-'),
+      title: '',
+      body: '',
+      mins: 10,
+      role: '',
+      tools: [],
+      checklist: []
+    };
+    set({
+      steps: steps.concat(s)
+    });
+    setActiveIdx(steps.length);
+  };
+  const duplicateStep = i => {
+    const copy = {
+      ...steps[i],
+      id: sopUid('st-'),
+      title: (steps[i].title || 'Step') + ' (copy)',
+      tools: (steps[i].tools || []).slice(),
+      checklist: (steps[i].checklist || []).slice()
+    };
+    set({
+      steps: steps.slice(0, i + 1).concat(copy).concat(steps.slice(i + 1))
+    });
+    setActiveIdx(i + 1);
+  };
+  const removeStep = i => {
+    const removed = steps[i];
+    set({
+      steps: steps.filter((s, j) => j !== i)
+    });
+    setActiveIdx(Math.max(0, i - 1));
+    fireToast({
+      message: `Removed "${removed.title || 'step'}"`,
+      action: {
+        label: 'Undo',
+        onClick: () => set({
+          steps: steps.slice(0, i).concat(removed).concat(steps.slice(i))
+        })
+      }
+    });
+  };
+  const moveStep = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= steps.length) return;
+    const next = steps.slice();
+    next[i] = steps[j];
+    next[j] = steps[i];
+    set({
+      steps: next
+    });
+    setActiveIdx(j);
+  };
+  // Drag-to-reorder, same idea as BlockRow in the proposal editor. The chevrons
+  // stay as the keyboard/accessible path — the grip is not decoration.
+  //   The source index is read from a ref (with dataTransfer as a fallback), NOT
+  //   from state: dragstart and drop can land in the same task, in which case the
+  //   setDragIdx from dragstart has not been committed and the handler's closure
+  //   still sees null, silently dropping the reorder.
+  const dropStep = (to, e) => {
+    let from = dragFrom.current;
+    if (from == null && e && e.dataTransfer) {
+      const n = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      if (!isNaN(n)) from = n;
+    }
+    dragFrom.current = null;
+    setDragIdx(null);
+    setOverIdx(null);
+    if (from == null || from === to) return;
+    const next = steps.slice();
+    const moved = next.splice(from, 1)[0];
+    next.splice(to, 0, moved);
+    set({
+      steps: next
+    });
+    setActiveIdx(to);
+  };
+  const saveDraft = () => {
+    persist();
+    fireToast(status === 'draft' ? 'Draft saved' : 'Changes saved');
+  };
+  const sendForReview = () => {
+    persist({
+      status: 'in_review'
+    });
+    fireToast('Sent for review — it is not visible to the firm yet');
+  };
+  const doPublish = () => {
+    const bump = wasPublished ? (draft.version || 1) + 1 : draft.version || 1;
+    persist({
+      status: 'published',
+      version: bump,
+      reviewDue: sopReviewDueFrom(draft.reviewEvery)
+    });
+    setPublishOpen(false);
+    fireToast(wasPublished ? `Published v${bump} — anyone who acknowledged v${bump - 1} will see it changed` : 'Published — this is now how your firm does it');
+  };
+  const tryPublish = () => {
+    if (!(draft.title || '').trim()) {
+      setTab('content');
+      fireToast('Give it a title first');
+      return;
+    }
+    // Publishing a private SOP is the moment "who should see this?" actually matters.
+    if ((draft.visibility || 'firm') === 'private' || draft.visibility === 'teams' && !(draft.teams || []).length) {
+      setPublishOpen(true);
+      return;
+    }
+    doPublish();
+  };
+  const doDelete = () => {
+    const removed = persist();
+    deleteSop(removed.id);
+    fireToast({
+      message: `Deleted "${removed.title || 'Untitled SOP'}"`,
+      action: {
+        label: 'Undo',
+        onClick: () => restoreSop(removed)
+      }
+    });
+    back();
+  };
+  const tabs = [{
+    id: 'content',
+    label: 'Content',
+    icon: 'listNumbered',
+    count: steps.length
+  }, {
+    id: 'sharing',
+    label: 'Sharing & review',
+    icon: 'users'
+  }];
+  return /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      padding: '24px 28px 60px',
+      overflow: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: back
+  }, "Our SOPs"), /*#__PURE__*/React.createElement(SopStatusPill, {
+    sop: draft
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: T.mutedSoft,
+      fontWeight: 600
+    }
+  }, "v", draft.version || 1), dirty && /*#__PURE__*/React.createElement(Pill, {
+    color: "amber"
+  }, "Unsaved changes"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), !isNew && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "eye",
+    onClick: () => goSop(draft.id),
+    title: "See it the way your team will"
+  }, "Preview"), !isNew && /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "trash",
+    onClick: doDelete,
+    title: "Delete this SOP"
+  }, "Delete"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "save",
+    onClick: saveDraft
+  }, status === 'draft' ? 'Save draft' : 'Save changes'), status === 'draft' && /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "send",
+    onClick: sendForReview
+  }, "Send for review"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    size: "sm",
+    icon: "check",
+    onClick: tryPublish
+  }, wasPublished ? 'Publish update' : 'Publish')), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 800,
+      letterSpacing: -0.3,
+      color: T.text,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "clipboardCheck",
+    size: 20,
+    color: T.primary
+  }), isNew ? 'New SOP' : 'Editing an SOP'), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2
+    }
+  }, "Write it the way you would explain it to a new starter on their first day. Your words, your process \u2014 Sole just holds the shape.")), /*#__PURE__*/React.createElement(Tabs, {
+    tabs: tabs,
+    value: tab,
+    onChange: setTab,
+    style: {
+      marginTop: T.space.lg
+    }
+  }), tab === 'content' && /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : '1fr 220px',
+      gap: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "What is this SOP called?"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.title,
+    onChange: e => set({
+      title: e.target.value
+    }),
+    placeholder: "e.g. Month-end close for a bookkeeping client",
+    autoFocus: isNew
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Area"), /*#__PURE__*/React.createElement(Select, {
+    value: draft.area,
+    onChange: e => set({
+      area: e.target.value
+    })
+  }, SOP_AREAS.map(a => /*#__PURE__*/React.createElement("option", {
+    key: a.id,
+    value: a.id
+  }, a.label))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "One line on what it is for"), /*#__PURE__*/React.createElement(Input, {
+    value: draft.summary,
+    onChange: e => set({
+      summary: e.target.value
+    }),
+    placeholder: "The checks we run before a client's month is called closed."
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "This is what people see in the list, so make it the reason they would open it."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : '260px minmax(0, 1fr)',
+      gap: T.space.lg,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '2px 6px 8px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Steps"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11,
+      color: T.mutedSoft
+    }
+  }, sopDuration(sopMins(draft)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2
+    }
+  }, steps.map((s, i) => {
+    const on = i === activeIdx;
+    return /*#__PURE__*/React.createElement("div", {
+      key: s.id,
+      draggable: true,
+      "data-sop-step": i,
+      onDragStart: e => {
+        dragFrom.current = i;
+        setDragIdx(i);
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try {
+            e.dataTransfer.setData('text/plain', String(i));
+          } catch (_) {}
+        }
+      },
+      onDragEnd: () => {
+        dragFrom.current = null;
+        setDragIdx(null);
+        setOverIdx(null);
+      },
+      onDragOver: e => {
+        e.preventDefault();
+        if (overIdx !== i) setOverIdx(i);
+      },
+      onDrop: e => {
+        e.preventDefault();
+        dropStep(i, e);
+      },
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        background: on ? T.primarySoft : 'transparent',
+        borderRadius: 8,
+        paddingRight: 2,
+        opacity: dragIdx === i ? 0.45 : 1,
+        borderTop: overIdx === i && dragIdx !== null && dragIdx !== i ? `2px solid ${T.primary}` : '2px solid transparent'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      "data-hover": "row",
+      onClick: () => setActiveIdx(i),
+      style: {
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 7,
+        border: 'none',
+        background: 'transparent',
+        paddingTop: 8,
+        paddingBottom: 8,
+        paddingLeft: 6,
+        paddingRight: 4,
+        borderRadius: 8,
+        cursor: 'pointer',
+        textAlign: 'left'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      title: "Drag to reorder",
+      style: {
+        display: 'inline-flex',
+        cursor: 'grab'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "gripVertical",
+      size: 12,
+      color: T.mutedSoft
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        flexShrink: 0,
+        background: on ? T.primary : T.fieldBg,
+        color: on ? '#fff' : T.muted,
+        border: on ? 'none' : `1px solid ${T.border}`,
+        fontSize: 10,
+        fontWeight: 700,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, i + 1), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: 12.5,
+        fontWeight: on ? 600 : 500,
+        color: on ? T.primary : T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, s.title || 'Untitled step')), /*#__PURE__*/React.createElement("button", {
+      onClick: () => moveStep(i, -1),
+      disabled: i === 0,
+      title: "Move up",
+      style: {
+        border: 'none',
+        background: 'transparent',
+        padding: 2,
+        cursor: i === 0 ? 'default' : 'pointer',
+        opacity: i === 0 ? 0.3 : 1,
+        display: 'inline-flex'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronUp",
+      size: 12,
+      color: T.muted
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => moveStep(i, 1),
+      disabled: i === steps.length - 1,
+      title: "Move down",
+      style: {
+        border: 'none',
+        background: 'transparent',
+        padding: 2,
+        cursor: i === steps.length - 1 ? 'default' : 'pointer',
+        opacity: i === steps.length - 1 ? 0.3 : 1,
+        display: 'inline-flex'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronDown",
+      size: 12,
+      color: T.muted
+    })));
+  })), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "plus",
+    style: {
+      marginTop: T.space.sm,
+      width: '100%'
+    },
+    onClick: addStep
+  }, "Add a step")), step ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: T.space.sm,
+      marginBottom: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Step ", activeIdx + 1, " of ", steps.length), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "copy",
+    onClick: () => duplicateStep(activeIdx),
+    title: "Duplicate this step"
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "trash",
+    onClick: () => removeStep(activeIdx),
+    title: "Remove this step",
+    disabled: steps.length <= 1
+  })), /*#__PURE__*/React.createElement(Label, null, "Step title"), /*#__PURE__*/React.createElement(Input, {
+    value: step.title,
+    onChange: e => setStep(activeIdx, {
+      title: e.target.value
+    }),
+    placeholder: "Reconcile every bank and card account to zero"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : '1fr 140px',
+      gap: T.space.md,
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Who does it"), /*#__PURE__*/React.createElement(Select, {
+    value: step.role || '',
+    onChange: e => setStep(activeIdx, {
+      role: e.target.value
+    })
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Anyone"), SOP_ROLES.map(r => /*#__PURE__*/React.createElement("option", {
+    key: r,
+    value: r
+  }, r)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "How long"), /*#__PURE__*/React.createElement(Input, {
+    type: "number",
+    value: step.mins == null ? '' : String(step.mins),
+    onChange: e => setStep(activeIdx, {
+      mins: e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0)
+    }),
+    suffix: /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: T.mutedSoft
+      }
+    }, "min")
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "How to do it"), /*#__PURE__*/React.createElement(RichBlockEditor, {
+    key: step.id,
+    value: step.body || '',
+    onChange: html => setStep(activeIdx, {
+      body: html
+    }),
+    placeholder: "Explain it the way you would to someone on their first week \u2014 including the bit everyone gets wrong."
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Tools used"), /*#__PURE__*/React.createElement(SopChipInput, {
+    items: step.tools,
+    onChange: tools => setStep(activeIdx, {
+      tools
+    }),
+    placeholder: "Xero, ATO Online, SPM\u2026 then press Enter"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Watch out for ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 400,
+      color: T.mutedSoft
+    }
+  }, "(optional)")), /*#__PURE__*/React.createElement("textarea", {
+    value: step.warning || '',
+    onChange: e => setStep(activeIdx, {
+      warning: e.target.value
+    }),
+    placeholder: "The mistake that costs the most, or the point where someone should stop and escalate.",
+    style: {
+      width: '100%',
+      minHeight: 62,
+      resize: 'vertical',
+      fontSize: 13,
+      lineHeight: 1.55,
+      color: T.text,
+      fontFamily: 'inherit',
+      paddingTop: 9,
+      paddingBottom: 9,
+      paddingLeft: 11,
+      paddingRight: 11,
+      background: T.amberSoft,
+      border: '1px solid #FCD34D',
+      borderRadius: T.radiusSm,
+      outline: 'none'
+    }
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "Shows as an amber callout on the step.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Check before moving on ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 400,
+      color: T.mutedSoft
+    }
+  }, "(optional)")), /*#__PURE__*/React.createElement(SopListEditor, {
+    items: step.checklist,
+    onChange: checklist => setStep(activeIdx, {
+      checklist
+    }),
+    placeholder: "Bank feeds reconciled to the statement",
+    addLabel: "Add a check"
+  }))) : /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "listNumbered",
+    title: "No steps yet",
+    hint: "An SOP is a sequence \u2014 add the first step to get going.",
+    action: /*#__PURE__*/React.createElement(Btn, {
+      variant: "primary",
+      size: "sm",
+      icon: "plus",
+      onClick: addStep
+    }, "Add a step")
+  })))), tab === 'sharing' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) 340px',
+      gap: T.space.lg,
+      alignItems: 'start'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: T.space.lg,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, null, "Who can see this"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2,
+      marginBottom: T.space.md
+    }
+  }, "Most SOPs should be firm-wide \u2014 that is the point of writing them down. Narrow it only when the content genuinely does not apply to everyone."), /*#__PURE__*/React.createElement(SopVisibilityEditor, {
+    sop: draft,
+    set: set
+  })), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, null, "Who can change it"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2,
+      marginBottom: T.space.md
+    }
+  }, "Everyone reads it; not everyone should be able to rewrite it."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr',
+      gap: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Owner"), /*#__PURE__*/React.createElement(Select, {
+    value: draft.ownerId,
+    onChange: e => set({
+      ownerId: e.target.value
+    })
+  }, SOP_STAFF.map(p => /*#__PURE__*/React.createElement("option", {
+    key: p.id,
+    value: p.id
+  }, p.name, " \u2014 ", p.role))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "Accountable for keeping it accurate.")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Editable by"), /*#__PURE__*/React.createElement(Select, {
+    value: draft.editableBy || 'managers',
+    onChange: e => set({
+      editableBy: e.target.value
+    })
+  }, Object.keys(SOP_EDITABLE).map(k => /*#__PURE__*/React.createElement("option", {
+    key: k,
+    value: k
+  }, SOP_EDITABLE[k].label)))))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, null, "Required reading"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: T.space.md,
+      marginTop: T.space.md
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: !!draft.mustRead,
+    onChange: v => set({
+      mustRead: v
+    })
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: T.text
+    }
+  }, "Everyone who can see this must read and acknowledge it"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2,
+      lineHeight: 1.5
+    }
+  }, "It appears under \"My reading\" for everyone in the audience until they acknowledge it, and you get a list of who has not. Use it for the things that would actually cause a problem if someone did it their own way.")))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, null, "Keeping it current"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 2,
+      marginBottom: T.space.md
+    }
+  }, "An SOP nobody has looked at in three years is worse than no SOP \u2014 people follow it and it is wrong."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 260
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Remind us to review it"), /*#__PURE__*/React.createElement(Select, {
+    value: String(draft.reviewEvery || 0),
+    onChange: e => set({
+      reviewEvery: parseInt(e.target.value, 10) || 0
+    })
+  }, SOP_REVIEW_EVERY.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o.v,
+    value: String(o.v)
+  }, o.l)))), draft.reviewDue && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, "Next review currently set for ", fmtDate(new Date(draft.reviewDue)), ". Publishing resets it."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: T.space.md,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      padding: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 7
+    }
+  }, "Tags"), /*#__PURE__*/React.createElement(SopChipInput, {
+    items: draft.tags,
+    onChange: tags => set({
+      tags
+    }),
+    placeholder: "BAS, ATO\u2026 then press Enter"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 2
+    }
+  }, "Related Academy courses"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: T.space.sm,
+      lineHeight: 1.5
+    }
+  }, "Point people at the course that teaches the software, so this SOP can stay about your process."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 5,
+      flexWrap: 'wrap'
+    }
+  }, ACADEMY_COURSES.map(c => {
+    const on = (draft.relatedCourseIds || []).indexOf(c.id) !== -1;
+    return /*#__PURE__*/React.createElement(Chip, {
+      key: c.id,
+      size: "sm",
+      selected: on,
+      onClick: () => set({
+        relatedCourseIds: on ? (draft.relatedCourseIds || []).filter(x => x !== c.id) : (draft.relatedCourseIds || []).concat(c.id)
+      })
+    }, c.title);
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 2
+    }
+  }, "Do it in Sole"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: T.space.sm,
+      lineHeight: 1.5
+    }
+  }, "Deep links so a reader can jump straight to the screen the step is about."), /*#__PURE__*/React.createElement(SopLinksEditor, {
+    links: draft.links,
+    onChange: links => set({
+      links
+    })
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: T.space.lg,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: T.muted,
+      marginBottom: 7
+    }
+  }, "Attachments"), /*#__PURE__*/React.createElement(SopAttachmentsEditor, {
+    files: draft.attachments,
+    onChange: attachments => set({
+      attachments
+    }),
+    fireToast: fireToast
+  }))))), /*#__PURE__*/React.createElement(Modal, {
+    open: publishOpen,
+    onClose: () => setPublishOpen(false),
+    title: "Who should be able to read this?",
+    subtitle: "It is private right now, so nobody else can see it yet.",
+    width: 560
+  }, /*#__PURE__*/React.createElement(SopVisibilityEditor, {
+    sop: draft,
+    set: set
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: T.space.sm,
+      marginTop: T.space.xl,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "check",
+    onClick: doPublish,
+    disabled: (draft.visibility || 'firm') === 'private' || draft.visibility === 'teams' && !(draft.teams || []).length
+  }, "Publish"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    onClick: () => setPublishOpen(false)
+  }, "Cancel")), (draft.visibility || 'firm') === 'private' && /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: T.space.sm
+    }
+  }, "Pick firm-wide or specific teams to publish. A private SOP stays a draft.")));
+};
 const PracticeApp = () => {
   const [route, setRoute] = useState(() => parsePracticeHash(window.location.hash));
   const [toast, setToast] = useState(null);
@@ -112590,7 +117211,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' || route.section === 'prompts-mine' || route.section === 'prompts-favs' ? 'prompts' : route.section === 'academy-courses' || route.section === 'academy-paths' || route.section === 'academy-progress' || route.section === 'course' ? 'academy' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' || route.section === 'prompts-mine' || route.section === 'prompts-favs' ? 'prompts' : route.section === 'academy-courses' || route.section === 'academy-paths' || route.section === 'academy-progress' || route.section === 'course' ? 'academy' : route.section === 'sops-mine' || route.section === 'sops-drafts' || route.section === 'sops-templates' || route.section === 'sop' || route.section === 'sop-edit' ? 'sops' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -112725,6 +117346,38 @@ const PracticeApp = () => {
         return /*#__PURE__*/React.createElement(CoursePlayerPage, {
           key: route.id,
           courseId: route.id,
+          fireToast: fireToast
+        });
+      case 'sops':
+        return /*#__PURE__*/React.createElement(SopLibraryPage, {
+          view: "all",
+          fireToast: fireToast
+        });
+      case 'sops-mine':
+        return /*#__PURE__*/React.createElement(SopLibraryPage, {
+          view: "mine",
+          fireToast: fireToast
+        });
+      case 'sops-drafts':
+        return /*#__PURE__*/React.createElement(SopLibraryPage, {
+          view: "drafts",
+          fireToast: fireToast
+        });
+      case 'sops-templates':
+        return /*#__PURE__*/React.createElement(SopLibraryPage, {
+          view: "templates",
+          fireToast: fireToast
+        });
+      case 'sop':
+        return /*#__PURE__*/React.createElement(SopReaderPage, {
+          key: route.id,
+          sopId: route.id,
+          fireToast: fireToast
+        });
+      case 'sop-edit':
+        return /*#__PURE__*/React.createElement(SopEditorPage, {
+          key: route.id,
+          sopId: route.id,
           fireToast: fireToast
         });
       case 'spm-forecast':
