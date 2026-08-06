@@ -190,6 +190,18 @@
   }
   .lesson b{display:block; font-size:12px; font-weight:650}
   .lesson small{display:block; font-size:10.5px; color:var(--muted); margin-top:1px}
+  /* Chapters that aren't recorded yet: same row, but visibly NOT a play button.
+     The app's rule is that no surface may offer playback for a chapter that
+     isn't fully recorded, so this is a plain div with a status chip. */
+  .lesson.pending{cursor:default; background:var(--card); border-style:dashed}
+  .lesson.pending .ic{background:var(--field); color:var(--muted-soft)}
+  .lesson.pending b{color:var(--text-soft)}
+  .status{
+    flex-shrink:0; padding:2px 7px; border-radius:99px;
+    font-size:9.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+  }
+  .status.recording{background:var(--amber-soft); color:#92400E}
+  .status.planned{background:var(--field); color:var(--muted); border:1px solid var(--border)}
 
   .note{
     margin-top:14px; padding:12px 14px; border-radius:var(--r);
@@ -273,7 +285,16 @@
      detail  the formula in words + how to read the number
      good    what normal looks like — this is what answers "why is it 844%?!"
      band    the unit/target, shown as a small chip
-     lesson  { course, chapter, title, mins } → deep link to that Academy chapter
+     lesson  { course, chapter } — IDS ONLY, from ACADEMY_COURSES in index.html
+
+   `lesson` deliberately carries no title or minutes. It used to, and when the
+   Academy was restructured every one of those went stale in the same commit —
+   6 of 7 course ids stopped existing and the tour offered links to "Course not
+   found" without warning. Title, duration and recording status are now read at
+   render time from the generated Academy index in assets/annotated/pins.js, so
+   this page names a chapter and never restates a fact about it. A ref that stops
+   resolving hides its row and warns in the console instead of shipping a dead
+   link. Re-run scripts/capture-annotated.mjs after any curriculum change.
 
    If `short` needs more than ~18 words, the LABEL is the problem, not the
    explanation. Flag the label instead of writing a longer apology for it.
@@ -289,66 +310,67 @@ const SCREENS = [
         short: 'What you have actually invoiced so far this calendar month.',
         detail: 'Invoiced fees dated inside the current month, recurring plus one-off. It counts what you billed, not what you were paid — money still owed to you sits in Debtors, not here.',
         good: 'Compare it with the same month last year rather than last month; most practices are seasonal around lodgement deadlines.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-6', title: 'Time tracker', mins: 5 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-6' },
       },
       'Net Profit Margin': {
         band: 'target 30%+ · profit ÷ revenue',
         short: 'What is left of every dollar you bill after the cost of doing the work.',
         detail: '(Revenue − cost of delivery) ÷ revenue. Cost of delivery is staff time at cost rate plus recoverable expenses. It is calculated per service line, so a healthy overall figure can still hide one line losing money.',
         good: 'Most practices target 30%+ overall. If one service line sits under 15%, that line is priced wrong, not busy.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-6', title: 'Time tracker', mins: 5 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-6' },
       },
       'Utilisation Rate': {
         band: 'target 80% · billable ÷ available hrs',
         short: "How much of the team's available time went on work you can bill for.",
         detail: 'Billable hours ÷ available hours. Careful: this figure is measured against RAW available hours here, but against TARGET billable hours on Margin by Person — so the same person reads higher there. Compare a person to themselves over time, not across the two screens.',
         good: 'Target is 80%. Above ~100% means someone is working beyond their contracted hours, which is a roster problem rather than a good result.',
-        lesson: { course: 'c-teams', chapter: 'l-tm-3', title: 'Service Lines', mins: 4 },
+        lesson: { course: 'c-teams', chapter: 'l-tm-3' },
       },
       'Realisation Rate': {
         band: 'target 85–95% · billed ÷ recorded',
         short: 'The share of the time you recorded that you actually billed.',
         detail: 'Billed value ÷ the value of all time recorded, at standard rates. 100% means every logged hour reached an invoice. 89% means 11% never did — written off, absorbed into a fixed fee, or still sitting in WIP.',
         good: 'Most firms sit 85–95%. Under 80% usually means scope creep, or fixed fees priced below the work it takes.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-6', title: 'Time tracker', mins: 5 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-6' },
       },
       'Total WIP Value': {
         band: 'done, not yet invoiced · AUD',
         short: 'Work you have already done but have not invoiced yet.',
         detail: 'Recorded time plus recoverable expenses on open jobs, valued at charge rates, that has not yet reached an invoice. It is money you have earned and not asked for.',
         good: 'Age matters more than size. Anything past 90 days is usually written off, so watch the ageing bands rather than the total.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-6', title: 'Time tracker', mins: 5 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-6' },
       },
       'Jobs Overdue': {
         band: 'past internal due date',
         short: 'Jobs that have gone past the due date you set internally.',
         detail: 'Counted against your own internal deadline, not the ATO one — so a job can be overdue here while still being safely ahead of its lodgement date. Jobs marked "Waiting on client" are paused and excluded.',
         good: 'Rising is bad even when the number is small. Watch the direction more than the count.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-5', title: 'Job Management', mins: 8 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-5' },
       },
       'Available Capacity': {
         band: 'unbooked hrs · next 7 days',
         short: 'Team hours in the next week that nothing is booked into yet.',
         detail: 'Contracted hours minus already-assigned work across the team, for the next seven days. Leave and public holidays are already taken out.',
         good: 'Some slack is healthy — a team at zero free hours cannot absorb a single urgent job.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-1', title: 'Staff Scheduler & Capacity', mins: 7 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-1' },
       },
       'Financial health': {
         short: 'Where the money came from this month, and which work actually earned.',
         detail: 'Revenue trend, WIP ageing, the split between recurring and one-off fees, and profitability per service line. "Drill in" on any card opens the jobs or contracts behind the number.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-6', title: 'Time tracker', mins: 5 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-6' },
       },
       'Revenue trend': {
         short: 'Invoiced fees week by week, so you can see the shape rather than one total.',
         detail: 'Each point is the running invoiced value at that date. A flat stretch mid-month usually means invoicing has stalled, not that work has.',
         good: 'A step pattern is normal — most firms invoice in batches. A long flat tail near month-end is the warning sign.',
+        lesson: { course: 'c-firm-overview', chapter: 'l-fo-1' },
       },
       'WIP ageing': {
         band: 'unbilled work by age',
         short: 'How long your unbilled work has been sitting there, in four age bands.',
         detail: 'Splits open WIP by the age of its oldest time entry: 0–30, 31–60, 61–90 and 90+ days. The colour is the risk of never collecting it.',
         good: 'Treat 60 days as your deadline to invoice or write off deliberately. Past 90 days, most of it is gone.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-6', title: 'Time tracker', mins: 5 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-6' },
       },
     },
   },
@@ -362,75 +384,75 @@ const SCREENS = [
         short: 'Everything you have quoted that has not been won or lost yet.',
         detail: 'Total value of deals still open, at full value — not discounted by likelihood. The committed forecast is the realistic version of this number.',
         good: 'Compare against the revenue you need. A pipeline smaller than one quarter of target is a selling problem, not a delivery one.',
-        lesson: { course: 'c-deals', chapter: 'l-deals-1', title: 'Pipeline Forecast', mins: 6 },
+        lesson: { course: 'c-deals', chapter: 'l-deals-1' },
       },
       'Committed forecast': {
         band: 'deal value × likelihood',
         short: 'Your open deals discounted by how likely each one is to close.',
         detail: "Each deal's value multiplied by the likelihood of its current stage, which you can override per deal. A $100k deal at 40% counts as $40k. The uncommitted view instead treats every open deal as won — that is the ceiling, not the forecast.",
         good: 'Use committed for planning cash, and uncommitted for stress-testing whether you could actually deliver it all.',
-        lesson: { course: 'c-deals', chapter: 'l-deals-1', title: 'Pipeline Forecast', mins: 6 },
+        lesson: { course: 'c-deals', chapter: 'l-deals-1' },
       },
       'Forecast hours': {
         band: 'delivery load · hrs',
         short: 'The hours it would take to deliver the work in your pipeline.',
         detail: 'Budgeted hours on open deals, weighted by the same likelihood used for the committed forecast, spread across the months the work is expected to land in.',
         good: 'Read it next to Available Capacity. Winning work you cannot staff is how a good month becomes a bad one.',
-        lesson: { course: 'c-deals', chapter: 'l-deals-1', title: 'Pipeline Forecast', mins: 6 },
+        lesson: { course: 'c-deals', chapter: 'l-deals-1' },
       },
       'Unallocated hours': {
         band: 'work with nobody on it',
         short: 'Work that has been sold but not yet given to anyone to do.',
         detail: 'Budgeted hours on live jobs with no staff member assigned. It is the gap between what you promised and what is actually rostered.',
         good: 'Should trend to zero as the month starts. Anything still unallocated inside a fortnight of the deadline will slip.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-1', title: 'Staff Scheduler & Capacity', mins: 7 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-1' },
       },
       'People over capacity': {
         band: 'count · booked beyond contracted hrs',
         short: 'How many of your team are booked for more hours than they have.',
         detail: 'Counts staff whose assigned work exceeds their contracted hours for the period. One person badly over is usually worse than three slightly over.',
         good: 'Zero is the target. Rebalance in the Staff Scheduler rather than hoping it absorbs.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-2', title: 'Capacity & Workload Planner', mins: 6 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-2' },
       },
       'Expected starts': {
         band: 'dated pipeline · count',
         short: 'Deals with a start date, so you know when the work would actually arrive.',
         detail: 'Open deals that carry an expected start date, counted in the selected period. Deals with no date are excluded — they cannot be planned for.',
         good: 'A big pipeline with few dated starts means your forecast is a guess. Chase start dates before trusting the capacity view.',
-        lesson: { course: 'c-deals', chapter: 'l-deals-1', title: 'Pipeline Forecast', mins: 6 },
+        lesson: { course: 'c-deals', chapter: 'l-deals-1' },
       },
       'Open renewal value': {
         band: 'recurring up for renewal · AUD',
         short: 'Recurring fees that are due to renew and have not been confirmed yet.',
         detail: 'Annual value of retainers and recurring engagements whose renewal date falls in the period and which the client has not yet re-signed.',
         good: 'This is usually your cheapest revenue to win. Treat it before chasing new deals.',
-        lesson: { course: 'c-deals', chapter: 'l-deals-2', title: 'Deals', mins: 7 },
+        lesson: { course: 'c-deals', chapter: 'l-deals-2' },
       },
       'Renewals due': {
         band: 'count · next 90 days',
         short: 'How many recurring clients are up for renewal in the next quarter.',
         detail: 'Count of recurring engagements with a renewal date inside 90 days, regardless of value.',
         good: 'Work these in date order. A renewal chased after its date has already become a negotiation.',
-        lesson: { course: 'c-deals', chapter: 'l-deals-2', title: 'Deals', mins: 7 },
+        lesson: { course: 'c-deals', chapter: 'l-deals-2' },
       },
       'At high churn risk': {
         band: 'needs attention · count',
         short: 'Renewing clients showing the warning signs of leaving.',
         detail: 'Flags renewals where the client experience score, responsiveness or on-time delivery has dropped since the last renewal. It is a prediction, not a decision they have made.',
         good: 'Ring these before you send the renewal, not after. The score usually fell for a reason you can still fix.',
-        lesson: { course: 'c-clients', chapter: 'l-cl-1', title: 'Clients Management', mins: 6 },
+        lesson: { course: 'c-clients', chapter: 'l-cl-1' },
       },
       'Pipeline forecast': {
         short: 'Month by month, what you expect to win and what it takes to deliver.',
         detail: 'Two scenarios side by side: committed (each deal discounted by its likelihood) and uncommitted (every open deal treated as won). The gap between them is your risk.',
-        lesson: { course: 'c-deals', chapter: 'l-deals-1', title: 'Pipeline Forecast', mins: 6 },
+        lesson: { course: 'c-deals', chapter: 'l-deals-1' },
       },
       'Resource impact': {
         band: 'green <85% · amber 85–100% · red >100%',
         short: 'What your open pipeline would do to each person if every deal landed.',
         detail: "Committed hours plus pipeline hours for the period ÷ that person's billable target hours. It deliberately ignores whether you will actually win the work, which is why it can read far over 100%.",
         good: 'Green under 85%, amber to 100%, red above. Anything past ~150% is an allocation error rather than a capacity problem — the same person has been named on too many open deals. Check the deal allocations before you panic.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-2', title: 'Capacity & Workload Planner', mins: 6 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-2' },
       },
     },
   },
@@ -444,59 +466,108 @@ const SCREENS = [
         short: 'Jobs still on time today that are on track to be late.',
         detail: 'Jobs whose remaining work will not fit before the deadline at the current rate of progress. They are a warning, not yet a failure — unlike overdue jobs, there is still time to act.',
         good: 'This is the list to work from in a morning stand-up. Overdue is already too late.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-5', title: 'Job Management', mins: 8 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-5' },
       },
       'Overdue jobs': {
         band: 'past internal due date',
         short: 'Jobs that have gone past the due date you set internally.',
         detail: 'Counted against your own internal deadline, not the ATO one — so a job can be overdue here while still being safely ahead of its lodgement date. Jobs marked "Waiting on client" are paused and excluded.',
         good: 'Rising is bad even when the number is small. Watch the direction more than the count.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-5', title: 'Job Management', mins: 8 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-5' },
       },
       'Value at risk': {
         band: 'fees on overdue jobs · AUD',
         short: 'The fees attached to the jobs that are running late.',
         detail: 'Total agreed fee value of all overdue jobs. It shows which delays actually matter — five late $500 jobs are a smaller problem than one late $40k job.',
         good: 'Sort by this rather than by job count when you have to choose what to rescue first.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-5', title: 'Job Management', mins: 8 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-5' },
       },
       'Team overload': {
         band: 'people booked past their hours',
         short: 'Whether anyone is booked to do more hours than they actually have.',
         detail: 'Flags any team member whose assigned work exceeds their contracted hours for the period, and names the worst case.',
         good: 'HIGH means someone will miss a deadline or work unpaid overtime. Rebalance in the Staff Scheduler.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-2', title: 'Capacity & Workload Planner', mins: 6 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-2' },
       },
       'Blocked jobs': {
         band: 'stopped, waiting on something',
         short: 'Jobs that cannot move until someone else does something.',
         detail: 'Usually waiting on client information, an internal review, or a lodgement window. Time marked "Waiting on client" is paused and does not count against your experience score.',
         good: 'Blocked is fine for a day and expensive for a fortnight. Chase anything over a week.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-3', title: 'Work Management', mins: 6 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-3' },
       },
       'Avg delay': {
         band: 'days late · overdue jobs only',
         short: 'When a job is late, how late it typically is.',
         detail: 'Average days past due across currently overdue jobs only. On-time jobs are not counted, so this measures severity rather than how often you are late.',
         good: 'A small count with a big average delay means a few jobs are badly stuck — find them rather than reading the average.',
-        lesson: { course: 'c-deliver', chapter: 'l-dl-5', title: 'Job Management', mins: 8 },
+        lesson: { course: 'c-deliver', chapter: 'l-dl-5' },
       },
       'Operational snapshot': {
         short: 'Eight signals to read in the morning before you plan the day.',
         detail: 'A read-only strip. Every signal here has a fuller section further down the page — this row exists so you can spot which one to open.',
-        lesson: { course: 'c-get-started', chapter: 'l-gs-2', title: 'Finding your way around', mins: 5 },
+        lesson: { course: 'c-get-started', chapter: 'l-gs-2' },
       },
     },
   },
 ];
 
 /* ---------- wiring (no coordinates below this line) ---------- */
-const PINS  = window.SCREEN_TOUR_PINS || {};
+const PINS    = window.SCREEN_TOUR_PINS || {};
+const ACADEMY = window.SCREEN_TOUR_ACADEMY || {};
+
+// Resolve a { course, chapter } ref against the generated Academy index.
+// Returns null when it doesn't resolve, so a future curriculum change makes the
+// row disappear (with a console warning) instead of linking to "Course not found".
+function resolveLesson(ref) {
+  if (!ref || !ref.course || !ref.chapter) return null;
+  const c = ACADEMY[ref.course];
+  const l = c && c.lessons && c.lessons[ref.chapter];
+  if (!l) { console.warn(`[screen-tour] chapter ref not in Academy: ${ref.course}/${ref.chapter}`); return null; }
+  // `published` is the ONLY status that may offer playback — the in-app Academy
+  // applies the same rule, so the tour must not promise a video it can't play.
+  return {
+    href: `index.html#/practice/course/${ref.course}/${ref.chapter}`,
+    course: c.title, title: l.title, mins: l.mins,
+    status: l.status, playable: l.status === 'published',
+  };
+}
 const $     = (id) => document.getElementById(id);
 const esc   = (s) => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 
 const ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 const ICON_PLAY  = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 3 14 9-14 9V3z"/></svg>';
+// Deliberately NOT a play triangle — used for chapters that aren't recorded yet.
+const ICON_BOOK  = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
+
+// The Sole Academy row under a definition. Three states, and the distinction is
+// a product rule rather than styling: a chapter that isn't fully recorded must
+// not be offered as something you can play.
+//   published            → real link, play icon, deep-linked to the exact chapter
+//   recording / planned  → dashed row, no link, status chip
+//   unresolved ref       → nothing (resolveLesson has already warned)
+//
+// The href is a SIBLING path, not "../index.html": the deploy workflow flattens
+// pages/ to the hosting root, so screen-tour.html and index.html end up side by
+// side. Same convention as hub.html.
+function lessonRow(ref) {
+  const L = resolveLesson(ref);
+  if (!L) return '';
+  // "Sole Academy" is the section label rather than part of the row, so the
+  // row's second line stays one line: `<course> · <mins> min`.
+  const meta = `${esc(L.course)}${L.mins ? ' · ' + esc(L.mins) + ' min' : ''}`;
+  const row = L.playable
+    ? `<a class="lesson" href="${esc(L.href)}">
+         <span class="ic">${ICON_PLAY}</span>
+         <span style="flex:1;min-width:0"><b>${esc(L.title)}</b><small>${meta}</small></span>
+       </a>`
+    : `<div class="lesson pending" title="This chapter isn't recorded yet, so there's nothing to play.">
+         <span class="ic">${ICON_BOOK}</span>
+         <span style="flex:1;min-width:0"><b>${esc(L.title)}</b><small>${meta}</small></span>
+         <span class="status ${esc(L.status)}">${L.status === 'recording' ? 'Being recorded' : 'Planned'}</span>
+       </div>`;
+  return `<div><div class="lbl">In Sole Academy</div>${row}</div>`;
+}
 
 // Join authored copy to measured geometry. A term with no measured pin is
 // dropped (and reported in the console) rather than guessed at.
@@ -624,16 +695,10 @@ function sync() {
     d.innerHTML = [
       r.detail ? `<div><div class="lbl">How it's worked out</div><p>${esc(r.detail)}</p></div>` : '',
       r.good ? `<div class="good">${ICON_CHECK}<p>${esc(r.good)}</p></div>` : '',
-      // Sibling path, not "../index.html": the deploy workflow flattens pages/
-      // to the hosting root, so screen-tour.html and index.html end up side by
-      // side. Same convention as hub.html. Links straight to the CHAPTER — the
-      // app's router gained a 3rd hash segment in #96, so the old
-      // course-only workaround is no longer needed.
-      r.lesson ? `<a class="lesson" href="index.html#/practice/course/${esc(r.lesson.course)}${r.lesson.chapter ? '/' + esc(r.lesson.chapter) : ''}">
-          <span class="ic">${ICON_PLAY}</span>
-          <span style="flex:1;min-width:0"><b>${esc(r.lesson.title)}</b>
-          <small>Sole Academy · ${esc(r.lesson.mins)} min</small></span>
-        </a>` : '',
+      // Deep-links straight to the CHAPTER — the app's router gained a 3rd hash
+      // segment in #96, so the old course-only workaround is gone. See lessonRow
+      // for the path convention and the recording-status rule.
+      lessonRow(r.lesson),
     ].join('');
     el.appendChild(d);
   });
