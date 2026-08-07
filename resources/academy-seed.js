@@ -228,7 +228,18 @@
   /* ==== SOLE — small-business app (B2C) =================================== */
   /* SKELETON ONLY. Rename, reorder and fill these in the Studio — the real B2C
      outline belongs to the content team. Johann noted the B2C videos already
-     exist, so the first real job here is pointing lessons at them. */
+     exist, so the first real job here is pointing lessons at them.
+
+     ⚠️ HEADS UP (2026-08-06): a real B2C curriculum now SHIPS in the prototype —
+     `pages/unibox.html` + `pages/unibox-mobile.html` carry 7 tracks / 12 modules /
+     34 chapters with ids like `c-invoice` / `l-inv-1`. The ids below (`b-c-invoices`,
+     `b-l-…`) do NOT match it. Ids are learner-progress keys, so authoring against
+     this skeleton and publishing would orphan every completion recorded in the app.
+     Reconcile this document with the shipped one before the team starts editing —
+     see docs/ACADEMY_INTEGRATION.md ("Who reads it today") and docs/BACKLOG.md.
+     The shipped shape also uses `tracks` (not `categories`), a per-module
+     `menuGroup` + `icon`, and a required per-chapter
+     `status: 'published' | 'recording' | 'planned'`. */
   var sole = {
     product: 'sole',
     meta: {

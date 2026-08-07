@@ -1776,161 +1776,167 @@ const ACADEMY_SAMPLE_2 = 'https://commondatastorage.googleapis.com/gtv-videos-bu
 // app already uses for that surface, so the AcademyThumb watermark IS the thing
 // you're about to learn. Every category carries at least one course (an empty one
 // gets filtered out of the chip row and looks broken).
-const ACADEMY_CATEGORIES = [
-  { id: 'get-started', label: 'Get started',          icon: 'rocket',   color: T.primary, blurb: 'Set Sole up and find your way around' },
-  { id: 'get-paid',    label: 'Get paid',             icon: 'dollar',   color: T.green,   blurb: "Quotes, invoices and chasing what you're owed" },
-  { id: 'books',       label: 'Keep your books tidy', icon: 'bank',     color: T.blue,    blurb: 'Bank feed, receipts and expenses — a few minutes a day' },
-  { id: 'tax',         label: 'Tax & GST',            icon: 'percent',  color: T.amber,   blurb: 'BAS, GST set aside and super, in plain English' },
-  { id: 'numbers',     label: 'Know your numbers',    icon: 'chartBar', color: T.primary, blurb: 'Assets, what you owe, and the reports worth reading' },
-  { id: 'work',        label: 'Track your work',      icon: 'clock',    color: T.blue,    blurb: 'Time, jobs and kilometres you can actually bill for' },
-  { id: 'grow',        label: 'Get more from Sole',   icon: 'trendUp',  color: T.green,   blurb: 'Plans, add-ons, perks and the free stuff' },
+const ACADEMY_TRACKS = [
+  { id: 'get-started', label: 'Get started',          color: T.primary, blurb: 'Set Sole up and find your way around' },
+  { id: 'get-paid',    label: 'Get paid',             color: T.green,   blurb: "Quotes, invoices and chasing what you're owed" },
+  { id: 'books',       label: 'Keep your books tidy', color: T.blue,    blurb: 'Bank feed, receipts and expenses — a few minutes a day' },
+  { id: 'tax',         label: 'Tax & GST',            color: T.amber,   blurb: 'BAS, GST set aside and super, in plain English' },
+  { id: 'numbers',     label: 'Know your numbers',    color: T.primary, blurb: 'Assets, what you owe, and the reports worth reading' },
+  { id: 'work',        label: 'Track your work',      color: T.blue,    blurb: 'Time, jobs and kilometres you can actually bill for' },
+  { id: 'grow',        label: 'Get more from Sole',   color: T.green,   blurb: 'Plans, add-ons, perks and the free stuff' },
 ];
-const academyCatById = (id) => ACADEMY_CATEGORIES.find(c => c.id === id) || { id, label: id, icon: 'bookOpen', color: T.primary, blurb: '' };
+const trackById = (id) => ACADEMY_TRACKS.find(t => t.id === id) || { id, label: id, color: T.primary, blurb: '' };
+// One lookup for everything a card or thumbnail needs to draw a module's identity:
+// the module's OWN icon (its menu glyph) plus its track's label and hue.
+const moduleFace = (course) => {
+  const t = trackById(course && course.track);
+  return { trackId: t.id, trackLabel: t.label, blurb: t.blurb, color: t.color, icon: (course && course.icon) || 'bookOpen' };
+};
 
 // Courses → lessons. Every course is grounded in a surface that exists in this app.
 // Add-on-gated lessons say so in their description — the catalog is deliberately NOT
 // filtered by the active module set, because reading about an add-on is how someone
 // decides to switch it on.
 const ACADEMY_COURSES = [
-  { id: 'c-start', title: 'Getting started with Sole', category: 'get-started', level: 'Beginner',
+  { id: 'c-start', title: 'Getting started with Sole', menuGroup: 'Getting started', track: 'get-started', icon: 'rocket', level: 'Beginner',
     summary: 'A guided tour of Sole — what each part does, how to set your business up, and where to start.',
     lessons: [
-      { id: 'l-start-1', title: 'Welcome to Sole', mins: 4, videoUrl: ACADEMY_SAMPLE_1,
+      { id: 'l-start-1', title: 'Welcome to Sole', mins: 4, status: 'published', videoUrl: ACADEMY_SAMPLE_1,
         description: 'A four-minute tour of the whole app — Unibox, your Dashboard and the menu down the left — so you know where everything lives before you touch anything.',
         takeaways: ['What Unibox, the Dashboard and the left-hand menu are each for', 'How your plan plus add-ons decides what you see', 'Where to go first depending on what you need today'],
         transcript: "Welcome to Sole. Sole is one app for the money side of your business — invoices going out, expenses coming in, and the tax you'll owe on whatever's left. This takes about four minutes, and by the end you'll know where everything lives.\n\nStart with Unibox. It's your daily list: invoices to send, invoices to chase, bank lines to match, receipts to attach. If you only open one screen a day, open that one. The Dashboard behind it is the wider picture — revenue, profit, what's forecast — and the menu on the left is where you go when you want to dig into one thing: Sales, Expenses, Assets, Reporting.\n\nSole is modular, so you only see what you're paying for. Your plan gives you invoicing, expenses and assets; add-ons switch on things like bank feeds, time tracking or a kilometre logbook. Don't try to learn all of it today. Five minutes a day is genuinely enough, and there's a short lesson here for every part of it.",
         resources: [{ label: 'Sole quick-start checklist', href: '#' }, { label: 'Small Business Launch Toolkit', href: '#' }] },
-      { id: 'l-start-2', title: 'Set up your business: ABN, GST and your logo', mins: 5,
+      { id: 'l-start-2', title: 'Set up your business: ABN, GST and your logo', mins: 5, status: 'recording',
         description: "Add your business name, ABN and contact details, tell Sole whether you're registered for GST, and drop your logo on so invoices go out looking like you." },
-      { id: 'l-start-3', title: 'Connect your bank feed', mins: 5,
+      { id: 'l-start-3', title: 'Connect your bank feed', mins: 5, status: 'recording',
         description: 'Link your business account so transactions arrive on their own, then watch Sole start suggesting what each one belongs to. Part of the Accounting add-on.' },
-      { id: 'l-start-4', title: 'Bringing your history across from another tool', mins: 6,
+      { id: 'l-start-4', title: 'Bringing your history across from another tool', mins: 6, status: 'recording',
         description: "Use Migrations to bring invoices, contacts and balances over from Xero, MYOB or a spreadsheet — and what's worth bringing versus starting clean." },
     ] },
 
-  { id: 'c-unibox', title: 'Your daily five minutes in Unibox', category: 'get-started', level: 'Beginner',
+  { id: 'c-unibox', title: 'Your daily five minutes in Unibox', menuGroup: 'Unibox', track: 'get-started', icon: 'inbox', level: 'Beginner',
     summary: 'Unibox is the one screen that tells you what needs you today. Learn to clear it in the time it takes to drink a coffee.',
     lessons: [
-      { id: 'l-ub-1', title: 'Why Unibox is the only screen you need', mins: 5, videoUrl: ACADEMY_SAMPLE_2,
+      { id: 'l-ub-1', title: 'Why Unibox is the only screen you need', mins: 5, status: 'published', videoUrl: ACADEMY_SAMPLE_2,
         description: 'How Unibox reads your books and turns them into a short, ranked list of things that actually need you — and why everything else stays out of the way until you ask for it.',
         takeaways: ['Why your five most urgent things are all you need to look at', 'How clearing one item lifts your business health score', 'What the streak counts — and what it never does'],
         transcript: "Most accounting software hands you a dashboard and leaves you to work out what to do with it. Unibox does the opposite. It reads your books and gives you a list of things that actually need you today — and nothing else.\n\nAt the top you'll see \"If you've got 5 minutes\". That's your five most urgent items, ranked: overdue invoices first, then invoices waiting to go out, then bank lines to match and receipts to attach. Clear one and the next moves up, so a backlog of seventeen still gets worked through five at a time. Everything else sits behind \"Show everything else\" until you want it.\n\nAbove the list is your business health score. It starts at 100, drops when things pile up, and lifts back as you clear them — plus a streak for the days you check in. Neither one is homework. They're there so you can tell in a single glance whether you're on top of it. When the list is empty you'll get \"You're all clear\", and you can shut the laptop." },
-      { id: 'l-ub-2', title: 'Clearing your top five', mins: 4,
+      { id: 'l-ub-2', title: 'Clearing your top five', mins: 4, status: 'published', videoUrl: ACADEMY_SAMPLE_1,
         description: "Work the \"If you've got 5 minutes\" card: send, chase, match, categorise — all without leaving the row you're on." },
-      { id: 'l-ub-3', title: "Business health, streaks and what they're for", mins: 4,
+      { id: 'l-ub-3', title: "Business health, streaks and what they're for", mins: 4, status: 'published', videoUrl: ACADEMY_SAMPLE_2,
         description: 'What lowers your health score, what lifts it, what the streak actually counts, and why neither is something to feel bad about on a quiet week.' },
     ] },
 
-  { id: 'c-invoice', title: 'Invoices that get paid', category: 'get-paid', level: 'Beginner',
+  { id: 'c-invoice', title: 'Invoices that get paid', menuGroup: 'Sales', track: 'get-paid', icon: 'dollar', level: 'Beginner',
     summary: 'From quote to paid: build an invoice, set terms that protect your cash flow, and take payment on the spot.',
     lessons: [
-      { id: 'l-inv-1', title: 'Your first invoice, start to finish', mins: 6,
+      { id: 'l-inv-1', title: 'Your first invoice, start to finish', mins: 6, status: 'recording',
         description: 'Pick a contact, add your lines, check the GST, hit send. Then see where it lands in Unibox while it waits to be paid.',
         resources: [{ label: 'Deposit Invoice Template', href: '#' }, { label: 'Multi-Currency Invoice Template', href: '#' }] },
-      { id: 'l-inv-2', title: 'Deposits, terms and getting paid on the spot', mins: 5,
+      { id: 'l-inv-2', title: 'Deposits, terms and getting paid on the spot', mins: 5, status: 'recording',
         description: 'Ask for a deposit before you start, set payment terms you can actually enforce, and let customers pay by card, Apple Pay or Google Pay straight off the invoice.' },
-      { id: 'l-inv-3', title: 'From accepted quote to invoice in one tap', mins: 4,
+      { id: 'l-inv-3', title: 'From accepted quote to invoice in one tap', mins: 4, status: 'recording',
         description: "Send a quote, track whether it's been accepted, then convert it into an invoice without retyping a thing. Needs the Business plan or above." },
     ] },
 
-  { id: 'c-chase', title: "Chasing what you're owed", category: 'get-paid', level: 'Beginner',
+  { id: 'c-chase', title: "Chasing what you're owed", menuGroup: 'Sales', track: 'get-paid', icon: 'send', level: 'Beginner',
     summary: 'Late payers are the number-one cash-flow killer. How to nudge, follow up and escalate without the awkwardness.',
     lessons: [
-      { id: 'l-chase-1', title: 'Reminders before an invoice is even late', mins: 4,
+      { id: 'l-chase-1', title: 'Reminders before an invoice is even late', mins: 4, status: 'planned',
         description: "Unibox flags invoices due in the next couple of days so you can send a friendly nudge while it's still early — the cheapest way there is to get paid on time." },
-      { id: 'l-chase-2', title: 'Following up an overdue invoice', mins: 6,
+      { id: 'l-chase-2', title: 'Following up an overdue invoice', mins: 6, status: 'planned',
         description: 'Use the follow-up panel to send a firm-but-friendly email in two clicks, and learn what to say at 7 days, 14 days and 30 days overdue.',
         resources: [{ label: 'Invoice Rescue — overdue payment reminder templates', href: '#' }, { label: 'The Getting-Paid Checklist for your industry', href: '#' }] },
-      { id: 'l-chase-3', title: 'When to stop chasing', mins: 4,
+      { id: 'l-chase-3', title: 'When to stop chasing', mins: 4, status: 'planned',
         description: "What to do when the emails aren't working — payment plans, letters of demand, and how to decide when it's cheaper to write it off and move on." },
     ] },
 
-  { id: 'c-bankfeed', title: 'Matching your bank feed', category: 'books', level: 'Beginner',
+  { id: 'c-bankfeed', title: 'Matching your bank feed', menuGroup: 'Transactions', track: 'books', icon: 'bank', level: 'Beginner',
     summary: 'Your bank feed is the difference between guessing and knowing. Clear it in a couple of minutes a day.',
     lessons: [
-      { id: 'l-bf-1', title: 'How matching works — and why Sole suggests', mins: 5,
+      { id: 'l-bf-1', title: 'How matching works — and why Sole suggests', mins: 5, status: 'planned',
         description: 'What a bank feed actually is, why every line needs a home, and how Sole reads amounts, dates and memos to suggest a match with a confidence score.' },
-      { id: 'l-bf-2', title: 'Money in: matching deposits to invoices', mins: 5,
+      { id: 'l-bf-2', title: 'Money in: matching deposits to invoices', mins: 5, status: 'planned',
         description: 'A deposit lands, Sole suggests the invoice it pays, you confirm. Plus what to do when one payment covers two invoices, or turns up short.' },
-      { id: 'l-bf-3', title: 'Money out: payments, expenses and the odd ones', mins: 5,
+      { id: 'l-bf-3', title: 'Money out: payments, expenses and the odd ones', mins: 5, status: 'planned',
         description: 'Match payments to expenses and bills, categorise the ones with no confident match, and use Ignore for the personal spend that slipped through.',
         resources: [{ label: 'Bank Reconciliation Worksheet — monthly template', href: '#' }] },
     ] },
 
-  { id: 'c-expenses', title: 'Expenses & receipts, without the shoebox', category: 'books', level: 'Beginner',
+  { id: 'c-expenses', title: 'Expenses & receipts, without the shoebox', menuGroup: 'Expenses', track: 'books', icon: 'receipt', level: 'Beginner',
     summary: 'Log it once, photograph the receipt, and never dig through the glovebox at tax time again.',
     lessons: [
-      { id: 'l-exp-1', title: 'Logging an expense and snapping the receipt', mins: 5,
+      { id: 'l-exp-1', title: 'Logging an expense and snapping the receipt', mins: 5, status: 'planned',
         description: 'Log an expense in about ten seconds and attach a photo of the receipt from your phone, so the proof lives with the number forever.' },
-      { id: 'l-exp-2', title: 'Categories: what goes where, and what you can claim', mins: 6,
+      { id: 'l-exp-2', title: 'Categories: what goes where, and what you can claim', mins: 6, status: 'planned',
         description: "Software, fuel, phone, meals, travel — what belongs in each, what's only part-claimable, and why getting it right now saves your accountant's time later." },
-      { id: 'l-exp-3', title: 'The ten-minute weekly tidy-up', mins: 4,
+      { id: 'l-exp-3', title: 'The ten-minute weekly tidy-up', mins: 4, status: 'planned',
         description: 'A repeatable Friday routine: clear the uncategorised, attach the missing receipts, and watch "Expenses are all sorted" turn up in Unibox.' },
     ] },
 
-  { id: 'c-gst', title: 'GST & BAS without the panic', category: 'tax', level: 'Intermediate',
+  { id: 'c-gst', title: 'GST & BAS without the panic', menuGroup: 'Tax Estimator', track: 'tax', icon: 'percent', level: 'Intermediate',
     summary: 'The compliance bit, in plain English: whether you need GST, how to set the money aside, and what to do each quarter.',
     lessons: [
-      { id: 'l-gst-1', title: 'Do you actually need to register for GST?', mins: 5,
+      { id: 'l-gst-1', title: 'Do you actually need to register for GST?', mins: 5, status: 'planned',
         description: 'The $75,000 turnover threshold, what counts towards it, when registering early works in your favour, and what changes on your invoices the day you do.' },
-      { id: 'l-gst-2', title: 'Setting money aside so BAS never stings', mins: 5,
+      { id: 'l-gst-2', title: 'Setting money aside so BAS never stings', mins: 5, status: 'planned',
         description: 'Why the GST you collect was never yours, how the "GST set aside" figure in Liabilities & Equity is worked out, and how to park it before you spend it.',
         resources: [{ label: 'Cash Flow Forecast Template — 12-month planner', href: '#' }] },
-      { id: 'l-gst-3', title: 'Your BAS quarter, step by step', mins: 7,
+      { id: 'l-gst-3', title: 'Your BAS quarter, step by step', mins: 7, status: 'planned',
         description: 'Walk a full quarter: check GST collected against GST paid, resolve anything still unmatched, then lodge before the 28th. Plus what to do if the numbers look wrong.',
         takeaways: ['Where Sole pulls each BAS figure from', 'How to check GST collected against GST paid before you lodge', "What to do if what you set aside doesn't cover it"] },
     ] },
 
-  { id: 'c-tax', title: 'Tax time & super', category: 'tax', level: 'Intermediate',
+  { id: 'c-tax', title: 'Tax time & super', menuGroup: 'Tax Estimator', track: 'tax', icon: 'percent', level: 'Intermediate',
     summary: "Know roughly what you'll owe months before it's due, and sort your own super while you're at it.",
     lessons: [
-      { id: 'l-tax-1', title: 'The Tax Estimator and the dates that apply to you', mins: 5,
+      { id: 'l-tax-1', title: 'The Tax Estimator and the dates that apply to you', mins: 5, status: 'planned',
         description: 'Get a running estimate of your income tax from numbers already in Sole, and work out which key dates are actually yours — BAS, super, TPAR, or just the October return.' },
-      { id: 'l-tax-2', title: "Super when you're the boss", mins: 5,
+      { id: 'l-tax-2', title: "Super when you're the boss", mins: 5, status: 'planned',
         description: "Nobody pays super for a sole trader, so here's how to do it yourself: how much, when, the concessional cap, and how to claim the deduction.",
         resources: [{ label: 'Super Contribution Tracker', href: '#' }] },
     ] },
 
-  { id: 'c-assets', title: 'Assets, loans and what you own', category: 'numbers', level: 'Intermediate',
+  { id: 'c-assets', title: 'Assets, loans and what you own', menuGroup: 'Assets', track: 'numbers', icon: 'layers', level: 'Intermediate',
     summary: 'The $1,899 laptop, the ute loan, the money you draw out — how each one is handled, and why it matters at tax time.',
     lessons: [
-      { id: 'l-asset-1', title: 'Expense or asset? The write-off question', mins: 5,
+      { id: 'l-asset-1', title: 'Expense or asset? The write-off question', mins: 5, status: 'planned',
         description: 'When a purchase is a straight expense and when it becomes an asset you depreciate — plus how the instant asset write-off threshold changes the answer.' },
-      { id: 'l-asset-2', title: 'Recording an asset and letting depreciation run', mins: 5,
+      { id: 'l-asset-2', title: 'Recording an asset and letting depreciation run', mins: 5, status: 'planned',
         description: 'Record a purchase as an asset, link it to the bank payment that bought it, set the method and useful life, then leave depreciation to calculate itself.',
         resources: [{ label: 'Business Asset Register Template', href: '#' }] },
-      { id: 'l-asset-3', title: 'Loans, drawings and money set aside', mins: 5,
+      { id: 'l-asset-3', title: 'Loans, drawings and money set aside', mins: 5, status: 'planned',
         description: "Read Liabilities & Equity: what a loan repayment really is, why owner's drawings aren't an expense, and what those set-aside rows are protecting you from." },
     ] },
 
-  { id: 'c-numbers', title: 'Know your numbers', category: 'numbers', level: 'Intermediate',
+  { id: 'c-numbers', title: 'Know your numbers', menuGroup: 'Reporting Suite', track: 'numbers', icon: 'chartBar', level: 'Intermediate',
     summary: 'A handful of reports and one number that tell you whether this is actually working.',
     lessons: [
-      { id: 'l-num-1', title: 'Reading your Dashboard', mins: 5,
+      { id: 'l-num-1', title: 'Reading your Dashboard', mins: 5, status: 'planned',
         description: "Running balance, net profit, margin, forecast — what each tile is really measuring, and which one to look at first when you've got thirty seconds." },
-      { id: 'l-num-2', title: 'Profit, cash flow and your revenue goal', mins: 6,
+      { id: 'l-num-2', title: 'Profit, cash flow and your revenue goal', mins: 6, status: 'planned',
         description: 'Why profitable businesses still run out of money, how to read a cash-flow view, and how to set a revenue goal and actually track it through the year.' },
     ] },
 
-  { id: 'c-jobs', title: 'Track the work: time, jobs and kilometres', category: 'work', level: 'Intermediate',
+  { id: 'c-jobs', title: 'Track the work: time, jobs and kilometres', menuGroup: 'Projects · Time · KM', track: 'work', icon: 'briefcase', level: 'Intermediate',
     summary: 'Bill every hour, know which jobs actually make money, and keep a logbook the ATO would accept.',
     lessons: [
-      { id: 'l-job-1', title: 'From timer to invoice', mins: 5,
+      { id: 'l-job-1', title: 'From timer to invoice', mins: 5, status: 'planned',
         description: 'Start a timer against a job, log the time you forgot to track, then turn unbilled hours straight into an invoice. Needs the Time Tracker add-on.',
         resources: [{ label: 'Weekly Timesheet Template', href: '#' }] },
-      { id: 'l-job-2', title: 'Job margins: are you making money on this one?', mins: 6,
+      { id: 'l-job-2', title: 'Job margins: are you making money on this one?', mins: 6, status: 'planned',
         description: 'Compare what you quoted against what a job has actually cost in time and materials, catch the ones running over, and price the next one better. Needs the Projects add-on.' },
-      { id: 'l-job-3', title: 'Your kilometre logbook, done properly', mins: 5,
+      { id: 'l-job-3', title: 'Your kilometre logbook, done properly', mins: 5, status: 'planned',
         description: 'Run a valid 12-week ATO logbook: classify each trip as business or personal, keep the odometer readings honest, and know when the period ends. Needs the KM Tracker add-on.',
         resources: [{ label: 'Sole Trader Kilometre Log — monthly template', href: '#' }] },
     ] },
 
-  { id: 'c-yours', title: 'Make Sole yours', category: 'grow', level: 'Beginner',
+  { id: 'c-yours', title: 'Make Sole yours', menuGroup: 'Settings & plans', track: 'grow', icon: 'sparkle', level: 'Beginner',
     summary: 'One plan, the add-ons you actually need, plus the free stuff most people never find.',
     lessons: [
-      { id: 'l-yours-1', title: 'Plans and add-ons: paying for what you use', mins: 4,
+      { id: 'l-yours-1', title: 'Plans and add-ons: paying for what you use', mins: 4, status: 'planned',
         description: 'How a plan plus switchable add-ons decides what you see, which bundles work out cheaper, and how to switch something on for one busy quarter and off again after.' },
-      { id: 'l-yours-2', title: 'Referrals, perks and the Sole community', mins: 4,
+      { id: 'l-yours-2', title: 'Referrals, perks and the Sole community', mins: 4, status: 'planned',
         description: 'Earn $50 for every business you refer, browse the discounts in Sole Perks, and find the community and template library most people never open.' },
     ] },
 ];
@@ -1967,32 +1973,66 @@ const markLessonComplete = (lessonId) => setLessonComplete(lessonId, true);
 const academyLastLesson = () => loadAcademy().lastLesson || {};
 const setLastLesson = (courseId, lessonId) => saveAcademy({ lastLesson: { ...academyLastLesson(), [courseId]: lessonId }, lastCourse: courseId });
 const courseById = (id) => ACADEMY_COURSES.find(c => c.id === id) || null;
-const catColor = (course) => academyCatById(course.category).color || T.primary;
+const catColor = (course) => moduleFace(course).color;
+
+// --- production state ---
+// A chapter is only watchable once its video is published, so every surface has to
+// be honest about what exists today. Nothing here may promise a video that hasn't
+// been recorded. Mirrors the SPM Academy in index.html.
+const ACADEMY_STATUS = {
+  published: { label: 'Available',   pill: 'green'   },
+  recording: { label: 'Recording',   pill: 'amber'   },
+  planned:   { label: 'Coming soon', pill: 'neutral' },
+};
+// An unlabelled chapter is never playable — fail safe, not fail open.
+const chapterStatus = (lesson) => (lesson && ACADEMY_STATUS[lesson.status]) ? lesson.status : 'planned';
+const isPublished = (lesson) => chapterStatus(lesson) === 'published';
+const publishedLessons = (course) => (course ? course.lessons : []).filter(isPublished);
+const isModuleFullyPublished = (course) => !!course && course.lessons.length > 0 && course.lessons.every(isPublished);
+// Optimistic: the module is watchable if ANY chapter is. Drives play-vs-chip.
+const moduleStatus = (course) => publishedLessons(course).length ? 'published'
+  : (course ? course.lessons : []).some(l => chapterStatus(l) === 'recording') ? 'recording' : 'planned';
+// NB counts every NON-published chapter (recording + planned) — i.e. "still to come".
+const recordingCount = (course) => (course ? course.lessons : []).filter(l => chapterStatus(l) !== 'published').length;
 const courseMins = (course) => (course ? course.lessons : []).reduce((s, l) => s + (l.mins || 0), 0);
 const courseDoneCount = (course) => (course ? course.lessons : []).filter(l => isLessonComplete(l.id)).length;
+// Progress divides by EVERY chapter (not just published ones) so the bar can never
+// read 100% on a half-recorded module. Completion — and therefore the certificate —
+// additionally needs the whole module published, so nobody is certified on a module
+// that doesn't exist yet.
 const courseProgressPct = (course) => { const n = course ? course.lessons.length : 0; return n ? Math.round((courseDoneCount(course) / n) * 100) : 0; };
-const isCourseComplete = (course) => !!course && course.lessons.length > 0 && courseDoneCount(course) === course.lessons.length;
+const isCourseComplete = (course) => !!course && isModuleFullyPublished(course) && courseDoneCount(course) === course.lessons.length;
 const resumeLesson = (course) => {
   const ls = course ? course.lessons : []; if (!ls.length) return null;
   const last = academyLastLesson()[course.id];
   if (last && ls.some(l => l.id === last)) return last;
-  return (ls.find(l => !isLessonComplete(l.id)) || ls[0]).id;
+  const pub = publishedLessons(course);
+  return (pub.find(l => !isLessonComplete(l.id)) || pub[0] || ls[0]).id;
 };
 const nextUpCourse = () => {
+  // Prefer a module with something to watch — the hero shouldn't open on a poster.
+  const watchable = ACADEMY_COURSES.filter(c => publishedLessons(c).length > 0);
+  const pool = watchable.length ? watchable : ACADEMY_COURSES;
   const lc = loadAcademy().lastCourse;
   if (lc && courseById(lc) && !isCourseComplete(courseById(lc))) return courseById(lc);
-  return ACADEMY_COURSES.find(c => courseDoneCount(c) > 0 && !isCourseComplete(c))
-      || ACADEMY_COURSES.find(c => courseDoneCount(c) === 0)
-      || ACADEMY_COURSES[0];
+  return pool.find(c => courseDoneCount(c) > 0 && !isCourseComplete(c))
+      || pool.find(c => courseDoneCount(c) === 0)
+      || pool[0];
 };
 const certifiedCourses = () => ACADEMY_COURSES.filter(isCourseComplete);
 const academyStats = () => {
   const all = ACADEMY_COURSES.flatMap(c => c.lessons);
+  const available = all.filter(isPublished);
   const done = all.filter(l => isLessonComplete(l.id));
   return {
+    // Denominators are what EXISTS today, so the tiles don't read as a 2/34 failure
+    // while the rest is still being filmed; `inProduction` carries the remainder.
     coursesDone: certifiedCourses().length,
     lessonsDone: done.length,
-    totalLessons: all.length,
+    totalLessons: available.length,
+    inProduction: all.length - available.length,
+    coursesAvailable: ACADEMY_COURSES.filter(isModuleFullyPublished).length,
+    modules: ACADEMY_COURSES.length,
     minutes: done.reduce((s, l) => s + (l.mins || 0), 0),
     certificates: certifiedCourses().length,
   };
@@ -2021,6 +2061,11 @@ const VideoStage = ({ lesson, color = T.primary, catIcon = 'video', playing, onP
       </div>
     );
   }
+  // An unrecorded chapter states its production state on the poster instead of
+  // offering a play button — the old behaviour showed play, then admitted after the
+  // click that there was nothing to watch.
+  const state = chapterStatus(lesson);
+  const pending = state !== 'published';
   const comingSoon = playing && !hasFile && !hasEmbed;
   return (
     <div style={{ ...stage, background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.46)} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2029,19 +2074,29 @@ const VideoStage = ({ lesson, color = T.primary, catIcon = 'video', playing, onP
         <Icon name={catIcon} size={210} color="#fff" strokeWidth={1.2} />
       </div>
       <div style={{ position: 'absolute', top: 16, left: 18, zIndex: 2, maxWidth: '70%' }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Video lesson</div>
+        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>{pending ? (state === 'recording' ? 'In production' : 'Scripted') : 'Video chapter'}</div>
         <div style={{ fontSize: 17, fontWeight: 700, marginTop: 3, color: '#fff', letterSpacing: -0.2 }}>{lesson.title}</div>
       </div>
       <div style={{ position: 'absolute', top: 16, right: 18, zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 5, background: withAlpha('#0F1117', 0.34), color: '#fff', fontSize: 11.5, fontWeight: 600, padding: '4px 9px', borderRadius: 999, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}>
         <Icon name="clock" size={12} color="#fff" />{lesson.mins} min
       </div>
-      {comingSoon ? (
+      {pending ? (
         <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', color: '#fff', padding: '0 24px' }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700 }}>Video coming soon</div>
-          <div style={{ fontSize: 12.5, opacity: 0.88, marginTop: 5, maxWidth: 380, lineHeight: 1.5 }}>We're still filming this one. Have a poke around in Sole while you're here, then tick it off.</div>
+          <Icon name={state === 'recording' ? 'video' : 'clock'} size={30} color="#fff" />
+          <div style={{ fontSize: 14.5, fontWeight: 700, marginTop: 8 }}>{state === 'recording' ? 'Being recorded now' : 'Coming soon'}</div>
+          <div style={{ fontSize: 12.5, opacity: 0.88, marginTop: 5, maxWidth: 380, lineHeight: 1.5 }}>
+            {state === 'recording'
+              ? 'The video lands shortly. What it covers is written up below.'
+              : 'This chapter is scripted and queued for filming. What it covers is written up below.'}
+          </div>
+        </div>
+      ) : comingSoon ? (
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', color: '#fff', padding: '0 24px' }}>
+          <div style={{ fontSize: 14.5, fontWeight: 700 }}>This clip couldn't load</div>
+          <div style={{ fontSize: 12.5, opacity: 0.88, marginTop: 5, maxWidth: 380, lineHeight: 1.5 }}>Check your connection and try again — the notes, transcript and resources below are all still here.</div>
         </div>
       ) : (
-        <button onClick={onPlay} aria-label="Play lesson" style={{
+        <button onClick={onPlay} aria-label="Play chapter" style={{
           position: 'relative', zIndex: 2, width: 82, height: 82, borderRadius: '50%', border: 'none', cursor: 'pointer',
           background: withAlpha('#FFFFFF', 0.97), color, display: 'flex', alignItems: 'center', justifyContent: 'center',
           boxShadow: '0 16px 40px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.12)', transition: 'transform .14s' }}
@@ -2050,14 +2105,17 @@ const VideoStage = ({ lesson, color = T.primary, catIcon = 'video', playing, onP
           <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 4 }}><polygon points="6,4 20,12 6,20" /></svg>
         </button>
       )}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 2, display: 'flex', alignItems: 'center', gap: 11, padding: '11px 15px', background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.38))' }}>
-        <Icon name="play" size={15} color="#fff" />
-        <div style={{ flex: 1, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.3)', overflow: 'hidden' }}>
-          <div style={{ width: '0%', height: '100%', background: '#fff' }} />
+      {/* No fake scrubber on a chapter that has no video — it implies a clip is loaded. */}
+      {!pending && (
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 2, display: 'flex', alignItems: 'center', gap: 11, padding: '11px 15px', background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.38))' }}>
+          <Icon name="play" size={15} color="#fff" />
+          <div style={{ flex: 1, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.3)', overflow: 'hidden' }}>
+            <div style={{ width: '0%', height: '100%', background: '#fff' }} />
+          </div>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', fontVariantNumeric: 'tabular-nums' }}>0:00 / {lesson.mins}:00</span>
+          <Icon name="video" size={15} color="rgba(255,255,255,0.9)" />
         </div>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', fontVariantNumeric: 'tabular-nums' }}>0:00 / {lesson.mins}:00</span>
-        <Icon name="video" size={15} color="rgba(255,255,255,0.9)" />
-      </div>
+      )}
     </div>
   );
 };
@@ -2069,26 +2127,37 @@ const VideoStage = ({ lesson, color = T.primary, catIcon = 'video', playing, onP
 // card hover via .academy-play), and a YouTube-style progress bar welded to
 // the bottom edge for in-progress courses. Reused by CourseCard + the Home hero.
 const AcademyThumb = ({ course, height, radius = T.radiusLg, playSize = 54, watermark = 132 }) => {
-  const cat = academyCatById(course.category);
+  const face = moduleFace(course);
   const color = catColor(course);
   const pct = courseProgressPct(course);
   const done = isCourseComplete(course);
   const started = courseDoneCount(course) > 0;
+  // A module with nothing recorded shows its production state instead of a play
+  // button — nobody should click play and get nothing.
+  const mStatus = moduleStatus(course);
+  const watchable = mStatus === 'published';
   return (
     <div style={{ position: 'relative', width: '100%', ...(height ? { height } : { aspectRatio: '16 / 9' }), borderRadius: radius, overflow: 'hidden',
       background: `linear-gradient(142deg, ${hexMix(color, '#FFFFFF', 0.10)} 0%, ${darkenHex(color, 0.24)} 100%)` }}>
       <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(120% 84% at 12% -8%, ${withAlpha('#FFFFFF', 0.16)} 0%, transparent 56%)` }} />
       <div style={{ position: 'absolute', right: -14, bottom: -18, opacity: 0.13, color: '#fff', transform: 'rotate(-6deg)', pointerEvents: 'none' }}>
-        <Icon name={cat.icon} size={watermark} color="#fff" strokeWidth={1.2} />
+        <Icon name={face.icon} size={watermark} color="#fff" strokeWidth={1.2} />
       </div>
       <div style={{ position: 'absolute', top: 12, right: 12, display: 'inline-flex', alignItems: 'center', gap: 5, background: withAlpha('#0F1117', 0.34), color: '#fff', fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}>
         <Icon name="clock" size={11} color="#fff" />{courseMins(course)} min
       </div>
       {done && <div style={{ position: 'absolute', top: 12, left: 12, display: 'inline-flex', alignItems: 'center', gap: 4, background: T.green, color: '#fff', fontSize: 10.5, fontWeight: 700, padding: '3px 8px', borderRadius: 999, boxShadow: '0 2px 8px rgba(5,150,105,0.4)' }}><Icon name="check" size={11} color="#fff" />Done</div>}
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="academy-play" style={{ width: playSize, height: playSize, borderRadius: '50%', background: withAlpha('#FFFFFF', 0.97), color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 28px rgba(0,0,0,0.30)' }}>
-          <svg width={Math.round(playSize * 0.33)} height={Math.round(playSize * 0.33)} viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 2 }}><polygon points="6,4 20,12 6,20" /></svg>
-        </div>
+        {watchable ? (
+          <div className="academy-play" style={{ width: playSize, height: playSize, borderRadius: '50%', background: withAlpha('#FFFFFF', 0.97), color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 28px rgba(0,0,0,0.30)' }}>
+            <svg width={Math.round(playSize * 0.33)} height={Math.round(playSize * 0.33)} viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 2 }}><polygon points="6,4 20,12 6,20" /></svg>
+          </div>
+        ) : (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: withAlpha('#0F1117', 0.42), color: '#fff', fontSize: 11.5, fontWeight: 600, padding: '6px 12px', borderRadius: 999, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}>
+            <Icon name={mStatus === 'recording' ? 'video' : 'clock'} size={13} color="#fff" />
+            {mStatus === 'recording' ? 'Being recorded' : 'Coming soon'}
+          </div>
+        )}
       </div>
       {started && !done && (
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, background: withAlpha('#0F1117', 0.28) }}>
@@ -2102,11 +2171,14 @@ const AcademyThumb = ({ course, height, radius = T.radiusLg, playSize = 54, wate
 // Catalog grid card — thumbnail + a quiet, scannable body (category · level,
 // title, summary, and a status line that flips between progress and "Not started").
 const CourseCard = ({ course, onOpen }) => {
-  const cat = academyCatById(course.category);
+  const face = moduleFace(course);
   const pct = courseProgressPct(course);
   const done = isCourseComplete(course);
   const started = courseDoneCount(course) > 0;
   const color = catColor(course);
+  const mStatus = moduleStatus(course);
+  const avail = publishedLessons(course).length;
+  const pending = recordingCount(course);
   return (
     <div onClick={onOpen} role="button" tabIndex={0} data-academy-card
       onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpen(); } }}
@@ -2116,7 +2188,7 @@ const CourseCard = ({ course, onOpen }) => {
       <AcademyThumb course={course} radius={0} />
       <div style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color: color }}><Icon name={cat.icon} size={12} color={color} />{cat.label}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color: color }}><Icon name={face.icon} size={12} color={color} />{face.trackLabel}</span>
           <span style={{ width: 3, height: 3, borderRadius: 999, background: T.mutedSoft }} />
           <span style={{ fontSize: 10.5, color: T.muted }}>{course.level}</span>
         </div>
@@ -2125,14 +2197,19 @@ const CourseCard = ({ course, onOpen }) => {
         {started ? (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 500, color: done ? T.greenDark : T.muted, marginBottom: 5 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{done ? <Icon name="checkCircle" size={12} color={T.greenDark} /> : <Icon name="play" size={11} color={T.muted} />}{done ? 'Completed' : `${courseDoneCount(course)} of ${course.lessons.length} lessons`}</span><span>{pct}%</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{done ? <Icon name="checkCircle" size={12} color={T.greenDark} /> : <Icon name="play" size={11} color={T.muted} />}{done ? 'Completed' : `${courseDoneCount(course)} of ${course.lessons.length} chapters`}</span><span>{pct}%</span>
             </div>
             <ProgressBar pct={pct} color={done ? T.green : color} height={5} />
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: T.muted }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{course.lessons.length} lessons</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color }}>Start<Icon name="arrow" size={12} color={color} /></span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{course.lessons.length} chapters</span>
+            {mStatus === 'published'
+              ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color }}>{pending ? `${avail} ready` : 'Start'}<Icon name="arrow" size={12} color={color} /></span>
+              : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color: mStatus === 'recording' ? T.amber : T.mutedSoft }}>
+                  <Icon name={mStatus === 'recording' ? 'video' : 'clock'} size={12} color={mStatus === 'recording' ? T.amber : T.mutedSoft} />
+                  {mStatus === 'recording' ? 'Recording' : 'Coming soon'}
+                </span>}
           </div>
         )}
       </div>
@@ -2177,7 +2254,7 @@ const LearningPathCard = ({ path, onOpen }) => {
         <Helper style={{ fontSize: 12, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{path.blurb}</Helper>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: T.textSoft }}>Course path</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: T.textSoft }}>Module path</span>
             <span style={{ fontSize: 10.5, color: T.muted }}>{doneCourses} of {courses.length} done</span>
           </div>
           <div style={{ display: 'flex', gap: 4 }}>
@@ -2187,22 +2264,22 @@ const LearningPathCard = ({ path, onOpen }) => {
           </div>
         </div>
         {complete ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: T.greenDark }}><Icon name="checkCircle" size={15} color={T.green} />All {courses.length} courses complete</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: T.greenDark }}><Icon name="checkCircle" size={15} color={T.green} />All {courses.length} modules complete</div>
         ) : nextCourse ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 10, background: T.fieldBg, border: `1px solid ${T.borderSoft}` }}>
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: T.card, border: `1px solid ${T.border}`, color: catColor(nextCourse), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={academyCatById(nextCourse.category).icon} size={15} color={catColor(nextCourse)} /></div>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: T.card, border: `1px solid ${T.border}`, color: catColor(nextCourse), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name={moduleFace(nextCourse).icon} size={15} color={catColor(nextCourse)} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 9.5, color: T.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{started ? 'Up next' : 'Start with'}</div>
               <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nextCourse.title}</div>
             </div>
-            <span style={{ fontSize: 10.5, color: T.muted, flexShrink: 0 }}>{nextCourse.lessons.length} lessons</span>
+            <span style={{ fontSize: 10.5, color: T.muted, flexShrink: 0 }}>{nextCourse.lessons.length} chapters</span>
           </div>
         ) : null}
       </div>
       <div style={{ padding: '13px 18px', borderTop: `1px solid ${T.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <Btn variant={complete ? 'soft' : 'primary'} size="sm" icon={complete ? 'checkCircle' : 'play'}>{complete ? 'Review path' : started ? 'Continue' : 'Start path'}</Btn>
         <span style={{ fontSize: 11, color: T.muted, display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{courses.length} courses</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{courses.length} modules</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Icon name="clock" size={12} color={T.mutedSoft} />{totalMins} min</span>
         </span>
       </div>
@@ -2210,28 +2287,40 @@ const LearningPathCard = ({ path, onOpen }) => {
   );
 };
 
-const LessonRow = ({ lesson, index, active, complete, onClick }) => (
+// One chapter in the player's playlist. An unrecorded chapter reads muted with a
+// production dot instead of a play glyph, so the list tells you at a glance what
+// you can actually watch today. Clicking one still works — you land on an honest
+// poster, not a dead end.
+const LessonRow = ({ lesson, index, active, complete, onClick }) => {
+  const st = chapterStatus(lesson);
+  const pub = st === 'published';
+  return (
   <button onClick={onClick} data-hover="row" style={{
     width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 10px', border: 'none', textAlign: 'left',
     borderRadius: 8, background: active ? T.primarySoft : 'transparent', cursor: 'pointer' }}>
     <span style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       background: complete ? T.green : active ? T.primary : T.fieldBg, color: (complete || active) ? '#fff' : T.muted,
       border: (complete || active) ? 'none' : `1px solid ${T.border}`, fontSize: 11, fontWeight: 700 }}>
-      {complete ? <Icon name="check" size={12} color="#fff" /> : active ? <Icon name="play" size={11} color="#fff" /> : index + 1}
+      {/* The play glyph is reserved for chapters you can actually play — an
+          active-but-unrecorded chapter keeps its number so the marker doesn't
+          imply a video is sitting there. */}
+      {complete ? <Icon name="check" size={12} color="#fff" /> : (active && pub) ? <Icon name="play" size={11} color="#fff" /> : index + 1}
     </span>
-    {/* Wrap to two lines rather than ellipsing — lesson titles are the playlist's
+    {/* Wrap to two lines rather than ellipsing — chapter titles are the playlist's
         whole content, and "Deposits, terms and getting paid on the…" helps nobody. */}
-    <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: 1.35, fontWeight: active ? 600 : 500, color: active ? T.primary : T.text,
+    <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: 1.35, fontWeight: active ? 600 : 500, color: active ? T.primary : pub ? T.text : T.muted,
       display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{lesson.title}</span>
+    {!pub && <span title={st === 'recording' ? 'Being recorded' : 'Coming soon'} style={{ flexShrink: 0, width: 6, height: 6, borderRadius: 999, marginTop: 7, background: st === 'recording' ? T.amber : T.borderStrong }} />}
     <span style={{ fontSize: 11, color: T.muted, flexShrink: 0, marginTop: 1 }}>{lesson.mins}m</span>
   </button>
-);
+  );
+};
 
 const CertificateModal = ({ course, open, onClose, fireToast, isMobile }) => {
   if (!course) return null;
   const color = catColor(course);
   return (
-    <Modal open={open} onClose={onClose} icon="award" title="Course completed" subtitle="Nice work — you've finished every lesson." maxWidth={540} isMobile={isMobile}>
+    <Modal open={open} onClose={onClose} icon="award" title="Module completed" subtitle="Nice work — you've finished every chapter." maxWidth={540} isMobile={isMobile}>
       <div style={{ border: `1px solid ${T.border}`, borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ background: `linear-gradient(135deg, ${color} 0%, ${darkenHex(color, 0.34)} 100%)`, padding: '28px 24px', textAlign: 'center', color: '#fff', position: 'relative' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,0.14) 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
@@ -2267,11 +2356,15 @@ const CertificateModal = ({ course, open, onClose, fireToast, isMobile }) => {
 // One rounded strip of hairline-separated cells rather than four floating boxes —
 // the same shape as Unibox's health/streak strip, so the two surfaces read as one app.
 const AcademyStats = ({ stats, isMobile }) => {
+  // Denominators count what's recorded today; the sub-line carries the rest, so the
+  // tiles don't read as a failure while the videos are still being filmed.
   const cells = [
-    { icon: 'bookOpen',   tone: 'accent', label: 'Lessons done',    value: `${stats.lessonsDone}/${stats.totalLessons}` },
-    { icon: 'graduation', tone: 'blue',   label: 'Courses done',    value: `${stats.coursesDone}/${ACADEMY_COURSES.length}` },
-    { icon: 'clock',      tone: 'amber',  label: 'Minutes learned', value: stats.minutes },
-    { icon: 'award',      tone: 'green',  label: 'Certificates',    value: stats.certificates },
+    { icon: 'bookOpen',   tone: 'accent', label: 'Chapters watched', value: `${stats.lessonsDone}/${stats.totalLessons}`,
+      sub: stats.inProduction ? `${stats.inProduction} more in production` : null },
+    { icon: 'graduation', tone: 'blue',   label: 'Modules complete', value: `${stats.coursesDone}/${stats.modules}`,
+      sub: `${stats.coursesAvailable} fully recorded so far` },
+    { icon: 'clock',      tone: 'amber',  label: 'Minutes learned', value: stats.minutes, sub: null },
+    { icon: 'award',      tone: 'green',  label: 'Certificates',    value: stats.certificates, sub: null },
   ];
   return (
     <Card padded={false} style={{ display: 'flex', flexWrap: 'wrap' }}>
@@ -2282,6 +2375,7 @@ const AcademyStats = ({ stats, isMobile }) => {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: T.text, letterSpacing: -0.4, lineHeight: 1.15 }}>{c.value}</div>
             <div style={{ fontSize: 11.5, color: T.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</div>
+            {c.sub && <div style={{ fontSize: 10.5, color: T.mutedSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.sub}</div>}
           </div>
         </div>
       ))}
@@ -2312,9 +2406,9 @@ const AcademyHome = ({ openCourse, openPath, goView }) => {
             <div style={{ fontSize: 23, fontWeight: 800, letterSpacing: -0.5, lineHeight: 1.12 }}>{resume.title}</div>
             <Helper style={{ fontSize: 13, lineHeight: 1.55, maxWidth: 460 }}>{resume.summary}</Helper>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11.5, color: T.muted, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={13} color={T.mutedSoft} />{resume.lessons.length} lessons</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={13} color={T.mutedSoft} />{resume.lessons.length} chapters</span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="clock" size={13} color={T.mutedSoft} />{resumeNext ? `Next: ${resumeNext.mins} min` : `${courseMins(resume)} min`}</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={academyCatById(resume.category).icon} size={13} color={T.mutedSoft} />{academyCatById(resume.category).label}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name={moduleFace(resume).icon} size={13} color={T.mutedSoft} />{moduleFace(resume).trackLabel}</span>
             </div>
             {resumeStarted && (
               <div style={{ maxWidth: 320 }}>
@@ -2322,7 +2416,7 @@ const AcademyHome = ({ openCourse, openPath, goView }) => {
                 <ProgressBar pct={resumePct} color={color} height={6} />
               </div>
             )}
-            <div style={{ marginTop: 4 }}><Btn variant="primary" size="lg" icon="play" onClick={() => openCourse(resume)}>{resumeStarted ? 'Resume course' : 'Start course'}</Btn></div>
+            <div style={{ marginTop: 4 }}><Btn variant="primary" size="lg" icon="play" onClick={() => openCourse(resume)}>{resumeStarted ? 'Resume module' : 'Start module'}</Btn></div>
           </div>
           <div data-academy-card onClick={() => openCourse(resume)} style={{ cursor: 'pointer', padding: isTablet ? '0 24px 24px' : 20, display: 'flex', alignItems: 'center' }}>
             <AcademyThumb course={resume} playSize={64} watermark={156} />
@@ -2343,7 +2437,7 @@ const AcademyHome = ({ openCourse, openPath, goView }) => {
       )}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <SectionTitle>Popular courses</SectionTitle>
+          <SectionTitle>Popular modules</SectionTitle>
           <button onClick={() => goView('courses')} style={{ border: 'none', background: 'transparent', color: T.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Browse all →</button>
         </div>
         {/* auto-FIT: exactly 3 popular courses, so don't reserve an empty 4th track. */}
@@ -2355,8 +2449,8 @@ const AcademyHome = ({ openCourse, openPath, goView }) => {
 
 const AcademyCourses = ({ search, setSearch, cat, setCat, openCourse }) => {
   const q = search.trim().toLowerCase();
-  const bySearch = (c) => !q || (c.title + ' ' + c.summary + ' ' + academyCatById(c.category).label + ' ' + c.lessons.map(l => l.title).join(' ')).toLowerCase().includes(q);
-  const byCat = (c) => cat === 'all' || c.category === cat;
+  const bySearch = (c) => !q || (c.title + ' ' + c.summary + ' ' + moduleFace(c).trackLabel + ' ' + c.lessons.map(l => l.title).join(' ')).toLowerCase().includes(q);
+  const byCat = (c) => cat === 'all' || c.track === cat;
   const filtered = ACADEMY_COURSES.filter(byCat).filter(bySearch);
   return (
     <div>
@@ -2364,16 +2458,16 @@ const AcademyCourses = ({ search, setSearch, cat, setCat, openCourse }) => {
         {/* T.fieldBg to match the TopBar search and every other input in the app. */}
         <div style={{ minWidth: 240, maxWidth: 320, flex: '0 1 320px', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: `1px solid ${T.border}`, borderRadius: 8, background: T.fieldBg }}>
           <Icon name="search" size={14} color={T.muted} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search courses…" style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 13 }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search modules and chapters…" style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 13 }} />
           {search && <button onClick={() => setSearch('')} aria-label="Clear" style={{ border: 'none', background: 'transparent', color: T.muted, padding: 2, cursor: 'pointer' }}><Icon name="close" size={12} /></button>}
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
         <Chip size="sm" selected={cat === 'all'} onClick={() => setCat('all')}>{`All · ${ACADEMY_COURSES.length}`}</Chip>
-        {ACADEMY_CATEGORIES.map(c => { const n = ACADEMY_COURSES.filter(x => x.category === c.id).length; return n ? <Chip key={c.id} size="sm" selected={cat === c.id} onClick={() => setCat(c.id)}>{`${c.label} · ${n}`}</Chip> : null; })}
+        {ACADEMY_TRACKS.map(c => { const n = ACADEMY_COURSES.filter(x => x.track === c.id).length; return n ? <Chip key={c.id} size="sm" selected={cat === c.id} onClick={() => setCat(c.id)}>{`${c.label} · ${n}`}</Chip> : null; })}
       </div>
       {filtered.length === 0
-        ? <Card><EmptyState icon="search" title="No courses match" hint="Try a different category or clear your search." /></Card>
+        ? <Card><EmptyState icon="search" title="No modules match" hint="Try a different track or clear your search." /></Card>
         : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>{filtered.map(c => <CourseCard key={c.id} course={c} onOpen={() => openCourse(c)} />)}</div>}
     </div>
   );
@@ -2420,10 +2514,10 @@ const AcademyProgress = ({ openCourse, openPath }) => {
           <div>
             <SectionTitle style={{ marginBottom: 10 }}>Continue learning</SectionTitle>
             {inProgress.length === 0
-              ? <Banner tone="info" icon="bookOpen" title="Nothing in progress" action={<Btn variant="soft" size="sm" onClick={() => { window.location.hash = '#/academy-courses'; }}>Browse courses</Btn>}>Start a course and it'll appear here so you can pick up where you left off.</Banner>
+              ? <Banner tone="info" icon="bookOpen" title="Nothing in progress" action={<Btn variant="soft" size="sm" onClick={() => { window.location.hash = '#/academy-courses'; }}>Browse modules</Btn>}>Start a course and it'll appear here so you can pick up where you left off.</Banner>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{inProgress.map(c => { const pct = courseProgressPct(c); return (
                   <Card key={c.id} hover onClick={() => openCourse(c)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <IconChip icon={academyCatById(c.category).icon} tone="accent" size={40} gradient />
+                    <IconChip icon={moduleFace(c).icon} tone="accent" size={40} gradient />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline' }}><span style={{ fontSize: 13.5, fontWeight: 600 }}>{c.title}</span><span style={{ fontSize: 11, color: T.muted, flexShrink: 0 }}>{courseDoneCount(c)} of {c.lessons.length} · {pct}%</span></div>
                       <div style={{ marginTop: 9 }}><ProgressBar pct={pct} color={catColor(c)} height={6} /></div>
@@ -2434,7 +2528,7 @@ const AcademyProgress = ({ openCourse, openPath }) => {
           <div>
             <SectionTitle style={{ marginBottom: 10 }}>Certificates <span style={{ fontWeight: 500, color: T.muted }}>· {certs.length}</span></SectionTitle>
             {certs.length === 0
-              ? <Banner tone="accent" icon="award" title="No certificates yet">Finish every lesson in a course to earn your first certificate.</Banner>
+              ? <Banner tone="accent" icon="award" title="No certificates yet">Finish every chapter in a fully-recorded module to earn your first certificate.</Banner>
               : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 12 }}>{certs.map(c => { const color = catColor(c); return (
                   <Card key={c.id} hover onClick={() => openCourse(c)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ width: 42, height: 42, borderRadius: 10, background: `linear-gradient(135deg, ${color}, ${darkenHex(color, 0.4)})`, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="award" size={20} color="#fff" /></div>
@@ -2462,8 +2556,8 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
   if (!course) {
     return (
       <div style={{ minWidth: 0 }}>
-        <Btn variant="ghost" size="sm" icon="chevronLeft" onClick={() => { window.location.hash = '#/academy-courses'; }}>Back to courses</Btn>
-        <Card style={{ marginTop: 16 }}><EmptyState icon="search" title="Course not found" hint="This course may have moved." action={<Btn variant="primary" size="sm" icon="bookOpen" onClick={() => { window.location.hash = '#/academy-courses'; }}>Browse courses</Btn>} /></Card>
+        <Btn variant="ghost" size="sm" icon="chevronLeft" onClick={() => { window.location.hash = '#/academy-courses'; }}>Back to modules</Btn>
+        <Card style={{ marginTop: 16 }}><EmptyState icon="search" title="Module not found" hint="This module may have moved." action={<Btn variant="primary" size="sm" icon="bookOpen" onClick={() => { window.location.hash = '#/academy-courses'; }}>Browse modules</Btn>} /></Card>
       </div>
     );
   }
@@ -2475,22 +2569,25 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
   const done = courseDoneCount(course);
   const complete = isLessonComplete(lesson.id);
   const isLast = idx === lessons.length - 1;
+  const lessonPub = isPublished(lesson);
+  const lessonState = chapterStatus(lesson);
 
   const completeAndNext = () => {
     const wasComplete = isCourseComplete(course);
     markLessonComplete(lesson.id);
     if (!isLast) setActiveId(lessons[idx + 1].id); else refresh();
-    if (!wasComplete && isCourseComplete(course)) { setCertFor(course); fireToast('🎓 Course complete — certificate earned!'); }
-    else fireToast('Lesson marked complete');
+    if (!wasComplete && isCourseComplete(course)) { setCertFor(course); fireToast('🎓 Module complete — certificate earned!'); }
+    else fireToast('Chapter marked complete');
   };
   const toggleComplete = () => { setLessonComplete(lesson.id, !complete); refresh(); };
 
   const nextLesson = !isLast ? lessons[idx + 1] : null;
   const inPaths = pathsForCourse(course.id);
   const aboutRows = [
-    ['bookOpen', 'Lessons', `${lessons.length}`],
+    ['bookOpen', 'Chapters', `${lessons.length}`],
     ['clock', 'Duration', `${courseMins(course)} min`],
-    [academyCatById(course.category).icon, 'Category', academyCatById(course.category).label],
+    [moduleFace(course).icon, 'Track', moduleFace(course).trackLabel],
+    ['menu', 'Menu group', course.menuGroup],
     ['target', 'Level', course.level],
   ];
 
@@ -2498,9 +2595,10 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
     <Card padded={false} style={{ overflow: 'hidden' }}>
       <div style={{ padding: '14px 16px', borderBottom: `1px solid ${T.borderSoft}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>Course content</span>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>Chapters</span>
           <span style={{ fontSize: 11, color: T.muted }}>{done}/{lessons.length} · {pct}%</span>
         </div>
+        {recordingCount(course) > 0 && <Helper style={{ fontSize: 11, marginBottom: 8 }}>{publishedLessons(course).length} ready to watch · {recordingCount(course)} still in production</Helper>}
         <ProgressBar pct={pct} color={pct === 100 ? T.green : color} height={6} />
       </div>
       <div style={{ padding: 6, maxHeight: isTablet ? 'none' : 520, overflowY: 'auto' }}>
@@ -2511,7 +2609,7 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
 
   const aboutCard = (
     <Card padded={false} style={{ overflow: 'hidden' }}>
-      <div style={{ padding: '13px 16px', borderBottom: `1px solid ${T.borderSoft}`, fontSize: 13, fontWeight: 700 }}>About this course</div>
+      <div style={{ padding: '13px 16px', borderBottom: `1px solid ${T.borderSoft}`, fontSize: 13, fontWeight: 700 }}>About this module</div>
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 11 }}>
         {aboutRows.map(([ic, label, val], i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
@@ -2533,10 +2631,10 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
 
   return (
     <div style={{ minWidth: 0 }}>
-      <Btn variant="ghost" size="sm" icon="chevronLeft" onClick={() => { window.location.hash = '#/academy-courses'; }}>Back to courses</Btn>
+      <Btn variant="ghost" size="sm" icon="chevronLeft" onClick={() => { window.location.hash = '#/academy-courses'; }}>Back to modules</Btn>
       <div style={{ marginTop: 12, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color }}><Icon name={academyCatById(course.category).icon} size={13} color={color} />{academyCatById(course.category).label}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color }}><Icon name={moduleFace(course).icon} size={13} color={color} />{moduleFace(course).trackLabel}</span>
           <span style={{ width: 3, height: 3, borderRadius: 999, background: T.mutedSoft }} />
           <span style={{ fontSize: 11, color: T.muted }}>{course.level}</span>
           {isCourseComplete(course) && <Pill color="green" style={{ fontSize: 9.5, marginLeft: 2 }}>Completed</Pill>}
@@ -2546,17 +2644,22 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'minmax(0,1fr) 340px', gap: 22, alignItems: 'start' }}>
         <div style={{ minWidth: 0 }}>
-          <VideoStage lesson={lesson} color={color} catIcon={academyCatById(course.category).icon} playing={playing} onPlay={() => setPlaying(true)} />
+          <VideoStage lesson={lesson} color={color} catIcon={moduleFace(course).icon} playing={playing} onPlay={() => setPlaying(true)} />
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11, color: T.muted, fontWeight: 600 }}>Lesson {idx + 1} of {lessons.length} · {lesson.mins} min</div>
+              <div style={{ fontSize: 11, color: T.muted, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                <span>Chapter {idx + 1} of {lessons.length} · {lesson.mins} min</span>
+                {!lessonPub && <Pill color={lessonState === 'recording' ? 'amber' : 'neutral'} style={{ fontSize: 9.5 }}>{ACADEMY_STATUS[lessonState].label}</Pill>}
+              </div>
               <div style={{ fontSize: 18, fontWeight: 700, marginTop: 2, letterSpacing: -0.2 }}>{lesson.title}</div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {/* Distinct keys force a remount (not an in-place restyle) so the Btn
                   atom's base `border` shorthand and the primary variant's `borderColor`
-                  never transition on the same node — avoids React's shorthand warning. */}
-              {complete
+                  never transition on the same node — avoids React's shorthand warning.
+                  An unrecorded chapter gets NO complete action at all — you can't
+                  finish a video that doesn't exist yet. */}
+              {!lessonPub ? null : complete
                 ? <Btn key="lesson-done" variant="soft" size="sm" icon="check" onClick={toggleComplete}>Completed</Btn>
                 : <Btn key="lesson-todo" variant="primary" size="sm" icon="check" iconRight={!isLast ? 'arrow' : undefined} onClick={completeAndNext}>{isLast ? 'Mark complete' : 'Complete & next'}</Btn>}
               {!isLast && <Btn variant="ghost" size="sm" iconRight="arrow" onClick={() => setActiveId(nextLesson.id)}>Next</Btn>}
@@ -2565,6 +2668,17 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
           <Tabs tabs={[{ id: 'overview', label: 'Overview' }, { id: 'transcript', label: 'Transcript' }, { id: 'resources', label: 'Resources', count: (lesson.resources || []).length || undefined }]} value={tab} onChange={setTab} style={{ marginTop: 16 }} />
           {tab === 'overview' && (
             <Card>
+              {/* Say plainly what state this chapter is in, rather than leaving the
+                  learner to work out why there's no video. */}
+              {!lessonPub && (
+                <Banner tone={lessonState === 'recording' ? 'warn' : 'info'} icon={lessonState === 'recording' ? 'video' : 'clock'}
+                  title={lessonState === 'recording' ? 'This chapter is being recorded' : 'This chapter is scripted, not yet filmed'}
+                  style={{ marginBottom: 14 }}>
+                  {lessonState === 'recording'
+                    ? "The video lands shortly. In the meantime, here's what it covers — and you can go and click through the real screen in Sole now."
+                    : "Here's what it will cover. It'll appear here as soon as it's recorded."}
+                </Banner>
+              )}
               <div style={{ fontSize: 13.5, color: T.textSoft, lineHeight: 1.65 }}>{lesson.description}</div>
               {lesson.takeaways && (
                 <div style={{ marginTop: 16 }}>
@@ -2581,12 +2695,12 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
               )}
             </Card>
           )}
-          {tab === 'transcript' && <Card><div style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{lesson.transcript || 'A full transcript will be available when the lesson video is published.'}</div></Card>}
+          {tab === 'transcript' && <Card><div style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{lesson.transcript || 'A full transcript will be available once the video for this chapter is published.'}</div></Card>}
           {tab === 'resources' && (
             <Card>
               {(lesson.resources || []).length
                 ? <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{lesson.resources.map((r, i) => <a key={i} href={r.href || '#'} onClick={e => { if (!r.href || r.href === '#') { e.preventDefault(); fireToast('Opening resource (demo)'); } }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 10, textDecoration: 'none', color: T.text, fontSize: 12.5, fontWeight: 500 }}><Icon name="fileText" size={15} color={T.primary} /><span style={{ flex: 1 }}>{r.label}</span><Icon name="arrow" size={13} color={T.muted} /></a>)}</div>
-                : <EmptyState icon="paperclip" title="No resources for this lesson" hint="Downloadable templates and checklists will appear here." />}
+                : <EmptyState icon="paperclip" title="No resources for this chapter" hint="Downloadable templates and checklists will appear here." />}
             </Card>
           )}
         </div>
@@ -2595,7 +2709,7 @@ const CoursePlayerPage = ({ courseId, fireToast }) => {
           {isCourseComplete(course) && (
             <Card style={{ display: 'flex', alignItems: 'center', gap: 12, background: withAlpha(T.green, 0.07), borderColor: withAlpha(T.green, 0.35) }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: T.green, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="award" size={19} color="#fff" /></div>
-              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12.5, fontWeight: 700 }}>Course complete</div><Helper style={{ fontSize: 11 }}>Your certificate is ready.</Helper></div>
+              <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 12.5, fontWeight: 700 }}>Module complete</div><Helper style={{ fontSize: 11 }}>Your certificate is ready.</Helper></div>
               <Btn variant="soft" size="sm" onClick={() => setCertFor(course)}>View</Btn>
             </Card>
           )}
@@ -2617,7 +2731,7 @@ const AcademyPage = ({ view = 'home', fireToast }) => {
   const openPath = (p) => { const courses = p.courseIds.map(courseById).filter(Boolean); const next = courses.find(c => !isCourseComplete(c)) || courses[0]; if (next) openCourse(next); };
   const tabs = [
     { id: 'home', label: 'Start here', icon: 'rocket' },
-    { id: 'courses', label: 'Courses', icon: 'bookOpen', count: ACADEMY_COURSES.length },
+    { id: 'courses', label: 'Modules', icon: 'bookOpen', count: ACADEMY_COURSES.length },
     { id: 'paths', label: 'Paths', icon: 'graduation', count: LEARNING_PATHS.length },
     { id: 'progress', label: 'My progress', icon: 'checkCircle' },
   ];
@@ -2626,7 +2740,7 @@ const AcademyPage = ({ view = 'home', fireToast }) => {
       {/* House PageHead atom, so Academy's header matches Dashboard's. */}
       <PageHead
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 9 }}><IconChip icon="graduation" tone="accent" size={32} gradient />Sole Academy</span>}
-        subtitle="Short lessons on running your business in Sole. Watch one over a coffee, or follow a path start to finish."
+        subtitle="Short chapters on running your business in Sole. One module per part of the app — watch one over a coffee, or follow a path start to finish."
         style={{ marginBottom: 6 }} />
       <Tabs tabs={tabs} value={view} onChange={goView} style={{ marginTop: 10 }} />
       {view === 'home' && <AcademyHome openCourse={openCourse} openPath={openPath} goView={goView} />}
