@@ -68,18 +68,19 @@ const T = {
   shadowSm: '0 1px 2px rgba(15,17,23,0.05)',
 };
 
-/* Colours a category may use — the four the live Academy's palette supports. */
-const CATEGORY_COLORS = [
-  { hex: T.primary, label: 'Indigo' },
-  { hex: T.blue,    label: 'Blue' },
-  { hex: T.green,   label: 'Green' },
-  { hex: T.amber,   label: 'Amber' },
+/* Colours a track may use — the five the live Academy's palette supports. */
+const TRACK_COLORS = [
+  { hex: T.primary,     label: 'Indigo' },
+  { hex: T.blue,        label: 'Blue' },
+  { hex: T.green,       label: 'Green' },
+  { hex: T.amber,       label: 'Amber' },
+  { hex: T.primaryDark, label: 'Violet' },
 ];
 
 /* ===== icons ==============================================================
-   The subset of index.html's `Icon` map this tool needs. CATEGORY_ICONS is the
+   The subset of index.html's `Icon` map this tool needs. COURSE_ICONS is the
    allow-list offered to the team: every name in it exists in the live app's map,
-   so a category can never be saved with an icon the app can't render. */
+   so a course can never be saved with an icon the app can't render. */
 const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
   const paths = {
     rocket: <><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.74 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" /><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" /><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" /><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" /></>,
@@ -107,6 +108,20 @@ const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
     percent: <><line x1="19" y1="5" x2="5" y2="19" /><circle cx="7" cy="7" r="2" /><circle cx="17" cy="17" r="2" /></>,
     tag: <><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6z" /><circle cx="7.5" cy="7.5" r="1.1" fill="currentColor" /></>,
     star: <polygon points="12 2 15 8.6 22 9.3 17 14.1 18.2 21 12 17.5 5.8 21 7 14.1 2 9.3 9 8.6 12 2" />,
+    // These five are module icons the shipped apps actually use. They were in
+    // COURSE_ICONS but missing from this map, so those modules silently rendered
+    // the generic fallback glyph here while showing the right one in the app.
+    // Paths copied verbatim from index.html's Icon component.
+    proposal: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M9 13h6M9 17h4" /></>,
+    messageSquare: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+    sliders: <><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="2" y1="14" x2="6" y2="14" /><line x1="10" y1="8" x2="14" y2="8" /><line x1="18" y1="16" x2="22" y2="16" /></>,
+    inbox: <><polyline points="22 12 16 12 14 15 10 15 8 12 2 12" /><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z" /></>,
+    sparkle: <><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5z" /></>,
+    // dollar/trendUp: not in index.html's Icon map yet — added here so COURSE_ICONS
+    // (an intentional extension beyond docs/ACADEMY_INTEGRATION.md's allow-list,
+    // needed by real B2C course data) never renders a blank swatch.
+    dollar: <><line x1="12" y1="2" x2="12" y2="22" /><path d="M17 5.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></>,
+    trendUp: <><polyline points="3 17 9 11 13 15 21 6" /><polyline points="14 6 21 6 21 13" /></>,
     // — chrome —
     layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
     image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></>,
@@ -151,9 +166,14 @@ const Icon = ({ name, size = 18, color = 'currentColor', strokeWidth = 2 }) => {
   );
 };
 
-const CATEGORY_ICONS = ['rocket', 'target', 'briefcase', 'gauge', 'wallet', 'creditCard', 'sparkle2',
-  'link', 'bookOpen', 'graduation', 'award', 'video', 'clock', 'users', 'fileText', 'chartBar',
-  'shield', 'bolt', 'receipt', 'clipboardCheck', 'flow', 'bank', 'percent', 'tag', 'star'];
+// The course/module icon allow-list from docs/ACADEMY_INTEGRATION.md, plus `dollar`
+// and `trendUp` — a deliberate extension beyond the written spec, needed by the
+// real B2C course data.
+const COURSE_ICONS = ['rocket', 'star', 'gauge', 'target', 'proposal', 'user', 'briefcase', 'calendar',
+  'users', 'wallet', 'receipt', 'flow', 'clipboardCheck', 'sparkle2', 'messageSquare', 'sliders',
+  'bookOpen', 'graduation', 'award', 'video', 'clock', 'fileText', 'chartBar', 'shield', 'bolt',
+  'bank', 'percent', 'tag', 'link', 'creditCard', 'dollar', 'trendUp', 'inbox', 'sparkle',
+  'send', 'layers'];
 
 /* ===== helpers ============================================================ */
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -442,23 +462,22 @@ const ResourceListEditor = ({ items, onChange }) => {
    so the screens stay thin and the shapes are easy to reason about. */
 const emptyLesson = () => ({
   id: uid('l'), title: '', mins: 5, type: 'video',
-  videoUrl: '', embedUrl: '', thumbUrl: '',
+  videoUrl: '', embedUrl: '', thumbUrl: '', tour: '',
   description: '', takeaways: [], transcript: '', tags: [], resources: [],
   production: { status: 'idea', owner: '', due: '', notes: '' },
 });
-const emptyCourse = (categoryId) => ({
-  id: uid('c'), title: '', category: categoryId || '', level: 'Beginner', popular: false,
+const emptyCourse = (trackId) => ({
+  id: uid('c'), title: '', track: trackId || '', menuGroup: '', icon: 'bookOpen', level: 'Beginner', popular: false,
   summary: '', lessons: [],
 });
-const emptyCategory = () => ({ id: uid('cat'), label: '', icon: 'bookOpen', color: T.primary, blurb: '' });
+const emptyTrack = () => ({ id: uid('trk'), label: '', color: T.primary, blurb: '' });
 const emptyPath = () => ({ id: uid('path'), title: '', forRole: '', blurb: '', courseIds: [] });
 
 const allLessons = (doc) => (doc.courses || []).flatMap(c => (c.lessons || []).map(l => ({ lesson: l, course: c })));
 const courseMins = (c) => (c.lessons || []).reduce((s, l) => s + (Number(l.mins) || 0), 0);
 const lessonHasVideo = (l) => !!(l.embedUrl || l.videoUrl);
-const catById = (doc, id) => (doc.categories || []).find(c => c.id === id) || null;
-const catColorOf = (doc, course) => { const c = catById(doc, course.category); return (c && c.color) || T.primary; };
-const catIconOf = (doc, course) => { const c = catById(doc, course.category); return (c && c.icon) || 'bookOpen'; };
+const trackById = (doc, id) => (doc.tracks || []).find(t => t.id === id) || null;
+const trackColorOf = (doc, trackId) => { const t = trackById(doc, trackId); return (t && t.color) || T.primary; };
 
 /* Move an item within an array, returning a new array. */
 const moveItem = (arr, from, to) => {
@@ -474,8 +493,8 @@ const moveItem = (arr, from, to) => {
    'warn' is advisory. Every issue carries enough to jump straight to the fix. */
 const computeIssues = (doc) => {
   const issues = [];
-  const push = (severity, category, label, detail, target) => issues.push({ id: uid('i'), severity, category, label, detail, target });
-  const cats = doc.categories || [];
+  const push = (severity, group, label, detail, target) => issues.push({ id: uid('i'), severity, group, label, detail, target });
+  const tracks = doc.tracks || [];
   const courses = doc.courses || [];
   const paths = doc.paths || [];
 
@@ -486,21 +505,22 @@ const computeIssues = (doc) => {
     if (seen[id]) push('block', 'Duplicate id', `"${id}" is used twice`, `${what} reuses an id that already exists. Learner progress would be shared between them.`, target);
     seen[id] = true;
   };
-  cats.forEach(c => dupe(c.id, `Category "${c.label || 'Untitled'}"`, { kind: 'category', id: c.id }));
+  tracks.forEach(t => dupe(t.id, `Track "${t.label || 'Untitled'}"`, { kind: 'track', id: t.id }));
   courses.forEach(c => {
     dupe(c.id, `Course "${c.title || 'Untitled'}"`, { kind: 'course', id: c.id });
     (c.lessons || []).forEach(l => dupe(l.id, `Lesson "${l.title || 'Untitled'}"`, { kind: 'lesson', id: l.id, courseId: c.id }));
   });
 
-  cats.forEach(c => {
-    if (!String(c.label || '').trim()) push('block', 'Untitled', 'A category has no name', 'Learners see this as a filter chip — it cannot be blank.', { kind: 'category', id: c.id });
-    if (CATEGORY_ICONS.indexOf(c.icon) < 0) push('block', 'Bad icon', `"${c.label || c.id}" uses an unknown icon`, `"${c.icon}" is not an icon the app can render — pick one from the list.`, { kind: 'category', id: c.id });
-    if (!courses.some(x => x.category === c.id)) push('warn', 'Empty category', `"${c.label || c.id}" has no courses`, 'It will not appear anywhere for learners. Delete it or add a course.', { kind: 'category', id: c.id });
+  tracks.forEach(t => {
+    if (!String(t.label || '').trim()) push('block', 'Untitled', 'A track has no name', 'Learners see this as a filter chip — it cannot be blank.', { kind: 'track', id: t.id });
+    if (TRACK_COLORS.every(x => x.hex !== t.color)) push('block', 'Bad colour', `"${t.label || t.id}" uses an unsupported colour`, `"${t.color}" is not one of the five colours the app supports — pick one from the list.`, { kind: 'track', id: t.id });
+    if (!courses.some(x => x.track === t.id)) push('warn', 'Empty track', `"${t.label || t.id}" has no courses`, 'It will not appear anywhere for learners. Delete it or add a course.', { kind: 'track', id: t.id });
   });
 
   courses.forEach(c => {
     if (!String(c.title || '').trim()) push('block', 'Untitled', 'A course has no title', 'Course cards would render blank.', { kind: 'course', id: c.id });
-    if (!catById(doc, c.category)) push('block', 'Orphan course', `"${c.title || c.id}" has no valid category`, 'It will not show under any filter. Pick a category.', { kind: 'course', id: c.id });
+    if (!trackById(doc, c.track)) push('block', 'Orphan course', `"${c.title || c.id}" has no valid track`, 'It will not show under any filter. Pick a track.', { kind: 'course', id: c.id });
+    if (COURSE_ICONS.indexOf(c.icon) < 0) push('block', 'Bad icon', `"${c.title || c.id}" uses an unknown icon`, `"${c.icon}" is not an icon the app can render — pick one from the list.`, { kind: 'course', id: c.id });
     if (!(c.lessons || []).length) push('block', 'Empty course', `"${c.title || c.id}" has no lessons`, 'Opening it would show an empty player.', { kind: 'course', id: c.id });
     if (!String(c.summary || '').trim()) push('warn', 'No summary', `"${c.title || c.id}" has no summary`, 'The card body would be blank in the catalog.', { kind: 'course', id: c.id });
     (c.lessons || []).forEach(l => {
@@ -531,13 +551,22 @@ const computeIssues = (doc) => {
 const toPublished = (doc) => ({
   product: doc.product,
   meta: { title: (doc.meta && doc.meta.title) || 'Sole Academy', blurb: (doc.meta && doc.meta.blurb) || '' },
-  categories: (doc.categories || []).map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color, blurb: c.blurb || '' })),
+  tracks: (doc.tracks || []).map(t => ({ id: t.id, label: t.label, color: t.color, blurb: t.blurb || '' })),
   courses: (doc.courses || []).map(c => ({
-    id: c.id, title: c.title, category: c.category, level: c.level || 'Beginner',
+    id: c.id, title: c.title, menuGroup: c.menuGroup || '', track: c.track, icon: c.icon || 'bookOpen', level: c.level || 'Beginner',
     summary: c.summary || '', popular: !!c.popular,
     lessons: (c.lessons || []).map(l => {
+      const prodStatus = (l.production && l.production.status) || 'idea';
+      // `status` is the one production field that must survive publish — unlike
+      // owner/due/notes below, which stay internal — because the app's readiness
+      // and certificate rules are built on it (docs/ACADEMY_INTEGRATION.md).
+      let status = prodStatus === 'published' ? 'published'
+        : (prodStatus === 'idea' || prodStatus === 'outlined') ? 'planned' : 'recording';
+      // Belt-and-braces: never claim "published" for a lesson whose production
+      // isn't actually signed off, even if a video URL happens to be attached.
+      if (lessonHasVideo(l) && prodStatus !== 'published') status = 'recording';
       const out = {
-        id: l.id, title: l.title, mins: Number(l.mins) || 0, type: l.type || 'video',
+        id: l.id, title: l.title, mins: Number(l.mins) || 0, type: l.type || 'video', status,
         description: l.description || '',
         takeaways: (l.takeaways || []).filter(t => String(t).trim()),
         transcript: l.transcript || '',
@@ -549,6 +578,7 @@ const toPublished = (doc) => ({
       if (l.videoUrl) out.videoUrl = l.videoUrl;
       if (l.embedUrl) out.embedUrl = l.embedUrl;
       if (l.thumbUrl) out.thumbUrl = l.thumbUrl;
+      if (l.tour) out.tour = l.tour;
       if (l.guide) out.guide = l.guide;   // reserved for annotated-screenshot lessons
       return out;
     }),
@@ -566,23 +596,29 @@ const lsWrite = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 
 const seedDocs = () => {
   const out = {};
-  PRODUCTS.forEach(p => { out[p.id] = clone(SEED[p.id] || { product: p.id, meta: { title: 'Sole Academy', blurb: '' }, categories: [], courses: [], paths: [] }); });
+  PRODUCTS.forEach(p => { out[p.id] = clone(SEED[p.id] || { product: p.id, meta: { title: 'Sole Academy', blurb: '' }, tracks: [], courses: [], paths: [] }); });
   return out;
 };
 // Fill in anything a hand-edited or older document is missing, so the editor
-// never has to null-check its way through a screen.
+// never has to null-check its way through a screen. Also backfills the old
+// category-based shape (pre 4 Aug 2026 restructure) so a stale seed file or an
+// imported draft never crashes the tool — see docs/ACADEMY_INTEGRATION.md.
 const normaliseDoc = (d, productId) => {
   const doc = d && typeof d === 'object' ? clone(d) : {};
   doc.product = productId;
   doc.meta = doc.meta || { title: 'Sole Academy', blurb: '' };
-  doc.categories = Array.isArray(doc.categories) ? doc.categories : [];
+  doc.tracks = Array.isArray(doc.tracks) ? doc.tracks : (Array.isArray(doc.categories) ? doc.categories : []);
   doc.courses = Array.isArray(doc.courses) ? doc.courses : [];
   doc.paths = Array.isArray(doc.paths) ? doc.paths : [];
   doc.courses.forEach(c => {
+    c.track = c.category || c.track || '';
+    c.menuGroup = c.menuGroup || '';
+    c.icon = c.icon || 'bookOpen';
     c.lessons = Array.isArray(c.lessons) ? c.lessons : [];
     c.level = c.level || 'Beginner';
     c.lessons.forEach(l => {
       l.type = l.type || 'video';
+      l.tour = l.tour || '';
       l.takeaways = Array.isArray(l.takeaways) ? l.takeaways : [];
       l.tags = Array.isArray(l.tags) ? l.tags : [];
       l.resources = Array.isArray(l.resources) ? l.resources : [];
@@ -647,26 +683,26 @@ const RowActions = ({ onUp, onDown, onDelete, canUp, canDown, extra }) => (
 );
 
 /* ===== the curriculum tree ================================================
-   Category → course → lesson, collapsible, drag or arrow to reorder. Selecting
+   Track → course → lesson, collapsible, drag or arrow to reorder. Selecting
    any row opens it in the editor pane on the right. */
 const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setCollapsed }) => {
-  const cats = doc.categories || [];
-  const moveCat = useDragOrder((f, t) => edit(d => { d.categories = moveItem(d.categories, f, t); }));
+  const tracks = doc.tracks || [];
+  const moveTrack = useDragOrder((f, t) => edit(d => { d.tracks = moveItem(d.tracks, f, t); }));
 
   const isOpen = (id) => !collapsed[id];
   const toggle = (id) => setCollapsed(c => ({ ...c, [id]: !c[id] }));
 
-  const addCategory = () => {
-    const c = emptyCategory();
-    c.label = 'New category';
-    edit(d => { d.categories.push(c); });
-    setSel({ kind: 'category', id: c.id });
+  const addTrack = () => {
+    const t = emptyTrack();
+    t.label = 'New track';
+    edit(d => { d.tracks.push(t); });
+    setSel({ kind: 'track', id: t.id });
   };
-  const addCourse = (categoryId) => {
-    const c = emptyCourse(categoryId);
+  const addCourse = (trackId) => {
+    const c = emptyCourse(trackId);
     c.title = 'New course';
     edit(d => { d.courses.push(c); });
-    setCollapsed(s => ({ ...s, [categoryId]: false }));
+    setCollapsed(s => ({ ...s, [trackId]: false }));
     setSel({ kind: 'course', id: c.id });
   };
   const addLesson = (courseId) => {
@@ -677,13 +713,13 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
     setSel({ kind: 'lesson', id: l.id, courseId });
   };
 
-  const deleteCategory = (cat) => {
-    const owned = (doc.courses || []).filter(c => c.category === cat.id);
+  const deleteTrack = (track) => {
+    const owned = (doc.courses || []).filter(c => c.track === track.id);
     if (owned.length) { fireToast({ message: `Move or delete its ${plural(owned.length, 'course')} first`, tone: 'warn' }); return; }
-    const snapshot = clone(doc.categories);
-    edit(d => { d.categories = d.categories.filter(c => c.id !== cat.id); });
-    if (sel.kind === 'category' && sel.id === cat.id) setSel({ kind: null });
-    fireToast({ message: `Deleted "${cat.label || 'category'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.categories = snapshot; }) } });
+    const snapshot = clone(doc.tracks);
+    edit(d => { d.tracks = d.tracks.filter(t => t.id !== track.id); });
+    if (sel.kind === 'track' && sel.id === track.id) setSel({ kind: null });
+    fireToast({ message: `Deleted "${track.label || 'track'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.tracks = snapshot; }) } });
   };
   const deleteCourse = (course) => {
     const snapshot = clone(doc.courses);
@@ -709,56 +745,56 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
           <div style={{ fontSize: 12.5, fontWeight: 700 }}>Curriculum</div>
           <Helper style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{plural((doc.courses || []).length, 'course')} · {plural(allLessons(doc).length, 'lesson')}</Helper>
         </div>
-        <Btn variant="soft" size="sm" icon="plus" onClick={addCategory} style={{ flexShrink: 0 }}>Category</Btn>
+        <Btn variant="soft" size="sm" icon="plus" onClick={addTrack} style={{ flexShrink: 0 }}>Track</Btn>
       </div>
 
       <div className="scroll" style={{ flex: 1, padding: '8px 8px 40px' }}>
-        {cats.length === 0 && (
-          <EmptyState icon="layers" title="No categories yet"
-            hint="Categories are the filter chips learners see across the top of the catalog. Start with one, then add courses inside it."
-            action={<Btn variant="primary" size="sm" icon="plus" onClick={addCategory}>Add the first category</Btn>} />
+        {tracks.length === 0 && (
+          <EmptyState icon="layers" title="No tracks yet"
+            hint="Tracks are the filter chips learners see across the top of the catalog. Start with one, then add courses inside it."
+            action={<Btn variant="primary" size="sm" icon="plus" onClick={addTrack}>Add the first track</Btn>} />
         )}
-        {cats.map((cat, ci) => {
-          const courses = (doc.courses || []).filter(c => c.category === cat.id);
-          const open = isOpen(cat.id);
-          const selectedCat = sel.kind === 'category' && sel.id === cat.id;
+        {tracks.map((track, ti) => {
+          const courses = (doc.courses || []).filter(c => c.track === track.id);
+          const open = isOpen(track.id);
+          const selectedTrack = sel.kind === 'track' && sel.id === track.id;
           return (
-            <div key={cat.id} {...moveCat(ci)} style={{ marginBottom: 3, borderRadius: T.radius }}>
-              <div data-row onClick={() => setSel({ kind: 'category', id: cat.id })}
+            <div key={track.id} {...moveTrack(ti)} style={{ marginBottom: 3, borderRadius: T.radius }}>
+              <div data-row onClick={() => setSel({ kind: 'track', id: track.id })}
                 style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: T.radius, cursor: 'pointer',
-                  background: selectedCat ? T.primarySoft : 'transparent' }}
-                onMouseEnter={e => { if (!selectedCat) e.currentTarget.style.background = T.fieldBg; }}
-                onMouseLeave={e => { if (!selectedCat) e.currentTarget.style.background = 'transparent'; }}>
-                <button data-btn onClick={e => { e.stopPropagation(); toggle(cat.id); }} aria-label={open ? 'Collapse' : 'Expand'}
+                  background: selectedTrack ? T.primarySoft : 'transparent' }}
+                onMouseEnter={e => { if (!selectedTrack) e.currentTarget.style.background = T.fieldBg; }}
+                onMouseLeave={e => { if (!selectedTrack) e.currentTarget.style.background = 'transparent'; }}>
+                <button data-btn onClick={e => { e.stopPropagation(); toggle(track.id); }} aria-label={open ? 'Collapse' : 'Expand'}
                   style={{ border: 'none', background: 'transparent', padding: 0, color: T.mutedSoft, display: 'flex' }}>
                   <Icon name={open ? 'chevronDown' : 'chevronRight'} size={13} />
                 </button>
-                <span style={{ width: 20, height: 20, borderRadius: 6, background: withAlpha(cat.color || T.primary, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon name={cat.icon || 'bookOpen'} size={12} color={cat.color || T.primary} />
+                <span style={{ width: 20, height: 20, borderRadius: 6, background: withAlpha(track.color || T.primary, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon name="layers" size={12} color={track.color || T.primary} />
                 </span>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {cat.label || <span style={{ color: T.red }}>Untitled category</span>}
+                  {track.label || <span style={{ color: T.red }}>Untitled track</span>}
                 </span>
                 <span style={{ fontSize: 10, color: T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>{courses.length}</span>
                 <RowActions
-                  canUp={ci > 0} canDown={ci < cats.length - 1}
-                  onUp={() => edit(d => { d.categories = moveItem(d.categories, ci, ci - 1); })}
-                  onDown={() => edit(d => { d.categories = moveItem(d.categories, ci, ci + 1); })}
-                  onDelete={() => deleteCategory(cat)}
-                  extra={<button data-btn onClick={(e) => { e.stopPropagation(); addCourse(cat.id); }} aria-label="Add course"
+                  canUp={ti > 0} canDown={ti < tracks.length - 1}
+                  onUp={() => edit(d => { d.tracks = moveItem(d.tracks, ti, ti - 1); })}
+                  onDown={() => edit(d => { d.tracks = moveItem(d.tracks, ti, ti + 1); })}
+                  onDelete={() => deleteTrack(track)}
+                  extra={<button data-btn onClick={(e) => { e.stopPropagation(); addCourse(track.id); }} aria-label="Add course"
                     style={{ border: 'none', background: 'transparent', padding: 2, color: T.muted }}><Icon name="plus" size={13} /></button>} />
               </div>
 
               {open && (
                 <div style={{ marginLeft: 14, borderLeft: `1px solid ${T.borderSoft}`, paddingLeft: 6, marginTop: 2 }}>
                   {courses.length === 0 && (
-                    <button data-btn onClick={() => addCourse(cat.id)}
+                    <button data-btn onClick={() => addCourse(track.id)}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', padding: '5px 8px', color: T.mutedSoft, fontSize: 11, textAlign: 'left' }}>
                       <Icon name="plus" size={12} />Add a course
                     </button>
                   )}
                   {courses.map((course) => (
-                    <CourseBranch key={course.id} doc={doc} cat={cat} course={course} courses={courses}
+                    <CourseBranch key={course.id} doc={doc} track={track} course={course} courses={courses}
                       sel={sel} setSel={setSel} edit={edit}
                       open={isOpen(course.id)} toggle={() => toggle(course.id)}
                       onAddLesson={() => addLesson(course.id)}
@@ -777,22 +813,22 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
 
 /* One course row plus its lesson list. Split out so each course owns its own
    drag state — a single shared one would make every list jump at once. */
-const CourseBranch = ({ doc, cat, course, courses, sel, setSel, edit, open, toggle, onAddLesson, onDeleteCourse, onDeleteLesson }) => {
+const CourseBranch = ({ doc, track, course, courses, sel, setSel, edit, open, toggle, onAddLesson, onDeleteCourse, onDeleteLesson }) => {
   const idx = courses.indexOf(course);
   const globalIdx = (doc.courses || []).indexOf(course);
-  // Reorder within the category: translate a local swap into the global array.
-  const moveWithinCat = (from, to) => edit(d => {
+  // Reorder within the track: translate a local swap into the global array.
+  const moveWithinTrack = (from, to) => edit(d => {
     const ids = courses.map(c => c.id);
     const reordered = moveItem(ids, from, to);
-    const others = d.courses.filter(c => c.category !== cat.id);
+    const others = d.courses.filter(c => c.track !== track.id);
     const mine = reordered.map(id => d.courses.find(c => c.id === id)).filter(Boolean);
-    // Keep the category's courses contiguous at the position of its first member.
-    const firstAt = d.courses.findIndex(c => c.category === cat.id);
+    // Keep the track's courses contiguous at the position of its first member.
+    const firstAt = d.courses.findIndex(c => c.track === track.id);
     const out = others.slice();
     out.splice(Math.max(0, firstAt), 0, ...mine);
     d.courses = out;
   });
-  const courseDnd = useDragOrder(moveWithinCat);
+  const courseDnd = useDragOrder(moveWithinTrack);
   const moveLesson = (f, t) => edit(d => { const c = findCourse(d, course.id); if (c) c.lessons = moveItem(c.lessons, f, t); });
   const lessonDnd = useDragOrder(moveLesson);
   const selectedCourse = sel.kind === 'course' && sel.id === course.id;
@@ -819,8 +855,8 @@ const CourseBranch = ({ doc, cat, course, courses, sel, setSel, edit, open, togg
         </span>
         <RowActions
           canUp={idx > 0} canDown={idx < courses.length - 1}
-          onUp={() => moveWithinCat(idx, idx - 1)}
-          onDown={() => moveWithinCat(idx, idx + 1)}
+          onUp={() => moveWithinTrack(idx, idx - 1)}
+          onDown={() => moveWithinTrack(idx, idx + 1)}
           onDelete={onDeleteCourse}
           extra={<button data-btn onClick={(e) => { e.stopPropagation(); onAddLesson(); }} aria-label="Add lesson"
             style={{ border: 'none', background: 'transparent', padding: 2, color: T.muted }}><Icon name="plus" size={12} /></button>} />
@@ -883,61 +919,49 @@ const EditorShell = ({ eyebrow, title, icon, color, children, actions }) => (
   </div>
 );
 
-const CategoryEditor = ({ doc, cat, edit }) => {
-  const set = (patch) => edit(d => { const c = (d.categories || []).find(x => x.id === cat.id); if (c) Object.assign(c, patch); });
-  const owned = (doc.courses || []).filter(c => c.category === cat.id);
+const TrackEditor = ({ doc, track, edit }) => {
+  const set = (patch) => edit(d => { const t = (d.tracks || []).find(x => x.id === track.id); if (t) Object.assign(t, patch); });
+  const owned = (doc.courses || []).filter(c => c.track === track.id);
   return (
-    <EditorShell eyebrow="Category" title={cat.label || 'Untitled category'} icon={cat.icon || 'bookOpen'} color={cat.color}>
+    <EditorShell eyebrow="Track" title={track.label || 'Untitled track'} icon="layers" color={track.color}>
       <Card>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Field label="Name" hint="Learners see this as a filter chip above the course grid. Keep it short and plain — “Payroll & tax”, not “Payroll and taxation management”.">
-            <Input value={cat.label || ''} onChange={e => set({ label: e.target.value })} placeholder="Get started" />
+            <Input value={track.label || ''} onChange={e => set({ label: e.target.value })} placeholder="Get started" />
           </Field>
-          <Field label="One-line description" hint="Shown under the category name in some views. Say what the learner will be able to do.">
-            <Input value={cat.blurb || ''} onChange={e => set({ blurb: e.target.value })} placeholder="Set up your practice and find your way around" />
+          <Field label="One-line description" hint="Shown under the track name in some views. Say what the learner will be able to do.">
+            <Input value={track.blurb || ''} onChange={e => set({ blurb: e.target.value })} placeholder="Set up your practice and find your way around" />
           </Field>
-          <Field label="Icon" hint="This exact set is what the app can draw. Anything else would render as a fallback.">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {CATEGORY_ICONS.map(n => (
-                <button key={n} data-btn onClick={() => set({ icon: n })} title={n}
-                  style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: `1px solid ${cat.icon === n ? (cat.color || T.primary) : T.border}`,
-                    background: cat.icon === n ? withAlpha(cat.color || T.primary, 0.12) : T.card }}>
-                  <Icon name={n} size={15} color={cat.icon === n ? (cat.color || T.primary) : T.muted} />
-                </button>
-              ))}
-            </div>
-          </Field>
-          <Field label="Colour" hint="Tints the course thumbnails in this category, so learners can tell modules apart at a glance.">
+          <Field label="Colour" hint="Tints the course thumbnails in this track, so learners can tell modules apart at a glance.">
             <div style={{ display: 'flex', gap: 7 }}>
-              {CATEGORY_COLORS.map(c => (
+              {TRACK_COLORS.map(c => (
                 <button key={c.hex} data-btn onClick={() => set({ color: c.hex })} title={c.label}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
-                    border: `1px solid ${cat.color === c.hex ? c.hex : T.border}`, background: cat.color === c.hex ? withAlpha(c.hex, 0.10) : T.card, color: cat.color === c.hex ? c.hex : T.muted }}>
+                    border: `1px solid ${track.color === c.hex ? c.hex : T.border}`, background: track.color === c.hex ? withAlpha(c.hex, 0.10) : T.card, color: track.color === c.hex ? c.hex : T.muted }}>
                   <span style={{ width: 11, height: 11, borderRadius: 999, background: c.hex }} />{c.label}
                 </button>
               ))}
             </div>
           </Field>
           <Field label="Id" hint="Used by the app to remember which chip a course belongs to. Changing it detaches every course below — rename the label instead unless you know why you're doing this.">
-            <Input value={cat.id} onChange={e => {
-              const next = slug(e.target.value) || cat.id;
+            <Input value={track.id} onChange={e => {
+              const next = slug(e.target.value) || track.id;
               edit(d => {
-                (d.courses || []).forEach(c => { if (c.category === cat.id) c.category = next; });
-                const c = (d.categories || []).find(x => x.id === cat.id); if (c) c.id = next;
+                (d.courses || []).forEach(c => { if (c.track === track.id) c.track = next; });
+                const t = (d.tracks || []).find(x => x.id === track.id); if (t) t.id = next;
               });
             }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
           </Field>
         </div>
       </Card>
       <Card>
-        <SectionTitle style={{ marginBottom: 10 }}>Courses in this category</SectionTitle>
+        <SectionTitle style={{ marginBottom: 10 }}>Courses in this track</SectionTitle>
         {owned.length === 0
-          ? <Helper>None yet. Use the + on the category row in the tree.</Helper>
+          ? <Helper>None yet. Use the + on the track row in the tree.</Helper>
           : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {owned.map(c => (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                  <Icon name="bookOpen" size={13} color={T.mutedSoft} />
+                  <Icon name={c.icon || 'bookOpen'} size={13} color={T.mutedSoft} />
                   <span style={{ flex: 1 }}>{c.title || 'Untitled'}</span>
                   <span style={{ color: T.mutedSoft, fontSize: 11 }}>{plural((c.lessons || []).length, 'lesson')} · {courseMins(c)} min</span>
                 </div>
@@ -950,9 +974,10 @@ const CategoryEditor = ({ doc, cat, edit }) => {
 
 const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, otherProductLabel, setSel }) => {
   const set = (patch) => edit(d => { const c = findCourse(d, course.id); if (c) Object.assign(c, patch); });
-  const cats = doc.categories || [];
+  const tracks = doc.tracks || [];
   const lessons = course.lessons || [];
   const inPaths = (doc.paths || []).filter(p => (p.courseIds || []).includes(course.id));
+  const color = trackColorOf(doc, course.track);
 
   // The YouTube-description helper Johann asked for: a course's lesson list as
   // chapter text, ready to paste into a video description.
@@ -976,7 +1001,7 @@ const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, othe
   };
 
   return (
-    <EditorShell eyebrow="Course" title={course.title || 'Untitled course'} icon={catIconOf(doc, course)} color={catColorOf(doc, course)}
+    <EditorShell eyebrow="Course" title={course.title || 'Untitled course'} icon={course.icon || 'bookOpen'} color={color}
       actions={<>
         <Btn variant="outline" size="sm" icon="copy" onClick={contentPack}>Content pack</Btn>
         {onCopyToOtherProduct && <Btn variant="outline" size="sm" icon="layers" onClick={onCopyToOtherProduct}>Copy to {otherProductLabel}</Btn>}
@@ -990,10 +1015,10 @@ const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, othe
             <Textarea rows={2} value={course.summary || ''} onChange={e => set({ summary: e.target.value })} placeholder="Run compliant Australian payroll end-to-end — from employers to a finalised, STP-reported payrun." />
           </Field>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Category">
-              <Select value={course.category || ''} onChange={e => set({ category: e.target.value })}>
+            <Field label="Track">
+              <Select value={course.track || ''} onChange={e => set({ track: e.target.value })}>
                 <option value="">— none —</option>
-                {cats.map(c => <option key={c.id} value={c.id}>{c.label || c.id}</option>)}
+                {tracks.map(t => <option key={t.id} value={t.id}>{t.label || t.id}</option>)}
               </Select>
             </Field>
             <Field label="Level">
@@ -1002,6 +1027,21 @@ const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, othe
               </Select>
             </Field>
           </div>
+          <Field label="Menu group" hint="The group in the app's left-hand menu this module teaches — leave blank if not applicable (e.g. for the B2C product).">
+            <Input value={course.menuGroup || ''} onChange={e => set({ menuGroup: e.target.value })} placeholder="Payroll" />
+          </Field>
+          <Field label="Icon" hint="This exact set is what the app can draw. Anything else would render as a fallback.">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {COURSE_ICONS.map(n => (
+                <button key={n} data-btn onClick={() => set({ icon: n })} title={n}
+                  style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `1px solid ${course.icon === n ? color : T.border}`,
+                    background: course.icon === n ? withAlpha(color, 0.12) : T.card }}>
+                  <Icon name={n} size={15} color={course.icon === n ? color : T.muted} />
+                </button>
+              ))}
+            </div>
+          </Field>
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
             <input type="checkbox" checked={!!course.popular} onChange={e => set({ popular: e.target.checked })} style={{ marginTop: 2, accentColor: T.primary }} />
             <span>
@@ -1192,7 +1232,7 @@ const LessonEditor = ({ doc, course, lesson, edit, fireToast, owners, setSel }) 
 
   return (
     <EditorShell eyebrow={`Lesson ${idx + 1} of ${lessons.length} · ${course.title || 'Untitled course'}`}
-      title={lesson.title || 'Untitled lesson'} icon="video" color={catColorOf(doc, course)}
+      title={lesson.title || 'Untitled lesson'} icon="video" color={trackColorOf(doc, course.track)}
       actions={<>
         <Btn variant="outline" size="sm" icon="chevronUp" disabled={idx <= 0}
           onClick={() => setSel({ kind: 'lesson', id: lessons[idx - 1].id, courseId: course.id })}>Prev</Btn>
@@ -1223,6 +1263,12 @@ const LessonEditor = ({ doc, course, lesson, edit, fireToast, owners, setSel }) 
       </Card>
 
       <VideoField lesson={lesson} onApply={set} fireToast={fireToast} />
+
+      <Card>
+        <Field label="Screen Tour link (optional)" hint="The id of a Screen Tour walkthrough (pages/screen-tour.html#<id>) — e.g. practice-dashboard, helicopter-view, pipeline-forecast. Leave blank if there's no matching annotated walkthrough.">
+          <Input value={lesson.tour || ''} onChange={e => set({ tour: e.target.value })} placeholder="practice-dashboard" />
+        </Field>
+      </Card>
 
       <Card>
         <SectionTitle style={{ marginBottom: 4 }}>What they'll be able to do</SectionTitle>
@@ -1386,7 +1432,7 @@ const PathsScreen = ({ doc, edit, fireToast }) => {
                         <span style={{ fontSize: 10.5, color: T.mutedSoft, width: 14, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
                         {c ? (
                           <>
-                            <Icon name={catIconOf(doc, c)} size={13} color={catColorOf(doc, c)} />
+                            <Icon name={c.icon || 'bookOpen'} size={13} color={trackColorOf(doc, c.track)} />
                             <span style={{ flex: 1, minWidth: 0, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || 'Untitled'}</span>
                             <span style={{ fontSize: 10.5, color: T.mutedSoft }}>{plural((c.lessons || []).length, 'lesson')}</span>
                           </>
@@ -1555,8 +1601,8 @@ const ProductionScreen = ({ doc, edit, jumpToLesson, owners }) => {
    real thing, not an approximation. Progress is always shown as "not started" —
    this previews content, not a particular learner's state. */
 const AcademyThumb = ({ doc, course, playSize = 54, watermark = 132, radius = T.radiusLg }) => {
-  const color = catColorOf(doc, course);
-  const icon = catIconOf(doc, course);
+  const color = trackColorOf(doc, course.track);
+  const icon = course.icon || 'bookOpen';
   const lessons = course.lessons || [];
   const firstThumb = (lessons.find(l => l.thumbUrl) || {}).thumbUrl;
   return (
@@ -1582,8 +1628,8 @@ const AcademyThumb = ({ doc, course, playSize = 54, watermark = 132, radius = T.
 };
 
 const PreviewCourseCard = ({ doc, course, onOpen }) => {
-  const cat = catById(doc, course.category);
-  const color = catColorOf(doc, course);
+  const track = trackById(doc, course.track);
+  const color = trackColorOf(doc, course.track);
   return (
     <div onClick={onOpen} role="button" tabIndex={0}
       style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusCard, background: T.card, overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column', boxShadow: T.shadowSm }}>
@@ -1591,7 +1637,7 @@ const PreviewCourseCard = ({ doc, course, onOpen }) => {
       <div style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color }}>
-            <Icon name={catIconOf(doc, course)} size={12} color={color} />{cat ? cat.label : 'No category'}
+            <Icon name={course.icon || 'bookOpen'} size={12} color={color} />{track ? track.label : 'No track'}
           </span>
           <span style={{ width: 3, height: 3, borderRadius: 999, background: T.mutedSoft }} />
           <span style={{ fontSize: 10.5, color: T.muted }}>{course.level || 'Beginner'}</span>
@@ -1625,12 +1671,12 @@ const PreviewPathCard = ({ doc, path }) => {
       </div>
       <Helper style={{ fontSize: 11.5 }}>{path.blurb || <span style={{ color: T.mutedSoft, fontStyle: 'italic' }}>No blurb yet</span>}</Helper>
       <div style={{ display: 'flex', gap: 3 }}>
-        {courses.map(c => <div key={c.id} style={{ flex: 1, height: 4, borderRadius: 999, background: withAlpha(catColorOf(doc, c), 0.35) }} />)}
+        {courses.map(c => <div key={c.id} style={{ flex: 1, height: 4, borderRadius: 999, background: withAlpha(trackColorOf(doc, c.track), 0.35) }} />)}
       </div>
       {next && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: T.radius, background: T.fieldBg, border: `1px solid ${T.borderSoft}` }}>
           <span style={{ width: 28, height: 28, borderRadius: 8, background: T.card, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name={catIconOf(doc, next)} size={14} color={catColorOf(doc, next)} />
+            <Icon name={next.icon || 'bookOpen'} size={14} color={trackColorOf(doc, next.track)} />
           </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: T.mutedSoft }}>Start with</div>
@@ -1651,7 +1697,7 @@ const PreviewPathCard = ({ doc, path }) => {
    video, otherwise the branded poster learners actually get. */
 const PreviewStage = ({ doc, course, lesson }) => {
   const [playing, setPlaying] = useState(false);
-  const color = catColorOf(doc, course);
+  const color = trackColorOf(doc, course.track);
   useEffect(() => { setPlaying(false); }, [lesson.id]);
   const stage = { position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radiusLg, overflow: 'hidden' };
 
@@ -1676,7 +1722,7 @@ const PreviewStage = ({ doc, course, lesson }) => {
     <div style={{ ...stage, background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.46)} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(110% 80% at 14% -6%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 50%)` }} />
       <div style={{ position: 'absolute', right: -26, bottom: -32, opacity: 0.13, transform: 'rotate(-8deg)', pointerEvents: 'none' }}>
-        <Icon name={catIconOf(doc, course)} size={210} color="#fff" strokeWidth={1.2} />
+        <Icon name={course.icon || 'bookOpen'} size={210} color="#fff" strokeWidth={1.2} />
       </div>
       <div style={{ position: 'absolute', top: 16, left: 18, zIndex: 2, maxWidth: '70%' }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Video lesson</div>
@@ -1708,14 +1754,14 @@ const PreviewScreen = ({ doc }) => {
   const [lessonId, setLessonId] = useState(null);
   const courses = doc.courses || [];
   const paths = doc.paths || [];
-  const cats = doc.categories || [];
-  const [cat, setCat] = useState('all');
+  const tracks = doc.tracks || [];
+  const [track, setTrack] = useState('all');
 
   const openCourse = courses.find(c => c.id === openCourseId) || null;
   const lessons = openCourse ? (openCourse.lessons || []) : [];
   const lesson = lessons.find(l => l.id === lessonId) || lessons[0] || null;
   const popular = courses.filter(c => c.popular);
-  const shown = cat === 'all' ? courses : courses.filter(c => c.category === cat);
+  const shown = track === 'all' ? courses : courses.filter(c => c.track === track);
 
   const open = (c) => { setOpenCourseId(c.id); setLessonId((c.lessons || [])[0] ? c.lessons[0].id : null); setTab('player'); };
 
@@ -1752,10 +1798,10 @@ const PreviewScreen = ({ doc }) => {
             <div style={{ marginTop: 24 }}>
               <SectionTitle style={{ marginBottom: 10 }}>All courses</SectionTitle>
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
-                <Chip selected={cat === 'all'} onClick={() => setCat('all')}>{`All · ${courses.length}`}</Chip>
-                {cats.map(c => {
-                  const n = courses.filter(x => x.category === c.id).length;
-                  return n ? <Chip key={c.id} tone={c.color} selected={cat === c.id} onClick={() => setCat(c.id)}>{`${c.label} · ${n}`}</Chip> : null;
+                <Chip selected={track === 'all'} onClick={() => setTrack('all')}>{`All · ${courses.length}`}</Chip>
+                {tracks.map(t => {
+                  const n = courses.filter(x => x.track === t.id).length;
+                  return n ? <Chip key={t.id} tone={t.color} selected={track === t.id} onClick={() => setTrack(t.id)}>{`${t.label} · ${n}`}</Chip> : null;
                 })}
               </div>
               {shown.length === 0
@@ -1973,8 +2019,8 @@ const IssuesPanel = ({ issues, onJump }) => {
 
   const groups = [];
   issues.forEach(i => {
-    let g = groups.find(x => x.category === i.category && x.severity === i.severity);
-    if (!g) { g = { category: i.category, severity: i.severity, items: [] }; groups.push(g); }
+    let g = groups.find(x => x.group === i.group && x.severity === i.severity);
+    if (!g) { g = { group: i.group, severity: i.severity, items: [] }; groups.push(g); }
     g.items.push(i);
   });
   groups.sort((a, b) => (a.severity === b.severity ? b.items.length - a.items.length : a.severity === 'block' ? -1 : 1));
@@ -1998,7 +2044,7 @@ const IssuesPanel = ({ issues, onJump }) => {
       )}
       <Card pad={0} style={{ overflow: 'hidden' }}>
         {groups.map((g, gi) => {
-          const key = g.severity + ':' + g.category;
+          const key = g.severity + ':' + g.group;
           const isOpen = !!open[key];
           const tone = g.severity === 'block' ? T.red : T.amber;
           return (
@@ -2007,7 +2053,7 @@ const IssuesPanel = ({ issues, onJump }) => {
                 style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', border: 'none', background: 'transparent', padding: '10px 14px', textAlign: 'left' }}>
                 <Icon name={isOpen ? 'chevronDown' : 'chevronRight'} size={13} color={T.mutedSoft} />
                 <Icon name={g.severity === 'block' ? 'xCircle' : 'alertTriangle'} size={14} color={tone} />
-                <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600 }}>{g.category}</span>
+                <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600 }}>{g.group}</span>
                 <Pill color={tone}>{g.items.length}</Pill>
               </button>
               {isOpen && (
@@ -2033,7 +2079,7 @@ const IssuesPanel = ({ issues, onJump }) => {
 
 const indexDoc = (d) => {
   const map = {};
-  ((d && d.categories) || []).forEach(c => { map['category:' + c.id] = { kind: 'Category', label: c.label || c.id, obj: c }; });
+  ((d && d.tracks) || []).forEach(t => { map['track:' + t.id] = { kind: 'Track', label: t.label || t.id, obj: t }; });
   ((d && d.courses) || []).forEach(c => {
     map['course:' + c.id] = { kind: 'Course', label: c.title || c.id, obj: { ...c, lessons: (c.lessons || []).map(l => l.id) } };
     (c.lessons || []).forEach(l => { map['lesson:' + l.id] = { kind: 'Lesson', label: l.title || l.id, obj: l, parent: c.title || c.id }; });
@@ -2073,13 +2119,13 @@ const PublishScreen = ({ doc, product, productLabel, versions, latest, onPublish
   };
 
   const asSeedCode = () => {
-    const cats = published.categories.map(c => ({ id: c.id, label: c.label, icon: c.icon, color: c.color, blurb: c.blurb }));
-    const courses = published.courses.map(c => ({ id: c.id, title: c.title, category: c.category, level: c.level, summary: c.summary, lessons: c.lessons }));
+    const tracks = published.tracks.map(t => ({ id: t.id, label: t.label, color: t.color, blurb: t.blurb }));
+    const courses = published.courses.map(c => ({ id: c.id, title: c.title, menuGroup: c.menuGroup, track: c.track, icon: c.icon, level: c.level, summary: c.summary, lessons: c.lessons }));
     const popular = published.courses.filter(c => c.popular).map(c => c.id);
     return [
       '// Generated by Sole Academy Studio — ' + productLabel + ' — ' + new Date().toISOString(),
       '// Paste over the matching consts in index.html. See docs/ACADEMY_INTEGRATION.md.',
-      'const ACADEMY_CATEGORIES = ' + JSON.stringify(cats, null, 2) + ';',
+      'const ACADEMY_TRACKS = ' + JSON.stringify(tracks, null, 2) + ';',
       'const ACADEMY_COURSES = ' + JSON.stringify(courses, null, 2) + ';',
       'const ACADEMY_POPULAR = ' + JSON.stringify(popular) + ';',
       'const LEARNING_PATHS = ' + JSON.stringify(published.paths, null, 2) + ';',
@@ -2393,16 +2439,16 @@ const AcademyStudio = () => {
       setCollapsed(c => {
         const n = { ...c };
         const course = findCourse(doc, target.courseId);
-        if (course) { n[target.courseId] = false; n[course.category] = false; }
+        if (course) { n[target.courseId] = false; n[course.track] = false; }
         return n;
       });
       setSel({ kind: 'lesson', id: target.id, courseId: target.courseId });
     } else if (target.kind === 'course') {
       const course = findCourse(doc, target.id);
-      if (course) setCollapsed(c => ({ ...c, [course.category]: false }));
+      if (course) setCollapsed(c => ({ ...c, [course.track]: false }));
       setSel({ kind: 'course', id: target.id });
     } else {
-      setSel({ kind: 'category', id: target.id });
+      setSel({ kind: 'track', id: target.id });
     }
   }, [doc]);
 
@@ -2470,10 +2516,10 @@ const AcademyStudio = () => {
     (docs[other.id].courses || []).forEach(c => { taken[c.id] = true; (c.lessons || []).forEach(l => { taken[l.id] = true; }); });
     if (taken[copy.id]) copy.id = copy.id + '-copy';
     copy.lessons.forEach(l => { if (taken[l.id]) l.id = l.id + '-copy'; });
-    // Carry the category across if the other product has one with the same id;
+    // Carry the track across if the other product has one with the same id;
     // otherwise leave it unset so the readiness check flags it for a decision.
-    const hasCat = (docs[other.id].categories || []).some(c => c.id === copy.category);
-    if (!hasCat) copy.category = '';
+    const hasTrack = (docs[other.id].tracks || []).some(t => t.id === copy.track);
+    if (!hasTrack) copy.track = '';
     setDocs(prev => {
       const next = { ...prev };
       const d = clone(prev[other.id]);
@@ -2572,9 +2618,9 @@ const AcademyStudio = () => {
 
   /* ---- editor pane for the curriculum screen --------------------------- */
   const renderEditor = () => {
-    if (sel.kind === 'category') {
-      const cat = catById(doc, sel.id);
-      if (cat) return <CategoryEditor doc={doc} cat={cat} edit={edit} />;
+    if (sel.kind === 'track') {
+      const track = trackById(doc, sel.id);
+      if (track) return <TrackEditor doc={doc} track={track} edit={edit} />;
     }
     if (sel.kind === 'course') {
       const course = findCourse(doc, sel.id);
@@ -2592,7 +2638,7 @@ const AcademyStudio = () => {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <EmptyState icon="layers" title="Pick something to edit"
-          hint="Choose a category, course or lesson from the tree. Drag rows, or use the little arrows, to reorder them." />
+          hint="Choose a track, course or lesson from the tree. Drag rows, or use the little arrows, to reorder them." />
       </div>
     );
   };
