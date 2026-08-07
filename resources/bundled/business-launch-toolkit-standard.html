@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Getting started — prototype</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<title>Small business launch toolkit</title>
+<!-- No webfonts by design: this file makes ZERO third-party requests, so it works
+     offline and nothing about the reader is disclosed to anyone. See toolkit-privacy.html. -->
+
 <style>
   :root{
     /* Sole brand palette (from project brand guidelines v1.0).
@@ -74,6 +74,7 @@
   .intro h1{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:30px;line-height:1.08;letter-spacing:-.02em;margin-bottom:14px}
   .intro p{color:var(--ink-soft);font-size:15px;margin-bottom:8px}
   .intro .meta{font-size:13px;color:var(--ink-faint);margin-top:18px}
+  .intro .meta.privacy{margin-top:7px}
 
   /* progress */
   .progress{display:flex;gap:6px;margin:0 4px 16px}
@@ -210,6 +211,7 @@
       <p>Five quick questions. No jargon, no long checklist.</p>
       <p>You'll get a short, ordered plan built around where you're actually up to, starting with the one thing to do first.</p>
       <div class="meta">Takes about a minute.</div>
+      <div class="meta privacy" data-brand-keep>Everything you answer stays in this page. Nothing is saved, sent or tracked.</div>
     </div>
     <button class="mini solid" style="margin:16px 4px 0;width:100%;padding:14px;font-size:15px" onclick="start()">Start</button>
   </section>
@@ -279,7 +281,8 @@ const QUESTIONS = [
       ["Creative & digital","creative"],
       ["Consulting & services","consulting"],
       ["Driving & delivery","rideshare"],
-      ["Care & support","care"],
+      ["NDIS & disability support","ndis"],
+      ["Other care & support","care"],
       ["Selling products","retail"],
       ["Something else","other"],
     ]},
@@ -302,7 +305,10 @@ const QUESTIONS = [
 const LABELS = {
   stage:{deciding:"still deciding",setting_up:"getting set up",trading:"already trading"},
   structure:{sole:"sole trader",company:"a company",partners:"a partnership",unsure:"structure undecided"},
-  industry:{trades:"trades",fitness:"fitness & wellbeing",creative:"creative & digital",consulting:"consulting",rideshare:"driving & delivery",care:"care & support",retail:"products",other:"your field"},
+  /* NOTE: these are the PROSE labels, interpolated into sentences ("You're getting set up
+     in ___ as a sole trader"). They deliberately differ from the option labels above —
+     "other care & support" reads wrong mid-sentence, so `care` stays as it was. */
+  industry:{trades:"trades",fitness:"fitness & wellbeing",creative:"creative & digital",consulting:"consulting",rideshare:"driving & delivery",ndis:"NDIS support work",care:"care & support",retail:"products",other:"your field"},
   turnover:{under:"under $75k",over:"$75k or more"},
   abn:{yes:"ABN sorted",no:"no ABN yet"},
 };
@@ -378,6 +384,7 @@ function buildPlan(){
   const a = answers;
   const overThreshold = a.turnover==='over';
   const rideshare = a.industry==='rideshare';
+  const ndis = a.industry==='ndis';
   const gstMandatory = overThreshold || rideshare;
   const needsAbn = a.abn!=='yes';
   const unsureStructure = a.structure==='unsure';
@@ -422,7 +429,37 @@ function buildPlan(){
         "abr.gov.au");
   }
 
-  if(gstMandatory && !combined){
+  /* NDIS pathway. Most supports are GST-free, so the generic GST steps below are wrong
+     for this audience and are suppressed — ndis_gst replaces them. Sources checked
+     against legislation.gov.au, ato.gov.au and ndis.gov.au (Aug 2026); see docs/MEMORY.md. */
+  if(ndis){
+    add('ndis_who', byStage(87,91,78),"Work out which participants you can invoice",
+      "How a participant's plan is managed decides whether you can work with them at all, and who pays your invoice.",
+      "Plan-managed and self-managed participants can use unregistered providers, so that's where most new workers start. NDIA-managed participants can only use registered providers. Plan managers pay your invoice; self-managed participants pay you directly.",
+      "ndis.gov.au explains the three plan types. Registering is separate, through ndiscommission.gov.au.");
+
+    add('ndis_code', byStage(90,87,66),"Read the NDIS Code of Conduct",
+      "It applies to you from your first shift, registered or not, and breaching it carries penalties.",
+      "Read the seven obligations, then do the free worker orientation module, Quality, Safety and You. It takes about 90 minutes and gives you a certificate participants recognise.",
+      "ndiscommission.gov.au for the Code. The module is free at training.ndiscommission.gov.au.");
+
+    add('ndis_screening', byStage(84,89,58),"Get your NDIS worker screening check",
+      "It takes weeks, and most plan managers and participants won't take you on without one.",
+      "Apply through your state or territory worker screening unit. As a sole trader you're both the worker and the provider, so you'll also need database access to verify your own application. It's valid five years, anywhere in Australia.",
+      "Your state or territory screening unit, usually around $110 to $165. ndiscommission.gov.au explains the sole trader path.");
+
+    add('ndis_agreement', byStage(82,72,44),"Put a written service agreement in place",
+      "It sets out what you'll do and what you'll be paid, and it's also what makes your work GST-free.",
+      "Write one with each participant before you start. It has to name the participant and say the supports are the reasonable and necessary supports in their plan. Emails, invoices and receipts together can count.",
+      "ndis.gov.au has a service agreement guide. The GST wording matters, so check ato.gov.au.");
+
+    add('ndis_gst', byStage(80,68,42),"Get the GST right on NDIS work",
+      "Most NDIS supports are GST-free, but that doesn't mean you can ignore GST.",
+      "GST-free supports still count towards the $75k registration threshold, so you may have to register even though you charge no GST. Once registered you can claim GST back on your own purchases. Work you do for an agency rather than a participant is normally taxable.",
+      "ato.gov.au sets out the four conditions. A registered tax agent can confirm your position.");
+  }
+
+  if(gstMandatory && !combined && !ndis){
     const p = rideshare?95 : byStage(88,70,40);
     add('gst',p,"Register for GST",
       rideshare
@@ -431,7 +468,7 @@ function buildPlan(){
       "Add GST to your ABN, then charge 10% and set it aside as you go.",
       "Via myGov / ATO online services, or a registered tax agent.");
   }
-  if(!gstMandatory)
+  if(!gstMandatory && !ndis)
     add('gst_opt', byStage(48,42,20),"Know your GST position",
       "Under $75k, registering is optional. It lets you claim GST back, but adds 10% to your prices and some admin.",
       "If most of your clients are businesses, registering can make sense. If they're everyday customers, it can make you dearer. Keep an eye on your turnover.",
@@ -466,11 +503,23 @@ function buildPlan(){
     "Snap receipts as you go and keep them in one place, rather than hunting at tax time.",
     "A receipt scanner or expense app keeps them tidy automatically.");
 
-  if(!rideshare)
+  /* Suppressed for NDIS as it is for rideshare: ndis_agreement is this step's analogue,
+     and a generic quote template isn't what NDIS work runs on. */
+  if(!rideshare && !ndis)
     add('templates', byStage(65,55,28),"Use templates built for your work",
       "The right quote and invoice format makes you look established and saves setup time.",
       "Start from templates made for "+esc(industryLabel())+" rather than a blank page.",
       "Industry templates cover the details clients in your field expect.");
+
+  const insWhy = ndis
+    ? "Plan managers and platforms usually want a certificate of currency before they'll take you on, and it's a requirement if you ever register."
+    : (a.industry==='trades'
+        ? "Most sites and most clients won't let you start without public liability cover."
+        : "As a sole trader there's no company between you and a claim, so one incident lands on you personally.");
+  add('insurance', byStage(58,62,32) + (ndis?16:0) + (a.industry==='trades'?8:0),
+    "Sort your insurance", insWhy,
+    "Public liability at a minimum. Add professional indemnity if you give advice, and personal accident or income protection if you can't afford to stop working.",
+    "business.gov.au explains the types. A broker can price it in a day.");
 
   if(!trading)
     add('thirty', byStage(0,58,75),"Your first 30 days",
@@ -482,7 +531,7 @@ function buildPlan(){
   steps.forEach(s=>{ if(SOLE_STEPS.includes(s.id)) s.sole = true; });
   steps.sort((x,y)=>y.p-x.p);
   window.__steps = steps;
-  window.__flags = {companyPath, rideshare, gstMandatory, overThreshold};
+  window.__flags = {companyPath, rideshare, ndis, gstMandatory, overThreshold};
   renderPlan();
 }
 
@@ -559,7 +608,8 @@ function renderRecap(){
   if(a.abn) parts.push(LABELS.abn[a.abn]);
   const chips = parts.map(c=>`<span class="chip">${esc(c)}</span>`).join('');
   let gstLine;
-  if(f.rideshare) gstLine = "GST is required from your first dollar for driving and delivery work.";
+  if(f.ndis) gstLine = "Most NDIS supports are GST-free, but GST-free work still counts towards the $75k registration threshold.";
+  else if(f.rideshare) gstLine = "GST is required from your first dollar for driving and delivery work.";
   else if(f.overThreshold) gstLine = "You'll need to register for GST at $75k turnover.";
   else if(a.stage==='deciding') gstLine = "GST starts at $75k turnover. You can register once you expect to reach it.";
   else gstLine = "GST is optional for now. Keep an eye on your turnover.";
@@ -580,6 +630,9 @@ function renderSole(){
   const ctaUrl = B.ctaUrl || 'https://soleapp.com.au/sme/';
   const ctaLabel = B.ctaLabel || ('Take a look at ' + product);
   const promoBody = F.promoBody ? esc(F.promoBody).replace(/\{product\}/g, esc(product)) : (esc(product) + ' is Australian accounting software for small businesses that handles the day-to-day: invoicing, GST, expenses and getting paid, set up around your industry.');
+  /* Editable from the Studio so a partner's export never carries Sole's commercial claim.
+     Set it to an empty string to hide the line entirely. */
+  const fine = (F.fineprint !== undefined) ? F.fineprint : 'Free plan available. Free trial on paid plans, no credit card.';
   const taxNote = (s==='company'||s==='partners')
     ? `<p style="color:var(--promo-tint);font-size:12px;margin-bottom:14px">Your ${s==='company'?'company':'partnership'} tax return is a separate job for your accountant.</p>`
     : '';
@@ -589,7 +642,7 @@ function renderSole(){
      <p>${promoBody}</p>
      ${taxNote}
      <a class="cta" href="${esc(ctaUrl)}" target="_blank" rel="noopener">${esc(ctaLabel)}</a>
-     <div class="fine">Free trial, no credit card. Prototype link.</div>`;
+     ${fine ? `<div class="fine">${esc(fine)}</div>` : ''}`;
 }
 </script>
 

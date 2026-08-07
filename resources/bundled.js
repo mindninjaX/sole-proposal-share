@@ -36,9 +36,10 @@
       audience: 'business',
       file: 'resources/bundled/business-launch-toolkit.html',
       fileStandard: 'resources/bundled/business-launch-toolkit-standard.html',
-      description: 'A five-question diagnostic that builds a new business owner an ordered, plain-English setup plan (ABN, GST, invoicing, tax).',
+      description: 'A five-question diagnostic that builds a new business owner an ordered, plain-English setup plan (ABN, GST, invoicing, tax). Includes an NDIS pathway.',
       fields: [
         { key: 'promoBody', label: 'Software pitch', type: 'textarea', placeholder: '{product} is Australian accounting software for small businesses…', hint: 'The blurb in the bottom “Where to do the doing” card.' },
+        { key: 'fineprint', label: 'Promo fine print', type: 'text', placeholder: 'Free plan available. Free trial on paid plans, no credit card.', hint: 'The small line under the CTA button. Clear it to hide the line — do this if the offer isn’t yours.' },
         { key: 'disclaimer', label: 'Fine print', type: 'textarea', placeholder: 'General information to help you get started, not tax, legal or financial advice…' },
       ],
     },
