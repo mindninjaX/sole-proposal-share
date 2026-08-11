@@ -190,6 +190,12 @@
 
   function apply(cfg) {
     var c = merged(cfg);
+    /* Publish the brand BEFORE the bundle hook runs. A hook may re-render UI that reads
+       __BRAND_APPLIED__ (business-launch re-renders the plan, whose promo card and CTA read
+       it), and if this assignment came after, the Studio's FIRST live push would render that
+       UI from the previous brand — i.e. Sole's CTA and fine print under a partner's logo.
+       Nothing reads it expecting the pre-push value. */
+    g.__BRAND_APPLIED__ = c;
     try { if (typeof g.SOLE_BUNDLE_APPLY === 'function') g.SOLE_BUNDLE_APPLY(c, H); } catch (e) { /* never let a brand push break the page */ }
     // page <title> → partner voice, keeping the resource name suffix if present
     try {
@@ -197,7 +203,6 @@
       var base = parts.length > 1 ? parts[parts.length - 1].trim() : (parts[0] || '').trim();
       if (base) document.title = (c.orgName || 'Sole') + ' · ' + base;
     } catch (_) {}
-    g.__BRAND_APPLIED__ = c;
     return c;
   }
 
