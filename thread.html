@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread — one customer, one thread, one queue</title>
+<meta name="robots" content="noindex, nofollow">
+<!--
+  The support + onboarding pipeline. Internally this is called "the dialer".
+  This page argues it isn't a phone, and shows what it is instead.
+
+  Sibling of roo.html — same house style on purpose (the two pitches read as a
+  pair). Differences: blue primary instead of violet, and the interactive bits
+  build a customer timeline rather than clear a task list.
+
+  THE NAME IS A PLACEHOLDER. "Thread" and 🧵 are working identity only. Every
+  standalone mention is <span class="bn">, every glyph a <span class="be">.
+  Renaming is one edit to the BRAND object at the top of the script block.
+
+  WORD-LIGHT IS THE BRIEF, not a style. It was asked for explicitly. Rules:
+    · a section is a headline + one sentence + a thing you can click. No essays.
+    · shadows only on things you can touch. Explainers get a border.
+    · four colours work — blue (primary), lime (good), amber (waiting), red (broken).
+    · never state a number twice on one screen.
+
+  Dependency-free: no React, no CDN, no images. Must open from file:// offline.
+  Never add a <script src>.
+
+  Deployed (unlisted + noindex) — it names internal behaviour and colleagues as
+  owners only. Keep it that way: no performance commentary, in copy OR comments.
+-->
+<style>
+  :root{
+    --ink:#141A2E; --ink-soft:#3F4863; --muted:#767F98; --faint:#A6AEC2;
+    --paper:#FFF9F2; --card:#FFFFFF; --sand:#F3EFE8; --line:rgba(20,26,46,.13);
+    --blue:#2B4EF0; --blue-soft:#E7ECFF;
+    --lime:#5FAF08;  --lime-soft:#ECF9D6;
+    --amber:#FFAC12; --amber-soft:#FFF2D8;
+    --red:#F0334A;   --red-soft:#FFE5E8;
+    --cyan:#0FB3C6;  --plum:#8B3BE0;
+    --r:12px; --r-lg:18px; --r-xl:24px;
+    --sh:2px 2px 0 var(--ink);
+    --sh-lg:4px 4px 0 var(--ink);
+    --bd:2px solid var(--ink);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--paper); color:var(--ink); font-size:15.5px; line-height:1.55;
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  :focus-visible{outline:3px solid var(--blue); outline-offset:2px; border-radius:6px}
+  ::selection{background:var(--amber)}
+
+  /* ---------------- shell ---------------- */
+  .wrap{max-width:940px; margin:0 auto; padding:0 20px 110px}
+  header.top{position:sticky; top:0; z-index:50; background:var(--paper); border-bottom:var(--bd)}
+  .top-in{max-width:940px; margin:0 auto; padding:11px 20px}
+  .brandrow{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+  .logo{width:38px; height:38px; border-radius:12px; background:var(--blue); border:var(--bd); box-shadow:var(--sh);
+        display:grid; place-items:center; font-size:19px; flex-shrink:0}
+  .brand{font-size:20px; font-weight:850; letter-spacing:-.6px; line-height:1.15}
+  .brand small{display:block; font-size:11.5px; font-weight:650; color:var(--muted); letter-spacing:0}
+  .flagchip{margin-left:auto; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.6px;
+            background:var(--amber); border:var(--bd); border-radius:999px; padding:4px 11px}
+  nav.tabs{display:flex; gap:6px; margin-top:11px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px}
+  nav.tabs::-webkit-scrollbar{display:none}
+  nav.tabs button{appearance:none; font:inherit; font-size:13.5px; font-weight:750; cursor:pointer; white-space:nowrap;
+    background:transparent; color:var(--ink-soft); border:2px solid transparent; border-radius:999px; padding:6px 14px}
+  nav.tabs button:hover{background:var(--sand); color:var(--ink)}
+  nav.tabs button[aria-selected=true]{background:var(--ink); color:#fff; border-color:var(--ink)}
+  .panel{display:none; animation:pop .22s cubic-bezier(.2,.9,.3,1)}
+  .panel.on{display:block}
+  @keyframes pop{from{opacity:0; transform:translateY(7px)} to{opacity:1; transform:none}}
+
+  /* ---------------- type ---------------- */
+  h1{font-size:38px; line-height:1.05; letter-spacing:-1.5px; font-weight:850; margin:34px 0 12px; max-width:20ch}
+  h1 em{font-style:normal; background:linear-gradient(180deg,transparent 60%,var(--amber) 60%)}
+  .lede{font-size:17.5px; color:var(--ink-soft); max-width:54ch; margin:0 0 4px; font-weight:450}
+  h2{font-size:21px; font-weight:850; letter-spacing:-.6px; margin:44px 0 4px}
+  .sub{font-size:14.5px; color:var(--muted); margin:0 0 18px; max-width:60ch}
+  h3{font-size:15.5px; font-weight:800; letter-spacing:-.2px; margin:0 0 4px}
+  p{margin:0 0 12px; max-width:62ch}
+  .sm{font-size:13.5px; color:var(--muted)}
+  .soft{color:var(--ink-soft)}
+  .big{font-size:19px; font-weight:800; letter-spacing:-.4px; max-width:40ch}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; background:var(--sand);
+       border-radius:5px; padding:2px 6px; font-weight:600; white-space:nowrap}
+  b,strong{font-weight:800}
+
+  /* ---------------- primitives ---------------- */
+  .grid{display:grid; gap:12px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .box{background:var(--card); border:var(--bd); border-radius:var(--r-lg); padding:16px 17px}
+  .box.b{background:var(--blue-soft)} .box.l{background:var(--lime-soft)}
+  .box.a{background:var(--amber-soft)} .box.r{background:var(--red-soft)}
+  .box.s{background:var(--sand)}
+  .box>p:last-child,.box>ul:last-child{margin-bottom:0}
+  .note{border-left:4px solid var(--blue); padding:2px 0 2px 14px; margin:14px 0; max-width:60ch;
+        font-size:14.5px; color:var(--ink-soft)}
+  .note strong{color:var(--ink)}
+  .tag{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; padding:3px 9px;
+       border-radius:999px; white-space:nowrap; letter-spacing:.2px; text-transform:uppercase}
+  .t-b{background:var(--blue); color:#fff} .t-l{background:var(--lime); color:#fff}
+  .t-a{background:var(--amber)} .t-r{background:var(--red); color:#fff}
+  .t-s{background:var(--sand); color:var(--muted)}
+  .btn{font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; background:var(--card); color:var(--ink);
+       border:var(--bd); border-radius:10px; padding:7px 13px; box-shadow:var(--sh); transition:transform .07s ease}
+  .btn:hover{transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--ink)}
+  .btn:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--ink)}
+  .btn.go{background:var(--lime); color:#fff}
+  .btn.pri{background:var(--blue); color:#fff}
+  .btn.sm{font-size:12.5px; padding:5px 10px}
+  .btn:disabled{background:var(--sand); color:var(--faint); box-shadow:none; cursor:default; transform:none}
+  .btn.ghost{box-shadow:none; border-color:transparent; background:transparent; color:var(--muted); font-weight:750}
+  .btn.ghost:hover{transform:none; box-shadow:none; background:var(--sand); color:var(--ink)}
+  .btnrow{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  ul.list{margin:0 0 10px; padding:0; list-style:none}
+  ul.list li{position:relative; padding-left:22px; margin-bottom:8px; max-width:60ch}
+  ul.list li::before{content:'→'; position:absolute; left:0; top:0; font-weight:850; color:var(--blue)}
+  ul.tick{margin:0; padding:0; list-style:none}
+  ul.tick li{position:relative; padding-left:24px; margin-bottom:7px; max-width:60ch}
+  ul.tick li::before{content:'✓'; position:absolute; left:0; top:-1px; font-weight:850; color:var(--lime)}
+  .rule{height:2px; background:var(--ink); opacity:.1; margin:38px 0}
+  .mockflag{display:inline-block; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.6px;
+            color:var(--muted); background:var(--sand); border-radius:999px; padding:3px 10px; margin-bottom:8px}
+
+  /* ---------------- the "it breaks" story ---------------- */
+  .story{border:var(--bd); border-radius:var(--r-xl); background:var(--card); overflow:hidden; box-shadow:var(--sh-lg)}
+  .story-bar{display:flex; align-items:center; gap:10px; padding:11px 15px; border-bottom:var(--bd); background:var(--sand)}
+  .story-bar .who{font-size:13.5px; font-weight:850; flex:1; min-width:0}
+  .story-bar .who small{display:block; font-weight:650; color:var(--muted); font-size:11.5px}
+  .lost{background:var(--red); color:#fff; border:var(--bd); border-radius:999px; padding:4px 11px;
+        font-size:11.5px; font-weight:850; white-space:nowrap}
+  .story-body{padding:6px 15px 15px}
+  .beat{display:flex; gap:13px; padding:13px 0; border-bottom:2px dashed var(--line)}
+  .beat:last-child{border-bottom:none}
+  .beat .clock{width:62px; flex-shrink:0; font-size:12.5px; font-weight:850; color:var(--muted); padding-top:2px}
+  .beat .what{flex:1; min-width:0}
+  .beat .what b{display:block; font-size:15.5px; letter-spacing:-.2px}
+  .beat .what span{font-size:14px; color:var(--ink-soft)}
+  .beat .gap{display:inline-block; margin-top:7px; font-size:12.5px; font-weight:800; color:var(--red);
+             background:var(--red-soft); border:2px solid var(--red); border-radius:8px; padding:3px 9px}
+  .beat.hidden{display:none}
+
+  /* ---------------- the thread mock ---------------- */
+  .thread{display:grid; grid-template-columns:minmax(0,1fr) 232px; border:var(--bd); border-radius:var(--r-xl);
+          overflow:hidden; box-shadow:var(--sh-lg); background:var(--card)}
+  .th-main{border-right:var(--bd); min-width:0}
+  .th-head{padding:13px 16px; border-bottom:var(--bd); background:var(--blue); color:#fff}
+  .th-head b{font-size:17px; letter-spacing:-.4px; display:block}
+  .th-head small{font-size:12.5px; opacity:.92; font-weight:600}
+  .th-feed{padding:12px 16px 16px; max-height:396px; overflow-y:auto}
+  .ev{display:flex; gap:11px; padding:9px 0; border-bottom:2px dashed var(--line); animation:pop .25s ease}
+  .ev:last-child{border-bottom:none}
+  .ev .ico{width:28px; height:28px; border-radius:9px; border:var(--bd); background:var(--sand); flex-shrink:0;
+           display:grid; place-items:center; font-size:14px}
+  .ev .ico.b{background:var(--blue-soft)} .ev .ico.l{background:var(--lime-soft)}
+  .ev .ico.a{background:var(--amber-soft)} .ev .ico.r{background:var(--red-soft)}
+  .ev .txt{flex:1; min-width:0; font-size:14.5px; padding-top:3px}
+  .ev .txt b{font-weight:800}
+  .ev .txt small{display:block; font-size:12px; color:var(--muted); font-weight:650}
+  .ev .tm{font-size:11.5px; color:var(--faint); font-weight:700; flex-shrink:0; padding-top:5px}
+  .th-side{background:var(--sand); padding:13px 14px; font-size:13px}
+  .th-side .sh{font-size:10.5px; font-weight:850; text-transform:uppercase; letter-spacing:.9px; color:var(--muted);
+               margin:14px 0 6px}
+  .th-side .sh:first-child{margin-top:0}
+  .kv{display:flex; justify-content:space-between; gap:8px; padding:3px 0; font-size:12.5px}
+  .kv span{color:var(--muted)} .kv b{font-weight:750; text-align:right}
+  .haveit{background:var(--lime); color:#fff; border:var(--bd); border-radius:8px; padding:5px 8px; font-size:11px;
+          font-weight:800; text-align:center; margin-bottom:10px; line-height:1.35}
+  @media (max-width:760px){ .thread{grid-template-columns:minmax(0,1fr)} .th-main{border-right:none; border-bottom:var(--bd)} }
+
+  /* ---------------- the queue ---------------- */
+  .queue{border:var(--bd); border-radius:var(--r-xl); box-shadow:var(--sh-lg); background:var(--card); overflow:hidden}
+  .q-head{padding:15px 17px; border-bottom:var(--bd)}
+  .q-head b{font-size:19px; letter-spacing:-.5px; display:block}
+  .q-head small{font-size:13.5px; color:var(--muted); font-weight:650}
+  .q-list{padding:13px}
+  .qrow{display:flex; gap:12px; align-items:center; background:#fff; border:var(--bd); border-radius:var(--r);
+        padding:11px 13px; margin-bottom:9px; box-shadow:var(--sh); animation:pop .22s ease}
+  .qrow.hot{background:var(--red-soft); border-color:var(--red)}
+  .qrow.night{background:var(--blue-soft)}
+  .qrow.warm{background:var(--amber-soft)}
+  .qrow .qi{width:30px; height:30px; border-radius:9px; border:var(--bd); background:#fff; flex-shrink:0;
+            display:grid; place-items:center; font-size:15px}
+  .qrow .qt{flex:1; min-width:0}
+  .qrow .qt b{font-size:15px; letter-spacing:-.2px; display:block}
+  .qrow .qt small{font-size:12.5px; color:var(--ink-soft); font-weight:650}
+  .qrow.done{background:var(--sand); box-shadow:none; opacity:.55}
+  .q-foot{padding:11px 15px; border-top:2px solid var(--ink); background:var(--sand); font-size:13px;
+          font-weight:700; color:var(--ink-soft)}
+
+  /* ---------------- the loop ---------------- */
+  .loop{display:grid; gap:12px; grid-template-columns:repeat(3,minmax(0,1fr))}
+  @media (max-width:820px){ .loop{grid-template-columns:minmax(0,1fr)} }
+  .lcard{border:var(--bd); border-radius:var(--r-lg); background:var(--card); padding:14px}
+  .lcard .step{font-size:10.5px; font-weight:850; text-transform:uppercase; letter-spacing:.8px; color:var(--muted);
+               margin-bottom:8px}
+  .quote{font-size:14px; color:var(--ink-soft); background:var(--sand); border-radius:10px; padding:9px 11px;
+         margin-bottom:7px}
+  .quote b{color:var(--ink)}
+  .card-draft{border:var(--bd); border-radius:var(--r); background:var(--blue-soft); padding:11px 12px}
+  .card-draft .q{font-size:14.5px; font-weight:800; margin-bottom:4px}
+  .card-draft .a{font-size:13.5px; color:var(--ink-soft)}
+  .card-draft .links{margin-top:8px; display:flex; gap:5px; flex-wrap:wrap}
+  .pill{font-size:11.5px; font-weight:800; background:#fff; border:2px solid var(--ink); border-radius:999px;
+        padding:3px 9px}
+  .botsay{border:var(--bd); border-radius:var(--r); padding:11px 12px; font-size:14px}
+  .botsay.before{background:var(--red-soft)} .botsay.after{background:var(--lime-soft)}
+  .botsay .lab{font-size:10.5px; font-weight:850; text-transform:uppercase; letter-spacing:.7px; margin-bottom:5px}
+  .counter{display:inline-flex; align-items:center; gap:8px; background:var(--ink); color:#fff; border-radius:999px;
+           padding:6px 14px; font-size:13.5px; font-weight:800; margin-top:12px}
+
+  /* ---------------- plan ---------------- */
+  .weeks{border:var(--bd); border-radius:var(--r-lg); overflow:hidden; background:var(--card)}
+  .wk{display:flex; gap:14px; padding:13px 15px; border-bottom:2px dashed var(--line); align-items:flex-start}
+  .wk:last-child{border-bottom:none}
+  .wk .n{width:52px; flex-shrink:0; font-size:11px; font-weight:850; text-transform:uppercase; letter-spacing:.7px;
+         color:var(--muted); padding-top:3px}
+  .wk .d{flex:1; min-width:0}
+  .wk .d b{display:block; font-size:15.5px; letter-spacing:-.2px}
+  .wk .d span{font-size:14px; color:var(--ink-soft)}
+  .opt{border:var(--bd); border-radius:var(--r-lg); padding:14px; background:var(--card)}
+  .opt.pick{background:var(--lime-soft); box-shadow:var(--sh)}
+  .opt .h{display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap}
+  .opt .h b{font-size:15.5px; letter-spacing:-.2px}
+  .ask{display:flex; gap:12px; padding:12px 0; border-bottom:2px dashed var(--line); align-items:flex-start}
+  .ask:last-child{border-bottom:none}
+  .ask .num{width:26px; height:26px; border-radius:8px; background:var(--blue); color:#fff; border:var(--bd);
+            flex-shrink:0; display:grid; place-items:center; font-size:13px; font-weight:850}
+  .ask .qq{flex:1; min-width:0}
+  .ask .qq b{display:block; font-size:15px}
+  .ask .qq span{font-size:14px; color:var(--ink-soft)}
+
+  footer.end{border-top:var(--bd); margin-top:44px; padding-top:16px; font-size:13px; color:var(--muted)}
+
+  @media (max-width:640px){
+    h1{font-size:30px; letter-spacing:-1px} h2{font-size:19px}
+    .g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}
+    .beat .clock{width:52px}
+  }
+  @media print{
+    header.top,nav.tabs{display:none !important} .panel{display:block !important} body{background:#fff}
+    .story,.thread,.queue,.weeks{box-shadow:none}
+  }
+  @media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brandrow">
+      <div class="logo"><span class="be">🧵</span></div>
+      <div class="brand"><span class="bn">Thread</span><small>Support &amp; onboarding · working name</small></div>
+      <span class="flagchip">Proposal</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" aria-selected="true"  data-tab="break">What breaks today</button>
+      <button role="tab" aria-selected="false" data-tab="thread">One thread</button>
+      <button role="tab" aria-selected="false" data-tab="queue">One queue</button>
+      <button role="tab" aria-selected="false" data-tab="loop">It gets smarter</button>
+      <button role="tab" aria-selected="false" data-tab="calls">The calls</button>
+      <button role="tab" aria-selected="false" data-tab="build">Build it</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ================= 1 · WHAT BREAKS ================= -->
+<section class="panel on" id="tab-break" role="tabpanel">
+  <h1>We call it the dialer. <em>It isn't a phone.</em></h1>
+  <p class="lede">You can buy a phone. What you can't buy is a customer support team that
+  remembers. Here's one real Tuesday — press the button and watch where the memory goes.</p>
+
+  <div class="story">
+    <div class="story-bar">
+      <div class="who">Marcus · sole trader, Brisbane<small>Signed up Tuesday, 2:14am</small></div>
+      <div class="lost" id="lost-count">0 things lost</div>
+    </div>
+    <div class="story-body" id="story-body">
+      <div class="beat" data-beat="0">
+        <div class="clock">2:14am</div>
+        <div class="what">
+          <b>Marcus signs up.</b>
+          <span>Free plan. Nobody is told. Nothing fires.</span>
+          <span class="gap">No human knows yet</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-beat="1">
+        <div class="clock">2:31am</div>
+        <div class="what">
+          <b>He asks the bot how to email an invoice.</b>
+          <span>The bot answers confidently — from a help doc written three screens ago.</span>
+          <span class="gap">Wrong answer. Nobody finds out</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-beat="2">
+        <div class="clock">2:33am</div>
+        <div class="what">
+          <b>“Connect me to a live agent.”</b>
+          <span>The widget says <b>Online</b>. It's 2:33am. Nobody is online.</span>
+          <span class="gap">We promised something we can't do</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-beat="3">
+        <div class="clock">9:40am</div>
+        <div class="what">
+          <b>Merlin opens the support panel.</b>
+          <span>Sees a chat. Doesn't see that Marcus signed up seven hours ago, or what the bot got wrong.</span>
+          <span class="gap">Starts from zero</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-beat="4">
+        <div class="clock">11:00am</div>
+        <div class="what">
+          <b>A great 15-minute call.</b>
+          <span>Merlin explains the invoice thing properly. Marcus is happy. The call ends.</span>
+          <span class="gap">That answer dies in the call</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-beat="5">
+        <div class="clock">Next day</div>
+        <div class="what">
+          <b>Another customer asks the same question.</b>
+          <span>Same wrong answer. Same 15 minutes. Forever.</span>
+          <span class="gap">We learned nothing</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btnrow">
+    <button class="btn pri" id="story-next">▶ Play the next hour</button>
+    <button class="btn ghost sm" id="story-reset">Start again</button>
+  </div>
+
+  <div id="story-end" style="display:none">
+    <div class="note" style="margin-top:22px">
+      <strong>Not one of those six is a phone problem.</strong> Every single one is the same
+      problem: the tools don't share a memory.
+    </div>
+    <div class="grid g3" style="margin-top:14px">
+      <div class="box r"><h3>Four tools</h3><p class="sm">Bot, chat panel, booking link, call. None of them know about the others.</p></div>
+      <div class="box r"><h3>Nobody is accountable</h3><p class="sm">“Did anyone actually help Marcus?” can't be answered without asking a human.</p></div>
+      <div class="box r"><h3>Nothing compounds</h3><p class="sm">The best answers we ever give are spoken out loud, once, and lost.</p></div>
+    </div>
+    <p class="big" style="margin-top:24px">The fix is one sentence: <em>give every customer one
+    thread, and give the team one list.</em> Everything else — including the dialer — is a
+    button on it.</p>
+  </div>
+</section>
+
+<!-- ================= 2 · ONE THREAD ================= -->
+<section class="panel" id="tab-thread" role="tabpanel">
+  <h1>One customer. <em>One thread.</em></h1>
+  <p class="lede">Signup, chat, ticket, call, transcript — all the same shape:
+  <b>something happened to a person.</b> Click the buttons and build Marcus's thread.</p>
+
+  <span class="mockflag">Clickable · this is the whole product</span>
+  <div class="thread">
+    <div class="th-main">
+      <div class="th-head">
+        <b>Marcus Bell</b>
+        <small>Brisbane · joined 4 days ago · free plan</small>
+      </div>
+      <div class="th-feed" id="th-feed">
+        <div class="ev">
+          <div class="ico s">🌱</div>
+          <div class="txt"><b>Signed up</b><small>Free plan · came from the NDIS toolkit page</small></div>
+          <div class="tm">Tue 2:14am</div>
+        </div>
+      </div>
+    </div>
+    <aside class="th-side">
+      <div class="haveit">✓ This half already exists<br>in Ashish's panel</div>
+      <div class="sh">Contact</div>
+      <div class="kv"><span>User ID</span><b>16732</b></div>
+      <div class="kv"><span>Mobile</span><b>+61 4•• ••• 391</b></div>
+      <div class="kv"><span>Location</span><b>Brisbane, QLD</b></div>
+      <div class="sh">Subscription</div>
+      <div class="kv"><span>Plan</span><b>Free</b></div>
+      <div class="kv"><span>Trial ends</span><b>in 9 days</b></div>
+      <div class="sh" style="color:var(--blue)">We add ↓</div>
+      <div class="kv"><span>Owner</span><b id="s-owner">—</b></div>
+      <div class="kv"><span>Open tickets</span><b id="s-tickets">0</b></div>
+      <div class="kv"><span>Calls</span><b id="s-calls">0</b></div>
+      <div class="kv"><span>Last human contact</span><b id="s-human">never</b></div>
+      <div class="kv"><span>Mood</span><b id="s-mood">—</b></div>
+    </aside>
+  </div>
+
+  <div class="btnrow" id="th-btns">
+    <button class="btn sm" data-ev="bot">Asks the bot</button>
+    <button class="btn sm" data-ev="esc">Asks for a human</button>
+    <button class="btn sm" data-ev="hello">Auto-hello sent</button>
+    <button class="btn sm" data-ev="book">Books a call</button>
+    <button class="btn sm" data-ev="call">Call happens</button>
+    <button class="btn sm" data-ev="card">Answer becomes knowledge</button>
+    <button class="btn ghost sm" id="th-reset">Clear</button>
+  </div>
+
+  <div class="note">
+    <strong>Nothing here replaces Ashish's bot or panel.</strong> The bot keeps answering,
+    the panel keeps its take-over button. They just write to the thread instead of into a void.
+  </div>
+
+  <h2>Why this order matters</h2>
+  <p class="sub">Build the phone first and you own a phone with no memory. Build the thread
+  first and every other thing on the wish-list becomes a view over it.</p>
+  <div class="grid g4">
+    <div class="box l"><h3>Merlin's queue</h3><p class="sm">A filter on the thread: who has an open loop.</p></div>
+    <div class="box l"><h3>Johann's reporting</h3><p class="sm">A count of the thread. No new pipeline.</p></div>
+    <div class="box l"><h3>The bot's context</h3><p class="sm">Reads the thread, stops asking what it already knows.</p></div>
+    <div class="box l"><h3>The dialer</h3><p class="sm">A <b>Call</b> button on the thread. One afternoon of work.</p></div>
+  </div>
+</section>
+
+<!-- ================= 3 · ONE QUEUE ================= -->
+<section class="panel" id="tab-queue" role="tabpanel">
+  <h1>Who needs me <em>right now.</em></h1>
+  <p class="lede">Not four inboxes. One ranked list with a reason attached to each row —
+  the same “if you've got 5 minutes” card the app already shows customers, pointed at the team.</p>
+
+  <span class="mockflag">Clickable · clear one and the next moves up</span>
+  <div class="queue">
+    <div class="q-head">
+      <b>Good morning, Merlin</b>
+      <small><span id="q-left">4</span> people are waiting on us · 9:07am AEST</small>
+    </div>
+    <div class="q-list" id="q-list"></div>
+    <div class="q-foot" id="q-foot">Clear these four and nobody is waiting on a human today.</div>
+  </div>
+
+  <h2>The promise we can actually keep</h2>
+  <p class="sub">“Call within 3 minutes” breaks every night, and a promise you break most
+  nights is worse than no promise. Two speeds fixes it.</p>
+  <div class="grid g2">
+    <div class="box b">
+      <span class="tag t-b">Instant · any hour</span>
+      <h3 style="margin-top:9px">A real hello, automated</h3>
+      <p class="sm">From Merlin, with the booking link, inside 3 minutes. Works at 2:14am
+      because no human is involved.</p>
+    </div>
+    <div class="box l">
+      <span class="tag t-l">Next working window</span>
+      <h3 style="margin-top:9px">The human call</h3>
+      <p class="sm">The queue says <b>“call Marcus by 9:15”</b>. Booked, assigned, and visible
+      to everyone.</p>
+    </div>
+  </div>
+  <p class="big" style="margin-top:20px">So the promise becomes: <em>nobody finishes their
+  first session without hearing from a human.</em> That one we keep.</p>
+
+  <div class="note">
+    <strong>And the widget stops lying.</strong> Outside hours it says “the team's offline
+    until 9am — book a call or raise a ticket and we'll be on it first thing.” One honest
+    sentence beats “Online” at 2:33am.
+  </div>
+</section>
+
+<!-- ================= 4 · THE LOOP ================= -->
+<section class="panel" id="tab-loop" role="tabpanel">
+  <h1>Every answer <em>comes back.</em></h1>
+  <p class="lede">This is the part that pays for the whole thing. A good answer given once
+  becomes an answer the bot gives forever — but only after a human says yes.</p>
+
+  <span class="mockflag">Clickable · press Approve</span>
+  <div class="loop">
+    <div class="lcard">
+      <div class="step">1 · what happened</div>
+      <div class="quote"><b>Marcus:</b> “why can't I email the invoice”</div>
+      <div class="quote"><b>Merlin, on the call:</b> “you have to add a business email in
+      Sales settings first — then the Send button wakes up.”</div>
+      <p class="sm" style="margin:0">Asked <b>41 times</b> last month.</p>
+    </div>
+    <div class="lcard">
+      <div class="step">2 · AI drafts a card</div>
+      <div class="card-draft">
+        <div class="q">Why is my Send button greyed out?</div>
+        <div class="a">Add a business email in <b>Sales → Settings</b>. Invoices can't send
+        without a reply-to address.</div>
+        <div class="links">
+          <span class="pill">📄 Article</span>
+          <span class="pill">▶ 40-sec video</span>
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn go sm" id="approve">✓ Approve</button>
+        <button class="btn sm" id="edit-card">Edit</button>
+        <button class="btn ghost sm" id="bin-card">Bin it</button>
+      </div>
+      <p class="sm" id="approve-hint" style="margin:9px 0 0">A human always presses this.</p>
+    </div>
+    <div class="lcard">
+      <div class="step">3 · the bot changes</div>
+      <div class="botsay before" id="say-before">
+        <div class="lab" style="color:var(--red)">Before</div>
+        “Go to Invoices and click Send.” <b>(Wrong — that button is grey for Marcus.)</b>
+      </div>
+      <div class="botsay after" id="say-after" style="display:none; margin-top:9px">
+        <div class="lab" style="color:var(--lime)">After</div>
+        “Your Send button needs a business email first — here's the 40-second video. Want
+        me to open Sales settings?”
+      </div>
+      <div class="counter" id="loop-counter">🤖 Bot handled 3 of 4 questions alone</div>
+    </div>
+  </div>
+
+  <h2>Two rules that keep it safe</h2>
+  <div class="grid g2">
+    <div class="box a">
+      <h3>Transcripts never train the bot directly</h3>
+      <p class="sm">Raw calls contain guesses, one customer's edge case, and their private
+      data. Only approved cards become knowledge. That's about <b>5 cards a day</b>, not 500.</p>
+    </div>
+    <div class="box a">
+      <h3>Every card has an owner and a date</h3>
+      <p class="sm">Ashish already flagged the real bug: when the screen changes, the doc
+      doesn't, and the bot confidently teaches the old version. A card that can go stale
+      quietly is the thing we're replacing.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Start with chat, not calls.</strong> Every chat ever had is already sitting in
+    the support panel — no vendor, no consent forms, no calendars. We can mine cards from it
+    <b>this week</b>. Calls join the loop once recording is sorted (next tab).
+  </div>
+</section>
+
+<!-- ================= 5 · THE CALLS ================= -->
+<section class="panel" id="tab-calls" role="tabpanel">
+  <h1>Record the call. <em>Don't build Zoom.</em></h1>
+  <p class="lede">Jo wants every session recorded, transcribed and fed back to the AI.
+  Agreed — and we can have it without writing a single line of video code.</p>
+
+  <div class="box r" style="margin-bottom:18px">
+    <h3>Why not build our own video tool</h3>
+    <p class="sm" style="margin:0">Video is a commodity and a tar pit — media servers,
+    echo cancellation, mobile, bad wifi. It would eat the whole runway on the one part that
+    makes us zero difference. And customers won't install a new call app from their
+    accounting software. They already accept Google Meet.</p>
+  </div>
+
+  <h2>Three ways to get the transcript</h2>
+  <p class="sub">All three end in the same place. Only the middle one changes.</p>
+  <div class="grid g3">
+    <div class="opt">
+      <div class="h"><b>A · Google Meet does it</b><span class="tag t-s">free-ish</span></div>
+      <p class="sm">Meet records, Gemini transcribes, files land in Drive.</p>
+      <p class="sm" style="margin:0"><b>But:</b> depends on our Workspace tier, someone has
+      to remember to press record, and accents are where it's weakest — the one review on
+      our booking page already mentions accent.</p>
+    </div>
+    <div class="opt pick">
+      <div class="h"><b>B · Send a note-taker</b><span class="tag t-l">recommended</span></div>
+      <p class="sm">One API sends a named bot into the Meet they already booked. It returns
+      audio, transcript and who-said-what to <b>us</b>, by webhook.</p>
+      <p class="sm" style="margin:0"><b>Why this one:</b> the transcript lands in our thread
+      automatically instead of in someone's Drive. Nothing to build, priced per hour recorded.</p>
+    </div>
+    <div class="opt">
+      <div class="h"><b>C · Everyone runs an app</b><span class="tag t-s">quickest</span></div>
+      <p class="sm">Each caller runs a note-taker on their laptop. Great summaries, today.</p>
+      <p class="sm" style="margin:0"><b>But:</b> per seat, and the transcripts live in a
+      vendor's silo, so the loop stays manual.</p>
+    </div>
+  </div>
+
+  <h2>What happens around the call</h2>
+  <div class="weeks" style="margin-top:6px">
+    <div class="wk"><div class="n">Before</div><div class="d"><b>The booking writes to the thread</b><span>“15-min call, Wed 3:45pm, with Merlin.” Today a booking is invisible to the panel.</span></div></div>
+    <div class="wk"><div class="n">During</div><div class="d"><b>The note-taker joins, announced</b><span>It shows up as a participant called Sole Notetaker. Nobody is recorded secretly, ever.</span></div></div>
+    <div class="wk"><div class="n">After</div><div class="d"><b>Transcript in, summary drafted</b><span>Five lines and an outcome, waiting for Merlin to confirm. Confirming also sends the follow-up email.</span></div></div>
+    <div class="wk"><div class="n">Then</div><div class="d"><b>Candidate cards appear</b><span>Straight into the approve queue from the last tab. The loop closes.</span></div></div>
+  </div>
+
+  <div class="box a" style="margin-top:16px">
+    <h3>Consent, in one breath</h3>
+    <p class="sm" style="margin:0">Recording rules differ by state and our customers are
+    everywhere, so: the booking page says it may be recorded · the note-taker announces
+    itself · we store <code>yes / no / not asked</code> on the call · “no” means no
+    recording and Merlin takes notes by hand · audio is deleted on a timer, and names and
+    numbers get stripped when a card is approved. Designed in now costs nothing. Retrofitted
+    in October costs a lawyer.</p>
+  </div>
+</section>
+
+<!-- ================= 6 · BUILD IT ================= -->
+<section class="panel" id="tab-build" role="tabpanel">
+  <h1>Mostly <em>already built.</em></h1>
+  <p class="lede">Three of the hard pieces exist. We're connecting them, not starting over.</p>
+
+  <div class="grid g3">
+    <div class="box l">
+      <span class="tag t-l">exists</span>
+      <h3 style="margin-top:9px">Ashish's bot &amp; panel</h3>
+      <p class="sm">Menus, action flows, take-over, hand-back, and a contact panel that's
+      half a customer record. <b>Stays.</b></p>
+    </div>
+    <div class="box l">
+      <span class="tag t-l">exists</span>
+      <h3 style="margin-top:9px">Academy Studio</h3>
+      <p class="sm">Our team already publishes structured content the app reads. Add an
+      <b>Article</b> type and it's the knowledge home — and Confluence can retire.</p>
+    </div>
+    <div class="box l">
+      <span class="tag t-l">exists</span>
+      <h3 style="margin-top:9px">“If you've got 5 minutes”</h3>
+      <p class="sm">The ranked-action card already shipping to customers. The team's queue
+      is the same component, new audience.</p>
+    </div>
+  </div>
+
+  <h2>Four weeks</h2>
+  <div class="weeks">
+    <div class="wk"><div class="n">Week 1</div><div class="d"><b>Knowledge + the five small fixes</b><span>Articles get a home, an owner and a review date. Bot reads them. Fix list below.</span></div></div>
+    <div class="wk"><div class="n">Week 2</div><div class="d"><b>The thread</b><span>One event table. Signup, chat, escalation, booking, ticket, call — all writing to it.</span></div></div>
+    <div class="wk"><div class="n">Week 3</div><div class="d"><b>The queue + two speeds</b><span>Merlin's ranked list, assignment, the 3-minute auto-hello, business-hours honesty.</span></div></div>
+    <div class="wk"><div class="n">Week 4</div><div class="d"><b>The loop</b><span>Chat-mined cards, the approve screen, bot re-indexes. Calls join once the note-taker is picked.</span></div></div>
+  </div>
+
+  <h2>Five small fixes, worth doing this week</h2>
+  <p class="sub">Found by using both surfaces as a customer and as an agent. All cheap.</p>
+  <div class="grid g2">
+    <div class="box s"><h3>1 · The reply lag</h3><p class="sm">Agent replies take a while to reach the customer, which is long enough to lose them. Show “Merlin is typing…” the instant Take over is pressed, and check whether the widget is polling.</p></div>
+    <div class="box s"><h3>2 · “Online” at 2:33am</h3><p class="sm">Teach the widget our hours.</p></div>
+    <div class="box s"><h3>3 · The human has no name</h3><p class="sm">Customers see a purple bubble labelled <b>A</b>. Make it “Merlin from Sole joined the chat,” with a face.</p></div>
+    <div class="box s"><h3>4 · Bookings vanish</h3><p class="sm">A booked call should appear in the conversation. Right now the panel has no idea it happened.</p></div>
+    <div class="box s"><h3>5 · Plan says “—”</h3><p class="sm">Status says active, plan says nothing. Small data bug, but it's the first thing an agent reads.</p></div>
+    <div class="box s"><h3>+ One calendar</h3><p class="sm">TidyCal for the app, a round-robin for firms. Two calendars, one question: “was this person called?” Pick one, or make them both write to the thread.</p></div>
+  </div>
+
+  <h2>Three answers I need</h2>
+  <div style="border:var(--bd); border-radius:var(--r-lg); padding:6px 15px; background:var(--card)">
+    <div class="ask">
+      <div class="num">1</div>
+      <div class="qq"><b>What is “Harigaji”?</b><span>It's in the chat widget's footer. If the
+      bot is a third-party product rather than ours, then transcripts, retention and webhooks
+      all change — and that's the foundation of everything here. <b>Ashish.</b></span></div>
+    </div>
+    <div class="ask">
+      <div class="num">2</div>
+      <div class="qq"><b>Which Google Workspace plan?</b><span>Believed Business. That decides
+      whether Meet's own recording is free to us or a per-seat upgrade — and therefore whether
+      option B is a new cost or a swap. <b>Shishir.</b></span></div>
+    </div>
+    <div class="ask">
+      <div class="num">3</div>
+      <div class="qq"><b>Can TidyCal fire a webhook?</b><span>It's been in use a while and may
+      be wired into other things, so it stays. I only need it to tell us when a call is booked.
+      <b>Pradeep.</b></span></div>
+    </div>
+  </div>
+
+  <h2>What I'm deliberately not doing</h2>
+  <ul class="tick">
+    <li>Not replacing the bot. It works — it just needs a memory and fresher knowledge.</li>
+    <li>Not building video. We send a note-taker to the meeting they already booked.</li>
+    <li>Not touching Jira until Juhi's Confluence content has somewhere better to live. She's
+    not doing that work twice.</li>
+    <li>Not making Slack the record. Slack gets one line and a link — the answer to “did
+    anyone reach out?” lives in the thread, not in whether someone replied in a channel.</li>
+  </ul>
+
+  <div class="note" style="margin-top:22px">
+    <strong>The one-line version, for the meeting:</strong> we're not buying a phone system,
+    we're giving support a memory — one thread per customer, one queue for the team, and every
+    good answer going back into the bot. The dialer is a button on it.
+  </div>
+
+  <footer class="end">
+    <span class="bn">Thread</span> is a working name · internal proposal, unlisted ·
+    prototype only, all data on this page is made up.
+  </footer>
+</section>
+
+</div><!-- /wrap -->
+
+<script>
+(function () {
+  'use strict';
+
+  /* Rename in one place. Every mention in the document is .bn / .be. */
+  var BRAND = { name: 'Thread', glyph: '🧵' };
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  function applyBrand() {
+    $$('.bn').forEach(function (n) { n.textContent = BRAND.name; });
+    $$('.be').forEach(function (n) { n.textContent = BRAND.glyph; });
+    document.title = BRAND.name + ' — one customer, one thread, one queue';
+  }
+
+  /* ---------- tabs ---------- */
+  var tabs = $$('nav.tabs button'), panels = $$('.panel');
+  tabs.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var want = b.getAttribute('data-tab');
+      tabs.forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
+      panels.forEach(function (p) { p.classList.toggle('on', p.id === 'tab-' + want); });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  /* ---------- 1 · the story ---------- */
+  var GAPS = ['0 things lost', '1 thing lost', '2 things lost', '3 things lost',
+              '4 things lost', '5 things lost', '6 things lost'];
+  var shown = 1;
+  var nextBtn = $('#story-next'), lostEl = $('#lost-count'), endEl = $('#story-end');
+
+  function paintStory() {
+    $$('[data-beat]').forEach(function (b, i) { b.classList.toggle('hidden', i >= shown); });
+    if (lostEl) lostEl.textContent = GAPS[Math.min(shown, GAPS.length - 1)];
+    var done = shown >= 6;
+    if (endEl) endEl.style.display = done ? 'block' : 'none';
+    if (nextBtn) {
+      nextBtn.disabled = done;
+      nextBtn.textContent = done ? 'That was one customer.' : '▶ Play the next hour';
+    }
+  }
+  if (nextBtn) nextBtn.addEventListener('click', function () { if (shown < 6) { shown++; paintStory(); } });
+  var resetBtn = $('#story-reset');
+  if (resetBtn) resetBtn.addEventListener('click', function () { shown = 1; paintStory(); });
+  paintStory();
+
+  /* ---------- 2 · the thread ---------- */
+  var EVENTS = {
+    bot:   { ico: '🤖', cls: 'b', t: 'Asked the bot “why can\'t I email the invoice”',
+             s: 'Bot answered from an article last reviewed in March', tm: 'Tue 2:31am' },
+    esc:   { ico: '🙋', cls: 'r', t: 'Asked for a human — three times',
+             s: 'Loop detected · flagged as frustrated', tm: 'Tue 2:33am',
+             set: { mood: 'frustrated' } },
+    hello: { ico: '💬', cls: 'l', t: 'Auto-hello sent from Merlin',
+             s: 'Inside 3 minutes, at 2:36am, with the booking link', tm: 'Tue 2:36am',
+             set: { owner: 'Merlin', human: '2:36am' } },
+    book:  { ico: '📅', cls: 'a', t: 'Booked a 15-min call',
+             s: 'Wed 3:45pm AEST · assigned to Merlin · recording: consent given', tm: 'Tue 9:12am',
+             set: { owner: 'Merlin' } },
+    call:  { ico: '📞', cls: 'l', t: 'Call happened · 14 min · transcript attached',
+             s: 'Outcome: sorted. Summary drafted, follow-up email sent', tm: 'Wed 3:45pm',
+             set: { calls: 1, human: 'Wed 4:00pm', mood: 'happy' } },
+    card:  { ico: '📚', cls: 'b', t: 'Answer became a knowledge card',
+             s: '“Why is my Send button greyed out?” — approved by Juhi · bot re-indexed', tm: 'Wed 5:02pm' }
+  };
+  var STATE = { owner: '—', tickets: 0, calls: 0, human: 'never', mood: '—' };
+
+  function paintSide() {
+    var m = { owner: '#s-owner', tickets: '#s-tickets', calls: '#s-calls', human: '#s-human', mood: '#s-mood' };
+    Object.keys(m).forEach(function (k) {
+      var el = $(m[k]); if (!el) return;
+      el.textContent = STATE[k];
+      el.style.color = (STATE[k] === '—' || STATE[k] === 'never' || STATE[k] === 0) ? 'var(--faint)' : 'var(--ink)';
+      if (k === 'mood' && STATE.mood === 'frustrated') el.style.color = 'var(--red)';
+      if (k === 'mood' && STATE.mood === 'happy') el.style.color = 'var(--lime)';
+    });
+  }
+
+  var feed = $('#th-feed');
+  $$('#th-btns [data-ev]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var e = EVENTS[b.getAttribute('data-ev')]; if (!e || !feed) return;
+      var d = document.createElement('div');
+      d.className = 'ev';
+      d.innerHTML = '<div class="ico ' + e.cls + '">' + e.ico + '</div>'
+        + '<div class="txt"><b>' + esc(e.t) + '</b><small>' + esc(e.s) + '</small></div>'
+        + '<div class="tm">' + esc(e.tm) + '</div>';
+      feed.appendChild(d);
+      feed.scrollTop = feed.scrollHeight;
+      if (e.set) { Object.keys(e.set).forEach(function (k) { STATE[k] = e.set[k]; }); paintSide(); }
+      b.disabled = true;
+    });
+  });
+  var thReset = $('#th-reset');
+  if (thReset) thReset.addEventListener('click', function () {
+    if (!feed) return;
+    $$('.ev', feed).slice(1).forEach(function (n) { n.remove(); });
+    STATE = { owner: '—', tickets: 0, calls: 0, human: 'never', mood: '—' };
+    paintSide();
+    $$('#th-btns [data-ev]').forEach(function (b) { b.disabled = false; });
+  });
+  paintSide();
+
+  /* ---------- 3 · the queue ---------- */
+  var QUEUE = [
+    { id: 'q1', cls: 'night', ico: '🌙', who: 'Marcus · signed up 2:14am',
+      why: 'Auto-hello already sent 2:36am · call by 9:15', act: 'Call' },
+    { id: 'q2', cls: 'hot', ico: '🔴', who: 'Priya · asked for a human 8 min ago',
+      why: 'Bot looped twice on the same answer', act: 'Take over' },
+    { id: 'q3', cls: 'warm', ico: '🟠', who: 'Sam · call was 3 days ago',
+      why: 'Promised a recap email. Never went', act: 'Send recap' },
+    { id: 'q4', cls: '', ico: '⏳', who: 'Tara · trial ends in 2 days',
+      why: 'Logged in 6 times, never made an invoice', act: 'Call' }
+  ];
+  var cleared = 0;
+
+  function renderQueue() {
+    var l = $('#q-list'); if (!l) return;
+    l.innerHTML = QUEUE.map(function (q) {
+      return '<div class="qrow ' + q.cls + '">'
+        + '<div class="qi">' + q.ico + '</div>'
+        + '<div class="qt"><b>' + esc(q.who) + '</b><small>' + esc(q.why) + '</small></div>'
+        + '<button class="btn sm pri" data-done="' + q.id + '">' + esc(q.act) + '</button></div>';
+    }).join('') || '<div class="qrow done"><div class="qi">🎉</div><div class="qt">'
+        + '<b>Nobody is waiting.</b><small>Four people heard from a human before 10am.</small></div></div>';
+    var left = $('#q-left'); if (left) left.textContent = QUEUE.length;
+    var foot = $('#q-foot');
+    if (foot) foot.textContent = QUEUE.length
+      ? 'Every row says why it\'s here. One action each. That\'s the whole screen.'
+      : 'Cleared ' + cleared + ' before 10am — and each one is now on that customer\'s thread.';
+  }
+  var qList = $('#q-list');
+  if (qList) qList.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-done]'); if (!b) return;
+    var id = b.getAttribute('data-done');
+    QUEUE = QUEUE.filter(function (q) { return q.id !== id; });
+    cleared++;
+    renderQueue();
+  });
+  renderQueue();
+
+  /* ---------- 4 · the loop ---------- */
+  var ap = $('#approve');
+  if (ap) ap.addEventListener('click', function () {
+    var after = $('#say-after'), before = $('#say-before'), c = $('#loop-counter'), hint = $('#approve-hint');
+    if (after) after.style.display = 'block';
+    if (before) before.style.opacity = '.45';
+    if (c) c.textContent = '🤖 Bot handled 4 of 4 questions alone';
+    if (hint) { hint.textContent = 'Published. 41 people a month stop needing us for this.'; hint.style.color = 'var(--lime)'; hint.style.fontWeight = '800'; }
+    ap.textContent = '✓ Approved';
+    ap.disabled = true;
+    var ed = $('#edit-card'), bn = $('#bin-card');
+    if (ed) ed.disabled = true;
+    if (bn) bn.disabled = true;
+  });
+  ['#edit-card', '#bin-card'].forEach(function (sel) {
+    var b = $(sel); if (!b) return;
+    b.addEventListener('click', function () {
+      var hint = $('#approve-hint');
+      if (hint) hint.textContent = sel === '#bin-card'
+        ? 'Binned. Nothing reaches customers unless a human says yes.'
+        : 'Edit first, then approve — that step is the whole safety net.';
+    });
+  });
+
+  applyBrand();
+})();
+</script>
+
+</body>
+</html>
