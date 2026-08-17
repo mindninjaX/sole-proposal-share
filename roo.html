@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roo — the Slack bot that remembers who owes what</title>
+<meta name="robots" content="noindex, nofollow">
+<!--
+  Internal task/responsiveness bot. Pitch + clickable prototype.
+
+  THE NAME IS A PLACEHOLDER. "Roo" and the kangaroo are working identity only —
+  everything brandable lives in the BRAND object at the top of the <script>, and
+  in the document every standalone mention is a <span class="bn">, every mascot
+  glyph a <span class="be">, the goal word a <span class="bg">. Renaming is one
+  edit to BRAND, not a find-and-replace across 900 lines.
+
+  SIMPLICITY IS A FEATURE HERE, NOT A STYLE. The previous draft was rejected for
+  being bloated. Rules that keep it that way:
+    · shadows only on things you can touch (buttons, task rows, the app shell).
+      Explainer boxes get a border and nothing else.
+    · four colours do work — violet (primary), lime (good), amber (waiting),
+      red (late). Cyan/pink are for avatars only.
+    · one action per task row. Secondary actions are ghost text, not buttons.
+    · no metric appears twice on a screen.
+
+  Dependency-free on purpose: no React, no CDN, no images. It gets dropped into
+  Slack and opened from Downloads, so it must run from file:// and offline.
+  Never add a <script src> here.
+
+  NOT DEPLOYED. reference/ is the non-published directory — the workflow pushes
+  pages/** to a PUBLIC GitHub Pages URL and this names internal behaviour.
+-->
+<style>
+  :root{
+    --ink:#181329; --ink-soft:#4A4360; --muted:#7C7591; --faint:#A9A3BC;
+    --paper:#FFF9F2; --card:#FFFFFF; --sand:#F5EFE7; --line:rgba(24,19,41,.13);
+    --violet:#7C3AED; --violet-soft:#F0E9FE;
+    --lime:#6FBB0B;   --lime-soft:#EEFBD8;
+    --amber:#FFB020;  --amber-soft:#FFF3DA;
+    --red:#F5384A;    --red-soft:#FFE6E9;
+    --cyan:#12BACF;   --pink:#F0369A;
+    --r:12px; --r-lg:18px; --r-xl:24px;
+    --sh:2px 2px 0 var(--ink);
+    --sh-lg:4px 4px 0 var(--ink);
+    --bd:2px solid var(--ink);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--paper); color:var(--ink); font-size:15.5px; line-height:1.55;
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  :focus-visible{outline:3px solid var(--violet); outline-offset:2px; border-radius:6px}
+  ::selection{background:var(--amber)}
+
+  /* ---------------- shell ---------------- */
+  .wrap{max-width:940px; margin:0 auto; padding:0 20px 110px}
+  header.top{position:sticky; top:0; z-index:50; background:var(--paper); border-bottom:var(--bd)}
+  .top-in{max-width:940px; margin:0 auto; padding:11px 20px}
+  .brandrow{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+  .logo{width:38px; height:38px; border-radius:12px; background:var(--violet); border:var(--bd); box-shadow:var(--sh);
+        display:grid; place-items:center; font-size:20px; flex-shrink:0}
+  .brand{font-size:20px; font-weight:850; letter-spacing:-.6px; line-height:1.15}
+  .brand small{display:block; font-size:11.5px; font-weight:650; color:var(--muted); letter-spacing:0}
+  .flagchip{margin-left:auto; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.6px;
+            background:var(--amber); border:var(--bd); border-radius:999px; padding:4px 11px}
+  nav.tabs{display:flex; gap:6px; margin-top:11px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px}
+  nav.tabs::-webkit-scrollbar{display:none}
+  nav.tabs button{appearance:none; font:inherit; font-size:13.5px; font-weight:750; cursor:pointer; white-space:nowrap;
+    background:transparent; color:var(--ink-soft); border:2px solid transparent; border-radius:999px; padding:6px 14px}
+  nav.tabs button:hover{background:var(--sand); color:var(--ink)}
+  nav.tabs button[aria-selected=true]{background:var(--ink); color:#fff; border-color:var(--ink)}
+  .panel{display:none; animation:pop .22s cubic-bezier(.2,.9,.3,1)}
+  .panel.on{display:block}
+  @keyframes pop{from{opacity:0; transform:translateY(7px)} to{opacity:1; transform:none}}
+
+  /* ---------------- type ---------------- */
+  h1{font-size:38px; line-height:1.05; letter-spacing:-1.5px; font-weight:850; margin:34px 0 12px; max-width:19ch}
+  h1 em{font-style:normal; background:linear-gradient(180deg,transparent 60%,var(--amber) 60%)}
+  .lede{font-size:17.5px; color:var(--ink-soft); max-width:56ch; margin:0 0 4px; font-weight:450}
+  h2{font-size:21px; font-weight:850; letter-spacing:-.6px; margin:46px 0 4px}
+  .sub{font-size:14.5px; color:var(--muted); margin:0 0 18px; max-width:62ch}
+  h3{font-size:15.5px; font-weight:800; letter-spacing:-.2px; margin:0 0 4px}
+  p{margin:0 0 12px; max-width:64ch}
+  .sm{font-size:13.5px; color:var(--muted)}
+  .soft{color:var(--ink-soft)}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; background:var(--sand);
+       border-radius:5px; padding:2px 6px; font-weight:600; white-space:nowrap}
+  b,strong{font-weight:800}
+
+  /* ---------------- primitives ----------------
+     Shadow = touchable. Static explainers are border-only, which is most of the
+     de-bloat: the old draft had a 3px offset shadow on ~40 boxes per screen. */
+  .grid{display:grid; gap:12px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .box{background:var(--card); border:var(--bd); border-radius:var(--r-lg); padding:16px 17px}
+  .box.v{background:var(--violet-soft)} .box.l{background:var(--lime-soft)}
+  .box.a{background:var(--amber-soft)} .box.r{background:var(--red-soft)}
+  .box.s{background:var(--sand)}
+  .box>p:last-child,.box>ul:last-child{margin-bottom:0}
+  .note{border-left:4px solid var(--violet); padding:2px 0 2px 14px; margin:14px 0; max-width:62ch;
+        font-size:14.5px; color:var(--ink-soft)}
+  .note strong{color:var(--ink)}
+  .tag{display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; padding:3px 9px;
+       border-radius:999px; white-space:nowrap; letter-spacing:.2px; text-transform:uppercase}
+  .t-v{background:var(--violet); color:#fff} .t-l{background:var(--lime); color:#fff}
+  .t-a{background:var(--amber)} .t-r{background:var(--red); color:#fff}
+  .t-s{background:var(--sand); color:var(--muted)}
+  .btn{font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; background:var(--card); color:var(--ink);
+       border:var(--bd); border-radius:10px; padding:7px 13px; box-shadow:var(--sh); transition:transform .07s ease}
+  .btn:hover{transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--ink)}
+  .btn:active{transform:translate(1px,1px); box-shadow:1px 1px 0 var(--ink)}
+  .btn.go{background:var(--lime); color:#fff}
+  .btn.sm{font-size:12.5px; padding:5px 10px}
+  .btn.ghost{box-shadow:none; border-color:transparent; background:transparent; color:var(--muted); font-weight:750}
+  .btn.ghost:hover{transform:none; box-shadow:none; background:var(--sand); color:var(--ink)}
+  ul.list{margin:0 0 10px; padding:0; list-style:none}
+  ul.list li{position:relative; padding-left:22px; margin-bottom:8px; max-width:62ch}
+  ul.list li::before{content:'→'; position:absolute; left:0; top:0; font-weight:850; color:var(--violet)}
+  .rule{height:2px; background:var(--ink); opacity:.1; margin:38px 0}
+  .mockflag{display:inline-block; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.6px;
+            color:var(--muted); background:var(--sand); border-radius:999px; padding:3px 10px}
+
+  /* ---------------- slack mock ---------------- */
+  .slack{background:#fff; border:var(--bd); border-radius:var(--r-lg); overflow:hidden}
+  .slack-bar{padding:9px 14px; border-bottom:2px solid var(--ink); background:var(--sand); font-size:12.5px; font-weight:800}
+  .slack-body{padding:10px 14px}
+  .msg{display:flex; gap:10px; padding:6px 0; align-items:flex-start}
+  .av{width:30px; height:30px; border-radius:9px; flex-shrink:0; display:grid; place-items:center;
+      font-size:11.5px; font-weight:850; color:#fff}
+  .msg .who{font-size:13.5px; font-weight:850}
+  .msg .ts{font-size:10.5px; color:var(--faint); margin-left:6px; font-weight:600}
+  .msg .txt{font-size:14.5px; color:var(--ink-soft); margin-top:1px}
+  .msg .txt .mention{background:#E4F6F9; border-radius:4px; padding:0 3px; font-weight:750; color:var(--ink)}
+  .roo-card{border:var(--bd); border-radius:var(--r); background:var(--violet-soft); padding:11px 13px; margin-top:8px}
+  .roo-card .rt{font-size:14.5px; font-weight:800; margin-bottom:2px}
+  .roo-card .rf{font-size:13.5px; color:var(--ink-soft)}
+  .btnrow{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  .undo{font-size:11.5px; color:var(--muted); margin-top:7px; font-weight:650}
+
+  /* ---------------- day timeline ---------------- */
+  /* The time label sits LEFT of the rail, the dot ON it, the content RIGHT of it —
+     three non-overlapping columns. Getting these three numbers out of sync is what
+     produced "9●2am" the first time round. */
+  .day{position:relative; padding-left:100px}
+  .day::before{content:''; position:absolute; left:68px; top:8px; bottom:34px; width:2px; background:var(--line)}
+  .beat{position:relative; margin-bottom:26px}
+  .beat .when{position:absolute; left:-100px; top:0; width:56px; text-align:right; font-size:12.5px;
+               font-weight:850; color:var(--muted); line-height:1.3}
+  .beat .dot{position:absolute; left:-38px; top:3px; width:14px; height:14px; border-radius:50%;
+             background:var(--violet); border:2px solid var(--ink)}
+  .beat h3{font-size:17px; letter-spacing:-.4px; margin-bottom:5px}
+  .beat p{font-size:15px; color:var(--ink-soft); margin-bottom:10px}
+  @media (max-width:640px){
+    .day{padding-left:0} .day::before{display:none}
+    .beat{border-left:3px solid var(--line); padding-left:14px}
+    .beat .when{position:static; width:auto; text-align:left; display:block; margin-bottom:2px}
+    .beat .dot{display:none}
+  }
+
+  /* ---------------- the app ---------------- */
+  .app{border:var(--bd); border-radius:var(--r-xl); box-shadow:var(--sh-lg); overflow:hidden; background:var(--card)}
+  .app-hero{background:linear-gradient(120deg,var(--violet),#A32BD6); color:#fff; padding:20px 22px; border-bottom:var(--bd)}
+  .hero-top{display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap}
+  .hero-top .hi{font-size:24px; font-weight:850; letter-spacing:-.7px; flex:1; min-width:190px}
+  .hero-top .hi small{display:block; font-size:14.5px; font-weight:500; opacity:.93; letter-spacing:0; margin-top:2px}
+  .lvl-badge{background:#fff; color:var(--ink); border:var(--bd); border-radius:999px; padding:5px 13px;
+             font-size:13px; font-weight:850; white-space:nowrap}
+  .xp{margin-top:15px}
+  .xp-track{height:10px; background:rgba(255,255,255,.28); border-radius:999px; overflow:hidden}
+  .xp-track i{display:block; height:100%; background:#C6F16E; transition:width .55s cubic-bezier(.2,.9,.3,1)}
+  .xp-lab{font-size:12px; font-weight:700; margin-top:6px; opacity:.95; display:flex; justify-content:space-between; gap:10px}
+
+  .app-nav{display:flex; gap:4px; padding:10px 12px; border-bottom:2px solid var(--ink); flex-wrap:wrap}
+  .app-nav button{font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; background:transparent;
+                  border:none; border-radius:999px; padding:6px 13px; color:var(--muted)}
+  .app-nav button:hover{background:var(--sand); color:var(--ink)}
+  .app-nav button[aria-selected=true]{background:var(--ink); color:#fff}
+  .app-nav button b{font-weight:800; opacity:.6; margin-left:3px}
+  .app-view{display:none; padding:16px} .app-view.on{display:block}
+
+  .adder{display:flex; gap:8px; margin-bottom:6px}
+  .adder input{flex:1; min-width:0; font:inherit; font-size:14.5px; font-weight:600; padding:10px 13px;
+               border:var(--bd); border-radius:11px; background:var(--sand); color:var(--ink)}
+  .adder input::placeholder{color:var(--faint); font-weight:500}
+
+  .sect-h{font-size:11px; font-weight:850; text-transform:uppercase; letter-spacing:1px; color:var(--muted);
+          margin:20px 0 8px}
+  .sect-h.hot{color:var(--red)}
+
+  .task{display:flex; gap:12px; align-items:center; background:#fff; border:var(--bd); border-radius:var(--r);
+        padding:11px 13px; margin-bottom:8px; box-shadow:var(--sh)}
+  .task.late{border-color:var(--red); background:var(--red-soft)}
+  .task.pending{background:var(--amber-soft)}
+  .task.gone{background:var(--sand); box-shadow:none; opacity:.6}
+  .tick{width:26px; height:26px; border-radius:8px; border:var(--bd); background:#fff; cursor:pointer; flex-shrink:0;
+        display:grid; place-items:center; font-size:14px; padding:0; font-family:inherit}
+  .tick:hover{background:var(--lime); color:#fff}
+  /* UA paints disabled button text at rgba(16,16,16,.3), which made 🔒/⏳ invisible. */
+  .tick:disabled{color:var(--ink); -webkit-text-fill-color:currentColor; cursor:default}
+  .tick.locked{background:var(--sand); border-color:var(--line)}
+  .tick.on{background:var(--lime); color:#fff}
+  .task .tbody{flex:1; min-width:0}
+  .task .tt{font-size:15px; font-weight:700; letter-spacing:-.2px; line-height:1.35}
+  .task.gone .tt{text-decoration:line-through; color:var(--muted)}
+  .task .tm{font-size:12.5px; color:var(--muted); font-weight:650; margin-top:2px}
+  .task .tm .hot{color:var(--red); font-weight:800}
+  .task .tr{display:flex; gap:4px; align-items:center; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end}
+  .empty{text-align:center; padding:30px 14px; color:var(--muted); font-size:14px; font-weight:650}
+
+  /* ---------------- the run (inbox habit game) ---------------- */
+  .track{position:relative; height:136px; border:var(--bd); border-radius:var(--r-lg); overflow:hidden;
+         margin-bottom:14px; background:linear-gradient(180deg,#E3F5FA 0%,#FFF3DC 66%,#EEFBD8 66%)}
+  .track .path{position:absolute; left:0; right:0; bottom:38px; height:3px;
+               background:repeating-linear-gradient(90deg,rgba(24,19,41,.2) 0 10px,transparent 10px 20px)}
+  /* Landmarks live entirely BELOW the path; the mascot rides ON it. Two separate
+     bands, so the mascot can never land on top of a landmark glyph or its name. */
+  .track .mark{position:absolute; bottom:20px; transform:translateX(-50%); text-align:center; font-size:14px; line-height:1}
+  .track .mark small{position:absolute; top:17px; left:50%; transform:translateX(-50%); font-size:8.5px; font-weight:850;
+                     color:var(--ink-soft); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap}
+  .track .roo{position:absolute; bottom:46px; transform:translateX(-50%); font-size:30px; line-height:1; z-index:3;
+              transition:left .55s cubic-bezier(.3,1.4,.5,1); text-shadow:0 0 8px #FFF3DC,0 0 15px #FFF3DC}
+  .track .roo.hopping{animation:hop .5s ease}
+  @keyframes hop{0%,100%{transform:translateX(-50%) translateY(0)} 45%{transform:translateX(-50%) translateY(-24px)}}
+  .track .banner{position:absolute; top:10px; left:14px; font-size:12.5px; font-weight:850}
+  .track .banner small{display:block; font-size:11.5px; font-weight:650; color:var(--ink-soft)}
+  .dots{display:flex; gap:4px; flex-wrap:wrap}
+  .dots i{width:20px; height:20px; border-radius:6px; background:var(--sand); display:grid; place-items:center;
+          font-size:10px; font-style:normal; color:var(--muted)}
+  .dots i.on{background:var(--lime); color:#fff}
+  .dots i.now{box-shadow:0 0 0 2px var(--violet)}
+  .inbox-item{background:#fff; border:var(--bd); border-radius:var(--r); padding:11px 13px; margin-bottom:8px; box-shadow:var(--sh)}
+  .inbox-item.old{border-color:var(--red)}
+  .inbox-head{display:flex; gap:10px; align-items:flex-start}
+  .inbox-item .iw{font-size:14px; font-weight:800}
+  .inbox-item .iw span{font-size:12px; font-weight:650; color:var(--muted)}
+  .inbox-item .im{font-size:13.5px; color:var(--ink-soft); margin-top:1px}
+  .inbox-acts{display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; align-items:center}
+
+  /* ---------------- leaderboard ---------------- */
+  .podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; align-items:end; margin-bottom:16px}
+  .pod{border:var(--bd); border-radius:var(--r-lg); padding:13px 11px; text-align:center; background:var(--card)}
+  .pod .medal{font-size:26px; line-height:1}
+  .pod .pn{font-size:15.5px; font-weight:850; letter-spacing:-.3px; margin-top:4px}
+  .pod .pt{font-size:11.5px; color:var(--muted); font-weight:650}
+  .pod .pv{font-size:23px; font-weight:850; letter-spacing:-1px; margin-top:4px}
+  .pod.p1{background:var(--amber-soft); padding-top:20px; padding-bottom:20px}
+  .lrow{display:flex; align-items:center; gap:12px; padding:10px 15px; border-bottom:2px solid var(--line)}
+  .lrow:last-child{border-bottom:0}
+  .lrow .rk{width:22px; text-align:center; font-size:14px; font-weight:850; color:var(--faint)}
+  .lrow .ln{flex:1; min-width:0; font-size:14px; font-weight:750}
+  .lrow .ln small{display:block; font-size:11.5px; color:var(--muted); font-weight:650}
+  .lrow .lv{font-size:15px; font-weight:850}
+  .lrow.you{background:var(--violet-soft); border-top:2px dashed var(--ink)}
+  .teambar{display:flex; align-items:center; gap:10px; margin-bottom:9px}
+  .teambar .tn{width:82px; font-size:13px; font-weight:800; flex-shrink:0}
+  .teambar .tt{flex:1; height:16px; background:var(--sand); border-radius:999px; overflow:hidden}
+  .teambar .tt i{display:block; height:100%}
+  .teambar .tv{width:38px; text-align:right; font-size:12.5px; font-weight:850; flex-shrink:0}
+  .badge{display:flex; gap:9px; align-items:center; border:var(--bd); border-radius:var(--r); padding:10px 12px}
+  .badge .bi{font-size:20px; line-height:1}
+  .badge .bn2{font-size:13px; font-weight:800; line-height:1.2}
+  .badge .bd{font-size:11.5px; color:var(--muted); font-weight:650}
+  .badge.off{opacity:.4}
+  .promise{display:flex; gap:11px; padding:11px 0; border-bottom:2px solid var(--line); align-items:flex-start}
+  .promise:last-child{border-bottom:0; padding-bottom:0}
+  .promise b{display:block; font-size:14px}
+  .promise .pno{width:22px; height:22px; border-radius:7px; background:var(--ink); color:#fff; flex-shrink:0;
+                display:grid; place-items:center; font-size:11.5px; font-weight:850; margin-top:1px}
+
+  /* ---------------- confetti / toast ---------------- */
+  #confetti{position:fixed; inset:0; pointer-events:none; z-index:300; overflow:hidden}
+  #confetti span{position:absolute; top:-16px; display:block; will-change:transform}
+  @keyframes drop{to{transform:translateY(106vh) rotate(var(--rot))}}
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(90px); background:var(--ink);
+         color:#fff; font-size:14px; font-weight:750; padding:12px 20px; border-radius:999px; z-index:320; opacity:0;
+         pointer-events:none; transition:opacity .18s ease, transform .26s cubic-bezier(.2,.9,.3,1);
+         max-width:calc(100vw - 28px); text-align:center; box-shadow:4px 4px 0 var(--violet)}
+  .toast.on{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  @media (max-width:820px){ .g3{grid-template-columns:1fr} }
+  @media (max-width:640px){
+    body{font-size:15px}
+    h1{font-size:29px; letter-spacing:-1.1px} h2{font-size:19px} .lede{font-size:16px}
+    .g2{grid-template-columns:1fr}
+    .wrap{padding:0 14px 80px} .top-in{padding:10px 14px}
+    .podium{grid-template-columns:1fr} .pod.p1{padding:13px 11px}
+    .task{flex-wrap:wrap} .task .tr{width:100%; justify-content:flex-start; padding-left:38px}
+  }
+  @media (prefers-reduced-motion:reduce){ *{animation-duration:.01ms !important; transition-duration:.01ms !important} }
+  @media print{ header.top,nav.tabs,.app-nav{display:none !important} .panel{display:block !important} body{background:#fff} }
+
+  /* ---------------- visual blocks ---------------- */
+  .split{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:22px 0}
+  .side{border:var(--bd); border-radius:var(--r-lg); padding:16px 17px}
+  .side.bad{background:var(--red-soft)} .side.good{background:var(--lime-soft)}
+  .side h3{font-size:13px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin-bottom:12px}
+  .side ul{margin:0; padding:0; list-style:none}
+  .side li{display:flex; gap:9px; align-items:flex-start; margin-bottom:9px; font-size:14.5px; line-height:1.35}
+  .side li:last-child{margin-bottom:0}
+  .side li b{flex-shrink:0; width:18px; text-align:center}
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0}
+  .stat{border:var(--bd); border-radius:var(--r-lg); padding:14px 16px; background:var(--card)}
+  .stat .v{font-size:28px; font-weight:850; letter-spacing:-1.2px; line-height:1.05}
+  .stat .l{font-size:12.5px; color:var(--muted); font-weight:700; margin-top:3px}
+  .stat.hi{background:var(--violet); color:#fff} .stat.hi .l{color:rgba(255,255,255,.85)}
+  .ladder{display:grid; gap:8px; margin:16px 0}
+  .rung{display:flex; align-items:center; gap:14px; border:var(--bd); border-radius:var(--r);
+        padding:12px 15px; background:var(--card)}
+  .rung .w{width:88px; flex-shrink:0; font-size:12px; font-weight:850; text-transform:uppercase; letter-spacing:.5px}
+  .rung .t{flex:1; font-size:14.5px; color:var(--ink-soft)}
+  .rung.r1{margin-left:0} .rung.r2{margin-left:22px} .rung.r3{margin-left:44px} .rung.r4{margin-left:66px}
+  .rung.r1 .w{color:var(--muted)} .rung.r2 .w{color:var(--amber)}
+  .rung.r3{background:var(--red-soft); border-color:var(--red)} .rung.r3 .w{color:var(--red)}
+  .rung.r4{background:var(--sand)} .rung.r4 .w{color:var(--muted)}
+  .rules{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:8px}
+  .rule-c{border:var(--bd); border-radius:var(--r-lg); padding:18px 17px; background:var(--violet-soft)}
+  .rule-c .n{width:30px; height:30px; border-radius:10px; background:var(--ink); color:#fff;
+             display:grid; place-items:center; font-weight:850; font-size:15px; margin-bottom:11px}
+  .rule-c b{display:block; font-size:16px; letter-spacing:-.3px; line-height:1.25; margin-bottom:5px}
+  .rule-c span{font-size:13.5px; color:var(--ink-soft)}
+  .promises{display:grid; grid-template-columns:1fr 1fr; gap:9px}
+  .prom{display:flex; gap:11px; align-items:center; border:var(--bd); border-radius:var(--r); padding:11px 13px; font-size:14px; font-weight:700}
+  .prom em{font-style:normal; font-size:19px}
+  .wk{display:grid; grid-template-columns:64px 1fr; gap:0 16px; align-items:start}
+  .wk .w{font-size:12px; font-weight:850; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); padding-top:14px}
+  .wk .c{border-left:3px solid var(--line); padding:14px 0 14px 18px}
+  .wk .c b{font-size:16px; letter-spacing:-.3px}
+  .wk .c p{font-size:14px; color:var(--ink-soft); margin:2px 0 0}
+  .wk .c.on{border-left-color:var(--lime)}
+  @media (max-width:640px){
+    .split,.rules,.stats,.promises{grid-template-columns:1fr}
+    .rung{margin-left:0 !important} .rung .w{width:70px}
+    .wk{grid-template-columns:1fr} .wk .w{padding-top:14px} .wk .c{padding-left:0; border-left:0}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brandrow">
+      <div class="logo"><span class="be">🦘</span></div>
+      <div class="brand"><span class="bn">Roo</span><small>the Slack bot that remembers who owes what</small></div>
+      <span class="flagchip">Working name</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" aria-selected="true"  data-tab="day">A normal Tuesday</button>
+      <button role="tab" aria-selected="false" data-tab="bot">The bot</button>
+      <button role="tab" aria-selected="false" data-tab="board">Your board</button>
+      <button role="tab" aria-selected="false" data-tab="team">The team</button>
+      <button role="tab" aria-selected="false" data-tab="build">Build it</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ==================== A NORMAL TUESDAY ==================== -->
+<!-- ==================== A NORMAL TUESDAY ==================== -->
+<section class="panel on" id="tab-day" role="tabpanel">
+  <h1>Somebody asks. <em>Nobody chases.</em></h1>
+  <p class="lede">A Slack ask has no owner, no date and no state. So people chase, chase again, then try WhatsApp.</p>
+
+  <div class="split">
+    <div class="side bad">
+      <h3>Today</h3>
+      <ul>
+        <li><b>😶</b>Was it even seen?</li>
+        <li><b>🤷</b>Is anyone doing it?</li>
+        <li><b>📅</b>By when?</li>
+        <li><b>📱</b>…so Sam chases. Three times. Then WhatsApp.</li>
+      </ul>
+    </div>
+    <div class="side good">
+      <h3>With <span class="bn">Roo</span></h3>
+      <ul>
+        <li><b>📌</b>Written down the second it's said</li>
+        <li><b>🙋</b>One name on it</li>
+        <li><b>🗓️</b>One date</li>
+        <li><b>🤖</b>…and the bot does the chasing.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>It looks like this</h2>
+  <p class="sub">Sam types what she'd normally type. Nothing to learn.</p>
+  <div class="slack">
+    <div class="slack-bar">#marketing</div>
+    <div class="slack-body">
+      <div class="msg">
+        <div class="av" style="background:var(--pink)">SW</div>
+        <div><div><span class="who">Sam</span><span class="ts">9:12 AM</span></div>
+        <div class="txt">hey <span class="mention">@Dan</span> could you get me the pricing copy before Thursday? 🙏</div></div>
+      </div>
+      <div class="msg">
+        <div class="av" style="background:var(--violet)"><span class="be">🦘</span></div>
+        <div style="flex:1; min-width:0">
+          <div><span class="who bn">Roo</span> <span class="tag t-s">bot</span><span class="ts">9:12 AM</span></div>
+          <div class="txt">Got it 📌</div>
+          <div class="roo-card">
+            <div class="rt">Pricing copy for the launch page</div>
+            <div class="rf"><strong>Dan</strong> · due <strong>Thu 3pm</strong> · asked by Sam</div>
+            <div class="btnrow">
+              <button class="btn sm go" onclick="return false">👍 On it</button>
+              <button class="btn sm" onclick="return false">🕐 Need longer</button>
+              <button class="btn sm" onclick="return false">🙋 Not me</button>
+            </div>
+          </div>
+          <div class="undo">Not a task? <u>Undo</u></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">Dan taps <strong>👍 On it</strong>. One second. <strong>That tap is most of the fix</strong> — Sam stops wondering, and never opens WhatsApp.</div>
+
+  <h2>The rest of Dan's Tuesday</h2>
+  <div class="day">
+    <div class="beat"><div class="when">9:20am</div><div class="dot"></div>
+      <h3>Checks his list once</h3><p>Everything anyone asked him, one screen, with dates.</p></div>
+    <div class="beat"><div class="when">11:00am</div><div class="dot"></div>
+      <h3>Two minutes on his inbox</h3><p>Replies to two, “nothing needed” on three. Done.</p></div>
+    <div class="beat"><div class="when">1:30pm</div><div class="dot"></div>
+      <h3>Thursday won't happen</h3><p>Types “push it to Tuesday”. Sam is told automatically.</p></div>
+    <div class="beat"><div class="when">2:40pm</div><div class="dot"></div>
+      <h3>Finishes it</h3><p>Taps <strong>Mark done</strong> → it goes to <em>Sam</em> to tick.</p></div>
+    <div class="beat" style="margin-bottom:8px"><div class="when">Fri 4pm</div><div class="dot" style="background:var(--amber)"></div>
+      <h3>The fun bit</h3><p>One post in <code>#soul-of-sole</code>. Winner, top five, thank-yous.</p></div>
+  </div>
+
+  <h2>Three rules. That's the whole thing.</h2>
+  <div class="rules">
+    <div class="rule-c"><div class="n">1</div><b>Whoever asked ticks it off.</b><span>You can't mark your own homework.</span></div>
+    <div class="rule-c"><div class="n">2</div><b>Moving a date is free.</b><span>Going quiet isn't. Silence is the only problem.</span></div>
+    <div class="rule-c"><div class="n">3</div><b>“Nothing needed” counts.</b><span>Looking is the habit. Replying is optional.</span></div>
+  </div>
+</section>
+
+<!-- ==================== THE BOT ==================== -->
+<section class="panel" id="tab-bot" role="tabpanel">
+  <h1>Works like a <em>person</em>, not a form.</h1>
+  <p class="lede">No syntax, no fields, no commands. If it's harder than talking, nobody does it — that's why Jira never left the dev team.</p>
+
+  <h2>Three ways in</h2>
+  <div class="grid g3">
+    <div class="box">
+      <span class="tag t-v">1 · tag it</span>
+      <div class="slack" style="margin-top:11px"><div class="slack-body" style="padding:8px 11px">
+        <div class="msg" style="padding:2px 0"><div class="av" style="background:var(--pink)">SW</div>
+        <div class="txt"><span class="mention">@roo</span> Dan to send the pricing copy by Thu 3pm</div></div>
+      </div></div>
+    </div>
+    <div class="box">
+      <span class="tag t-v">2 · it notices</span>
+      <div class="slack" style="margin-top:11px"><div class="slack-body" style="padding:8px 11px">
+        <div class="msg" style="padding:2px 0"><div class="av" style="background:var(--pink)">SW</div>
+        <div class="txt">hey <span class="mention">@Dan</span> could you get me the pricing copy? 🙏</div></div>
+      </div></div>
+    </div>
+    <div class="box">
+      <span class="tag t-v">3 · just chat</span>
+      <div class="slack" style="margin-top:11px"><div class="slack-body" style="padding:8px 11px">
+        <div class="msg" style="padding:2px 0"><div class="av" style="background:var(--cyan)">DK</div>
+        <div class="txt">add three: book the venue, chase the Harbour invoice, draft the launch email — all Friday</div></div>
+      </div></div>
+    </div>
+  </div>
+
+  <h2>It does the chasing</h2>
+  <p class="sub">Automatic. The first two are private DMs — nobody is called out in public.</p>
+  <div class="ladder">
+    <div class="rung r1"><div class="w">+4 hours</div><div class="t">Quiet DM: “Sam's waiting — tap something and I'll leave you alone 🙏”</div></div>
+    <div class="rung r2"><div class="w">due date</div><div class="t">“Still good for today?” — <em>Done · Tomorrow · Next week</em></div></div>
+    <div class="rung r3"><div class="w">2 days late</div><div class="t">Mentioned in the thread. Politely, with buttons. Never <code>@here</code>.</div></div>
+    <div class="rung r4"><div class="w">5 days late</div><div class="t">Your lead's Monday list — so it gets unblocked, not nagged.</div></div>
+  </div>
+  <div class="note"><strong>Never mentions how late something is twice.</strong> That's what turns a helpful bot into the one everyone mutes.</div>
+
+  <h2>How it talks</h2>
+  <div class="grid g2">
+    <div class="box l"><h3>✅ Says</h3>
+      <ul class="list" style="margin:10px 0 0">
+        <li>“Got it 📌 Dan's on it, due Thu 3pm.”</li>
+        <li>“Tap something and I'll leave you alone 🙏”</li>
+        <li>“Gone a bit crusty 🥐. New date, or is it dead?”</li>
+      </ul></div>
+    <div class="box r"><h3>🚫 Never says</h3>
+      <ul class="list" style="margin:10px 0 0">
+        <li>“You have 6 OVERDUE items.”</li>
+        <li>“@here Dan has not responded.”</li>
+        <li>“Your response time is below average.”</li>
+      </ul></div>
+  </div>
+
+  <div class="note"><strong>One honest risk:</strong> a bot that turns every “can someone check this?” into a task with your name on it is infuriating by day two. So it ships in three gears — <strong>tagged only</strong>, then <strong>suggests</strong>, then automatic. We don't skip ahead.</div>
+</section>
+
+<!-- ==================== YOUR BOARD ==================== -->
+<section class="panel" id="tab-board" role="tabpanel">
+  <h1>One list. <em>Big buttons.</em></h1>
+  <p class="lede">Yours, what you're waiting on others for, and a two-minute pass through your messages.</p>
+  <p class="sm" style="margin:12px 0 16px"><span class="mockflag">Live — you're “Dan”. Tick things, add your own, clear the inbox</span></p>
+
+  <div class="app">
+    <div class="app-hero">
+      <div class="hero-top">
+        <div class="hi">Morning, Dan 👋<small id="hero-sub">5 things on you. One is running late.</small></div>
+        <span class="lvl-badge" id="lvl-badge"><span class="be">🦘</span> Bounder</span>
+      </div>
+      <div class="xp">
+        <div class="xp-track"><i id="xp-bar" style="width:55%"></i></div>
+        <div class="xp-lab"><span id="xp-lab">132 points</span><span id="streak-chip">🔥 14-day streak</span></div>
+      </div>
+    </div>
+
+    <div class="app-nav" role="tablist" aria-label="Views">
+      <button role="tab" aria-selected="true"  data-appview="mine">On me <b id="n-mine">4</b></button>
+      <button role="tab" aria-selected="false" data-appview="asked">I asked for <b id="n-asked">2</b></button>
+      <button role="tab" aria-selected="false" data-appview="inbox">Inbox <b id="n-inbox">6</b></button>
+    </div>
+
+    <div class="app-view on" id="app-mine">
+      <div class="adder">
+        <input type="text" id="new-task" placeholder="Add something of your own…" aria-label="New task">
+        <button class="btn go" id="add-btn">Add</button>
+      </div>
+      <div id="mine-list"></div>
+    </div>
+
+    <div class="app-view" id="app-asked">
+      <p class="sm" style="margin:0 0 12px">When they say it's done, <strong>you</strong> tick it.</p>
+      <div id="asked-list"></div>
+    </div>
+
+    <div class="app-view" id="app-inbox">
+      <div class="track">
+        <div class="banner">Today's run<small id="hop-count">12 of 18 cleared</small></div>
+        <div class="path"></div>
+        <div id="track-marks"></div>
+        <div class="roo" id="roo-sprite" style="left:65%"><span class="be">🦘</span></div>
+      </div>
+      <p class="sm" style="margin:0 0 14px"><strong>“Nothing needed” counts the same as a reply.</strong> Nobody else can see this screen — <a href="#" data-goto="team" style="color:var(--violet)">what we promise →</a></p>
+      <div id="inbox-list"></div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="box l"><h3>🔥 Your streak</h3>
+          <p class="sm soft" style="margin:5px 0 10px">Weekends and leave don't break it.</p>
+          <div class="dots" aria-hidden="true">
+            <i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="on">✓</i>
+            <i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="on">✓</i><i class="now" id="dot-today">·</i>
+          </div>
+        </div>
+        <div class="box a"><h3>🕳️ Blind spots</h3>
+          <p class="sm soft" style="margin:5px 0 10px">Shown only to you.</p>
+          <ul class="list" style="margin:0">
+            <li class="sm soft"><strong>Tom's DM</strong> — 2 days old</li>
+            <li class="sm soft"><strong>#support</strong> — 3 mentions waiting</li>
+            <li class="sm soft"><strong>#partnerships</strong> — 40 unread. Mute it? 🤫</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note"><strong>The buttons are the policy.</strong> Your own tasks get a tick. Someone else's get a padlock and a “Mark done” that hands it back to them. Nobody has to remember the rule.</div>
+</section>
+
+<!-- ==================== THE TEAM ==================== -->
+<section class="panel" id="tab-team" role="tabpanel">
+  <h1>Friday, 4pm, <em>#soul-of-sole</em>.</h1>
+  <p class="lede">One post a week. Categories rotate, so five different sorts of person can win — and <strong>nobody can see who came last</strong>.</p>
+
+  <div class="podium">
+    <div class="pod"><div class="medal">🥈</div><div class="pn">Priya</div><div class="pt">Marketing</div><div class="pv">132</div></div>
+    <div class="pod p1"><div class="medal">🥇</div><div class="pn">Ava</div><div class="pt">Support</div><div class="pv">148</div></div>
+    <div class="pod"><div class="medal">🥉</div><div class="pn">Dan</div><div class="pt">Content</div><div class="pv">121</div></div>
+  </div>
+
+  <div class="app-nav" style="border:var(--bd); border-radius:var(--r-lg); background:var(--card); margin-bottom:14px" role="tablist" aria-label="Leaderboard category">
+    <button role="tab" aria-selected="true"  data-lb="closed">✅ Most closed</button>
+    <button role="tab" aria-selected="false" data-lb="fast">⚡ Quickest</button>
+    <button role="tab" aria-selected="false" data-lb="kudos">🙌 Most helpful</button>
+    <button role="tab" aria-selected="false" data-lb="hop">🔥 Longest streak</button>
+    <button role="tab" aria-selected="false" data-lb="improve">📈 Most improved</button>
+  </div>
+
+  <div class="grid g2" style="align-items:start">
+    <div class="box" style="padding:0; overflow:hidden">
+      <div style="padding:12px 15px; border-bottom:2px solid var(--ink); background:var(--sand); display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
+        <strong id="lb-title" style="font-size:14px">Most closed</strong><span class="tag t-s">top 5 only</span>
+      </div>
+      <div id="lb-list"></div>
+      <div class="lrow you"><div class="rk">11</div>
+        <div class="ln">You <small>Only you can see this row.</small></div><div class="lv">92</div></div>
+    </div>
+    <div class="box v">
+      <h3>📈 Protect “most improved”</h3>
+      <p class="sm soft" style="margin:5px 0 0">The only category someone who's currently <em>bad</em> at this can win. The people this project exists to change get a winnable path, not a permanent seat at the bottom.</p>
+    </div>
+  </div>
+
+  <h2>The Friday post</h2>
+  <div class="slack">
+    <div class="slack-bar">#soul-of-sole</div>
+    <div class="slack-body">
+      <div class="msg">
+        <div class="av" style="background:var(--violet)"><span class="be">🦘</span></div>
+        <div style="flex:1; min-width:0">
+          <div><span class="who bn">Roo</span> <span class="tag t-s">bot</span><span class="ts">Fri 4:00 PM</span></div>
+          <div class="txt">Righto you legends, that's the week 🎉</div>
+          <div class="roo-card" style="background:var(--amber-soft)">
+            <div class="rt">🏆 Player of the week — Tom</div>
+            <div class="rf" style="margin-bottom:9px">31% of asks on time in July → <strong>89%</strong> this month.</div>
+            <div class="rf" style="background:#fff; border-radius:9px; padding:8px 10px">🙌 <strong>Priya:</strong> “Told me straight away he couldn't do the deck. So much more useful than a maybe.”</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">That quote is <strong>praise for saying no</strong>, on purpose. Half of what looks like unresponsiveness is people who didn't feel able to decline.</div>
+
+  <h2 id="promises">What we promise</h2>
+  <p class="sub">This becomes surveillance if built carelessly. These six are why people will use it rather than resent it.</p>
+  <div class="promises">
+    <div class="prom"><em>🔒</em>Your inbox screen is yours. No manager view. Ever.</div>
+    <div class="prom"><em>🚫</em>It never stores what messages say.</div>
+    <div class="prom"><em>👀</em>“Nothing needed” scores the same as a reply.</div>
+    <div class="prom"><em>⚖️</em>No speed ranking on individuals.</div>
+    <div class="prom"><em>📄</em>Never used in performance reviews.</div>
+    <div class="prom"><em>🎚️</em>You can turn the game off.</div>
+  </div>
+  <div class="note">Leadership sees <strong>“78% of the team cleared their inbox 4+ days this week”</strong> — same information for decisions, none of the information that makes people feel watched.</div>
+</section>
+
+<!-- ==================== BUILD IT ==================== -->
+<section class="panel" id="tab-build" role="tabpanel">
+  <h1>Mostly <em>built</em> already.</h1>
+  <p class="lede">A Slack bot, a web board, and one small file of data. No hard engineering — the risk is whether people like using it.</p>
+
+  <div class="stats">
+    <div class="stat hi"><div class="v">$6</div><div class="l">per month, all in</div></div>
+    <div class="stat"><div class="v">1</div><div class="l">developer</div></div>
+    <div class="stat"><div class="v">2 wks</div><div class="l">to a live pilot</div></div>
+  </div>
+
+  <h2>How we roll it out</h2>
+  <div class="wk">
+    <div class="w">Week 0</div>
+    <div class="c"><b>Look at the real problem</b><p>Read 30–50 genuinely ignored mentions. Usually shows a big chunk of “silence” was asks nobody could have answered.</p></div>
+    <div class="w">Weeks 1–2</div>
+    <div class="c"><b>Two teams. No points yet.</b><p>One struggling, one keen — <strong>with a leader inside</strong>. If leaders ignore their own tasks, it dies on contact.</p></div>
+    <div class="w">Week 3</div>
+    <div class="c"><b>Fix what annoyed people</b><p>Ask the pilot what made them roll their eyes. Remove exactly that.</p></div>
+    <div class="w">Weeks 4–6</div>
+    <div class="c on"><b>Everyone. Game on.</b><p>Points, badges and the first Friday post. <strong>Points come last on purpose</strong> — gamifying something still annoying teaches people to game it.</p></div>
+  </div>
+
+  <div class="note"><strong>The WhatsApp conversation happens last of all.</strong> Only once Slack asks visibly get picked up does “keep work in Slack” sound reasonable rather than annoying.</div>
+
+  <h2>What I need from you</h2>
+  <div class="box">
+    <ul class="list" style="margin:0">
+      <li><strong>The name.</strong> “<span class="bn">Roo</span>” is a placeholder — trivial to change now, awkward once people say it out loud.</li>
+      <li><strong>Do we want the inbox game at all?</strong> Most fun, most sensitive. Straw-poll the pilot first.</li>
+      <li><strong>Two pilot teams</strong> — one struggling, one keen, plus one leader.</li>
+      <li><strong>Sign off the six promises</strong> above. Much harder to add back later than to design in.</li>
+    </ul>
+  </div>
+
+  <div class="rule"></div>
+  <p class="sm" style="max-width:66ch"><strong>In one line:</strong> it catches the asks flying around Slack, gives each one an owner and a date, does the chasing itself, and turns keeping on top of your messages into a two-minute daily game.</p>
+</section>
+</div>
+
+<div id="confetti" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ==========================================================================
+     BRAND — the entire identity lives here. Change these six lines and the
+     whole document renames itself: header, every in-copy mention, the mascot
+     glyph, the level ladder and the journey landmarks. Nothing else to touch.
+     ========================================================================== */
+  var BRAND = {
+    name:  'Roo',
+    emoji: '🦘',
+    goal:  'the billabong',                       // what you're heading towards
+    levels: [                                     // ladder, low → high
+      { n: 'Joey', min: 0 }, { n: 'Hopper', min: 10 }, { n: 'Bounder', min: 50 },
+      { n: 'Big Red', min: 150 }, { n: 'Legend', min: 350 }
+    ],
+    marks: [                                      // [left%, glyph, label]
+      [5, '⛺', 'Camp'], [35, '🪨', 'The creek'], [65, '🌳', 'Gum tree'], [94, '💧', 'Billabong']
+    ]
+  };
+
+  var $  = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var reduced = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; };
+  var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+
+  function applyBrand() {
+    $$('.bn').forEach(function (e) { e.textContent = BRAND.name; });
+    $$('.be').forEach(function (e) { e.textContent = BRAND.emoji; });
+    $$('.bg').forEach(function (e) { e.textContent = BRAND.goal; });
+    document.title = BRAND.name + ' — the Slack bot that remembers who owes what';
+    var m = $('#track-marks');
+    if (m) m.innerHTML = BRAND.marks.map(function (k) {
+      return '<div class="mark" style="left:' + k[0] + '%">' + k[1] + '<small>' + esc(k[2]) + '</small></div>';
+    }).join('');
+  }
+
+  /* every nav in this file works the same way: a button names the panel to show */
+  function wire(btns, attr, prefix, panels, cb) {
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        btns.forEach(function (o) { o.setAttribute('aria-selected', o === b ? 'true' : 'false'); });
+        var k = b.getAttribute(attr);
+        if (panels) panels.forEach(function (p) { p.classList.toggle('on', p.id === prefix + k); });
+        if (cb) cb(k);
+      });
+    });
+  }
+  var topTabs = $$('nav.tabs button');
+  wire(topTabs, 'data-tab', 'tab-', $$('.panel'), function () {
+    window.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' });
+  });
+  wire($$('[data-appview]'), 'data-appview', 'app-', $$('.app-view'));
+
+  /* in-copy links that jump to another tab */
+  $$('[data-goto]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      var want = a.getAttribute('data-goto');
+      topTabs.forEach(function (b) { if (b.getAttribute('data-tab') === want) b.click(); });
+    });
+  });
+
+  /* ---------- confetti + toast ---------- */
+  var COLORS = ['#7C3AED', '#F0369A', '#6FBB0B', '#12BACF', '#FFB020'];
+  var cTimer = null;
+  function confetti(big) {
+    var host = $('#confetti');
+    if (!host || reduced()) return;
+    var n = big ? 100 : 40, out = '';
+    for (var i = 0; i < n; i++) {
+      var w = 7 + Math.random() * 7, h = 9 + Math.random() * 10;
+      var dur = (big ? 1.6 : 1.15) + Math.random() * 0.55;
+      out += '<span style="left:' + (Math.random() * 100) + '%;width:' + w + 'px;height:' + h + 'px;background:'
+           + COLORS[i % COLORS.length] + ';border:1.5px solid #181329;border-radius:3px;--rot:'
+           + (Math.random() * 720 - 360) + 'deg;animation:drop ' + dur + 's cubic-bezier(.3,.6,.7,1) '
+           + (Math.random() * (big ? .4 : .2)) + 's forwards"></span>';
+    }
+    host.innerHTML = out;
+    clearTimeout(cTimer);
+    cTimer = setTimeout(function () { host.innerHTML = ''; }, big ? 2600 : 1900);
+  }
+  var tTimer = null;
+  function toast(msg) {
+    var el = $('#toast'); if (!el) return;
+    el.textContent = msg; el.classList.add('on');
+    clearTimeout(tTimer);
+    tTimer = setTimeout(function () { el.classList.remove('on'); }, 3000);
+  }
+
+  /* ---------- points + levels ---------- */
+  var xp = 132, lastLevel = -1;
+  function levelFor(v) {
+    var L = BRAND.levels, i = 0;
+    for (var k = 0; k < L.length; k++) if (v >= L[k].min) i = k;
+    var cur = L[i], nxt = L[i + 1] || null;
+    return { i: i, cur: cur, nxt: nxt,
+             pct: nxt ? Math.max(0, Math.min(1, (v - cur.min) / (nxt.min - cur.min))) : 1,
+             to: nxt ? nxt.min - v : 0 };
+  }
+  function renderXp() {
+    var L = levelFor(xp);
+    var b = $('#lvl-badge'), bar = $('#xp-bar'), lab = $('#xp-lab');
+    if (b) b.innerHTML = '<span class="be">' + BRAND.emoji + '</span> ' + esc(L.cur.n);
+    if (bar) bar.style.width = (L.pct * 100).toFixed(1) + '%';
+    if (lab) lab.textContent = L.nxt ? (xp + ' points · ' + L.to + ' to ' + L.nxt.n) : (xp + ' points · top level');
+    if (lastLevel >= 0 && L.i > lastLevel) { confetti(true); toast('Level up! You’re ' + L.cur.n + ' now 🎉'); }
+    lastLevel = L.i;
+  }
+  function award(n, msg, big) { xp += n; renderXp(); if (msg) toast(msg); if (n >= 10) confetti(big); }
+
+  /* ---------- tasks ----------
+     `from` is who asked. from === 'you' means it's your own, so you may tick it
+     yourself; anything else has to be ticked by the person who asked. That rule
+     is enforced by which buttons exist, so nobody has to remember it. */
+  var MINE = [
+    { id: 'm1', t: 'Refund policy wording for the help centre', from: 'Ava',   due: '2 days late', when: 'late', pts: 30, state: 'open' },
+    { id: 'm2', t: 'Pricing copy for the launch page',          from: 'Sam',   due: 'today, 3pm',  when: 'today', pts: 20, state: 'open' },
+    { id: 'm3', t: 'Chase the Harbour Cafe invoice',            from: 'you',   due: 'today',       when: 'today', pts: 10, state: 'open' },
+    { id: 'm4', t: 'Approve the August newsletter subject lines',from:'Priya', due: 'Friday',      when: 'later', pts: 10, state: 'open' },
+    { id: 'm5', t: 'Book the venue for the Q4 offsite',          from: 'you',   due: 'Friday',      when: 'later', pts: 10, state: 'open' },
+    { id: 'm6', t: 'Q3 case study interview notes',              from: 'Mei',   due: 'Monday',      when: 'later', pts: 20, state: 'sent' }
+  ];
+  var ASKED = [
+    { id: 'a1', t: 'Bank feed screenshots for the launch page', who: 'Jules', st: 'on',    line: 'picked it up · promised Wed' },
+    { id: 'a2', t: 'Legal sign-off on the pricing claim',       who: 'Mei',   st: 'quiet', line: 'not looked at yet · nudged 9am' },
+    { id: 'a3', t: 'Headcount numbers for the ops deck',        who: 'Priya', st: 'ready', line: 'Priya says it’s done — your tick' },
+    { id: 'a4', t: 'Invoice PDF bug — shipping this sprint?',   who: 'Jules', st: 'ready', line: 'Jules says it’s done — your tick' }
+  ];
+  var GROUPS = [
+    { k: 'late',  label: 'Running late', hot: true },
+    { k: 'today', label: 'Today' },
+    { k: 'later', label: 'Later this week' },
+    { k: 'done',  label: 'Closed today' }
+  ];
+
+  function taskRow(k) {
+    var own = k.from === 'you';
+    var cls = k.state === 'done' ? 'gone' : k.state === 'sent' ? 'pending' : k.when === 'late' ? 'late' : '';
+    var tick, right = '';
+    if (k.state === 'done') {
+      tick = '<button class="tick on" disabled aria-label="Done">✓</button>';
+    } else if (k.state === 'sent') {
+      tick = '<button class="tick locked" disabled aria-label="Waiting to be confirmed">⏳</button>';
+      right = '<span class="sm">waiting for ' + esc(k.from) + '</span>';
+    } else if (own) {
+      tick = '<button class="tick" data-do="tick" data-id="' + k.id + '" aria-label="Tick off">✓</button>';
+      right = '<button class="btn ghost sm" data-do="move" data-id="' + k.id + '">Move date</button>';
+    } else {
+      tick = '<button class="tick locked" disabled aria-label="' + esc(k.from) + ' ticks this one off">🔒</button>';
+      right = '<button class="btn sm go" data-do="send" data-id="' + k.id + '">Mark done</button>'
+            + '<button class="btn ghost sm" data-do="move" data-id="' + k.id + '">Move date</button>';
+    }
+    var meta = k.state === 'done' ? 'closed · +' + k.pts
+      : (own ? 'yours' : esc(k.from) + ' asked') + ' · '
+        + (k.when === 'late' ? '<span class="hot">' + esc(k.due) + '</span>' : esc(k.due))
+        + (k.note ? ' · ' + esc(k.note) : '');
+    return '<div class="task ' + cls + '">' + tick
+      + '<div class="tbody"><div class="tt">' + esc(k.t) + '</div><div class="tm">' + meta + '</div></div>'
+      + '<div class="tr">' + right + '</div></div>';
+  }
+
+  function renderMine() {
+    var el = $('#mine-list'); if (!el) return;
+    var out = '';
+    GROUPS.forEach(function (g) {
+      var rows = MINE.filter(function (k) {
+        if (g.k === 'done') return k.state === 'done';
+        return k.state !== 'done' && (k.when === g.k || (g.k === 'today' && k.state === 'sent' && k.when === 'today'));
+      });
+      if (!rows.length) return;
+      out += '<div class="sect-h' + (g.hot ? ' hot' : '') + '">' + g.label + ' · ' + rows.length + '</div>'
+           + rows.map(taskRow).join('');
+    });
+    el.innerHTML = out || '<div class="empty">Nothing on you. Go outside 🌞</div>';
+    stats();
+  }
+
+  function renderAsked() {
+    var el = $('#asked-list'); if (!el) return;
+    el.innerHTML = ASKED.map(function (k) {
+      var cls = k.st === 'done' ? 'gone' : k.st === 'ready' ? 'pending' : '';
+      var tick = k.st === 'ready'
+        ? '<button class="tick" data-do="confirm" data-id="' + k.id + '" aria-label="Confirm done">✓</button>'
+        : k.st === 'done' ? '<button class="tick on" disabled>✓</button>'
+        : '<button class="tick locked" disabled>⏳</button>';
+      var right = k.st === 'ready'
+        ? '<button class="btn sm go" data-do="confirm" data-id="' + k.id + '">Yep, done</button>'
+          + '<button class="btn ghost sm" data-do="reject" data-id="' + k.id + '">Not quite</button>'
+        : k.st === 'quiet' ? '<span class="sm">' + esc(BRAND.name) + '’s on it</span>' : '';
+      return '<div class="task ' + cls + '">' + tick
+        + '<div class="tbody"><div class="tt">' + esc(k.t) + '</div>'
+        + '<div class="tm">' + esc(k.who) + ' · ' + esc(k.line) + '</div></div>'
+        + '<div class="tr">' + right + '</div></div>';
+    }).join('');
+    stats();
+  }
+
+  function stats() {
+    var open = MINE.filter(function (k) { return k.state === 'open'; });
+    var late = open.filter(function (k) { return k.when === 'late'; }).length;
+    var ready = ASKED.filter(function (k) { return k.st === 'ready'; }).length;
+    var set = function (id, v) { var e = $(id); if (e) e.textContent = v; };
+    set('#n-mine', open.length); set('#n-asked', ready); set('#n-inbox', INBOX.length);
+    var sub = $('#hero-sub');
+    if (sub) sub.textContent = !open.length ? 'Nothing left on you today. Nice.'
+      : open.length + (open.length === 1 ? ' thing on you.' : ' things on you.')
+        + (late ? ' ' + (late === 1 ? 'One is running late.' : late + ' are running late.') : ' Nothing late.');
+  }
+
+  var mineEl = $('#mine-list');
+  if (mineEl) mineEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-do]'); if (!b) return;
+    var k = MINE.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+    if (!k) return;
+    var act = b.getAttribute('data-do');
+    if (act === 'tick') {
+      k.state = 'done'; renderMine();
+      award(k.pts, 'Boom 💥 +' + k.pts + '. Your own task, your own tick.', k.pts >= 30);
+    } else if (act === 'send') {
+      k.state = 'sent'; renderMine();
+      toast('Sent to ' + k.from + ' to tick off. Points land when they confirm ✅');
+    } else if (act === 'move') {
+      k.due = 'next Tuesday'; k.when = 'later'; k.note = 'moved early'; renderMine();
+      award(1, '+1 for moving it early. ' + (k.from === 'you' ? 'Nothing will bug you.' : k.from + ' was told automatically.'));
+    }
+  });
+
+  var askedEl = $('#asked-list');
+  if (askedEl) askedEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-do]'); if (!b) return;
+    var k = ASKED.filter(function (x) { return x.id === b.getAttribute('data-id'); })[0];
+    if (!k) return;
+    if (b.getAttribute('data-do') === 'confirm') {
+      k.st = 'done'; k.line = 'you confirmed it · ' + k.who + ' got their points';
+      renderAsked(); confetti(false);
+      toast('Closed ✅ ' + k.who + ' just scored — because you said so.');
+    } else {
+      k.st = 'on'; k.line = 'sent back to ' + k.who + ' with your note';
+      renderAsked(); toast('Back to ' + k.who + '. You won’t have to chase.');
+    }
+  });
+
+  var addBtn = $('#add-btn'), addIn = $('#new-task');
+  function addTask() {
+    var v = (addIn.value || '').trim(); if (!v) { addIn.focus(); return; }
+    MINE.unshift({ id: 'n' + Date.now(), t: v, from: 'you', due: 'today', when: 'today', pts: 10, state: 'open' });
+    addIn.value = ''; renderMine();
+    toast('Added 📌 It’s yours, so you tick it off yourself.');
+  }
+  if (addBtn) addBtn.addEventListener('click', addTask);
+  if (addIn) addIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') addTask(); });
+
+  /* ---------- the inbox run ---------- */
+  var INBOX = [
+    { id: 'i1', src: '#', label: 'marketing', who: 'Sam mentioned you', msg: '“could you get me the pricing copy before Thursday?”', age: '2h', col: 'var(--pink)' },
+    { id: 'i2', src: '✉️', label: 'DM',       who: 'Priya',             msg: '“quick one — did the newsletter go out?”',            age: '4h', col: 'var(--violet)' },
+    { id: 'i3', src: '#', label: 'support',   who: 'Ava mentioned you', msg: '“customer asking about the invoice PDF”',             age: '1d', col: 'var(--lime)' },
+    { id: 'i4', src: '#', label: 'general',   who: 'Thread reply',      msg: '“🎉 congrats on the launch everyone!”',               age: '1d', col: 'var(--cyan)' },
+    { id: 'i5', src: '✉️', label: 'DM',       who: 'Tom',               msg: '“can you send me the deck template?”',                age: '2d', col: 'var(--violet)', old: true },
+    { id: 'i6', src: '#', label: 'content',   who: 'Mei mentioned you', msg: '“FYI moved the shoot to Friday”',                     age: '3h', col: 'var(--amber)' }
+  ];
+  var TOTAL = 18, cleared = 12;
+
+  function renderInbox() {
+    var el = $('#inbox-list'); if (!el) return;
+    if (!INBOX.length) {
+      el.innerHTML = '<div class="box l" style="text-align:center; padding:26px 16px">'
+        + '<div style="font-size:36px; line-height:1">💧</div>'
+        + '<h3 style="margin:8px 0 4px">You made it to ' + esc(BRAND.goal) + '!</h3>'
+        + '<p class="sm soft" style="margin:0">Everything looked at, nothing rotting. Took about two minutes.</p></div>';
+    } else {
+      el.innerHTML = INBOX.map(function (m) {
+        return '<div class="inbox-item' + (m.old ? ' old' : '') + '">'
+          + '<div class="inbox-head"><div class="av" style="background:' + m.col + '">' + m.src + '</div>'
+          + '<div style="flex:1; min-width:0"><div class="iw">' + esc(m.who)
+          + ' <span>· ' + esc(m.src === '#' ? '#' + m.label : m.label) + ' · ' + esc(m.age) + (m.old ? ' · oldest' : '') + '</span></div>'
+          + '<div class="im">' + esc(m.msg) + '</div></div></div>'
+          + '<div class="inbox-acts">'
+          + '<button class="btn sm go" data-hop="' + m.id + '" data-kind="replied">Replied</button>'
+          + '<button class="btn sm"    data-hop="' + m.id + '" data-kind="nothing">👀 Nothing needed</button>'
+          + '<button class="btn ghost sm" data-hop="' + m.id + '" data-kind="task">📌 Make a task</button>'
+          + '<button class="btn ghost sm" data-hop="' + m.id + '" data-kind="notme">🙋 Not mine</button>'
+          + '</div></div>';
+      }).join('');
+    }
+    var c = $('#hop-count');
+    if (c) c.textContent = INBOX.length ? cleared + ' of ' + TOTAL + ' cleared · ' + INBOX.length + ' to go'
+                                        : 'All ' + TOTAL + ' cleared · you made it 💧';
+    var roo = $('#roo-sprite');
+    if (roo) {
+      roo.style.left = (5 + (cleared / TOTAL) * 89).toFixed(1) + '%';
+      if (!reduced()) { roo.classList.remove('hopping'); void roo.offsetWidth; roo.classList.add('hopping'); }
+    }
+    stats();
+  }
+
+  var inboxEl = $('#inbox-list');
+  if (inboxEl) inboxEl.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-hop]'); if (!b) return;
+    var id = b.getAttribute('data-hop'), kind = b.getAttribute('data-kind');
+    var m = INBOX.filter(function (x) { return x.id === id; })[0];
+    INBOX = INBOX.filter(function (x) { return x.id !== id; });
+    cleared++;
+    if (kind === 'task' && m) {
+      MINE.unshift({ id: 'h' + Date.now(), t: m.msg.replace(/[“”]/g, ''), from: m.who.split(' ')[0],
+                     due: 'Thursday', when: 'later', pts: 20, state: 'open' });
+      renderMine();
+    }
+    renderInbox();
+    if (!INBOX.length) {
+      confetti(true);
+      var d = $('#dot-today'); if (d) { d.textContent = '✓'; d.classList.add('on'); }
+      award(5, 'Made it 💧 Whole inbox looked at — 15-day streak 🔥', true);
+    } else {
+      var line = { replied: 'Nice one', nothing: 'Counts exactly the same', task: 'Tracked 📌', notme: 'Fair enough' }[kind];
+      toast(line + ' — ' + INBOX.length + ' to go.');
+    }
+  });
+
+  /* ---------- leaderboard ---------- */
+  var BOARDS = {
+    closed:  { title: 'Most closed', rows: [['Ava','Support · 22 closed','148'],['Priya','Marketing · 19','132'],['Dan','Content · 17','121'],['Mei','Ops · 16','118'],['Tom','Sales · 11','104']] },
+    fast:    { title: 'Quickest to reply · median', rows: [['Mei','Ops','41m'],['Ava','Support','1h 02m'],['Tom','Sales · was 2 days in July','1h 20m'],['Dan','Content','2h 05m'],['Jules','Engineering','2h 40m']] },
+    kudos:   { title: 'Most helpful · thank-yous 🙌', rows: [['Ava','Support · 14','+42'],['Mei','Ops · 11','+33'],['Tom','Sales · 9','+27'],['Priya','Marketing · 7','+21'],['Dan','Content · 6','+18']] },
+    hop:     { title: 'Longest streak 🔥', rows: [['Mei','Ops · unbroken since July','31d'],['Dan','Content','14d'],['Ava','Support','12d'],['Jules','Engineering','9d'],['Priya','Marketing','6d']] },
+    improve: { title: 'Most improved · against their own last month', rows: [['Tom','Sales · 31% → 89% on time','+58'],['Dan','Content · 55% → 86%','+31'],['Jules','Engineering · 62% → 84%','+22'],['Priya','Marketing · 74% → 88%','+14'],['Ava','Support · 85% → 94%','+9']] }
+  };
+  function renderBoard(k) {
+    var b = BOARDS[k] || BOARDS.closed;
+    var t = $('#lb-title'); if (t) t.textContent = b.title;
+    var l = $('#lb-list'); if (!l) return;
+    l.innerHTML = b.rows.map(function (r, i) {
+      return '<div class="lrow"><div class="rk">' + (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1))
+        + '</div><div class="ln">' + esc(r[0]) + '<small>' + esc(r[1]) + '</small></div><div class="lv">' + esc(r[2]) + '</div></div>';
+    }).join('');
+  }
+  wire($$('[data-lb]'), 'data-lb', null, null, renderBoard);
+
+  /* ---------- go ---------- */
+  applyBrand();
+  renderBoard('closed');
+  renderMine();
+  renderAsked();
+  renderInbox();
+  renderXp();
+})();
+</script>
+
+</body>
+</html>
