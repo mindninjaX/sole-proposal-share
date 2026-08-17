@@ -138,11 +138,67 @@
   .beat:last-child{border-bottom:none}
   .beat .clock{width:62px; flex-shrink:0; font-size:12.5px; font-weight:850; color:var(--muted); padding-top:2px}
   .beat .what{flex:1; min-width:0}
-  .beat .what b{display:block; font-size:15.5px; letter-spacing:-.2px}
-  .beat .what span{font-size:14px; color:var(--ink-soft)}
+  /* `> b` — the headline only. An unscoped rule also blocked bold used INSIDE a
+     sentence, snapping words like “Online” onto their own line mid-sentence. */
+  .beat .what > b{display:block; font-size:15.5px; letter-spacing:-.2px}
+  /* Description text is block so the stamp below starts its own line — but the
+     stamps are spans too, and a bare `span` rule stretches them into full-width bars. */
+  .beat .what span:not(.gap):not(.fired){display:block; font-size:14px; color:var(--ink-soft)}
   .beat .gap{display:inline-block; margin-top:7px; font-size:12.5px; font-weight:800; color:var(--red);
              background:var(--red-soft); border:2px solid var(--red); border-radius:8px; padding:3px 9px}
   .beat.hidden{display:none}
+
+  /* ---------------- the fix: same story, good outcome ----------------
+     Deliberately the SAME .beat component as the problem story, so the two
+     tabs read as one before/after. Only the stamp changes colour. */
+  .caught{background:var(--lime); color:#fff; border:var(--bd); border-radius:999px; padding:4px 11px;
+          font-size:11.5px; font-weight:850; white-space:nowrap}
+  .beat .fired{display:inline-block; margin-top:7px; font-size:12.5px; font-weight:800; color:#2F6A03;
+               background:var(--lime-soft); border:2px solid var(--lime); border-radius:8px; padding:3px 9px}
+
+  /* what we're building — five parts */
+  .part{display:flex; gap:13px; align-items:flex-start; padding:13px 0; border-bottom:2px dashed var(--line)}
+  .part:last-child{border-bottom:none}
+  .part .pn{width:32px; height:32px; border-radius:10px; border:var(--bd); background:var(--blue-soft);
+            display:grid; place-items:center; font-size:15px; flex-shrink:0}
+  .part .pd{flex:1; min-width:0}
+  .part .pd b{font-size:15.5px; letter-spacing:-.2px; margin-right:7px}
+  /* :not(.tag) — a bare `span` rule here turned every status chip into a full-width bar. */
+  .part .pd span:not(.tag){display:block; font-size:14px; color:var(--ink-soft); margin-top:4px}
+
+  /* the one picture */
+  .flow{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,auto) minmax(0,1fr); gap:14px; align-items:center}
+  .fhead{font-size:10.5px; font-weight:850; text-transform:uppercase; letter-spacing:.8px; color:var(--muted);
+         margin-bottom:7px}
+  .fcol{display:grid; gap:6px}
+  .fchip{border:2px solid var(--line); border-radius:10px; background:var(--card); padding:7px 11px;
+         font-size:13.5px; font-weight:750}
+  .fmid{border:var(--bd); border-radius:var(--r-lg); background:var(--blue); color:#fff; padding:18px 16px;
+        text-align:center; box-shadow:var(--sh-lg)}
+  .fmid b{display:block; font-size:18px; letter-spacing:-.5px}
+  .fmid small{font-size:12.5px; opacity:.93}
+  @media (max-width:760px){ .flow{grid-template-columns:minmax(0,1fr)} }
+
+  /* what runs on its own */
+  .rules{border:var(--bd); border-radius:var(--r-lg); overflow:hidden; background:var(--card)}
+  .rrow{display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); gap:16px; padding:12px 15px;
+        border-bottom:2px dashed var(--line); align-items:start}
+  .rrow:last-child{border-bottom:none}
+  .rrow .when{font-size:14.5px; font-weight:800}
+  .rrow .when small{display:block; font-size:10px; font-weight:850; letter-spacing:.8px;
+                    text-transform:uppercase; color:var(--muted); margin-bottom:2px}
+  .rrow .then{font-size:14px; color:var(--ink-soft)}
+  @media (max-width:640px){ .rrow{grid-template-columns:minmax(0,1fr); gap:5px} }
+
+  /* three screens */
+  .screen{border:var(--bd); border-radius:var(--r-lg); background:var(--card); padding:14px; text-align:center}
+  .screen .sk{border:2px solid var(--line); border-radius:10px; background:var(--sand); height:74px; margin-bottom:11px;
+              display:grid; gap:5px; padding:9px; align-content:start}
+  .screen .sk i{display:block; height:8px; border-radius:3px; background:var(--faint); opacity:.55}
+  .screen .sk i.w1{width:62%} .screen .sk i.w2{width:88%} .screen .sk i.w3{width:44%}
+  .screen .sk i.hi{background:var(--blue); opacity:1}
+  .screen b{font-size:15px; letter-spacing:-.2px}
+  .screen span{display:block; font-size:13px; color:var(--ink-soft); margin-top:3px}
 
   /* ---------------- the thread mock ---------------- */
   .thread{display:grid; grid-template-columns:minmax(0,1fr) 232px; border:var(--bd); border-radius:var(--r-xl);
@@ -259,6 +315,7 @@
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" aria-selected="true"  data-tab="break">What breaks today</button>
+      <button role="tab" aria-selected="false" data-tab="fix">The fix</button>
       <button role="tab" aria-selected="false" data-tab="thread">One thread</button>
       <button role="tab" aria-selected="false" data-tab="queue">One queue</button>
       <button role="tab" aria-selected="false" data-tab="loop">It gets smarter</button>
@@ -354,7 +411,194 @@
   </div>
 </section>
 
-<!-- ================= 2 · ONE THREAD ================= -->
+<!-- ================= 2 · THE FIX =================
+     The answer to "you explained the problem, not the solution". Same six
+     beats as tab 1, same component, same customer — green instead of red. -->
+<section class="panel" id="tab-fix" role="tabpanel">
+  <h1>Same Tuesday. <em>Nothing lost.</em></h1>
+  <p class="lede">Same person, same 2:14am, same questions, same team. Here's what
+  happens instead — and who does it.</p>
+
+  <div class="story">
+    <div class="story-bar">
+      <div class="who">Marcus · sole trader, Brisbane<small>Signed up Tuesday, 2:14am</small></div>
+      <div class="caught" id="caught-count">1 caught</div>
+    </div>
+    <div class="story-body">
+      <div class="beat" data-good="0">
+        <div class="clock">2:14am</div>
+        <div class="what">
+          <b>Marcus signs up.</b>
+          <span>A thread opens for him. Three minutes later a hello goes out from Merlin,
+          with the booking link.</span>
+          <span class="fired">⚡ Automatic · no human awake</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-good="1">
+        <div class="clock">2:31am</div>
+        <div class="what">
+          <b>He asks the bot how to email an invoice.</b>
+          <span>It answers from a card Juhi owns, reviewed six days ago — and hands over
+          the 40-second video.</span>
+          <span class="fired">📚 Right answer, with the video</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-good="2">
+        <div class="clock">2:33am</div>
+        <div class="what">
+          <b>“Connect me to a live agent.”</b>
+          <span>“The team's back at 9am — book a call or raise a ticket and it's the first
+          thing we pick up.” Both land on his thread.</span>
+          <span class="fired">🌙 Honest, not “Online”</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-good="3">
+        <div class="clock">9:07am</div>
+        <div class="what">
+          <b>Merlin opens one list.</b>
+          <span>Marcus is row one — signed up 2:14am, what he asked, what the bot said,
+          hello already sent. <b>Call by 9:15.</b></span>
+          <span class="fired">📋 Walks in knowing</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-good="4">
+        <div class="clock">11:00am</div>
+        <div class="what">
+          <b>The same great 15-minute call.</b>
+          <span>A note-taker joins, announced. Transcript and a five-line summary land on
+          the thread. The follow-up email is written, waiting on one click.</span>
+          <span class="fired">📞 Kept, not lost</span>
+        </div>
+      </div>
+      <div class="beat hidden" data-good="5">
+        <div class="clock">5:02pm</div>
+        <div class="what">
+          <b>Juhi approves one card.</b>
+          <span>Marcus's answer becomes the bot's answer. The next person who asks — 41 did
+          last month — never needs us.</span>
+          <span class="fired">🔁 It compounds</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btnrow">
+    <button class="btn go" id="fix-next">▶ Play the next hour</button>
+    <button class="btn ghost sm" id="fix-reset">Start again</button>
+  </div>
+
+  <div id="fix-end" style="display:none">
+    <p class="big" style="margin-top:22px">Same tools. Same people. Same hours.
+    <em>The only new thing is a shared memory.</em></p>
+  </div>
+
+  <h2>So what do we actually build?</h2>
+  <p class="sub">Five parts. Two of them we already own, one we buy, and the bot and support
+  panel don't change at all — they just gain somewhere to write.</p>
+  <div class="box" style="padding:6px 17px">
+    <div class="part">
+      <div class="pn">🧵</div>
+      <div class="pd"><b>1 · The thread</b><span class="tag t-b">new · small</span>
+      <span>One list of everything that has ever happened to a customer. Signup, chat,
+      escalation, booking, ticket, call, transcript — one shape, one place.</span></div>
+    </div>
+    <div class="part">
+      <div class="pn">📋</div>
+      <div class="pd"><b>2 · The queue</b><span class="tag t-l">reuses what ships today</span>
+      <span>A ranked view of the thread answering one question: who needs us right now, and
+      why. Same card the app already shows customers.</span></div>
+    </div>
+    <div class="part">
+      <div class="pn">📚</div>
+      <div class="pd"><b>3 · Knowledge cards</b><span class="tag t-l">extends Academy Studio</span>
+      <span>A question, an answer, an owner, a review date, an article and a video. The bot
+      reads these instead of a doc nobody maintains.</span></div>
+    </div>
+    <div class="part">
+      <div class="pn">⚡</div>
+      <div class="pd"><b>4 · The rules</b><span class="tag t-b">new · small</span>
+      <span>The short list of “when this happens, do that” — below. This is what makes it
+      run at 2am without anyone watching.</span></div>
+    </div>
+    <div class="part">
+      <div class="pn">🎙️</div>
+      <div class="pd"><b>5 · The note-taker</b><span class="tag t-a">bought, not built</span>
+      <span>Joins the Google Meet we already book and sends back the transcript. No video
+      code, ever.</span></div>
+    </div>
+  </div>
+
+  <h2>The whole idea in one picture</h2>
+  <div class="flow">
+    <div>
+      <div class="fhead">Everything that happens →</div>
+      <div class="fcol">
+        <div class="fchip">🌱 Signs up · logs in</div>
+        <div class="fchip">💬 Chats with the bot</div>
+        <div class="fchip">🙋 Asks for a human</div>
+        <div class="fchip">📅 Books · 📞 gets called</div>
+        <div class="fchip">🧾 Raises a ticket</div>
+      </div>
+    </div>
+    <div class="fmid">
+      <b><span class="be">🧵</span> The thread</b>
+      <small>one memory,<br>per customer</small>
+    </div>
+    <div>
+      <div class="fhead">→ becomes every view</div>
+      <div class="fcol">
+        <div class="fchip">📋 Merlin's queue</div>
+        <div class="fchip">🤖 What the bot knows</div>
+        <div class="fchip">📊 Johann's numbers</div>
+        <div class="fchip">👤 The customer's history</div>
+        <div class="fchip">☎️ …and the dialer</div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <strong>That's the whole architecture.</strong> Write once on the left, and every
+    surface on the right is a filter — not another system somebody has to keep in sync.
+  </div>
+
+  <h2>What runs without anyone watching</h2>
+  <p class="sub">Five rules. This is the difference between a database and a system that
+  actually helps at 2am.</p>
+  <div class="rules">
+    <div class="rrow">
+      <div class="when"><small>when</small>Someone signs up</div>
+      <div class="then">Thread opens · hello sends within 3 minutes · a call is queued for the
+      next working window, assigned to whoever's on.</div>
+    </div>
+    <div class="rrow">
+      <div class="when"><small>when</small>The bot loops or someone gets frustrated</div>
+      <div class="then">That row jumps the queue and someone is pinged — instead of the
+      customer asking three times and giving up.</div>
+    </div>
+    <div class="rrow">
+      <div class="when"><small>when</small>It's outside hours</div>
+      <div class="then">The widget says so, and offers the two things that do work right
+      now: book a call, raise a ticket.</div>
+    </div>
+    <div class="rrow">
+      <div class="when"><small>when</small>A call finishes</div>
+      <div class="then">Transcript attaches · a five-line summary and a follow-up email are
+      drafted and wait for one click.</div>
+    </div>
+    <div class="rrow">
+      <div class="when"><small>when</small>A card is approved</div>
+      <div class="then">The bot re-indexes and the help article publishes. One approval,
+      three surfaces updated.</div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="box l"><h3>Humans still do the good bits</h3><p class="sm">The call, the
+    take-over, and the yes-or-no on every knowledge card. Roughly five decisions a day.</p></div>
+    <div class="box s"><h3>The machine does the remembering</h3><p class="sm">Writing it
+    down, chasing the follow-up, ranking who's next, never forgetting a 2am signup.</p></div>
+  </div>
+</section>
+
+<!-- ================= 3 · ONE THREAD ================= -->
 <section class="panel" id="tab-thread" role="tabpanel">
   <h1>One customer. <em>One thread.</em></h1>
   <p class="lede">Signup, chat, ticket, call, transcript — all the same shape:
@@ -416,6 +660,27 @@
     <div class="box l"><h3>Johann's reporting</h3><p class="sm">A count of the thread. No new pipeline.</p></div>
     <div class="box l"><h3>The bot's context</h3><p class="sm">Reads the thread, stops asking what it already knows.</p></div>
     <div class="box l"><h3>The dialer</h3><p class="sm">A <b>Call</b> button on the thread. One afternoon of work.</p></div>
+  </div>
+
+  <h2>Three screens. That's the build.</h2>
+  <p class="sub">Everything else is a rule running in the background. If you only remember
+  one thing about scope, remember this number.</p>
+  <div class="grid g3">
+    <div class="screen">
+      <div class="sk"><i class="w2 hi"></i><i class="w1"></i><i class="w3"></i><i class="w2"></i></div>
+      <b>The thread</b>
+      <span>One person, everything that's happened. Above.</span>
+    </div>
+    <div class="screen">
+      <div class="sk"><i class="w2"></i><i class="w1 hi"></i><i class="w2"></i><i class="w3"></i></div>
+      <b>The queue</b>
+      <span>The team's morning. Who needs us, and why.</span>
+    </div>
+    <div class="screen">
+      <div class="sk"><i class="w1"></i><i class="w2 hi"></i><i class="w3"></i></div>
+      <b>The approve inbox</b>
+      <span>Five cards a day. Yes, edit, or bin.</span>
+    </div>
   </div>
 </section>
 
@@ -616,6 +881,26 @@
     </div>
   </div>
 
+  <h2>What each person gets</h2>
+  <p class="sub">Same system, three different answers to “so what changes for me?”</p>
+  <div class="grid g3">
+    <div class="box b">
+      <h3>Marcus · the customer</h3>
+      <p class="sm">Hears from a human on day one. Gets right answers with a video attached.
+      Never told someone's “online” when they aren't. Never repeats himself.</p>
+    </div>
+    <div class="box b">
+      <h3>Merlin &amp; Juhi · support</h3>
+      <p class="sm">One list instead of four inboxes, and every row explains itself. Walks
+      into a call already knowing. Stops answering the same question forever.</p>
+    </div>
+    <div class="box b">
+      <h3>Johann · the business</h3>
+      <p class="sm">Can finally answer “did anyone actually reach out?” without asking a
+      person — plus why trials don't convert, in the callers' own words.</p>
+    </div>
+  </div>
+
   <h2>Four weeks</h2>
   <div class="weeks">
     <div class="wk"><div class="n">Week 1</div><div class="d"><b>Knowledge + the five small fixes</b><span>Articles get a home, an owner and a review date. Bot reads them. Fix list below.</span></div></div>
@@ -731,7 +1016,28 @@
   if (resetBtn) resetBtn.addEventListener('click', function () { shown = 1; paintStory(); });
   paintStory();
 
-  /* ---------- 2 · the thread ---------- */
+  /* ---------- 2 · the fix (same player, opposite outcome) ---------- */
+  var CAUGHT = ['0 caught', '1 caught', '2 caught', '3 caught',
+                '4 caught', '5 caught', 'All 6 caught ✨'];
+  var gShown = 1;
+  var fixBtn = $('#fix-next'), caughtEl = $('#caught-count'), fixEnd = $('#fix-end');
+
+  function paintFix() {
+    $$('[data-good]').forEach(function (b, i) { b.classList.toggle('hidden', i >= gShown); });
+    if (caughtEl) caughtEl.textContent = CAUGHT[Math.min(gShown, CAUGHT.length - 1)];
+    var done = gShown >= 6;
+    if (fixEnd) fixEnd.style.display = done ? 'block' : 'none';
+    if (fixBtn) {
+      fixBtn.disabled = done;
+      fixBtn.textContent = done ? 'Six for six.' : '▶ Play the next hour';
+    }
+  }
+  if (fixBtn) fixBtn.addEventListener('click', function () { if (gShown < 6) { gShown++; paintFix(); } });
+  var fixReset = $('#fix-reset');
+  if (fixReset) fixReset.addEventListener('click', function () { gShown = 1; paintFix(); });
+  paintFix();
+
+  /* ---------- 3 · the thread ---------- */
   var EVENTS = {
     bot:   { ico: '🤖', cls: 'b', t: 'Asked the bot “why can\'t I email the invoice”',
              s: 'Bot answered from an article last reviewed in March', tm: 'Tue 2:31am' },
