@@ -3376,6 +3376,121 @@ const TabBadge = ({
     }
   }, count);
 };
+// TabInfo: the ⓘ beside a tab label. This used to be a bare `title=` on the tab
+// button, which meant the explanation was hover-only: unreachable on touch, and
+// the glyph looked interactive while doing nothing on click. Same fault, and the
+// same fix, as WarningTooltip further down. Opens on hover AND on tap; dismisses
+// on outside press or Esc. Rendered as a SIBLING of the tab button, never nested,
+// so it stays valid HTML and its own tap doesn't switch tabs.
+const TabInfo = ({
+  text,
+  color,
+  size = 13
+}) => {
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const [pos, setPos] = useState(null);
+  const ref = useRef(null);
+  // The tab strip is a horizontal scroller (`.tab-scroll`, overflowX: auto), and
+  // an `overflow-x: auto` box also clips vertically, so an absolutely-positioned
+  // panel renders into the DOM and is then invisible. So the panel is `fixed` and
+  // positioned off the trigger's measured rect, which escapes the scroller.
+  const place = () => {
+    const r = ref.current && ref.current.getBoundingClientRect();
+    if (!r) return;
+    const W = 260,
+      half = W / 2;
+    const cx = Math.min(Math.max(r.left + r.width / 2, half + 8), window.innerWidth - half - 8);
+    setPos({
+      left: cx,
+      top: r.bottom + 8
+    });
+  };
+  // Dismissal has to clear `hover` as well as `open`. After a click the pointer is
+  // still sitting on the glyph, so hover stays true and `open || hover` would keep
+  // the panel up, and Esc would look broken. Clearing both means it stays shut until
+  // the pointer genuinely leaves and returns.
+  const dismiss = () => {
+    setOpen(false);
+    setHover(false);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = ev => {
+      if (ref.current && !ref.current.contains(ev.target)) dismiss();
+    };
+    const onKey = ev => {
+      if (ev.key === 'Escape') dismiss();
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('touchstart', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('touchstart', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return /*#__PURE__*/React.createElement("span", {
+    ref: ref,
+    style: {
+      position: 'relative',
+      display: 'inline-flex',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    "aria-label": "What this means",
+    "aria-expanded": open ? 'true' : 'false',
+    onClick: e => {
+      e.stopPropagation();
+      place();
+      setOpen(o => !o);
+    },
+    onMouseEnter: () => {
+      place();
+      setHover(true);
+    },
+    onMouseLeave: () => setHover(false),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      padding: 2,
+      margin: 0,
+      borderRadius: 4,
+      display: 'inline-flex',
+      alignItems: 'center',
+      cursor: 'pointer',
+      color
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: size,
+    color: color
+  })), (open || hover) && pos && /*#__PURE__*/React.createElement("div", {
+    role: "tooltip",
+    style: {
+      position: 'fixed',
+      top: pos.top,
+      left: pos.left,
+      transform: 'translateX(-50%)',
+      width: 260,
+      padding: 10,
+      background: T.card,
+      border: `1px solid ${T.border}`,
+      borderRadius: 10,
+      boxShadow: '0 10px 28px rgba(15,17,23,0.14)',
+      zIndex: 300,
+      animation: 'expand 0.12s ease',
+      fontSize: 12,
+      lineHeight: 1.5,
+      color: T.text,
+      fontWeight: 500,
+      whiteSpace: 'normal',
+      textAlign: 'left'
+    }
+  }, text));
+};
 const Tabs = ({
   tabs,
   value,
@@ -3408,30 +3523,39 @@ const Tabs = ({
     }
   }, tabs.map(t => {
     const active = value === t.id;
-    return /*#__PURE__*/React.createElement("button", {
+    // The wrapper carries the active underline so it still spans the label AND
+    // the ⓘ, exactly as it did when the glyph lived inside the button.
+    return /*#__PURE__*/React.createElement("span", {
       key: t.id,
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        flexShrink: 0,
+        marginBottom: -1,
+        borderBottom: `2px solid ${active ? acc : 'transparent'}`,
+        paddingRight: t.tooltip ? size === 'sm' ? 10 : 12 : 0,
+        opacity: t.disabled ? 0.5 : 1,
+        transition: 'border-color .12s ease'
+      }
+    }, /*#__PURE__*/React.createElement("button", {
       "data-tab": true,
       "data-active": active ? 'true' : 'false',
       disabled: t.disabled,
       onClick: () => !t.disabled && onChange(t.id),
-      title: t.tooltip || undefined,
       style: {
         border: 'none',
         background: 'transparent',
         padding: pad,
-        marginBottom: -1,
-        flexShrink: 0,
-        borderBottom: `2px solid ${active ? acc : 'transparent'}`,
+        paddingRight: t.tooltip ? 4 : undefined,
         color: active ? T.text : T.muted,
         fontWeight: active ? 700 : 500,
         fontSize: fs,
         cursor: t.disabled ? 'not-allowed' : 'pointer',
-        opacity: t.disabled ? 0.5 : 1,
         whiteSpace: 'nowrap',
         display: 'inline-flex',
         alignItems: 'center',
         gap: 7,
-        transition: 'color .12s ease, border-color .12s ease'
+        transition: 'color .12s ease'
       }
     }, t.icon && /*#__PURE__*/React.createElement(Icon, {
       name: t.icon,
@@ -3442,10 +3566,10 @@ const Tabs = ({
       tone: t.badgeTone,
       active: active,
       accent: acc
-    }), t.tooltip && /*#__PURE__*/React.createElement(Icon, {
-      name: "info",
-      size: 13,
-      color: active ? acc : T.mutedSoft
+    })), t.tooltip && /*#__PURE__*/React.createElement(TabInfo, {
+      text: t.tooltip,
+      color: active ? acc : T.mutedSoft,
+      size: size === 'sm' ? 12 : 13
     }));
   })), right && /*#__PURE__*/React.createElement("div", {
     style: {
@@ -77098,11 +77222,11 @@ const ProjectTrackingPage = ({
   }, {
     id: 'wip',
     label: 'WIP',
-    tooltip: 'Work in progress — actual hours and value logged but not yet invoiced.'
+    tooltip: 'Work in progress: actual hours and value logged but not yet invoiced.'
   }, {
     id: 'budget-wip',
     label: 'Budget WIP',
-    tooltip: 'Forecast WIP — projected hours and value remaining against budget.'
+    tooltip: 'Forecast WIP: projected hours and value remaining against budget.'
   }, {
     id: 'resourcing',
     label: 'Resourcing'
@@ -113625,7 +113749,12 @@ const academySearch = query => {
   const guides = [];
   ACADEMY_COURSES.forEach(c => {
     c.lessons.forEach(l => {
-      if (has(l.title, l.description, (l.takeaways || []).join(' '), l.transcript)) chapters.push({
+      // `tags` is in the published contract (docs/ACADEMY_INTEGRATION.md) and the
+      // Studio can author it, but this index used to ignore it, so synonyms the
+      // content team typed were silently discarded. Tags are how a vocabulary miss
+      // ("realisation", "write-off", "recoverability") gets fixed without a
+      // developer: add the word in the Studio, search finds the chapter.
+      if (has(l.title, l.description, (l.takeaways || []).join(' '), (l.tags || []).join(' '), l.transcript)) chapters.push({
         course: c,
         lesson: l
       });
