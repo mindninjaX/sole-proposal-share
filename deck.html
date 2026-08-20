@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thread, the deck</title>
+<meta name="robots" content="noindex, nofollow">
+<!--
+  PRESENTED VERSION of pages/thread.html. Same argument, same palette, built to
+  be projected and talked over: 16 slides, one idea each, diagrams instead of
+  paragraphs. The written proposal stays the artefact people read afterwards.
+
+  Fixed 1280x720 stage, scaled with a transform to fit whatever it lands on, so
+  a projector cannot reflow the layout. Every slide is laid out inside that box.
+
+  Controls: right arrow / space / click advances, left arrow goes back, O opens
+  the jump list, F fullscreens, number keys 1 to 9 jump. Print gives one slide
+  per page for a PDF.
+
+  Word budget is the whole point: roughly 25 words a slide. If a slide needs a
+  sentence to explain the diagram, the diagram is wrong. Two slides carry the
+  ask (6 and 15); everything else exists to make those two land.
+
+  Dependency-free: no CDN, no images, no fonts. Must open from file:// offline.
+  Voice standard applies (.claude/kit/voice.md): no em dashes, no en dashes.
+-->
+<style>
+  :root{
+    --ink:#141A2E; --ink-soft:#3F4863; --muted:#767F98; --faint:#A6AEC2;
+    --paper:#FFF9F2; --card:#FFFFFF; --sand:#F3EFE8; --line:rgba(20,26,46,.13);
+    --blue:#2B4EF0; --blue-soft:#E7ECFF;
+    --lime:#5FAF08; --lime-soft:#ECF9D6;
+    --amber:#FFAC12; --amber-soft:#FFF2D8;
+    --red:#F0334A; --red-soft:#FFE5E8;
+    --bd:2px solid var(--ink); --bd3:3px solid var(--ink);
+    --sh:3px 3px 0 var(--ink); --sh-lg:5px 5px 0 var(--ink);
+    --r:12px; --r-lg:18px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%; overflow:hidden}
+  body{background:#0E1220; color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  :focus-visible{outline:3px solid var(--blue); outline-offset:2px}
+
+  /* ---------- stage ---------- */
+  #fitter{position:fixed; inset:0; display:grid; place-items:center}
+  #stage{width:1280px; height:720px; flex-shrink:0; position:relative;
+         background:var(--paper); overflow:hidden; transform-origin:center center;
+         box-shadow:0 24px 80px rgba(0,0,0,.55)}
+  .slide{position:absolute; inset:0; padding:56px 64px; display:none;
+         flex-direction:column; animation:in .26s cubic-bezier(.2,.9,.3,1)}
+  .slide.on{display:flex}
+  @keyframes in{from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none}}
+
+  /* ---------- chrome ---------- */
+  #bar{position:absolute; left:0; right:0; bottom:0; height:5px; background:var(--sand); z-index:8}
+  #bar i{display:block; height:100%; background:var(--blue); width:0; transition:width .26s ease}
+  #num{position:absolute; right:22px; bottom:16px; font-size:12px; font-weight:800;
+       color:var(--faint); letter-spacing:.5px; z-index:9}
+  #hint{position:fixed; left:50%; transform:translateX(-50%); bottom:14px; z-index:20;
+        font-size:11.5px; font-weight:700; color:#7F8AA8; letter-spacing:.4px}
+  #hint b{color:#C8D0E4}
+
+  /* ---------- type ---------- */
+  .kicker{font-size:12px; font-weight:850; letter-spacing:1.6px; text-transform:uppercase;
+          color:var(--muted); margin-bottom:12px}
+  h1{font-size:74px; line-height:.98; letter-spacing:-2.6px; font-weight:850; max-width:19ch}
+  h2{font-size:44px; line-height:1.02; letter-spacing:-1.5px; font-weight:850; max-width:26ch}
+  h2 em, h1 em{font-style:normal; background:linear-gradient(180deg,transparent 58%,var(--amber) 58%)}
+  .sub{font-size:19px; color:var(--ink-soft); font-weight:500; margin-top:14px; max-width:62ch}
+  .foot{margin-top:auto; font-size:16px; font-weight:750; color:var(--ink-soft)}
+  .foot b{color:var(--ink)}
+  .body{flex:1; display:flex; flex-direction:column; justify-content:center; margin-top:26px}
+  .tight{margin-top:20px}
+
+  /* ---------- atoms ---------- */
+  .chip{display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:850;
+        padding:5px 12px; border-radius:999px; letter-spacing:.4px; text-transform:uppercase;
+        white-space:nowrap}
+  .c-b{background:var(--blue); color:#fff} .c-l{background:var(--lime); color:#fff}
+  .c-a{background:var(--amber); color:var(--ink)} .c-r{background:var(--red); color:#fff}
+  .c-s{background:var(--sand); color:var(--muted)}
+  .box{background:var(--card); border:var(--bd); border-radius:var(--r-lg); padding:20px 22px}
+  .box.b{background:var(--blue-soft)} .box.l{background:var(--lime-soft)}
+  .box.a{background:var(--amber-soft)} .box.r{background:var(--red-soft)}
+  .box.s{background:var(--sand)}
+  .box h3{font-size:21px; letter-spacing:-.5px; font-weight:850; margin-bottom:7px}
+  .box p{font-size:15.5px; color:var(--ink-soft); line-height:1.45}
+  .grid{display:grid; gap:16px}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .logo{width:52px; height:52px; border-radius:14px; background:var(--blue); border:var(--bd3);
+        box-shadow:var(--sh); display:grid; place-items:center; font-size:26px}
+
+  /* ---------- timeline (slides 2 and 5) ---------- */
+  .tl{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; align-items:stretch}
+  /* min-height is load bearing: without it the cards shrink to their text and
+     the slide reads as a thin strip floating in dead space. */
+  .tl .n{background:var(--card); border:var(--bd); border-radius:var(--r); min-height:206px;
+         padding:16px 14px 16px; display:flex; flex-direction:column; position:relative}
+  .tl .n .ic{font-size:29px; line-height:1; margin-bottom:11px}
+  .tl .n .t{font-size:12px; font-weight:850; color:var(--muted); letter-spacing:.3px}
+  .tl .n .w{font-size:19.5px; font-weight:800; letter-spacing:-.5px; line-height:1.13; margin:7px 0 auto}
+  .tl .n .s{margin-top:14px; font-size:13.5px; font-weight:850; border-radius:8px;
+            padding:6px 8px; line-height:1.25; text-align:center}
+  .tl.bad .n{border-color:var(--red)} .tl.bad .n .s{background:var(--red); color:#fff}
+  .tl.good .n{border-color:var(--lime)} .tl.good .n .s{background:var(--lime); color:#fff}
+  .score{display:inline-flex; align-items:baseline; gap:10px; border:var(--bd3); border-radius:14px;
+         padding:10px 20px; box-shadow:var(--sh); background:var(--card)}
+  .score b{font-size:40px; letter-spacing:-1.6px; line-height:1}
+  .score span{font-size:16px; font-weight:800; color:var(--ink-soft)}
+  .score.bad b{color:var(--red)} .score.good b{color:var(--lime)}
+
+  /* ---------- disconnected tools (slide 3) ---------- */
+  .tools{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:34px}
+  .tool{background:var(--card); border:var(--bd); border-radius:var(--r-lg); padding:22px 16px;
+        text-align:center; box-shadow:var(--sh)}
+  .tool .ic{font-size:34px; display:block; margin-bottom:8px}
+  .tool b{font-size:18px; letter-spacing:-.4px}
+  .void{margin-top:26px; border:3px dashed var(--red); border-radius:var(--r-lg);
+        background:var(--red-soft); padding:18px; text-align:center}
+  .void b{font-size:22px; letter-spacing:-.6px; color:var(--ink)}
+  .void span{display:block; font-size:15.5px; color:var(--ink-soft); margin-top:5px}
+
+  /* ---------- hub (slide 4) ---------- */
+  .hub{display:grid; grid-template-columns:minmax(0,1fr) 42px 244px 42px minmax(0,1fr); gap:14px;
+       align-items:center}
+  .hub .fan{font-size:30px; font-weight:850; color:var(--blue); text-align:center; line-height:1}
+  .hcol{display:grid; gap:9px}
+  .hcap{font-size:11.5px; font-weight:850; letter-spacing:1.2px; text-transform:uppercase;
+        color:var(--muted); margin-bottom:5px}
+  .hchip{border:2px solid var(--line); border-radius:10px; background:var(--card);
+         padding:10px 13px; font-size:16px; font-weight:750}
+  .core{border:var(--bd3); border-radius:22px; background:var(--blue); color:#fff;
+        padding:30px 20px; text-align:center; box-shadow:var(--sh-lg)}
+  .core b{display:block; font-size:30px; letter-spacing:-1px; line-height:1.05}
+  .core span{display:block; font-size:15px; opacity:.94; margin-top:7px; font-weight:600}
+
+  /* ---------- chain (slide 6) ---------- */
+  .chain{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:11px}
+  .link{border:var(--bd); border-radius:var(--r); background:var(--card); padding:17px 15px;
+        min-height:298px; display:flex; flex-direction:column; box-shadow:var(--sh)}
+  .link .ic{font-size:31px; margin-bottom:11px}
+  .link .cl{font-size:12px; font-weight:850; color:var(--blue); letter-spacing:.4px}
+  .link b{font-size:19.5px; letter-spacing:-.5px; margin:5px 0 6px; line-height:1.14}
+  .link span{font-size:14.5px; color:var(--ink-soft); line-height:1.4; margin-top:auto}
+  .link.miss{background:var(--amber-soft); border-color:var(--amber)}
+  .link.miss .cl{color:#8A5B00}
+  .states{margin-top:18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .st{border:var(--bd); border-radius:999px; padding:7px 16px; font-size:14.5px; font-weight:800;
+      background:var(--card)}
+  .st.done{background:var(--lime); color:#fff} .st.late{background:var(--amber)}
+  .arrow{font-size:18px; font-weight:850; color:var(--faint)}
+
+  /* ---------- loop (slide 8) ---------- */
+  .ring{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:13px; align-items:stretch}
+  .rstep{border:var(--bd); border-radius:var(--r-lg); background:var(--card); padding:20px 17px;
+         min-height:242px; position:relative; box-shadow:var(--sh)}
+  .rstep .no{font-size:12px; font-weight:850; color:var(--muted); letter-spacing:1px}
+  .rstep b{display:block; font-size:19px; letter-spacing:-.5px; margin:5px 0 6px}
+  .rstep p{font-size:14px; color:var(--ink-soft); line-height:1.4}
+  .rstep.human{background:var(--lime-soft); border-color:var(--lime)}
+  .backarrow{margin-top:14px; border:2px dashed var(--blue); border-radius:999px;
+             background:var(--blue-soft); padding:9px 18px; font-size:15px; font-weight:800;
+             text-align:center; color:var(--ink)}
+
+  /* ---------- recording pipeline (slide 12) ---------- */
+  .pipe{display:grid; grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr) 26px minmax(0,1fr) 26px minmax(0,1fr);
+        gap:9px; align-items:center}
+  .pfan{font-size:24px; font-weight:850; color:var(--blue); text-align:center; line-height:1}
+
+  /* ---------- metrics (slide 11) ---------- */
+  .metrics{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
+  .met{border:2px solid var(--line); border-radius:10px; background:var(--card);
+       padding:11px 13px; font-size:15px; font-weight:700}
+  .met.hero{grid-column:span 3; border:var(--bd3); background:var(--amber-soft);
+            font-size:19px; font-weight:850; letter-spacing:-.4px; padding:15px 16px;
+            box-shadow:var(--sh)}
+
+  /* ---------- screens (slide 13) ---------- */
+  .screens{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px}
+  .scr{border:var(--bd); border-radius:var(--r-lg); background:var(--card); padding:16px;
+       box-shadow:var(--sh)}
+  .wire{border:2px solid var(--line); border-radius:10px; background:var(--sand); height:132px;
+        padding:13px; display:grid; gap:7px; align-content:start; margin-bottom:14px}
+  .wire i{display:block; height:9px; border-radius:3px; background:var(--faint); opacity:.5}
+  .wire i.hi{background:var(--blue); opacity:1}
+  .wire i.w1{width:58%} .wire i.w2{width:86%} .wire i.w3{width:40%} .wire i.w4{width:70%}
+  .scr b{font-size:20px; letter-spacing:-.5px}
+  .scr p{font-size:14.5px; color:var(--ink-soft); margin:5px 0 9px; line-height:1.4}
+
+  /* ---------- plan (slide 14) ---------- */
+  .plan{display:grid; grid-template-columns:1.25fr 1fr 1fr 1fr 1fr; gap:11px}
+  .ph{border:var(--bd); border-radius:var(--r); background:var(--card); padding:15px 14px}
+  .ph .when{font-size:12px; font-weight:850; letter-spacing:1.1px; text-transform:uppercase;
+            color:var(--muted)}
+  .ph b{display:block; font-size:18px; letter-spacing:-.45px; margin:5px 0 5px}
+  .ph p{font-size:13.5px; color:var(--ink-soft); line-height:1.35}
+  .ph.first{background:var(--lime-soft); border-color:var(--lime); box-shadow:var(--sh)}
+  .ph.first .when{color:#3E7304}
+
+  /* ---------- ask (slide 15) ---------- */
+  .ask{border:var(--bd3); border-radius:var(--r-lg); background:var(--card); padding:22px 24px;
+       box-shadow:var(--sh-lg); display:flex; gap:20px; align-items:flex-start}
+  .ask .no{width:44px; height:44px; flex-shrink:0; border-radius:12px; border:var(--bd);
+           background:var(--blue); color:#fff; display:grid; place-items:center;
+           font-size:22px; font-weight:850}
+  .ask .qq{flex:1; min-width:0}
+  .ask .qq .q{font-size:25px; font-weight:850; letter-spacing:-.7px; line-height:1.12}
+  .ask .qq .opts{font-size:15.5px; color:var(--ink-soft); margin-top:7px}
+  .ask .qq .rec{margin-top:11px; display:inline-block; border:var(--bd); border-radius:10px;
+                background:var(--lime-soft); padding:8px 13px; font-size:15px; font-weight:750}
+  .ask .qq .rec b{font-weight:850}
+
+  /* ---------- jump list ---------- */
+  #jump{position:fixed; inset:0; z-index:40; background:rgba(14,18,32,.94); display:none;
+        padding:44px; overflow:auto}
+  #jump.on{display:block}
+  #jump h4{color:#fff; font-size:13px; letter-spacing:1.6px; text-transform:uppercase;
+           margin-bottom:18px; font-weight:850}
+  #jump ol{list-style:none; display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr));
+           gap:9px}
+  #jump button{width:100%; text-align:left; font:inherit; cursor:pointer; color:#fff;
+    background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.14); border-radius:11px;
+    padding:12px 15px; font-size:15.5px; font-weight:750; display:flex; gap:11px}
+  #jump button:hover{background:rgba(255,255,255,.15); border-color:#fff}
+  #jump button i{font-style:normal; color:#8E9AB8; font-weight:850; min-width:20px}
+  #jump button.here{background:var(--blue); border-color:var(--blue)}
+
+  @media print{
+    @page{size:1280px 720px; margin:0}
+    html,body{overflow:visible; background:#fff; height:auto}
+    #fitter{position:static; display:block}
+    #stage{transform:none !important; box-shadow:none; width:1280px; height:auto}
+    .slide{display:flex !important; position:relative; inset:auto; height:720px;
+           page-break-after:always; animation:none}
+    #hint,#jump,#bar{display:none !important}
+  }
+  @media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+
+<div id="fitter">
+<div id="stage">
+
+<!-- 1 ................................................................. -->
+<section class="slide on" data-title="It isn't a phone">
+  <div class="logo">🧵</div>
+  <div class="body">
+    <div class="kicker">Support and onboarding</div>
+    <h1>We call it the dialer. <em>It isn't a phone.</em></h1>
+    <p class="sub">You can buy a phone. You cannot buy a support team that remembers.</p>
+  </div>
+  <div class="foot">Working name <b>Thread</b> · proposal for approval · 20 Aug 2026</div>
+</section>
+
+<!-- 2 ................................................................. -->
+<section class="slide" data-title="One Tuesday, today">
+  <div class="kicker">Today</div>
+  <h2>One Tuesday. Marcus joins at <em>2:14 AM.</em></h2>
+  <div class="body">
+    <div class="tl bad">
+      <div class="n"><div class="ic">🌱</div><div class="t">2:14 AM</div><div class="w">Signs up</div><div class="s">No human knows</div></div>
+      <div class="n"><div class="ic">🤖</div><div class="t">2:31 AM</div><div class="w">Asks the bot</div><div class="s">Answer is 3 screens old</div></div>
+      <div class="n"><div class="ic">🙋</div><div class="t">2:33 AM</div><div class="w">Wants a person</div><div class="s">Widget says Online</div></div>
+      <div class="n"><div class="ic">💻</div><div class="t">9:40 AM</div><div class="w">Agent opens the panel</div><div class="s">Starts from zero</div></div>
+      <div class="n"><div class="ic">📞</div><div class="t">11:00 AM</div><div class="w">A great call</div><div class="s">Answer dies in it</div></div>
+      <div class="n"><div class="ic">🔁</div><div class="t">Next day</div><div class="w">Someone asks the same</div><div class="s">We learned nothing</div></div>
+    </div>
+  </div>
+  <div class="foot"><span class="score bad"><b>6</b><span>things lost, one customer, one night</span></span></div>
+</section>
+
+<!-- 3 ................................................................. -->
+<section class="slide" data-title="Four tools, no memory">
+  <div class="kicker">The cause</div>
+  <h2>Four tools. <em>None of them remember.</em></h2>
+  <div class="body">
+    <div class="tools">
+      <div class="tool"><span class="ic">🤖</span><b>The bot</b></div>
+      <div class="tool"><span class="ic">💬</span><b>Chat panel</b></div>
+      <div class="tool"><span class="ic">📅</span><b>Booking</b></div>
+      <div class="tool"><span class="ic">📞</span><b>The call</b></div>
+    </div>
+    <div class="void">
+      <b>Nothing between them</b>
+      <span>So "did anyone actually help Marcus?" can only be answered by asking a person.</span>
+    </div>
+  </div>
+  <div class="foot">Not one of those 6 losses is a phone problem.</div>
+</section>
+
+<!-- 4 ................................................................. -->
+<section class="slide" data-title="The fix, one picture">
+  <div class="kicker">The fix</div>
+  <h2>Everything writes to <em>one thread.</em></h2>
+  <div class="body">
+    <div class="hub">
+      <div>
+        <div class="hcap">Everything that happens</div>
+        <div class="hcol">
+          <div class="hchip">🌱 Signs up, logs in</div>
+          <div class="hchip">💬 Chats with the bot</div>
+          <div class="hchip">🙋 Asks for a human</div>
+          <div class="hchip">📅 Books, gets called</div>
+          <div class="hchip">🧾 Raises a ticket</div>
+        </div>
+      </div>
+      <div class="fan">→</div>
+      <div class="core"><b>🧵 The thread</b><span>one memory,<br>per customer</span></div>
+      <div class="fan">→</div>
+      <div>
+        <div class="hcap">Becomes every view</div>
+        <div class="hcol">
+          <div class="hchip">📋 The team's queue</div>
+          <div class="hchip">🤖 What the bot knows</div>
+          <div class="hchip">📊 Your numbers</div>
+          <div class="hchip">👤 Customer history</div>
+          <div class="hchip">☎️ and the dialer</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Write once on the left. Everything on the right is a filter, <b>not another system to keep in sync.</b></div>
+</section>
+
+<!-- 5 ................................................................. -->
+<section class="slide" data-title="Same night, nothing lost">
+  <div class="kicker">Same night, with the thread</div>
+  <h2>Same night. <em>Nothing lost.</em></h2>
+  <div class="body">
+    <div class="tl good">
+      <div class="n"><div class="ic">🌱</div><div class="t">2:14 AM</div><div class="w">Signs up</div><div class="s">Team pinged, thread opens</div></div>
+      <div class="n"><div class="ic">⚡</div><div class="t">2:17 AM</div><div class="w">Hears from Juhi</div><div class="s">Automatic, no one awake</div></div>
+      <div class="n"><div class="ic">📚</div><div class="t">2:31 AM</div><div class="w">Asks the bot</div><div class="s">Right answer plus video</div></div>
+      <div class="n"><div class="ic">📋</div><div class="t">9:11 AM</div><div class="w">Called, on time</div><div class="s">Walks in knowing</div></div>
+      <div class="n"><div class="ic">🎙️</div><div class="t">11:14 AM</div><div class="w">Call recorded</div><div class="s">Summary and email drafted</div></div>
+      <div class="n"><div class="ic">🔁</div><div class="t">5:02 PM</div><div class="w">Juhi approves a card</div><div class="s">It compounds</div></div>
+    </div>
+  </div>
+  <div class="foot"><span class="score good"><b>6</b><span>caught. Same tools, same people, same hours.</span></span></div>
+</section>
+
+<!-- 6 ................................................................. -->
+<section class="slide" data-title="Your question: notifications">
+  <div class="kicker">Your question, answered</div>
+  <h2>Someone joins. <em>Somebody gets told.</em></h2>
+  <div class="body">
+    <div class="chain">
+      <div class="link"><span class="ic">🔔</span><div class="cl">2:14 AM</div><b>Slack gets one line</b><span>Name, plan, where they came from, and a link. No customer details in the channel.</span></div>
+      <div class="link"><span class="ic">⚡</span><div class="cl">2:17 AM</div><b>They hear from Juhi</b><span>Written once. Sent automatically, at any hour.</span></div>
+      <div class="link"><span class="ic">📋</span><div class="cl">2:17 AM</div><b>A task appears, owned</b><span>Assigned by rota. Due 9:15 AM. Nobody typed it.</span></div>
+      <div class="link"><span class="ic">✓</span><div class="cl">9:11 AM</div><b>Called, state moves</b><span>Outcome in one tap. It lands on the thread.</span></div>
+      <div class="link miss"><span class="ic">🛡️</span><div class="cl">9:45 AM</div><b>Missed? It escalates</b><span>Goes amber, pings again, counts as missed today.</span></div>
+    </div>
+    <div class="states">
+      <span class="st">Queued</span><span class="arrow">→</span>
+      <span class="st">Calling</span><span class="arrow">→</span>
+      <span class="st done">Done</span>
+      <span class="arrow" style="margin-left:14px">or</span>
+      <span class="st late">Overdue, and everybody sees it</span>
+    </div>
+  </div>
+  <div class="foot">Tracked by a <b>state</b>, never by whether someone replied in a channel.</div>
+</section>
+
+<!-- 7 ................................................................. -->
+<section class="slide" data-title="Who calls">
+  <div class="kicker">Who calls</div>
+  <h2>Assignment is a <em>setting</em>, not a name.</h2>
+  <div class="body">
+    <div class="grid g3">
+      <div class="box b"><span class="chip c-b">Today</span><h3 style="margin-top:11px">Juhi</h3><p>Overnight joiners. Live chats stay with Merlin.</p></div>
+      <div class="box l"><span class="chip c-l">Already built</span><h3 style="margin-top:11px">The rota</h3><p>A round robin support calendar with working hours, in GHL. We reuse it.</p></div>
+      <div class="box s"><span class="chip c-s">Next</span><h3 style="margin-top:11px">New callers</h3><p>Same list, filtered to their segment. One setting, no rebuild.</p></div>
+    </div>
+  </div>
+  <div class="foot">The rule lives in the system, so it changes in <b>one place</b>.</div>
+</section>
+
+<!-- 8 ................................................................. -->
+<section class="slide" data-title="Every answer comes back">
+  <div class="kicker">The payoff</div>
+  <h2>Every good answer <em>comes back.</em></h2>
+  <div class="body">
+    <div class="ring">
+      <div class="rstep"><div class="no">01</div><b>A real question</b><p>From a chat or a call. Asked 41 times last month.</p></div>
+      <div class="rstep"><div class="no">02</div><b>AI drafts a card</b><p>Question, answer, the article, and the video.</p></div>
+      <div class="rstep human"><div class="no">03</div><b>A human approves</b><span class="chip c-l" style="margin-top:2px">about 5 a day</span><p style="margin-top:7px">The safety catch. Raw transcripts never train the bot.</p></div>
+      <div class="rstep"><div class="no">04</div><b>The bot changes</b><p>Re articles itself. The next 41 people never need us.</p></div>
+    </div>
+    <div class="backarrow">↑ and the next question starts the loop again</div>
+  </div>
+  <div class="foot">Confluence retires into this. Every card has an <b>owner and a review date</b>.</div>
+</section>
+
+<!-- 9 ................................................................. -->
+<section class="slide" data-title="Auto feedback, three loops">
+  <div class="kicker">Your second question</div>
+  <h2>The auto feedback is <em>three loops.</em></h2>
+  <div class="body">
+    <div class="grid g3">
+      <div class="box b">
+        <span class="chip c-b">Week 4</span>
+        <h3 style="margin-top:11px">The bot</h3>
+        <p><b>Reads</b> chats and calls.<br><b>Writes</b> a knowledge card.<br><b>Juhi</b> says yes.</p>
+      </div>
+      <div class="box b">
+        <span class="chip c-b">Needs transcripts</span>
+        <h3 style="margin-top:11px">The callers</h3>
+        <p><b>Reads</b> last week's calls.<br><b>Writes</b> what came up, what landed, what to say instead.<br><b>The callers</b> read it Monday.</p>
+      </div>
+      <div class="box b">
+        <span class="chip c-b">Needs the thread</span>
+        <h3 style="margin-top:11px">The product</h3>
+        <p><b>Reads</b> every thread at once.<br><b>Writes</b> what to fix, why trials stall, who looks like leaving.<br><b>You</b> pick.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">A page of suggestions, once a week. <b>A human acts. Nothing acts on its own.</b></div>
+</section>
+
+<!-- 10 ................................................................ -->
+<section class="slide" data-title="What the AI may read">
+  <div class="kicker">One line worth drawing</div>
+  <h2>What the AI is <em>allowed to read.</em></h2>
+  <div class="body">
+    <div class="grid g2">
+      <div class="box l">
+        <div style="font-size:38px; line-height:1">✓</div>
+        <h3 style="margin-top:9px">How people use Sole</h3>
+        <p>Chats, transcripts, tickets, clicks, logins, where they got stuck, whether they converted.</p>
+      </div>
+      <div class="box r">
+        <div style="font-size:38px; line-height:1">✗</div>
+        <h3 style="margin-top:9px">Our customers' books</h3>
+        <p>Invoices, bank feeds, wages, tax. Their money, not our training data. It never enters a loop.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Names and numbers are stripped when a card is approved. <b>Saying this plainly is worth more than anything we would learn.</b></div>
+</section>
+
+<!-- 11 ................................................................ -->
+<section class="slide" data-title="It feeds the Command Centre">
+  <div class="kicker">Your third question</div>
+  <h2>The Command Centre <em>reads it.</em></h2>
+  <div class="body">
+    <div style="display:grid; grid-template-columns:200px 40px minmax(0,1fr); gap:16px; align-items:center">
+      <div class="core" style="padding:26px 16px"><b>🧵 The thread</b><span>written once</span></div>
+      <div style="text-align:center; font-size:30px; font-weight:850; color:var(--faint)">→</div>
+      <div class="metrics">
+        <div class="met">Time to first human</div>
+        <div class="met">Signups spoken to</div>
+        <div class="met">Calls booked, made, missed</div>
+        <div class="met">Bot self serve rate</div>
+        <div class="met">Cards approved</div>
+        <div class="met">Tickets over a day old</div>
+        <div class="met hero">Trial to paid, split by whether a human ever called</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">One direction. No second pipeline, and <b>no two dashboards that disagree</b>.</div>
+</section>
+
+<!-- 12 ................................................................ -->
+<section class="slide" data-title="Recording, already paid for">
+  <div class="kicker">Recording</div>
+  <h2>No video code. <em>Meet already does it.</em></h2>
+  <div class="body">
+    <div class="pipe">
+      <div class="box l" style="text-align:center"><div style="font-size:32px">📹</div><h3 style="margin-top:6px">Meet records</h3><p>Already paid for on our plan. Auto record on the support calendar.</p></div>
+      <div class="pfan">→</div>
+      <div class="box" style="text-align:center"><div style="font-size:32px">📝</div><h3 style="margin-top:6px">Meet transcribes</h3><p>Announced in the room. Consent stored on the call.</p></div>
+      <div class="pfan">→</div>
+      <div class="box" style="text-align:center"><div style="font-size:32px">🧵</div><h3 style="margin-top:6px">We fetch the file</h3><p>It lands on the customer's thread by itself.</p></div>
+      <div class="pfan">→</div>
+      <div class="box b" style="text-align:center"><div style="font-size:32px">📚</div><h3 style="margin-top:6px">Cards get drafted</h3><p>Into the approve queue. The loop closes.</p></div>
+    </div>
+    <div style="margin-top:18px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+      <span class="chip c-l">Changed after your answer</span>
+      <span style="font-size:15.5px; color:var(--ink-soft)">The last version budgeted for a note taker vendor. On our plan it costs nothing, so that line is gone.</span>
+    </div>
+  </div>
+  <div class="foot">2 switches to flick, <b>0 vendors to approve</b>.</div>
+</section>
+
+<!-- 13 ............................................................... -->
+<section class="slide" data-title="Three screens">
+  <div class="kicker">The build</div>
+  <h2>Three screens. <em>That's the whole thing.</em></h2>
+  <div class="body">
+    <div class="screens">
+      <div class="scr">
+        <div class="wire"><i class="w2 hi"></i><i class="w1"></i><i class="w3"></i><i class="w2"></i></div>
+        <b>The thread</b>
+        <p>One person, everything that ever happened.</p>
+        <span class="chip c-b">new, small</span>
+      </div>
+      <div class="scr">
+        <div class="wire"><i class="w2"></i><i class="w1 hi"></i><i class="w4"></i><i class="w3"></i></div>
+        <b>The queue</b>
+        <p>Who needs us right now, and why.</p>
+        <span class="chip c-l">reuses what ships today</span>
+      </div>
+      <div class="scr">
+        <div class="wire"><i class="w1"></i><i class="w2 hi"></i><i class="w3"></i></div>
+        <b>The approve inbox</b>
+        <p>5 cards a day. Yes, edit, or bin.</p>
+        <span class="chip c-l">extends Academy Studio</span>
+      </div>
+    </div>
+    <div class="box s" style="margin-top:18px">
+      <p style="font-size:16.5px"><b>Ashish's bot and support panel do not change.</b> They keep working exactly as they do now. They just gain somewhere to write.</p>
+    </div>
+  </div>
+  <div class="foot">Everything else is a rule running in the background.</div>
+</section>
+
+<!-- 14 ............................................................... -->
+<section class="slide" data-title="The notification ships first">
+  <div class="kicker">Sequence</div>
+  <h2>The notification ships <em>first, and alone.</em></h2>
+  <div class="body">
+    <div class="plan">
+      <div class="ph first"><div class="when">This week</div><b>The notification</b><p>Ping, hello, an owned task with a due time and a state. Needs nothing else to exist.</p></div>
+      <div class="ph"><div class="when">Week 1</div><b>Knowledge</b><p>Articles get a home, an owner, a review date.</p></div>
+      <div class="ph"><div class="when">Week 2</div><b>The thread</b><p>One event table. Everything writes to it.</p></div>
+      <div class="ph"><div class="when">Week 3</div><b>The queue</b><p>Ranked list, rota, business hours honesty.</p></div>
+      <div class="ph"><div class="when">Week 4</div><b>The loop</b><p>Cards, approvals, the bot re articles itself.</p></div>
+    </div>
+  </div>
+  <div class="foot">You would feel the first one <b>tomorrow morning</b>.</div>
+</section>
+
+<!-- 15 ............................................................... -->
+<section class="slide" data-title="Two decisions today">
+  <div class="kicker">What I need from you</div>
+  <h2>Two decisions. <em>Then I start.</em></h2>
+  <div class="body" style="gap:14px; justify-content:center">
+    <div class="ask">
+      <div class="no">1</div>
+      <div class="qq">
+        <div class="q">Where does the record live?</div>
+        <div class="opts">Our side as a pilot, or inside the product with Ashish. This one decides the schema, so it is expensive to guess.</div>
+        <div class="rec">✓ <b>My recommendation:</b> pilot on our side, minimum data, an id and a deep link back to Ashish's panel. Prove it in a week, then move it in.</div>
+      </div>
+    </div>
+    <div class="ask">
+      <div class="no">2</div>
+      <div class="qq">
+        <div class="q">Do I build it, or spec it?</div>
+        <div class="opts">Still open from the first meeting. It decides whether my next output is running software or a document.</div>
+        <div class="rec">✓ <b>My recommendation:</b> I build the notification and the queue. Ashish's side is one POST, so that is barely an interruption.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Then 3 unblocks I can chase myself: <b>Ashish's POST</b>, a <b>Slack webhook</b>, a <b>SendGrid sender</b>.</div>
+</section>
+
+<!-- 16 ............................................................... -->
+<section class="slide" data-title="The one line">
+  <div class="body" style="justify-content:center">
+    <div class="kicker">In one line</div>
+    <h1 style="font-size:62px; max-width:24ch">Give support a <em>memory</em>. The dialer is a button on it.</h1>
+    <p class="sub" style="font-size:21px">Most of it already exists. The bot stays, Academy Studio becomes the knowledge home, and the card the app already shows customers becomes the team's queue.</p>
+  </div>
+  <div class="foot">🧵 <b>Thread</b> · working name · full proposal at mindninjax.github.io/sole-proposal-share/thread.html</div>
+</section>
+
+<div id="bar"><i></i></div>
+<div id="num"></div>
+</div><!-- /stage -->
+</div><!-- /fitter -->
+
+<div id="hint"><b>→</b> next · <b>←</b> back · <b>O</b> overview · <b>F</b> fullscreen</div>
+
+<div id="jump" role="dialog" aria-label="Jump to a slide">
+  <h4>Jump to a slide</h4>
+  <ol id="jumplist"></ol>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  function $(s) { return document.querySelector(s); }
+  function $$(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
+
+  var stage = $('#stage'), slides = $$('.slide'), at = 0;
+  var bar = $('#bar i'), num = $('#num'), jump = $('#jump'), list = $('#jumplist');
+
+  /* Scale the fixed 1280x720 stage to whatever it is projected on, so the
+     layout can never reflow. 0.965 leaves a little air around the edge. */
+  function fit() {
+    var s = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.965;
+    stage.style.transform = 'scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  function paint() {
+    slides.forEach(function (s, i) { s.classList.toggle('on', i === at); });
+    bar.style.width = ((at + 1) / slides.length * 100) + '%';
+    num.textContent = (at + 1) + ' / ' + slides.length;
+    $$('#jumplist button').forEach(function (b, i) { b.classList.toggle('here', i === at); });
+  }
+  function go(i) {
+    at = Math.max(0, Math.min(slides.length - 1, i));
+    paint();
+  }
+
+  slides.forEach(function (s, i) {
+    var li = document.createElement('li');
+    var b = document.createElement('button');
+    b.innerHTML = '<i>' + (i + 1) + '</i>' + (s.getAttribute('data-title') || 'Slide');
+    b.addEventListener('click', function () { jump.classList.remove('on'); go(i); });
+    li.appendChild(b); list.appendChild(li);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (jump.classList.contains('on') && (k === 'Escape' || k === 'o' || k === 'O')) {
+      jump.classList.remove('on'); e.preventDefault(); return;
+    }
+    if (k === 'ArrowRight' || k === ' ' || k === 'PageDown') { go(at + 1); e.preventDefault(); }
+    else if (k === 'ArrowLeft' || k === 'PageUp') { go(at - 1); e.preventDefault(); }
+    else if (k === 'Home') { go(0); e.preventDefault(); }
+    else if (k === 'End') { go(slides.length - 1); e.preventDefault(); }
+    else if (k === 'o' || k === 'O') { jump.classList.toggle('on'); e.preventDefault(); }
+    else if (k === 'f' || k === 'F') {
+      e.preventDefault();
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    }
+    else if (/^[1-9]$/.test(k)) { go(parseInt(k, 10) - 1); e.preventDefault(); }
+  });
+
+  /* Click the right two thirds to advance, the left third to go back. Keeps a
+     laptop trackpad usable when the clicker is somebody else's. */
+  $('#fitter').addEventListener('click', function (e) {
+    if (jump.classList.contains('on')) return;
+    go(e.clientX < window.innerWidth / 3 ? at - 1 : at + 1);
+  });
+  jump.addEventListener('click', function (e) { if (e.target === jump) jump.classList.remove('on'); });
+
+  paint();
+})();
+</script>
+
+</body>
+</html>
