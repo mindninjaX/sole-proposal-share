@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Sole Brain — one place to ask</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#191943; --ink-soft:#41416b; --muted:#6f6f92;
+    --accent:#4D4DFF; --accent-soft:#EEEEFF; --accent-line:#D9D9FF;
+    --paper:#F9F8FD; --card:#FFFFFF; --line:#E7E6F2; --line-soft:#F0EFF8;
+    --green:#27AE60; --green-soft:#EAF8F0;
+    --orange:#F97316; --orange-soft:#FFF2E8;
+    --red:#DC2626; --red-soft:#FEF0F0;
+    --r:12px;
+    --font:'Plus Jakarta Sans', ui-sans-serif, -apple-system, 'Segoe UI', Inter, system-ui, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink); font-family:var(--font);
+    font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:0 24px}
+  h1,h2,h3{line-height:1.2; margin:0; letter-spacing:-0.02em}
+  p{margin:0 0 14px}
+  a{color:var(--accent)}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:0.88em;
+    background:var(--accent-soft); color:#3B3BD6; padding:2px 6px; border-radius:5px;
+  }
+
+  /* ---- header ---- */
+  header{padding:64px 0 40px; border-bottom:1px solid var(--line)}
+  .eyebrow{
+    font-size:12px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:16px;
+  }
+  h1{font-size:44px; font-weight:800; margin-bottom:20px}
+  .lede{font-size:19px; color:var(--ink-soft); max-width:62ch; margin:0}
+  .meta{
+    margin-top:28px; font-size:13px; color:var(--muted);
+    display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  }
+  .pill{
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:5px 12px; font-weight:500;
+  }
+
+  /* ---- sections ---- */
+  section{padding:44px 0; border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
+  h2{font-size:13px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:22px}
+  h3{font-size:24px; font-weight:700; margin-bottom:14px}
+  .sub{color:var(--ink-soft)}
+
+  /* ---- the problem / answer ---- */
+  .split{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:22px}
+  .box .tag{
+    font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    margin-bottom:10px; display:inline-block; padding:3px 8px; border-radius:5px;
+  }
+  .tag.bad{background:var(--red-soft); color:var(--red)}
+  .tag.good{background:var(--green-soft); color:var(--green)}
+  .box p:last-child{margin-bottom:0}
+
+  /* ---- big statement ---- */
+  .statement{
+    background:var(--ink); color:#fff; border-radius:var(--r); padding:32px 34px; margin:26px 0;
+  }
+  .statement .big{font-size:23px; font-weight:700; line-height:1.4; letter-spacing:-0.01em}
+  .statement .small{margin:14px 0 0; color:#B9B9DC; font-size:15px}
+  .statement em{color:#fff; font-style:normal; font-weight:700}
+
+  /* ---- three answers table ---- */
+  .rows{border:1px solid var(--line); border-radius:var(--r); overflow:hidden; background:var(--card)}
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:18px 22px; border-bottom:1px solid var(--line-soft)}
+  .row:last-child{border-bottom:0}
+  .row .q{font-weight:600}
+  .row .a{color:var(--ink-soft); font-size:15px}
+  .row .a strong{color:var(--ink)}
+
+  /* ---- answer example ---- */
+  .example{
+    background:var(--card); border:1px solid var(--line); border-left:3px solid var(--accent);
+    border-radius:var(--r); padding:20px 22px; margin:20px 0;
+  }
+  .example .num{font-size:21px; font-weight:700; margin-bottom:8px}
+  .example .def{font-size:14px; color:var(--muted); line-height:1.55; margin:0}
+
+  /* ---- lists ---- */
+  ol.steps{counter-reset:s; list-style:none; padding:0; margin:0}
+  ol.steps li{
+    counter-increment:s; position:relative; padding:0 0 0 44px; margin-bottom:18px;
+  }
+  ol.steps li:last-child{margin-bottom:0}
+  ol.steps li::before{
+    content:counter(s); position:absolute; left:0; top:0;
+    width:28px; height:28px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+    font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  /* direct child only — a nested <b> inside the <span> must stay inline */
+  ol.steps li > b{display:block; margin-bottom:2px}
+  ol.steps span{color:var(--ink-soft); font-size:15px}
+
+  ul.plain{list-style:none; padding:0; margin:0}
+  ul.plain li{padding:12px 0; border-bottom:1px solid var(--line-soft); font-size:15px; color:var(--ink-soft)}
+  ul.plain li:last-child{border-bottom:0}
+  ul.plain b{color:var(--ink)}
+
+  /* ---- db cards ---- */
+  .dbs{display:grid; grid-template-columns:repeat(2,1fr); gap:12px}
+  .db{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:18px 20px}
+  .db .n{font-size:11px; font-weight:700; color:var(--accent); letter-spacing:0.08em; margin-bottom:8px}
+  .db > b{display:block; font-size:16px; margin-bottom:6px}
+  .db span{font-size:14px; color:var(--ink-soft); line-height:1.5}
+  .db.wide{grid-column:1/-1}
+
+  /* ---- where it lives ---- */
+  table.lives{width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:var(--r); overflow:hidden}
+  table.lives td{padding:14px 20px; border-bottom:1px solid var(--line-soft); font-size:15px; vertical-align:top}
+  table.lives tr:last-child td{border-bottom:0}
+  table.lives td:first-child{font-weight:600; width:34%; color:var(--ink)}
+  table.lives td:last-child{color:var(--ink-soft)}
+
+  /* ---- callout ---- */
+  .callout{
+    background:var(--orange-soft); border:1px solid #FCD9BC; border-radius:var(--r);
+    padding:20px 22px; margin:22px 0;
+  }
+  .callout > b{display:block; margin-bottom:6px}
+  .callout p{margin:0; font-size:15px; color:#8A4A17}
+
+  .note{
+    background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:var(--r);
+    padding:20px 22px; margin:22px 0;
+  }
+  .note > b{display:block; margin-bottom:6px}
+  .note p{margin:0; font-size:15px; color:#3A3A93}
+
+
+  /* ---- timeline ---- */
+  .tl{border-left:2px solid var(--line); padding-left:24px; margin:0}
+  .tl li{list-style:none; position:relative; padding-bottom:20px}
+  .tl li:last-child{padding-bottom:0}
+  .tl li::before{
+    content:''; position:absolute; left:-30px; top:7px; width:10px; height:10px;
+    border-radius:50%; background:var(--line); border:2px solid var(--paper);
+  }
+  .tl li.now::before{background:var(--accent)}
+  .tl li > b{display:block; font-size:15px}
+  .tl b .badge{
+    font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+    background:var(--accent); color:#fff; padding:2px 7px; border-radius:4px; margin-left:8px;
+    vertical-align:1px;
+  }
+  .tl span{font-size:14px; color:var(--muted)}
+
+  footer{padding:36px 0 60px; color:var(--muted); font-size:13px}
+
+  @media (max-width:720px){
+    header{padding:40px 0 30px}
+    h1{font-size:32px}
+    .lede{font-size:17px}
+    .split,.dbs,.row{grid-template-columns:1fr}
+    .row{gap:6px}
+    .statement{padding:24px}
+    .statement .big{font-size:19px}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Internal proposal · 14 August 2026</div>
+  <h1>Sole Brain</h1>
+  <p class="lede">One place to ask anything about our products, our processes and our numbers — and get the same answer as everyone else.</p>
+  <div class="meta">
+    <span class="pill">v1 · Foundation</span>
+    <span class="pill">Internal only for now</span>
+    <span class="pill">Needs 2 decisions to start</span>
+  </div>
+  <a href="sole-brain-demo.html" style="display:inline-flex;align-items:center;gap:10px;margin-top:26px;
+     background:var(--ink);color:#fff;text-decoration:none;padding:14px 20px;border-radius:12px;font-weight:700;font-size:15px">
+    Try the working demo
+    <span style="font-weight:500;opacity:.72;font-size:13.5">ask it a real question &rarr;</span>
+  </a>
+</header>
+
+<section>
+  <h2>The problem</h2>
+  <div class="split">
+    <div class="box">
+      <span class="tag bad">What happens now</span>
+      <p>Someone new asks how something works. The answer is in a Google Doc, or a Slack thread from March, or in one person's head. So they ask a person, who explains it again.</p>
+      <p>Worse: <b>two people answer the same question differently, and both are sure they're right.</b></p>
+    </div>
+    <div class="box">
+      <span class="tag good">What we want</span>
+      <p>You type the question wherever you already are. You get an answer in seconds, with a link to where it came from.</p>
+      <p>And <b>everyone who asks gets the same answer</b> — because there's only one.</p>
+    </div>
+  </div>
+  <p style="margin-top:20px" class="sub">The second problem is the expensive one. It is <em style="font-style:normal;font-weight:700">not</em> fixed by writing more documents. More documents is what we have.</p>
+</section>
+
+<section>
+  <h2>The idea</h2>
+  <div class="statement">
+    <div class="big">Notion is the filing cabinet.<br>Claude is the person at the front desk.<br>Slack is the front desk.</div>
+    <p class="small">Nobody &ldquo;writes documentation&rdquo;. You <em>talk</em> — in Slack, or by pasting a meeting transcript — and Claude writes the page for you. A human just confirms it.</p>
+  </div>
+  <p class="sub">That last part is new. Notion&rsquo;s official connector can now <b>write</b>, not just read. So &ldquo;add this to the brain&rdquo; is a sentence, not a task on someone&rsquo;s list. Which matters, because if writing a page is slow, nobody will ever write one.</p>
+</section>
+
+<section>
+  <h2>One question box, three kinds of answer</h2>
+  <p class="sub" style="margin:-8px 0 20px"><a href="sole-brain-demo.html">The demo</a> does all three, wired to real Sole content — including the two cases where it refuses to answer.</p>
+  <div class="rows">
+    <div class="row">
+      <div class="q">&ldquo;How does white-label billing work?&rdquo;</div>
+      <div class="a"><strong>Notion</strong> — the written truth. Comes back with a link.</div>
+    </div>
+    <div class="row">
+      <div class="q">&ldquo;How many users signed up in July?&rdquo;</div>
+      <div class="a"><strong>The live system</strong> — Mixpanel, Google Analytics, GoHighLevel. Comes back with the definition attached.</div>
+    </div>
+    <div class="row">
+      <div class="q">Something nobody has written down</div>
+      <div class="a"><strong>Nothing</strong> — so Claude drafts the page and pings whoever owns it. <em>A miss isn&rsquo;t a failure, it&rsquo;s how the thing gets smarter.</em></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The bit that actually kills the confusion</h2>
+  <h3>&ldquo;How many users signed up?&rdquo; has two answers today because two people count differently.</h3>
+  <p class="sub">Trials or paid? Email-verified or not? SPM or the consumer app? Deleted accounts? Nobody is wrong — they&rsquo;re answering different questions with the same words.</p>
+
+  <div class="callout">
+    <b>So plugging Mixpanel into Slack does not fix this.</b>
+    <p>It delivers the conflicting numbers <em>faster</em>, and with more authority because a computer said it. That&rsquo;s worse than what we have now.</p>
+  </div>
+
+  <p class="sub">The fix is boring and it works: <b>every number gets exactly one definition page</b> — what it means, which system it comes from, the exact filter, what it excludes, who owns it. Claude has to apply that definition before it looks anything up, and show it with the answer.</p>
+
+  <div class="example">
+    <div class="num">1,284 signups in July.</div>
+    <p class="def">Definition: Signups — verified email, SPM only, excludes invited teammates.<br>Source: app database · Owner: —— · Last reviewed 14 Aug 2026</p>
+  </div>
+
+  <p class="sub">Two people, two different channels, same number and same footnote. That&rsquo;s the actual goal.</p>
+
+  <div class="note">
+    <b>The first definition to write is &ldquo;Signups&rdquo;.</b>
+    <p>Writing it forces us to answer something nobody has answered yet: <b>which system is authoritative for signups?</b> Right now there isn&rsquo;t one, which is precisely why the number moves depending on who you ask.</p>
+  </div>
+
+  <p class="sub"><b>One free win before any of this:</b> ban the bare word &ldquo;user&rdquo;. At Sole it means at least five different things — the firm, a staff seat at that firm, that firm&rsquo;s clients, an employee inside a payrun, or a sole trader on the consumer app. They differ by orders of magnitude. Saying which one solves a surprising share of the disagreements on its own.</p>
+</section>
+
+<section>
+  <h2>Where it lives</h2>
+  <table class="lives">
+    <tr><td>The knowledge</td><td>One Notion space called <b>Sole Brain</b>. Internal only for now.</td></tr>
+    <tr><td>The everyday door</td><td>A Slack channel — ask <code>@Claude</code> like you&rsquo;d ask a colleague.</td></tr>
+    <tr><td>The deep door</td><td>Claude directly, for turning the same source into guides, scripts and emails.</td></tr>
+    <tr><td>The numbers</td><td>Mixpanel, Google Analytics and GoHighLevel connect in. <b>Read-only.</b></td></tr>
+    <tr><td>The safety copy</td><td>A nightly plain-text backup into a private repo, so nothing is ever trapped in one tool.</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>The chat layer</h2>
+  <h3>There is no separate chatbot. It&rsquo;s the same Claude, reachable from three places.</h3>
+  <p class="sub">Nothing is duplicated, so nothing can drift between surfaces. What you&rsquo;re talking to is Notion plus whichever live systems are switched on — ask in Slack or ask in the app and you&rsquo;re querying exactly the same sources.</p>
+  <table class="lives">
+    <tr><td>Slack — <code>@Claude</code> in a channel</td><td>Everyone, all day. <b>This is the product.</b> <b>Read-only</b> — it answers, it never edits. Needs an admin to switch on which channels it can reach.</td></tr>
+    <tr><td>The Claude app</td><td>Anyone doing deeper work — writing a guide, drafting emails off the same source. Works today on a personal account.</td></tr>
+    <tr><td>Notion itself</td><td><b>Where editing happens.</b> Normally, like any document — no workflow, no approvals.</td></tr>
+    <tr><td>Claude Code</td><td>Bulk jobs — filling it, exports, the nightly backup.</td></tr>
+  </table>
+  <p style="margin-top:18px" class="sub"><b>This is exactly why we don&rsquo;t build our own Slack bot.</b> A second bot means a second context, and a second context gets out of sync — which is the problem we&rsquo;re here to solve, rebuilt on purpose.</p>
+  <div class="callout">
+    <b>One caveat worth knowing</b>
+    <p>Claude in Slack keeps its own per-channel memory. That is <em>not</em> part of the source of truth — it&rsquo;s unowned and invisible, which is how you&rsquo;d accidentally recreate &ldquo;two people, two versions&rdquo;. House rule: <b>memory is a convenience, Notion is the truth.</b> Anything that matters gets written to a page.</p>
+  </div>
+</section>
+
+<section>
+  <h2>&ldquo;Why not just use a Google Doc?&rdquo;</h2>
+  <h3>Fair question. Here&rsquo;s the honest answer, including the part that favours the doc.</h3>
+  <p class="sub">For <em>an AI reading it and answering questions</em>, a well-written Google Doc is nearly as good. We already have one — a single file describing every screen of the live app — and it works beautifully. Anyone who tells you the AI needs Notion is selling something.</p>
+
+  <div class="statement" style="padding:26px 30px">
+    <div class="big" style="font-size:20px">A Google Doc is prose.<br>Notion is a database with prose in it.</div>
+    <p class="small">You can&rsquo;t write a query against prose — and every maintenance question is a query.</p>
+  </div>
+
+  <table class="lives">
+    <tr><td>What&rsquo;s gone stale?</td><td><b>Notion:</b> one click. &nbsp;<b>Doc:</b> read all of it and judge.</td></tr>
+    <tr><td>Which numbers aren&rsquo;t defined yet?</td><td><b>Notion:</b> one click. &nbsp;<b>Doc:</b> manual audit.</td></tr>
+    <tr><td>What has no owner?</td><td><b>Notion:</b> one click. &nbsp;<b>Doc:</b> not knowable.</td></tr>
+    <tr><td>What do people actually ask for?</td><td><b>Notion:</b> sort by a column. &nbsp;<b>Doc:</b> not knowable.</td></tr>
+    <tr><td>What&rsquo;s ready to show customers?</td><td><b>Notion:</b> a filter. &nbsp;<b>Doc:</b> a highlight colour.</td></tr>
+  </table>
+
+  <p style="margin-top:18px" class="sub"><b>But the real argument is the failure mode.</b> To add something to a long doc you have to find the right place in it. Nobody wants to. So they make a new doc. <em>That is exactly how a million Google Docs happen</em> — the doc&rsquo;s failure mode is the situation we&rsquo;re in right now. In Notion, adding something creates a row. There&rsquo;s no placement decision, so there&rsquo;s no temptation to start a new file.</p>
+
+  <p class="sub">And one thing prose genuinely can&rsquo;t do: hold a number&rsquo;s definition in a way an AI applies <em>reliably</em>. A filter has to be a field. A filter buried in a sentence gets paraphrased — and a paraphrased filter is a different number.</p>
+
+  <div class="callout">
+    <b>If that isn&rsquo;t worth $20 a seat to you, use a Google Doc and don&rsquo;t feel bad.</b>
+    <p>It still beats what exists today. Come back to this the first time someone asks &ldquo;which of these 200 pages is still true?&rdquo; and nobody can answer.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Two places for things to go — never a third</h2>
+  <p class="sub" style="margin-bottom:20px">This started as five. It&rsquo;s two, because the thing that decides whether this survives isn&rsquo;t how well it&rsquo;s filed — it&rsquo;s how little upkeep it needs. Five tables is a better filing system and a worse thing to keep alive.</p>
+  <div class="dbs">
+    <div class="db">
+      <div class="n">01</div>
+      <b>Answers</b>
+      <span>One page = one question. The question <em>is</em> the title: &ldquo;How does the proposal builder calculate GST?&rdquo; — not &ldquo;Proposals&rdquo;. A single tag on each page marks it as a question, a decision, a module or a person, so it still <em>looks</em> like four sections without being four things to maintain.</span>
+    </div>
+    <div class="db">
+      <div class="n">02</div>
+      <b>Definitions</b>
+      <span>One word, one meaning. One number, one definition. Kept separate because it&rsquo;s the only part doing work that prose can&rsquo;t do.</span>
+    </div>
+  </div>
+  <p style="margin-top:18px" class="sub"><b>Who owns what is a column, not a directory.</b> &ldquo;Who owns billing?&rdquo; is answered by filtering — so there&rsquo;s no people list to keep current, which is good, because a people list is wrong within a month.</p>
+</section>
+
+<section>
+  <h2>Who can change what</h2>
+  <h3>v1 is one-way: Slack reads, Notion writes.</h3>
+  <p class="sub">The assistant in Slack can answer anything. It can&rsquo;t change anything &mdash; not a page, not a field. Editing happens in Notion, normally, like any document.</p>
+
+  <div class="statement" style="padding:26px 30px">
+    <div class="big" style="font-size:21px">Ask it in Slack. Edit it in Notion.</div>
+    <p class="small">That&rsquo;s the entire model. No permissions to configure, no statuses to teach, no approval workflow. If it needs a diagram, it won&rsquo;t get adopted.</p>
+  </div>
+
+  <p class="sub"><b>We designed something cleverer and threw it away</b> &mdash; anyone adding by chat, drafts, suggested changes an owner accepts. It was defensible, and it solved a problem we don&rsquo;t have yet. Every piece of it was something to build, explain and maintain before a single person had asked the brain a single question.</p>
+
+  <ul class="plain">
+    <li><b>It prevents the expensive failure.</b> A chatbot that can write is the fastest possible way to fill a source of truth with confident, unowned, half-remembered claims &mdash; the exact thing we&rsquo;re building this to kill.</li>
+    <li><b>Nothing is lost that we can&rsquo;t add later.</b> Write access is additive. Take it away later and people notice; add it later and it&rsquo;s a bonus.</li>
+    <li><b>The thinking is still free.</b> When a question isn&rsquo;t in the brain, Claude <em>drafts the whole page in the Slack thread</em> and names who should own it. Someone pastes it in. About a minute &mdash; and that minute is also the moment a human takes responsibility for it.</li>
+  </ul>
+
+  <div class="note">
+    <b>The two guardrails that survive, and they&rsquo;re the ones doing the real work</b>
+    <p><b>Drafts are announced as drafts</b> &mdash; &ldquo;not yet confirmed by the owner&rdquo; &mdash; so unverified information never masquerades as fact. And <b>contradictions get surfaced, never resolved quietly</b>: if two pages disagree, Claude says so and names both owners. Permissions stop the wrong <em>people</em>; they don&rsquo;t stop wrong <em>information</em>, because a senior person can be confidently wrong.</p>
+  </div>
+
+  <p class="sub"><b>And the cheapest safeguard of all: reading.</b> Pages get read far more than they get written. A wrong page quoted in a Slack channel gets corrected by the first person who knows better.</p>
+
+  <div class="callout">
+    <b>What v2 might unlock &mdash; once v1 has actually been used</b>
+    <p>Letting Claude capture <em>new</em> pages from Slack (never edits to existing ones), tracking which questions get asked most so reviews narrow to only the pages people use, and the weekly digest posting itself. <b>None of it before the brain has answered real questions for real people for a few weeks.</b></p>
+  </div>
+</section>
+
+<section>
+  <h2>What it costs to keep alive</h2>
+  <p class="sub" style="margin-bottom:18px">Honest version, now that the Slack side is read-only. The initial fill is done for you; after that, saving a new page costs about a minute of someone&rsquo;s time.</p>
+  <table class="lives">
+    <tr><td>The initial fill</td><td>Claude, through the connector — hundreds of pages with every field set. <b>One-off, about a day</b></td></tr>
+    <tr><td>Drafting a new answer</td><td>Claude, in the Slack thread while answering — <b>0 minutes</b>, it isn&rsquo;t a separate task</td></tr>
+    <tr><td>Saving it into Notion</td><td>A person: paste, pick an owner — <b>about a minute</b></td></tr>
+    <tr><td>Clearing the weekly review list</td><td>One person — <b>about 15 minutes a week</b></td></tr>
+    <tr><td>Keeping everything else current</td><td><b>Nobody. On purpose.</b></td></tr>
+  </table>
+
+  <div class="note">
+    <b>That one minute is the whole cost of the one-way decision, and it&rsquo;s worth paying.</b>
+    <p>Claude still does all the thinking — the minute is a paste, and it&rsquo;s also the moment a person takes responsibility for the page. <b>If people won&rsquo;t even paste, the problem isn&rsquo;t the tool</b> — it&rsquo;s that nobody wanted that page, which is useful to know. And what keeps the review list short isn&rsquo;t clever filtering, it&rsquo;s marking the facts that don&rsquo;t rot as never needing review. Every knowledge base that has died, died trying to keep 400 pages current.</p>
+  </div>
+
+  <div class="callout">
+    <b>The kill criterion</b>
+    <p>Six weeks. If fewer than about ten questions a week are being asked, <b>delete it and go back to Google Docs.</b> No sunk-cost defence — a knowledge base with no traffic is worse than none, because people trust it.</p>
+  </div>
+</section>
+
+<section>
+  <h2>The rules</h2>
+  <ul class="plain">
+    <li><b>Every page has exactly one owner.</b> No owner means the page gets deleted, not left lying around. An unowned page is worse than a missing one, because people trust it.</li>
+    <li><b>Pages expire — but only the ones people use.</b> Every page carries a &ldquo;last checked&rdquo; date. Overdue pages appear in a weekly Slack list addressed to their owner by name — but <em>only if someone has actually asked that question</em>. The rest are allowed to rot.</li>
+    <li><b>Never answer the same question twice in Slack.</b> Answer it into the brain and paste the link. <em>This is the only habit change we&rsquo;re asking anyone to make.</em></li>
+    <li><b>Every answer shows its source. Every number shows its definition.</b> An answer you can&rsquo;t trace is worse than no answer.</li>
+    <li><b>&ldquo;To confirm&rdquo; beats guessing.</b> A visible gap is safe. A confident invention becomes the second version of the truth — the exact thing we&rsquo;re trying to kill.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>What we&rsquo;re deliberately not doing</h2>
+  <ul class="plain">
+    <li><b>Not building anything.</b> A wiki is a solved problem. We&rsquo;re assembling tools that exist.</li>
+    <li><b>Not buying &ldquo;Notion AI&rdquo;.</b> Its own search isn&rsquo;t good enough. We&rsquo;re using Notion as tidy storage that Claude reads and writes.</li>
+    <li><b>No approval workflow.</b> Adding a sign-off gate is the fastest way to make people stop writing.</li>
+    <li><b>Not starting empty.</b> We already have a product reference describing all 33 screens of the live app in words, plus 16 Academy modules and 45 customer resources. Day one is populated.</li>
+    <li><b>Not giving the Slack bot write access.</b> v1 is one-way on purpose. It can draft a page for you in the thread; a person pastes it in. Revisit once it&rsquo;s been genuinely used.</li>
+    <li><b>Not doing customers yet.</b> Internal first. The same content feeds user guides and the customer chatbot later, from the same source — that&rsquo;s the point of the structure.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Getting started without waiting for anyone</h2>
+  <p class="sub">Turning this on for the whole company needs an admin with owner rights on our Claude account. We have a project that has been sitting frozen on exactly that for a week, so this one is built not to need it.</p>
+  <ol class="steps">
+    <li><b>One person wires it to their own account first</b><span>Individual accounts can connect Notion and one data source without any admin involvement.</span></li>
+    <li><b>They prove the whole loop</b><span>Ask a question in Slack, get a sourced answer. Ask for a number, get it with its definition.</span></li>
+    <li><b>Then the ask becomes easy</b><span>&ldquo;Turn on the thing you&rsquo;ve already seen working&rdquo; is a five-minute decision, not a leap of faith.</span></li>
+  </ol>
+</section>
+
+<section>
+  <h2>Who does what next</h2>
+  <p class="sub" style="margin-bottom:22px">Everything below is either done, or blocked on one specific person. Nothing is waiting on a meeting.</p>
+
+  <div class="split">
+    <div class="box">
+      <span class="tag good">Done — nothing owed</span>
+      <p style="font-size:15px;color:var(--ink-soft)">The design, the structure, the house rules, the one-paste setup that builds the whole workspace, the list of numbers we currently disagree about, and the map of what existing material goes where.</p>
+      <p style="font-size:15px;color:var(--ink-soft);margin-bottom:0">Roughly a day&rsquo;s work sits ready to run the moment there&rsquo;s a workspace to run it against.</p>
+    </div>
+    <div class="box">
+      <span class="tag bad">Blocked on you</span>
+      <p style="font-size:15px;color:var(--ink-soft);margin-bottom:0">Two decisions and about twenty minutes of clicking. Until the first one lands, everything else is theoretical.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:34px;font-size:19px">Yours — in order</h3>
+  <ol class="steps" style="margin-top:16px">
+    <li><b>Decide: create a Notion workspace?</b><span>Sole has none today. Roughly $20 per person per month for the tier with connectors. <b>Blocks everything.</b> The case for it is two sections up.</span></li>
+    <li><b>Connect Notion to your Claude and run the setup</b><span>About five minutes. The whole workspace builds itself — you don&rsquo;t type a schema.</span></li>
+    <li><b>Answer: which system is authoritative for signups?</b><span>The app database, Mixpanel and GoHighLevel will give three different totals, all working correctly. Which do we agree to believe? Blocks every number after it.</span></li>
+    <li><b>Find out: are we on Claude Team or Enterprise, and who&rsquo;s the admin?</b><span>Only needed for the Slack channel. Everything else works on a personal account first — deliberately.</span></li>
+  </ol>
+
+  <h3 style="margin-top:30px;font-size:19px">Mine — once you&rsquo;ve done step 1</h3>
+  <ul class="plain" style="margin-top:12px">
+    <li><b>Fill it with what already exists.</b> Starting with the roughly fifteen facts we&rsquo;ve <em>demonstrably</em> got wrong before — those are the live cases of two-people-two-versions, and fixing them is what earns trust in week one. Then the product reference, all 33 screens.</li>
+    <li><b>Settle the definitions with you</b> — about ten minutes each, with the right person in the room. If one takes longer, the argument you&rsquo;ve uncovered <em>is</em> the value.</li>
+    <li><b>Wire one live number end to end</b> and answer &ldquo;how many signed up in July&rdquo; in Slack, with the definition cited.</li>
+    <li><b>Set up the nightly backup</b> so the content outlives Notion.</li>
+  </ul>
+
+  <p style="margin-top:22px" class="sub"><b>Already settled, so nobody needs to revisit it:</b> the founders own the brain with one architect building it for them — which is why the schema is two tables and why Claude does the bookkeeping instead of a person. Slack channel: any.</p>
+</section>
+
+<section>
+  <h2>How this rolls out</h2>
+  <ul class="tl">
+    <li class="now"><b>Step 1 — Foundation <span class="badge">Ready now</span></b><span>The structure, the house rules, and a one-paste setup that builds the whole Notion space in about five minutes.</span></li>
+    <li><b>Step 2 — Fill it, and connect one number</b><span>Seed from what we already have, settle the definitions, then answer &ldquo;how many signed up in July&rdquo; end to end.</span></li>
+    <li><b>Step 3 — The safety copy</b><span>Nightly plain-text backup, so the content outlives any tool we happen to be using.</span></li>
+    <li><b>Step 4 — Customers</b><span>The pages marked customer-ready become user guides and feed the customer chatbot. Same source, no second version.</span></li>
+    <li><b>Step 5 — The rest of the numbers</b><span>Remaining systems connect in, one definition at a time.</span></li>
+  </ul>
+  <div class="note" style="margin-top:26px">
+    <b>Why definitions come before analytics</b>
+    <p>It costs about a week. It&rsquo;s the difference between this working and this becoming the new problem — a fast, confident, wrong number is harder to argue with than a slow one.</p>
+  </div>
+</section>
+
+<footer>
+  Internal working document · Step 1 of 5 · Not for distribution outside Sole.<br>
+  Detail, schema and setup instructions live alongside this in <code>docs/sole-brain/</code>.
+</footer>
+
+</div>
+</body>
+</html>
