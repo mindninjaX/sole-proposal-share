@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex, nofollow">
 <!--
   PRESENTED VERSION of pages/thread.html. Same argument, same palette, built to
-  be projected and talked over: 16 slides, one idea each, diagrams instead of
+  be projected and talked over: 20 slides, one idea each, diagrams instead of
   paragraphs. The written proposal stays the artefact people read afterwards.
 
   Fixed 1280x720 stage, scaled with a transform to fit whatever it lands on, so
@@ -19,7 +19,7 @@
 
   Word budget is the whole point: roughly 25 words a slide. If a slide needs a
   sentence to explain the diagram, the diagram is wrong. Two slides carry the
-  ask (6 and 15); everything else exists to make those two land.
+  ask (8 and 19); everything else exists to make those two land.
 
   Dependency-free: no CDN, no images, no fonts. Must open from file:// offline.
   Voice standard applies (.claude/kit/voice.md): no em dashes, no en dashes.
@@ -165,6 +165,33 @@
              background:var(--blue-soft); padding:9px 18px; font-size:15px; font-weight:800;
              text-align:center; color:var(--ink)}
 
+  /* ---------- big numbers (the outbound slide) ---------- */
+  .nums{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px}
+  .nm{border:var(--bd); border-radius:var(--r-lg); background:var(--card); padding:18px 16px;
+      box-shadow:var(--sh)}
+  .nm b{display:block; font-size:44px; letter-spacing:-2px; line-height:1}
+  .nm span{display:block; font-size:15px; font-weight:750; color:var(--ink-soft); margin-top:6px}
+  .nm.hot b{color:var(--red)} .nm.warm b{color:var(--amber)} .nm.cold b{color:var(--muted)}
+  .nm.cap{background:var(--sand)} .nm.cap b{font-size:32px; color:var(--ink-soft)}
+
+  /* ---------- retire list ---------- */
+  .out{display:grid; gap:9px}
+  .orow{display:flex; align-items:center; gap:14px; border:var(--bd); border-radius:var(--r);
+        background:var(--card); padding:13px 16px}
+  .orow .x{font-size:19px; font-weight:850; color:var(--red); width:20px; flex-shrink:0}
+  .orow b{font-size:18px; letter-spacing:-.4px; min-width:250px}
+  .orow span{font-size:15px; color:var(--ink-soft)}
+
+  /* ---------- scope map ---------- */
+  .slices{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
+  .sl{border:var(--bd); border-radius:var(--r); background:var(--card); padding:15px 15px 14px;
+      display:flex; flex-direction:column}
+  .sl .ic{font-size:24px; line-height:1; margin-bottom:9px}
+  .sl b{font-size:18px; letter-spacing:-.4px; line-height:1.15}
+  .sl p{font-size:13.5px; color:var(--ink-soft); margin:5px 0 11px; line-height:1.35}
+  .sl .tagline{margin-top:auto}
+  .sl.now{background:var(--lime-soft); border-color:var(--lime)}
+
   /* ---------- recording pipeline (slide 12) ---------- */
   .pipe{display:grid; grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr) 26px minmax(0,1fr) 26px minmax(0,1fr);
         gap:9px; align-items:center}
@@ -292,6 +319,32 @@
   <div class="foot">Not one of those 6 losses is a phone problem.</div>
 </section>
 
+<!-- 3b ................................................................ -->
+<section class="slide" data-title="Three brains today">
+  <div class="kicker">Also true today</div>
+  <h2>Three brains. <em>One of them doesn't exist.</em></h2>
+  <div class="body">
+    <div class="grid g3">
+      <div class="box a">
+        <span class="chip c-a">Works</span>
+        <h3 style="margin-top:11px">The in app bot</h3>
+        <p>Answers B2C customers from a doc that goes stale the moment a screen changes. Its own builder filed that bug.</p>
+      </div>
+      <div class="box a">
+        <span class="chip c-a">Separate</span>
+        <h3 style="margin-top:11px">The website bot</h3>
+        <p>Sales questions, its own knowledge, no idea what support already answered.</p>
+      </div>
+      <div class="box r">
+        <span class="chip c-r">Nothing</span>
+        <h3 style="margin-top:11px">SPM</h3>
+        <p>No bot at all. The product we charge firms for has no self serve answer layer.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">You said the chatbot has to connect to our support brain. That means <b>one store, three surfaces reading it</b>.</div>
+</section>
+
 <!-- 4 ................................................................. -->
 <section class="slide" data-title="The fix, one picture">
   <div class="kicker">The fix</div>
@@ -324,6 +377,23 @@
     </div>
   </div>
   <div class="foot">Write once on the left. Everything on the right is a filter, <b>not another system to keep in sync.</b></div>
+</section>
+
+<!-- 4b ................................................................ -->
+<section class="slide" data-title="Six things stop being separate">
+  <div class="kicker">The surface</div>
+  <h2>Six problems. <em>One spine.</em></h2>
+  <div class="body">
+    <div class="slices">
+      <div class="sl now"><div class="ic">🔔</div><b>Signup to call</b><p>Notified, owned, called, tracked.</p><div class="tagline"><span class="chip c-l">ships first</span></div></div>
+      <div class="sl now"><div class="ic">🧵</div><b>The record</b><p>One customer, one history, every surface reads it.</p><div class="tagline"><span class="chip c-l">v1</span></div></div>
+      <div class="sl now"><div class="ic">📚</div><b>Knowledge</b><p>Owned articles with a review date. Confluence retires.</p><div class="tagline"><span class="chip c-l">v1</span></div></div>
+      <div class="sl now"><div class="ic">🔁</div><b>The feedback loop</b><p>Chat first, calls once recording is on.</p><div class="tagline"><span class="chip c-l">v1</span></div></div>
+      <div class="sl now"><div class="ic">🛡️</div><b>Coverage</b><p>Who owns what, what got missed, out of hours honesty.</p><div class="tagline"><span class="chip c-l">v1</span></div></div>
+      <div class="sl"><div class="ic">🧾</div><b>Tickets</b><p>The bot already offers one. Nothing catches it yet.</p><div class="tagline"><span class="chip c-s">right after v1</span></div></div>
+    </div>
+  </div>
+  <div class="foot">Six problems people are solving separately today. <b>The order matters more than the size.</b></div>
 </section>
 
 <!-- 5 ................................................................. -->
@@ -465,6 +535,25 @@
   <div class="foot">One direction. No second pipeline, and <b>no two dashboards that disagree</b>.</div>
 </section>
 
+<!-- 11b ............................................................... -->
+<section class="slide" data-title="The lists already exist">
+  <div class="kicker">Why it pays</div>
+  <h2>The lists exist. <em>Nothing calls them.</em></h2>
+  <div class="body">
+    <div class="nums">
+      <div class="nm hot"><b>74</b><span>hottest, worth a personal call</span></div>
+      <div class="nm warm"><b>93</b><span>active trials in an email sequence</span></div>
+      <div class="nm cold"><b>3,900</b><span>dormant, never spoken to</span></div>
+      <div class="nm cap"><b>400</b><span>emails a day before deliverability suffers</span></div>
+    </div>
+    <div class="grid g2" style="margin-top:18px">
+      <div class="box r"><h3>Today</h3><p>A list in a channel. No owner, no state, no record of who was called or what they said.</p></div>
+      <div class="box l"><h3>With the thread</h3><p>Assigned, tracked, and the reason they did not convert in their own words, on their record.</p></div>
+    </div>
+  </div>
+  <div class="foot">This is the question you asked: <b>why aren't they converting</b>. Right now we cannot answer it.</div>
+</section>
+
 <!-- 12 ................................................................ -->
 <section class="slide" data-title="Recording, already paid for">
   <div class="kicker">Recording</div>
@@ -517,6 +606,22 @@
     </div>
   </div>
   <div class="foot">Everything else is a rule running in the background.</div>
+</section>
+
+<!-- 13b ............................................................... -->
+<section class="slide" data-title="What it retires">
+  <div class="kicker">What goes away</div>
+  <h2>Three screens in. <em>Five things out.</em></h2>
+  <div class="body">
+    <div class="out">
+      <div class="orow"><span class="x">✗</span><b>Jira, for support</b><span>Tickets live where the customer's history already is.</span></div>
+      <div class="orow"><span class="x">✗</span><b>Confluence, as the answer home</b><span>Articles move to a tool the team owns and the bot reads.</span></div>
+      <div class="orow"><span class="x">✗</span><b>The second calendar</b><span>One booking system, writing to the record.</span></div>
+      <div class="orow"><span class="x">✗</span><b>"Did anyone reach out?"</b><span>Stops being a question you ask a person.</span></div>
+      <div class="orow"><span class="x">✗</span><b>The call list in a channel</b><span>Becomes an assigned queue with a state.</span></div>
+    </div>
+  </div>
+  <div class="foot">You have asked about replacing Jira twice in 2 months. <b>This is the version that doesn't make Juhi start over.</b></div>
 </section>
 
 <!-- 14 ............................................................... -->
