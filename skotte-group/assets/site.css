@@ -96,9 +96,8 @@ section{scroll-margin-top:84px}
   linear-gradient(0deg,rgba(0,32,51,.7) 0%,rgba(0,32,51,.14) 34%,rgba(0,32,51,0) 56%),
   linear-gradient(rgba(0,58,92,.12),rgba(0,58,92,.12))}
 .hero__in{position:relative;z-index:2;width:100%;padding-top:168px;padding-bottom:clamp(48px,7vw,88px)}
-.hero__eyebrow{display:inline-flex;align-items:center;gap:14px;color:#fff;font-family:var(--head);font-size:1rem;font-weight:700;
+.hero__eyebrow{display:inline-block;color:#fff;font-family:var(--head);font-size:1rem;font-weight:700;
   letter-spacing:.2em;text-transform:uppercase;margin-bottom:26px;text-shadow:0 1px 14px rgba(6,16,34,.45)}
-.hero__eyebrow .pill{display:inline-block;width:11px;height:11px;background:var(--red);border-radius:1px;transform:rotate(45deg)}
 /* Round 3: "smaller, less grabby". Live site's hero line measures 38px/700 at 1440;
    ours was 81px. Landing at ~52px keeps hero scale without the display-serif shout. */
 .hero h1{color:#fff;font-size:clamp(2.05rem,3.7vw,3.3rem);font-weight:700;max-width:22ch;
@@ -190,11 +189,11 @@ section{scroll-margin-top:84px}
 .heritage__note{margin-top:22px;color:#AEBFD3;font-size:1rem;max-width:46ch}.heritage__cta{margin-top:34px}
 /* Round 3, row 6 — the client asked for the two flags back HERE, and nowhere
    else. Text labels dropped ("no need for text"). Inline SVG, so no new assets. */
-.flags{display:flex;gap:30px;justify-content:center;align-items:center}
+.flags{display:flex;gap:22px;justify-content:center;align-items:center}
 .flagcard{text-align:center}
-.flagcard__f{width:176px;height:117px;border-radius:5px;overflow:hidden;box-shadow:0 26px 54px -22px rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.2)}
+.flagcard__f{width:112px;height:75px;border-radius:3px;overflow:hidden;box-shadow:0 12px 28px -14px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.18)}
 .flagcard__f svg{display:block;width:100%;height:100%}
-.flags .amp{align-self:center;font-family:var(--head);font-style:normal;font-weight:600;font-size:1.5rem;color:#67809E}
+.flags .amp{align-self:center;font-family:var(--head);font-style:normal;font-weight:600;font-size:1.25rem;color:#67809E}
 /* heritage name cards (flag-free) + founder heritage label accent */
 .pcard__flagname::before{content:"";display:inline-block;width:6px;height:6px;background:var(--red-bright);margin-right:9px;vertical-align:middle;transform:rotate(45deg)}
 
@@ -204,10 +203,12 @@ section{scroll-margin-top:84px}
 .closing__scrim{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(0,32,51,.72),rgba(0,32,51,.58))}
 .closing__in{position:relative;z-index:2;text-align:center;padding:clamp(70px,9vw,116px) 0}
 .closing h2{color:#fff;font-size:clamp(1.85rem,3.2vw,2.7rem);letter-spacing:0}
-/* Round 3, rows 7 + 8 — the tagline now reads "Make things happen" and carries the
-   same red diamond as the footer lockup, so the device is consistent site-wide. */
-.closing__tag{display:flex;align-items:center;justify-content:center;gap:16px}
-.closing__tag::before{content:"";width:15px;height:15px;flex:none;background:var(--red);transform:rotate(45deg)}
+/* Round 3.1: the client's email signature settled what the "red dot" is: a red full
+   stop closing the tagline (MAKE THINGS HAPPEN.), not the logo diamond. One device,
+   three lockups: hero eyebrow, closing band, footer. */
+.closing__tag{display:block}
+.hero__eyebrow::after,.closing__tag::after{content:".";color:var(--red)}
+.hero__eyebrow::after{margin-left:-.2em;font-size:1.5em;line-height:0}  /* cancel the tracking, and give the stop the weight it has in the signature */
 .closing h2 em{font-style:normal;color:#8FC4F0;font-weight:700}
 .closing__sub{margin:24px auto 0;max-width:48ch;color:#CBD8E7;font-size:1.15rem}
 .closing__cta{margin-top:40px;display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
@@ -250,6 +251,11 @@ section{scroll-margin-top:84px}
 .bio-modal__name{font-family:var(--serif);font-size:1.9rem}
 .bio-modal__role{color:var(--blue);font-weight:600;font-size:.92rem;letter-spacing:.06em;text-transform:uppercase;margin-top:6px}
 .bio-modal__text{margin-top:20px;color:var(--slate);font-size:1.02rem;line-height:1.65}
+/* Round 3.1: row 3 asked for personal LinkedIn profiles. The landing's founder
+   cards cover Mark and Jesper; Seaton is a Partner, not a founding partner, so his
+   only card is here. The team cards are <button>s, so the link lives in the modal. */
+.bio-modal__li{margin-top:24px;align-items:center;gap:10px;color:var(--blue-ink);font-weight:600;font-size:.95rem}
+.bio-modal__li:hover{color:var(--ink)}.bio-modal__li .ic{width:19px;height:19px}
 .bio-modal__x{position:absolute;top:14px;right:14px;z-index:3;width:38px;height:38px;border:0;border-radius:50%;background:rgba(255,255,255,.85);
   cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .bio-modal__x .ic{width:20px;height:20px}
@@ -359,22 +365,43 @@ section{scroll-margin-top:84px}
 .decision__a p:last-child{margin-bottom:0}
 .decision__a strong{color:var(--ink)}
 
-/* ===== FOOTER (light) ===== */
-/* ===== FOOTER — rebuilt round 3 =====================================
-   Client: "feels too White and too much space/air ... much prefer older
-   footer ... Red Dot and Make things Happen the key." The live site's footer
-   is #002033 with a text blurb, a MENU column and blue icon buttons — that
-   shape, tightened. The logo is dark art on transparent so it cannot sit on
-   navy; the live footer carries no logo either, so the red diamond +
-   "Make things happen" lockup is the brand mark here instead. */
-.footer{background:var(--ink);color:#B9C6D2;padding:clamp(48px,5vw,66px) 0 26px}
-.footer__top{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:44px;padding-bottom:34px;border-bottom:1px solid rgba(255,255,255,.13)}
+/* ===== FOOTER =======================================================
+   Rows 8 + 20: "much prefer older footer ... Red Dot and Make things Happen
+   the key ... match the email signature ... restore the colour scheme."
+   Round 3 had to infer this from the live site because the signature had
+   never been sent. Round 3.1 has it, so the footer now opens with a band
+   that reproduces the signature's lower half: the purple-to-indigo tagline
+   panel with its diagonal edge, then the blue services strip.
+
+   Every colour is sampled, not guessed. #3D205B and #0079C2 are the two
+   dominant colours in assets/img/logo.png; #0E2060 is where the signature's
+   gradient lands at the diagonal; the red stop is #ED1C24, the logo's red.
+   The diagonal keeps the signature's slope: its edge travels 62px across
+   over 200px down, so the top inset is ~0.31 x the band's height.
+
+   The five services are the site's own icons in the signature's order. The
+   signature draws its own (clipboard, handshake, knight, gears, bar chart);
+   redrawing those off a raster would guess at detail and would put the
+   footer out of step with the What we do cards, so the site's set wins. */
+.sigband{display:grid;grid-template-columns:minmax(226px,31%) 1fr;background:var(--blue);align-items:stretch}
+.sigband__tag{background:linear-gradient(96deg,#3D205B 0%,#2C2159 54%,#0E2060 100%);
+  display:flex;align-items:center;padding:clamp(24px,3vw,38px) clamp(22px,2.6vw,36px);
+  clip-path:polygon(0 0,calc(100% - clamp(30px,3.6vw,52px)) 0,100% 100%,0 100%)}
+.sigband__tagline{font-family:var(--head);font-weight:800;text-transform:uppercase;color:#fff;
+  font-size:clamp(1.25rem,2.1vw,1.9rem);line-height:1.04;letter-spacing:-.005em;max-width:9ch}
+.sigband__tagline::after{content:".";color:var(--red)}
+.sigband__svcs{display:grid;grid-template-columns:repeat(5,1fr);align-items:start;align-content:center;gap:clamp(8px,1.3vw,18px);
+  padding:clamp(24px,2.9vw,34px) clamp(24px,3.4vw,52px) clamp(24px,2.9vw,34px) clamp(32px,4.4vw,66px)}
+.sigband__svcs a{display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px;color:#fff;
+  font-family:var(--head);font-size:.74rem;font-weight:700;line-height:1.3;transition:opacity .22s}
+.sigband__svcs a:hover{opacity:.7}
+.sigband__svcs .ic{width:28px;height:28px;stroke-width:1.6;flex:none}
+
+.footer{background:var(--ink);color:#B9C6D2;padding:0 0 26px}
+.footer__top{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:44px;
+  padding:clamp(44px,4.4vw,58px) 0 34px;border-bottom:1px solid rgba(255,255,255,.13)}
 .footer__img{height:44px;width:auto;display:block}
-/* the lockup: red diamond + tagline, the two things the client called "the key" */
-.footer__tag{display:flex;align-items:center;gap:12px;font-family:var(--head);font-style:normal;font-weight:700;
-  font-size:1.22rem;letter-spacing:-.01em;color:#fff}
-.footer__tag::before{content:"";width:12px;height:12px;flex:none;background:var(--red);transform:rotate(45deg)}
-.footer__blurb{margin-top:16px;max-width:38ch;color:#9FB0C0;font-size:.94rem;line-height:1.6}
+.footer__blurb{max-width:38ch;color:#9FB0C0;font-size:.94rem;line-height:1.6}
 .footer__addr{margin-top:18px;display:flex;gap:11px;align-items:flex-start;color:#B9C6D2;font-size:.93rem;line-height:1.5;max-width:30ch}
 .footer__addr .ic{width:18px;height:18px;color:var(--blue-bright);flex:none;margin-top:2px}
 .footer__col h4{font-family:var(--head);font-size:.74rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#7E90A2;margin-bottom:16px}
@@ -408,6 +435,7 @@ section{scroll-margin-top:84px}
   .val-grid{grid-template-columns:repeat(2,1fr)}.val:nth-child(2){border-right:0}.val{border-bottom:1px solid var(--line)}
   .tgrid,.tgrid--3{grid-template-columns:repeat(3,1fr)}
   .proj-grid,.benefit-grid,.testi-grid{grid-template-columns:repeat(2,1fr)}
+  .sigband{grid-template-columns:minmax(200px,34%) 1fr}.sigband__svcs .ic{width:25px;height:25px}
 }
 @media (max-width:900px){
   .nav__links,.nav__cta{display:none}.nav__toggle{display:block}
@@ -415,6 +443,11 @@ section{scroll-margin-top:84px}
   .heritage__in{gap:52px}.flags{justify-content:flex-start}
   .svc-detail__in{gap:28px}.decision{gap:14px}
   .footer__top{grid-template-columns:1fr 1fr}.footer__brandcol{grid-column:1/-1}
+  /* the diagonal only reads across a wide band. Stacked, it becomes a bottom edge */
+  .sigband{grid-template-columns:1fr}
+  .sigband__tag{clip-path:polygon(0 0,100% 0,100% calc(100% - 26px),0 100%);padding-bottom:46px}
+  .sigband__tagline{max-width:none}
+  .sigband__svcs{grid-template-columns:repeat(3,1fr);gap:26px 14px;padding:32px 22px 36px}
   .bio-modal__card{grid-template-columns:1fr}.bio-modal__img img{min-height:240px;max-height:300px}
 }
 @media (max-width:640px){
@@ -425,7 +458,9 @@ section{scroll-margin-top:84px}
   .tgrid,.tgrid--3{grid-template-columns:repeat(2,1fr);gap:16px}
   .proj-grid,.benefit-grid,.testi-grid{grid-template-columns:1fr}
   .cform .two{grid-template-columns:1fr}
-  .flagcard__f{width:120px;height:80px}  .footer__top{grid-template-columns:1fr}
+  .sigband__svcs{grid-template-columns:repeat(2,1fr);gap:24px 12px}
+  .sigband__svcs a:last-child{grid-column:1/-1}
+  .flagcard__f{width:92px;height:61px}  .footer__top{grid-template-columns:1fr}
   .hero__meta{font-size:.72rem;gap:14px}.hero__meta span{gap:14px}
 }
 @media (prefers-reduced-motion:reduce){
