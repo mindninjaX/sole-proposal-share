@@ -154,6 +154,7 @@ section{scroll-margin-top:84px}
 .pcard__body{padding:20px 22px 24px}
 .pcard__flagrow{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .pcard__flag{width:30px;height:20px;border-radius:3px;overflow:hidden;flex:none;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.pcard__flag svg{display:block;width:100%;height:100%}
 .pcard__flagname{font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8CA4C0}
 .pcard__li{margin-left:auto;color:#7FB6E6;display:inline-flex;flex:none}.pcard__li:hover{color:#fff}.pcard__li .ic{width:19px;height:19px}
 .pcard__name{font-family:var(--serif);font-size:1.42rem;color:#fff;font-weight:600;line-height:1.12;letter-spacing:-.01em}
@@ -179,6 +180,29 @@ section{scroll-margin-top:84px}
 .val:last-child{border-right:0}.val:hover{background:var(--paper)}
 .val__ic{width:46px;height:46px;color:var(--blue);margin-bottom:22px}.val__ic .ic{width:30px;height:30px;stroke-width:1.6}
 .val h3{font-size:1.28rem;margin-bottom:12px}.val p{color:var(--slate);font-size:.95rem;line-height:1.55}
+.val__list{margin:10px 0 0;padding-left:18px;color:var(--slate);font-size:.9rem;line-height:1.55}
+.val__list li{margin-bottom:6px}.val__list li:last-child{margin-bottom:0}
+/* Round 4: the careers page carries the dot points from the client's values document, and
+   only 2 of the 5 values have any. In the 5-across card grid that squeezed the bullets
+   into 205px columns and made those 2 cards roughly 3x the height of the other 3. The
+   client said "we dont mind how it is displayed", and their own mockup drew the value
+   beside its bullets, so on this page the values become stacked rows: name on the left,
+   description plus any bullets on the right. Every row fills both columns, so nothing is
+   left hollow, and the bullets get a readable measure. The landing page keeps the grid. */
+.val-grid--careers{display:block;grid-template-columns:none;border:1px solid var(--line);
+  border-radius:8px;background:var(--white);margin-top:clamp(34px,4vw,54px)}
+.val-grid--careers .val{display:grid;grid-template-columns:minmax(0,.27fr) minmax(0,.73fr);
+  gap:clamp(18px,3vw,44px);align-items:start;padding:clamp(22px,2.4vw,30px) clamp(22px,2.6vw,34px);
+  border-right:0;border-bottom:1px solid var(--line)}
+.val-grid--careers .val:last-child{border-bottom:0}
+/* icon and name on one line, so the name sits level with the first line of the description */
+.val-grid--careers .val__head{display:flex;align-items:center;gap:12px}
+.val-grid--careers .val__ic{width:28px;height:28px;margin-bottom:0;flex:none}
+.val-grid--careers .val__ic .ic{width:25px;height:25px}
+.val-grid--careers .val h3{margin-bottom:0;font-size:1.18rem}
+.val-grid--careers .val__body p{font-size:1rem}
+@media (max-width:760px){.val-grid--careers .val{grid-template-columns:1fr;gap:12px}
+  .val-grid--careers .val__ic{margin-bottom:10px}}
 
 /* ===== HERITAGE (home) ===== */
 .heritage{position:relative;overflow:hidden;background:radial-gradient(120% 140% at 85% 0%,#12345f 0%,var(--ink) 55%)}
@@ -194,8 +218,8 @@ section{scroll-margin-top:84px}
 .flagcard__f{width:112px;height:75px;border-radius:3px;overflow:hidden;box-shadow:0 12px 28px -14px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.18)}
 .flagcard__f svg{display:block;width:100%;height:100%}
 .flags .amp{align-self:center;font-family:var(--head);font-style:normal;font-weight:600;font-size:1.25rem;color:#67809E}
-/* heritage name cards (flag-free) + founder heritage label accent */
-.pcard__flagname::before{content:"";display:inline-block;width:6px;height:6px;background:var(--red-bright);margin-right:9px;vertical-align:middle;transform:rotate(45deg)}
+/* Round 4: "replace diamonds with flags" — the founder-card diamond marker is gone;
+   .pcard__flag (an actual flag icon) sits in the markup instead. See index.html. */
 
 /* ===== CLOSING CTA ===== */
 .closing{position:relative;overflow:hidden;background:var(--ink)}
@@ -410,7 +434,15 @@ section{scroll-margin-top:84px}
 .footer{background:var(--ink);color:#B9C6D2;padding:0 0 26px}
 .footer__top{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:44px;
   padding:clamp(44px,4.4vw,58px) 0 34px;border-bottom:1px solid rgba(255,255,255,.13)}
-.footer__img{height:44px;width:auto;display:block}
+/* Round 4: the client's approved footer (their Canva mockup, 25 Aug) puts the reversed
+   logo and the MAKE THINGS HAPPEN. lockup in the brand column, where the descriptive
+   blurb used to sit. logo-reversed.png is their own artwork, lifted at 470ppi straight
+   out of that file, so the mark is theirs and unretouched. This is also the only place
+   the tagline and its red full stop still appear, now that both bands are gone. */
+.footer__img{height:clamp(58px,6vw,86px);width:auto;display:block}
+.footer__tag{margin-top:22px;font-family:var(--head);font-weight:800;text-transform:uppercase;
+  color:#fff;font-size:clamp(1.28rem,1.85vw,1.6rem);line-height:1.07;letter-spacing:-.005em;max-width:8ch}
+.footer__tag::after{content:".";color:var(--red)}
 .footer__blurb{max-width:38ch;color:#9FB0C0;font-size:.94rem;line-height:1.6}
 .footer__addr{margin-top:18px;display:flex;gap:11px;align-items:flex-start;color:#B9C6D2;font-size:.93rem;line-height:1.5;max-width:30ch}
 .footer__addr .ic{width:18px;height:18px;color:var(--blue-bright);flex:none;margin-top:2px}
