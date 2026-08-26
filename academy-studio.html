@@ -491,59 +491,6 @@ const moveItem = (arr, from, to) => {
 /* ---- readiness checks ----------------------------------------------------
    What would embarrass us if it shipped. Severity: 'block' stops a publish,
    'warn' is advisory. Every issue carries enough to jump straight to the fix. */
-const computeIssues = (doc) => {
-  const issues = [];
-  const push = (severity, group, label, detail, target) => issues.push({ id: uid('i'), severity, group, label, detail, target });
-  const tracks = doc.tracks || [];
-  const courses = doc.courses || [];
-  const paths = doc.paths || [];
-
-  // duplicate ids anywhere — these silently break progress tracking in the app
-  const seen = {};
-  const dupe = (id, what, target) => {
-    if (!id) { push('block', 'Missing id', `${what} has no id`, 'Every item needs a stable id — progress tracking keys off it.', target); return; }
-    if (seen[id]) push('block', 'Duplicate id', `"${id}" is used twice`, `${what} reuses an id that already exists. Learner progress would be shared between them.`, target);
-    seen[id] = true;
-  };
-  tracks.forEach(t => dupe(t.id, `Track "${t.label || 'Untitled'}"`, { kind: 'track', id: t.id }));
-  courses.forEach(c => {
-    dupe(c.id, `Course "${c.title || 'Untitled'}"`, { kind: 'course', id: c.id });
-    (c.lessons || []).forEach(l => dupe(l.id, `Lesson "${l.title || 'Untitled'}"`, { kind: 'lesson', id: l.id, courseId: c.id }));
-  });
-
-  tracks.forEach(t => {
-    if (!String(t.label || '').trim()) push('block', 'Untitled', 'A track has no name', 'Learners see this as a filter chip — it cannot be blank.', { kind: 'track', id: t.id });
-    if (TRACK_COLORS.every(x => x.hex !== t.color)) push('block', 'Bad colour', `"${t.label || t.id}" uses an unsupported colour`, `"${t.color}" is not one of the five colours the app supports — pick one from the list.`, { kind: 'track', id: t.id });
-    if (!courses.some(x => x.track === t.id)) push('warn', 'Empty track', `"${t.label || t.id}" has no courses`, 'It will not appear anywhere for learners. Delete it or add a course.', { kind: 'track', id: t.id });
-  });
-
-  courses.forEach(c => {
-    if (!String(c.title || '').trim()) push('block', 'Untitled', 'A course has no title', 'Course cards would render blank.', { kind: 'course', id: c.id });
-    if (!trackById(doc, c.track)) push('block', 'Orphan course', `"${c.title || c.id}" has no valid track`, 'It will not show under any filter. Pick a track.', { kind: 'course', id: c.id });
-    if (COURSE_ICONS.indexOf(c.icon) < 0) push('block', 'Bad icon', `"${c.title || c.id}" uses an unknown icon`, `"${c.icon}" is not an icon the app can render — pick one from the list.`, { kind: 'course', id: c.id });
-    if (!(c.lessons || []).length) push('block', 'Empty course', `"${c.title || c.id}" has no lessons`, 'Opening it would show an empty player.', { kind: 'course', id: c.id });
-    if (!String(c.summary || '').trim()) push('warn', 'No summary', `"${c.title || c.id}" has no summary`, 'The card body would be blank in the catalog.', { kind: 'course', id: c.id });
-    (c.lessons || []).forEach(l => {
-      if (!String(l.title || '').trim()) push('block', 'Untitled', `A lesson in "${c.title || c.id}" has no title`, 'Playlist rows would render blank.', { kind: 'lesson', id: l.id, courseId: c.id });
-      if (!lessonHasVideo(l)) push('warn', 'No video', `"${l.title || l.id}" has no video`, 'Learners get the "preview coming soon" poster instead of a video.', { kind: 'lesson', id: l.id, courseId: c.id });
-      if (!String(l.description || '').trim()) push('warn', 'No description', `"${l.title || l.id}" has no description`, 'The lesson page would have no text under the player.', { kind: 'lesson', id: l.id, courseId: c.id });
-      if (!(Number(l.mins) > 0)) push('warn', 'No duration', `"${l.title || l.id}" has no length`, 'Duration chips would read "0 min".', { kind: 'lesson', id: l.id, courseId: c.id });
-      (l.resources || []).forEach(r => {
-        if (String(r.label || '').trim() && !String(r.href || '').trim()) push('warn', 'Dead resource link', `"${r.label}" in "${l.title || l.id}" has no URL`, 'It would render as a link that goes nowhere.', { kind: 'lesson', id: l.id, courseId: c.id });
-      });
-    });
-  });
-
-  paths.forEach(p => {
-    if (!String(p.title || '').trim()) push('block', 'Untitled', 'A learning path has no title', 'Path cards would render blank.', { kind: 'path', id: p.id });
-    if (!(p.courseIds || []).length) push('block', 'Empty path', `"${p.title || p.id}" has no courses`, 'Opening it would go nowhere.', { kind: 'path', id: p.id });
-    (p.courseIds || []).forEach(cid => {
-      if (!courses.some(c => c.id === cid)) push('block', 'Broken path', `"${p.title || p.id}" points at a deleted course`, `Course "${cid}" no longer exists. Remove it from the path.`, { kind: 'path', id: p.id });
-    });
-  });
-
-  return issues;
-};
 
 /* ---- the published document ---------------------------------------------
    Strips internal-only fields so what engineering consumes is exactly the
@@ -556,19 +503,23 @@ const toPublished = (doc) => ({
     id: c.id, title: c.title, menuGroup: c.menuGroup || '', track: c.track, icon: c.icon || 'bookOpen', level: c.level || 'Beginner',
     summary: c.summary || '', popular: !!c.popular,
     lessons: (c.lessons || []).map(l => {
+      // ONE RULE: a chapter with a video can be watched, a chapter without one
+      // cannot. Nothing else decides it.
+      //
+      // This used to be derived from a six-value production state, and the two
+      // could disagree. Driving the tool for real caught it: pasting a YouTube
+      // link showed "Live for learners once you publish", then published the
+      // chapter as `recording`, because its production state still said
+      // `outlined`. The editor promised one thing and the learner got another.
+      // Deriving from the video is the only version of this that cannot drift.
+      //
+      // The single remaining production flag is a courtesy: a chapter with no
+      // video can be marked "being recorded" so learners see that instead of a
+      // flat "coming soon". It can never make a chapter watchable.
       const prodStatus = (l.production && l.production.status) || 'idea';
-      // `status` is the one production field that must survive publish — unlike
-      // owner/due/notes below, which stay internal — because the app's readiness
-      // and certificate rules are built on it (docs/ACADEMY_INTEGRATION.md).
-      let status = prodStatus === 'published' ? 'published'
-        : (prodStatus === 'idea' || prodStatus === 'outlined') ? 'planned' : 'recording';
-      // Belt-and-braces, both directions. Never claim "published" for a lesson
-      // whose production isn't signed off even if a video URL happens to be
-      // attached, AND never claim it for a lesson with nothing to watch. The
-      // second case is the one that bit: 7 seed lessons were marked published
-      // with no video, which put a dead play button in front of learners.
-      if (lessonHasVideo(l) && prodStatus !== 'published') status = 'recording';
-      if (!lessonHasVideo(l) && status === 'published') status = 'recording';
+      const status = lessonHasVideo(l) ? 'published'
+        : prodStatus === 'recording' ? 'recording'
+        : 'planned';
       const out = {
         id: l.id, title: l.title, mins: Number(l.mins) || 0, type: l.type || 'video', status,
         description: l.description || '',
@@ -704,7 +655,7 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
   };
   const addCourse = (trackId) => {
     const c = emptyCourse(trackId);
-    c.title = 'New course';
+    c.title = 'New module';
     edit(d => { d.courses.push(c); });
     setCollapsed(s => ({ ...s, [trackId]: false }));
     setSel({ kind: 'course', id: c.id });
@@ -719,7 +670,7 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
 
   const deleteTrack = (track) => {
     const owned = (doc.courses || []).filter(c => c.track === track.id);
-    if (owned.length) { fireToast({ message: `Move or delete its ${plural(owned.length, 'course')} first`, tone: 'warn' }); return; }
+    if (owned.length) { fireToast({ message: `Move or delete its ${plural(owned.length, 'module')} first`, tone: 'warn' }); return; }
     const snapshot = clone(doc.tracks);
     edit(d => { d.tracks = d.tracks.filter(t => t.id !== track.id); });
     if (sel.kind === 'track' && sel.id === track.id) setSel({ kind: null });
@@ -733,7 +684,7 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
       d.paths.forEach(p => { p.courseIds = p.courseIds.filter(id => id !== course.id); });
     });
     if (sel.id === course.id || sel.courseId === course.id) setSel({ kind: null });
-    fireToast({ message: `Deleted "${course.title || 'course'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.courses = snapshot; d.paths = snapPaths; }) } });
+    fireToast({ message: `Deleted "${course.title || 'module'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.courses = snapshot; d.paths = snapPaths; }) } });
   };
   const deleteLesson = (course, lesson) => {
     const snapshot = clone(course.lessons);
@@ -747,9 +698,8 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700 }}>Curriculum</div>
-          <Helper style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{plural((doc.courses || []).length, 'course')} · {plural(allLessons(doc).length, 'lesson')}</Helper>
+          <Helper style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{plural((doc.courses || []).length, 'module')} · {plural(allLessons(doc).length, 'chapter')}</Helper>
         </div>
-        <Btn variant="soft" size="sm" icon="plus" onClick={addTrack} style={{ flexShrink: 0 }}>Track</Btn>
       </div>
 
       <div className="scroll" style={{ flex: 1, padding: '8px 8px 40px' }}>
@@ -794,7 +744,7 @@ const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setColla
                   {courses.length === 0 && (
                     <button data-btn onClick={() => addCourse(track.id)}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', padding: '5px 8px', color: T.mutedSoft, fontSize: 11, textAlign: 'left' }}>
-                      <Icon name="plus" size={12} />Add a course
+                      <Icon name="plus" size={12} />Add a module
                     </button>
                   )}
                   {courses.map((course) => (
@@ -923,59 +873,6 @@ const EditorShell = ({ eyebrow, title, icon, color, children, actions }) => (
   </div>
 );
 
-const TrackEditor = ({ doc, track, edit }) => {
-  const set = (patch) => edit(d => { const t = (d.tracks || []).find(x => x.id === track.id); if (t) Object.assign(t, patch); });
-  const owned = (doc.courses || []).filter(c => c.track === track.id);
-  return (
-    <EditorShell eyebrow="Track" title={track.label || 'Untitled track'} icon="layers" color={track.color}>
-      <Card>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <Field label="Name" hint="Learners see this as a filter chip above the course grid. Keep it short and plain — “Payroll & tax”, not “Payroll and taxation management”.">
-            <Input value={track.label || ''} onChange={e => set({ label: e.target.value })} placeholder="Get started" />
-          </Field>
-          <Field label="One-line description" hint="Shown under the track name in some views. Say what the learner will be able to do.">
-            <Input value={track.blurb || ''} onChange={e => set({ blurb: e.target.value })} placeholder="Set up your practice and find your way around" />
-          </Field>
-          <Field label="Colour" hint="Tints the course thumbnails in this track, so learners can tell modules apart at a glance.">
-            <div style={{ display: 'flex', gap: 7 }}>
-              {TRACK_COLORS.map(c => (
-                <button key={c.hex} data-btn onClick={() => set({ color: c.hex })} title={c.label}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600,
-                    border: `1px solid ${track.color === c.hex ? c.hex : T.border}`, background: track.color === c.hex ? withAlpha(c.hex, 0.10) : T.card, color: track.color === c.hex ? c.hex : T.muted }}>
-                  <span style={{ width: 11, height: 11, borderRadius: 999, background: c.hex }} />{c.label}
-                </button>
-              ))}
-            </div>
-          </Field>
-          <Field label="Id" hint="Used by the app to remember which chip a course belongs to. Changing it detaches every course below — rename the label instead unless you know why you're doing this.">
-            <Input value={track.id} onChange={e => {
-              const next = slug(e.target.value) || track.id;
-              edit(d => {
-                (d.courses || []).forEach(c => { if (c.track === track.id) c.track = next; });
-                const t = (d.tracks || []).find(x => x.id === track.id); if (t) t.id = next;
-              });
-            }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
-          </Field>
-        </div>
-      </Card>
-      <Card>
-        <SectionTitle style={{ marginBottom: 10 }}>Courses in this track</SectionTitle>
-        {owned.length === 0
-          ? <Helper>None yet. Use the + on the track row in the tree.</Helper>
-          : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {owned.map(c => (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                  <Icon name={c.icon || 'bookOpen'} size={13} color={T.mutedSoft} />
-                  <span style={{ flex: 1 }}>{c.title || 'Untitled'}</span>
-                  <span style={{ color: T.mutedSoft, fontSize: 11 }}>{plural((c.lessons || []).length, 'lesson')} · {courseMins(c)} min</span>
-                </div>
-              ))}
-            </div>}
-      </Card>
-    </EditorShell>
-  );
-};
-
 const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, otherProductLabel, setSel }) => {
   const set = (patch) => edit(d => { const c = findCourse(d, course.id); if (c) Object.assign(c, patch); });
   const tracks = doc.tracks || [];
@@ -1069,7 +966,7 @@ const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, othe
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <SectionTitle>Lessons</SectionTitle>
-          <Helper style={{ fontSize: 11 }}>{plural(lessons.length, 'lesson')} · {courseMins(course)} min total</Helper>
+          <Helper style={{ fontSize: 11 }}>{plural(lessons.length, 'chapter')} · {courseMins(course)} min total</Helper>
         </div>
         {lessons.length === 0
           ? <Helper>No lessons yet. Add them from the tree on the left.</Helper>
@@ -1224,7 +1121,7 @@ const VideoField = ({ lesson, onApply, fireToast }) => {
   );
 };
 
-const LessonEditor = ({ doc, course, lesson, edit, fireToast, owners, setSel }) => {
+const LessonEditor = ({ doc, course, lesson, edit, fireToast, setSel }) => {
   const set = (patch) => edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) Object.assign(l, patch); });
   const setProd = (patch) => edit(d => {
     const l = findLesson(d, course.id, lesson.id);
@@ -1233,10 +1130,15 @@ const LessonEditor = ({ doc, course, lesson, edit, fireToast, owners, setSel }) 
   const prod = lesson.production || {};
   const lessons = course.lessons || [];
   const idx = lessons.indexOf(lesson);
+  const hasVideo = !!(lesson.videoUrl || lesson.embedUrl);
+  // Everything below the fold. These fields are already filled in from the
+  // starter curriculum and are almost never the reason someone opened a chapter,
+  // so they stay out of the way until asked for.
+  const [more, setMore] = useState(false);
 
   return (
-    <EditorShell eyebrow={`Lesson ${idx + 1} of ${lessons.length} · ${course.title || 'Untitled course'}`}
-      title={lesson.title || 'Untitled lesson'} icon="video" color={trackColorOf(doc, course.track)}
+    <EditorShell eyebrow={`Chapter ${idx + 1} of ${lessons.length} · ${course.title || 'Untitled module'}`}
+      title={lesson.title || 'Untitled chapter'} icon="video" color={trackColorOf(doc, course.track)}
       actions={<>
         <Btn variant="outline" size="sm" icon="chevronUp" disabled={idx <= 0}
           onClick={() => setSel({ kind: 'lesson', id: lessons[idx - 1].id, courseId: course.id })}>Prev</Btn>
@@ -1244,842 +1146,121 @@ const LessonEditor = ({ doc, course, lesson, edit, fireToast, owners, setSel }) 
           onClick={() => setSel({ kind: 'lesson', id: lessons[idx + 1].id, courseId: course.id })}>Next</Btn>
       </>}>
 
-      <Card>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <Field label="Lesson title" hint="Phrase it as the thing the learner will be able to do — “Running a payrun, step by step”.">
-            <Input value={lesson.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Running a payrun, step by step" />
-          </Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 12 }}>
-            <Field label="Length (min)" hint="Rounded up.">
-              <Input type="number" min="0" value={lesson.mins || 0} onChange={e => set({ mins: Math.max(0, Number(e.target.value) || 0) })} />
-            </Field>
-            <Field label="Search keywords" hint="Extra words that should find this lesson. Add the phrases people would actually type — “life cycle”, “helicopter view”.">
-              <Input value={(lesson.tags || []).join(', ')}
-                onChange={e => set({ tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                placeholder="payrun, wizard, payslips" />
-            </Field>
-          </div>
-          <Field label="Description" hint="One or two sentences shown under the player.">
-            <Textarea rows={3} value={lesson.description || ''} onChange={e => set({ description: e.target.value })}
-              placeholder="Walk the payrun wizard: Basic info → Pay list → Expenses → Deductions → Review." />
-          </Field>
-        </div>
-      </Card>
-
+      {/* The video comes first because it is the reason this tool exists. */}
       <VideoField lesson={lesson} onApply={set} fireToast={fireToast} />
 
-      <Card>
-        <Field label="Screen Tour link (optional)" hint="The id of a Screen Tour walkthrough (pages/screen-tour.html#<id>) — e.g. practice-dashboard, helicopter-view, pipeline-forecast. Leave blank if there's no matching annotated walkthrough.">
-          <Input value={lesson.tour || ''} onChange={e => set({ tour: e.target.value })} placeholder="practice-dashboard" />
-        </Field>
-      </Card>
-
-      <Card>
-        <SectionTitle style={{ marginBottom: 4 }}>What they'll be able to do</SectionTitle>
-        <Helper style={{ marginBottom: 11 }}>Three is the sweet spot. Shown as a checklist beside the video — skip it and the lesson still works.</Helper>
-        <StringListEditor items={lesson.takeaways} onChange={v => set({ takeaways: v })}
-          placeholder="Start a payrun and pick the pay period" addLabel="Add a takeaway" />
-      </Card>
-
-      <Card>
-        <SectionTitle style={{ marginBottom: 4 }}>Transcript</SectionTitle>
-        <Helper style={{ marginBottom: 11 }}>
-          Paste the transcript here. It makes the lesson findable by search and gives people who'd rather read than watch something to read. Blank lines become paragraphs.
-        </Helper>
-        <Textarea rows={8} value={lesson.transcript || ''} onChange={e => set({ transcript: e.target.value })}
-          placeholder="Welcome to Sole Practice Manager. In the next few minutes we'll walk through…" />
-        <Helper style={{ fontSize: 10.5, marginTop: 6 }}>
-          {(lesson.transcript || '').trim() ? `${(lesson.transcript || '').trim().split(/\s+/).length} words` : 'Empty'}
-        </Helper>
-      </Card>
-
-      <Card>
-        <SectionTitle style={{ marginBottom: 4 }}>Downloads &amp; links</SectionTitle>
-        <Helper style={{ marginBottom: 11 }}>Checklists, templates or reference pages that go with the lesson. Upload files in Media first, then paste the link here.</Helper>
-        <ResourceListEditor items={lesson.resources} onChange={v => set({ resources: v })} />
-      </Card>
-
-      <Card style={{ background: T.fieldBg }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <Icon name="clipboardCheck" size={15} color={T.muted} />
-          <SectionTitle>Production</SectionTitle>
-          <Pill color={T.mutedSoft}>Internal only</Pill>
-        </div>
-        <Helper style={{ marginBottom: 13 }}>Just for us — none of this reaches learners or gets published.</Helper>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-          <Field label="Status">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {STATUSES.map(s => (
-                <Chip key={s.id} tone={s.color} selected={(prod.status || 'idea') === s.id} onClick={() => setProd({ status: s.id })}>{s.label}</Chip>
-              ))}
+      {/* One honest line about what a learner sees right now. It is derived from
+          whether a video is attached, never from a status someone forgot to
+          change, which is what used to let a chapter claim to be ready when it
+          had nothing behind it. */}
+      <Card style={{ background: hasVideo ? T.greenSoft : T.fieldBg, borderColor: hasVideo ? '#A7F3D0' : T.border }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <Icon name={hasVideo ? 'check' : 'clock'} size={15} color={hasVideo ? T.greenDark : T.muted} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: hasVideo ? T.greenDark : T.textSoft }}>
+              {hasVideo ? 'Live for learners once you publish' : (prod.status === 'recording' ? 'Shows as "Being recorded now"' : 'Shows as "Coming soon"')}
             </div>
+            <Helper style={{ marginTop: 2 }}>
+              {hasVideo
+                ? 'A video is attached, so this chapter can be watched and counts towards the module.'
+                : 'No video yet. The chapter still shows its title and description, with no play button.'}
+            </Helper>
+          </div>
+          {!hasVideo && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: T.textSoft, whiteSpace: 'nowrap' }}>
+              <input type="checkbox" checked={prod.status === 'recording'}
+                onChange={e => setProd({ status: e.target.checked ? 'recording' : 'idea' })} />
+              Being recorded
+            </label>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Field label="Chapter title" hint="Phrase it as the thing the learner will be able to do.">
+            <Input value={lesson.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Running a payrun, step by step" />
           </Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 12 }}>
-            <Field label="Owner" hint="Who's got this one.">
-              <Input list="academy-owners" value={prod.owner || ''} onChange={e => setProd({ owner: e.target.value })} placeholder="Juhi" />
-              <datalist id="academy-owners">{(owners || []).map(o => <option key={o} value={o} />)}</datalist>
+          <Field label="Length (min)" hint="Rounded up.">
+            <Input type="number" min="0" style={{ maxWidth: 120 }} value={lesson.mins || 0}
+              onChange={e => set({ mins: Math.max(0, Number(e.target.value) || 0) })} />
+          </Field>
+          <Field label="Description" hint="One or two sentences shown under the player.">
+            <Textarea rows={3} value={lesson.description || ''} onChange={e => set({ description: e.target.value })}
+              placeholder="Walk the payrun wizard: Basic info, Pay list, Expenses, Deductions, Review." />
+          </Field>
+        </div>
+      </Card>
+
+      <button data-btn onClick={() => setMore(m => !m)} style={{
+        display: 'flex', alignItems: 'center', gap: 7, width: '100%', padding: '9px 12px',
+        border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card,
+        color: T.muted, fontSize: 12, fontWeight: 600, textAlign: 'left' }}>
+        <Icon name={more ? 'chevronDown' : 'chevronRight'} size={13} color={T.mutedSoft} />
+        {more ? 'Hide the rest' : 'More detail'}
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 10.5, fontWeight: 500, color: T.mutedSoft }}>takeaways · transcript · downloads · id</span>
+      </button>
+
+      {more && (<>
+        <Card>
+          <SectionTitle style={{ marginBottom: 4 }}>What they&rsquo;ll be able to do</SectionTitle>
+          <Helper style={{ marginBottom: 11 }}>Three is the sweet spot. Shown as a checklist beside the video.</Helper>
+          <StringListEditor items={lesson.takeaways} onChange={v => set({ takeaways: v })}
+            placeholder="Start a payrun and pick the pay period" addLabel="Add a takeaway" />
+        </Card>
+
+        <Card>
+          <SectionTitle style={{ marginBottom: 4 }}>Transcript</SectionTitle>
+          <Helper style={{ marginBottom: 11 }}>Makes the chapter findable by search and gives people who would rather read something to read. Blank lines become paragraphs.</Helper>
+          <Textarea rows={8} value={lesson.transcript || ''} onChange={e => set({ transcript: e.target.value })}
+            placeholder="Welcome to Sole Practice Manager. In the next few minutes we'll walk through…" />
+          <Helper style={{ fontSize: 10.5, marginTop: 6 }}>
+            {(lesson.transcript || '').trim() ? `${(lesson.transcript || '').trim().split(/\s+/).length} words` : 'Empty'}
+          </Helper>
+        </Card>
+
+        <Card>
+          <SectionTitle style={{ marginBottom: 4 }}>Downloads &amp; links</SectionTitle>
+          <Helper style={{ marginBottom: 11 }}>Checklists, templates or reference pages that go with the chapter.</Helper>
+          <ResourceListEditor items={lesson.resources} onChange={v => set({ resources: v })} />
+        </Card>
+
+        <Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Field label="Search keywords" hint="Extra words that should find this chapter.">
+              <Input value={(lesson.tags || []).join(', ')}
+                onChange={e => set({ tags: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })}
+                placeholder="payrun, wizard, payslips" />
             </Field>
-            <Field label="Due">
-              <Input type="date" value={prod.due || ''} onChange={e => setProd({ due: e.target.value })} />
+            <Field label="Screen Tour link" hint="Optional. The id of an annotated walkthrough, e.g. practice-dashboard.">
+              <Input value={lesson.tour || ''} onChange={e => set({ tour: e.target.value })} placeholder="practice-dashboard" />
+            </Field>
+            <Field label="Chapter id" hint="Progress is stored against this. Changing it marks the chapter unwatched for everyone.">
+              <Input value={lesson.id} onChange={e => {
+                const next = slug(e.target.value) || lesson.id;
+                edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) l.id = next; });
+                setSel({ kind: 'lesson', id: next, courseId: course.id });
+              }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
             </Field>
           </div>
-          <Field label="Notes" hint="Anything the next person needs to know — “re-record intro”, “waiting on Johann”.">
-            <Textarea rows={2} value={prod.notes || ''} onChange={e => setProd({ notes: e.target.value })} placeholder="" />
-          </Field>
-        </div>
-      </Card>
-
-      <Card>
-        <Field label="Lesson id" hint="Learner progress is stored against this. Changing it marks the lesson unwatched for everyone.">
-          <Input value={lesson.id} onChange={e => {
-            const next = slug(e.target.value) || lesson.id;
-            edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) l.id = next; });
-            setSel({ kind: 'lesson', id: next, courseId: course.id });
-          }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
-        </Field>
-      </Card>
+        </Card>
+      </>)}
     </EditorShell>
   );
 };
 
-/* ===== learning paths ===================================================== */
-const PathsScreen = ({ doc, edit, fireToast }) => {
-  const paths = doc.paths || [];
-  const [selId, setSelId] = useState(paths.length ? paths[0].id : null);
-  const path = paths.find(p => p.id === selId) || null;
-  const pathDnd = useDragOrder((f, t) => edit(d => { d.paths = moveItem(d.paths, f, t); }));
-
-  const addPath = () => {
-    const p = emptyPath();
-    p.title = 'New learning path';
-    edit(d => { d.paths.push(p); });
-    setSelId(p.id);
-  };
-  const set = (patch) => edit(d => { const p = (d.paths || []).find(x => x.id === selId); if (p) Object.assign(p, patch); });
-  const deletePath = (p) => {
-    const snapshot = clone(doc.paths);
-    edit(d => { d.paths = d.paths.filter(x => x.id !== p.id); });
-    if (selId === p.id) setSelId(null);
-    fireToast({ message: `Deleted "${p.title || 'path'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.paths = snapshot; }) } });
-  };
-
-  const inPath = (path ? path.courseIds : []) || [];
-  const available = (doc.courses || []).filter(c => !inPath.includes(c.id));
-  const moveCourse = (f, t) => set({ courseIds: moveItem(inPath, f, t) });
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '280px minmax(0,1fr)', height: '100%', minHeight: 0 }}>
-      <div style={{ borderRight: `1px solid ${T.border}`, background: T.card, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
-          <div>
-            <div style={{ fontSize: 12.5, fontWeight: 700 }}>Learning paths</div>
-            <Helper style={{ fontSize: 10.5 }}>{plural(paths.length, 'path')}</Helper>
-          </div>
-          <Btn variant="soft" size="sm" icon="plus" onClick={addPath}>Path</Btn>
-        </div>
-        <div className="scroll" style={{ flex: 1, padding: 8 }}>
-          {paths.length === 0 && <EmptyState icon="graduation" title="No paths yet" hint="A path is a recommended order of courses for one kind of person — “new team member”, “payroll specialist”." action={<Btn variant="primary" size="sm" icon="plus" onClick={addPath}>Add a path</Btn>} />}
-          {paths.map((p, i) => {
-            const selected = p.id === selId;
-            const missing = (p.courseIds || []).filter(id => !findCourse(doc, id)).length;
-            return (
-              <div key={p.id} {...pathDnd(i)} data-row onClick={() => setSelId(p.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 9px', marginBottom: 3, borderRadius: T.radius, cursor: 'pointer', background: selected ? T.primarySoft : 'transparent' }}
-                onMouseEnter={e => { if (!selected) e.currentTarget.style.background = T.fieldBg; }}
-                onMouseLeave={e => { if (!selected) e.currentTarget.style.background = 'transparent'; }}>
-                <Icon name="graduation" size={13} color={selected ? T.primary : T.mutedSoft} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || 'Untitled path'}</div>
-                  <div style={{ fontSize: 10, color: T.mutedSoft }}>{plural((p.courseIds || []).length, 'course')}{missing ? ` · ${missing} broken` : ''}</div>
-                </div>
-                {missing > 0 && <Icon name="alertTriangle" size={12} color={T.red} />}
-                <RowActions canUp={i > 0} canDown={i < paths.length - 1}
-                  onUp={() => edit(d => { d.paths = moveItem(d.paths, i, i - 1); })}
-                  onDown={() => edit(d => { d.paths = moveItem(d.paths, i, i + 1); })}
-                  onDelete={() => deletePath(p)} />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {!path ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <EmptyState icon="graduation" title="Pick a path" hint="Or add a new one to get started." />
-        </div>
-      ) : (
-        <EditorShell eyebrow="Learning path" title={path.title || 'Untitled path'} icon="graduation" color={T.primary}>
-          <Card>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <Field label="Title">
-                <Input value={path.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Getting started (new team member)" />
-              </Field>
-              <Field label="Who it's for" hint="Appears as a small line on the card — “Everyone · first week”.">
-                <Input value={path.forRole || ''} onChange={e => set({ forRole: e.target.value })} placeholder="Everyone · first week" />
-              </Field>
-              <Field label="Blurb" hint="One sentence on why someone would take this path.">
-                <Textarea rows={2} value={path.blurb || ''} onChange={e => set({ blurb: e.target.value })} placeholder="The essentials every new user needs before touching live client work." />
-              </Field>
-            </div>
-          </Card>
-
-          <Card>
-            <SectionTitle style={{ marginBottom: 4 }}>Courses, in order</SectionTitle>
-            <Helper style={{ marginBottom: 12 }}>Learners are pointed at the first one they haven't finished, so the order matters.</Helper>
-            {inPath.length === 0
-              ? <Helper style={{ marginBottom: 12 }}>Nothing added yet.</Helper>
-              : <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
-                  {inPath.map((cid, i) => {
-                    const c = findCourse(doc, cid);
-                    return (
-                      <div key={cid + i} data-row style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: T.radius, border: `1px solid ${c ? T.borderSoft : withAlpha(T.red, 0.4)}`, background: c ? T.fieldBg : T.redSoft }}>
-                        <span style={{ fontSize: 10.5, color: T.mutedSoft, width: 14, fontVariantNumeric: 'tabular-nums' }}>{i + 1}</span>
-                        {c ? (
-                          <>
-                            <Icon name={c.icon || 'bookOpen'} size={13} color={trackColorOf(doc, c.track)} />
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title || 'Untitled'}</span>
-                            <span style={{ fontSize: 10.5, color: T.mutedSoft }}>{plural((c.lessons || []).length, 'lesson')}</span>
-                          </>
-                        ) : (
-                          <span style={{ flex: 1, fontSize: 12, color: T.red }}>Deleted course — “{cid}”. Remove it.</span>
-                        )}
-                        <RowActions canUp={i > 0} canDown={i < inPath.length - 1}
-                          onUp={() => moveCourse(i, i - 1)} onDown={() => moveCourse(i, i + 1)}
-                          onDelete={() => set({ courseIds: inPath.filter((_, j) => j !== i) })} />
-                      </div>
-                    );
-                  })}
-                </div>}
-            <Select value="" onChange={e => { if (e.target.value) set({ courseIds: inPath.concat(e.target.value) }); }}>
-              <option value="">+ Add a course to this path…</option>
-              {available.map(c => <option key={c.id} value={c.id}>{c.title || c.id}</option>)}
-            </Select>
-            {available.length === 0 && inPath.length > 0 && <Helper style={{ fontSize: 10.5, marginTop: 6 }}>Every course is already in this path.</Helper>}
-          </Card>
-        </EditorShell>
-      )}
-    </div>
-  );
-};
 
 /* ===== production board ===================================================
-   Every lesson in one list, grouped by where it's up to. This is the screen that
-   answers "what's left and who has it" without anyone calling a meeting. */
-const ProductionScreen = ({ doc, edit, jumpToLesson, owners }) => {
-  const [q, setQ] = useState('');
-  const [owner, setOwner] = useState('all');
-  const [courseId, setCourseId] = useState('all');
-  const rows = allLessons(doc);
-
-  const counts = STATUSES.map(s => ({ ...s, n: rows.filter(r => (r.lesson.production && r.lesson.production.status || 'idea') === s.id).length }));
-  const total = rows.length;
-  const done = counts.find(c => c.id === 'published');
-  const query = q.trim().toLowerCase();
-
-  const filtered = rows.filter(({ lesson, course }) => {
-    const p = lesson.production || {};
-    if (owner !== 'all' && (p.owner || '') !== owner) return false;
-    if (courseId !== 'all' && course.id !== courseId) return false;
-    if (query && !((lesson.title || '') + ' ' + (course.title || '') + ' ' + (p.owner || '') + ' ' + (p.notes || '')).toLowerCase().includes(query)) return false;
-    return true;
-  });
-
-  const setStatus = (course, lesson, status) => edit(d => {
-    const l = findLesson(d, course.id, lesson.id);
-    if (l) l.production = { ...(l.production || {}), status };
-  });
-  const setOwnerOn = (course, lesson, v) => edit(d => {
-    const l = findLesson(d, course.id, lesson.id);
-    if (l) l.production = { ...(l.production || {}), owner: v };
-  });
-  const setDue = (course, lesson, v) => edit(d => {
-    const l = findLesson(d, course.id, lesson.id);
-    if (l) l.production = { ...(l.production || {}), due: v };
-  });
-
-  const overdue = (p) => {
-    if (!p || !p.due || p.status === 'published') return false;
-    const d = new Date(p.due + 'T23:59:59');
-    return !isNaN(d.getTime()) && d.getTime() < Date.now();
-  };
-
-  return (
-    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
-      <div style={{ marginBottom: 16 }}>
-        <SectionTitle style={{ fontSize: 16 }}>Production</SectionTitle>
-        <Helper style={{ marginTop: 2 }}>Where every lesson is up to. Internal only — none of this is published.</Helper>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 9, marginBottom: 14 }}>
-        {counts.map(c => (
-          <Card key={c.id} pad={12}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 700, color: c.color, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-              <span style={{ width: 7, height: 7, borderRadius: 999, background: c.color }} />{c.label}
-            </div>
-            <div style={{ fontSize: 21, fontWeight: 800, marginTop: 5, letterSpacing: -0.5 }}>{c.n}</div>
-          </Card>
-        ))}
-      </div>
-
-      <Card style={{ marginBottom: 14 }} pad={13}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 12, fontWeight: 600 }}>{done ? done.n : 0} of {total} lessons published</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: T.primary }}>{total ? Math.round(((done ? done.n : 0) / total) * 100) : 0}%</div>
-        </div>
-        <ProgressBar pct={total ? ((done ? done.n : 0) / total) * 100 : 0} color={T.green} height={7} />
-      </Card>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card, minWidth: 220 }}>
-          <Icon name="search" size={13} color={T.muted} />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search lessons, owners, notes…"
-            style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5 }} />
-          {q && <button data-btn onClick={() => setQ('')} aria-label="Clear" style={{ border: 'none', background: 'transparent', padding: 0, color: T.muted }}><Icon name="close" size={12} /></button>}
-        </div>
-        <Select value={owner} onChange={e => setOwner(e.target.value)} style={{ width: 'auto', minWidth: 130 }}>
-          <option value="all">Everyone</option>
-          <option value="">Unassigned</option>
-          {owners.map(o => <option key={o} value={o}>{o}</option>)}
-        </Select>
-        <Select value={courseId} onChange={e => setCourseId(e.target.value)} style={{ width: 'auto', maxWidth: 240 }}>
-          <option value="all">All courses</option>
-          {(doc.courses || []).map(c => <option key={c.id} value={c.id}>{c.title || c.id}</option>)}
-        </Select>
-        <Helper style={{ fontSize: 11 }}>{filtered.length} of {total}</Helper>
-      </div>
-
-      {filtered.length === 0 ? (
-        <Card><EmptyState icon="search" title="Nothing matches" hint="Try a different owner, course or search." /></Card>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {STATUSES.map(s => {
-            const group = filtered.filter(r => ((r.lesson.production && r.lesson.production.status) || 'idea') === s.id);
-            if (!group.length) return null;
-            return (
-              <div key={s.id}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 999, background: s.color }} />
-                  <div style={{ fontSize: 12.5, fontWeight: 700 }}>{s.label}</div>
-                  <Helper style={{ fontSize: 11 }}>{s.blurb} · {group.length}</Helper>
-                </div>
-                <Card pad={0} style={{ overflow: 'hidden' }}>
-                  {group.map(({ lesson, course }, i) => {
-                    const p = lesson.production || {};
-                    const late = overdue(p);
-                    return (
-                      <div key={lesson.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1.2fr) 130px 132px 118px', gap: 10, alignItems: 'center',
-                        padding: '9px 13px', borderTop: i ? `1px solid ${T.borderSoft}` : 'none' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <button data-btn onClick={() => jumpToLesson(course.id, lesson.id)}
-                            style={{ border: 'none', background: 'transparent', padding: 0, textAlign: 'left', fontSize: 12.5, fontWeight: 600, color: T.text, display: 'flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
-                            <Icon name={lessonHasVideo(lesson) ? 'video' : 'clock'} size={12} color={lessonHasVideo(lesson) ? T.greenDark : T.borderStrong} />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lesson.title || 'Untitled lesson'}</span>
-                          </button>
-                          {p.notes && <div style={{ fontSize: 10.5, color: T.mutedSoft, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.notes}</div>}
-                        </div>
-                        <div style={{ fontSize: 11, color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{course.title || 'Untitled course'}</div>
-                        <Input list="academy-owners" value={p.owner || ''} placeholder="Unassigned"
-                          onChange={e => setOwnerOn(course, lesson, e.target.value)} style={{ padding: '4px 8px', fontSize: 11.5 }} />
-                        <Input type="date" value={p.due || ''} onChange={e => setDue(course, lesson, e.target.value)}
-                          style={{ padding: '4px 8px', fontSize: 11.5, borderColor: late ? T.red : T.border, color: late ? T.red : T.text }} />
-                        <Select value={p.status || 'idea'} onChange={e => setStatus(course, lesson, e.target.value)} style={{ padding: '4px 8px', fontSize: 11.5 }}>
-                          {STATUSES.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}
-                        </Select>
-                      </div>
-                    );
-                  })}
-                </Card>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <datalist id="academy-owners">{owners.map(o => <option key={o} value={o} />)}</datalist>
-    </div>
-  );
-};
-
-/* ===== preview ============================================================
-   Ports the live Academy's presentation components (AcademyThumb, CourseCard,
-   LearningPathCard, LessonRow, VideoStage from index.html) so the team sees the
-   real thing, not an approximation. Progress is always shown as "not started" —
-   this previews content, not a particular learner's state. */
-const AcademyThumb = ({ doc, course, playSize = 54, watermark = 132, radius = T.radiusLg }) => {
-  const color = trackColorOf(doc, course.track);
-  const icon = course.icon || 'bookOpen';
-  const lessons = course.lessons || [];
-  const firstThumb = (lessons.find(l => l.thumbUrl) || {}).thumbUrl;
-  return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: radius, overflow: 'hidden',
-      background: firstThumb ? `#000 center/cover no-repeat url("${firstThumb}")` : `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.44)} 100%)` }}>
-      {!firstThumb && <>
-        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(120% 84% at 12% -8%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 52%)` }} />
-        <div style={{ position: 'absolute', right: -20, bottom: -26, opacity: 0.15, transform: 'rotate(-8deg)', pointerEvents: 'none' }}>
-          <Icon name={icon} size={watermark} color="#fff" strokeWidth={1.3} />
-        </div>
-      </>}
-      {firstThumb && <div style={{ position: 'absolute', inset: 0, background: withAlpha('#0F1117', 0.28) }} />}
-      <div style={{ position: 'absolute', top: 12, right: 12, display: 'inline-flex', alignItems: 'center', gap: 5, background: withAlpha('#0F1117', 0.34), color: '#fff', fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, backdropFilter: 'blur(4px)' }}>
-        <Icon name="clock" size={11} color="#fff" />{courseMins(course)} min
-      </div>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: playSize, height: playSize, borderRadius: '50%', background: withAlpha('#FFFFFF', 0.97), display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 28px rgba(0,0,0,0.30)' }}>
-          <svg width={Math.round(playSize * 0.33)} height={Math.round(playSize * 0.33)} viewBox="0 0 24 24" fill={color} style={{ marginLeft: 2 }}><polygon points="6,4 20,12 6,20" /></svg>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const PreviewCourseCard = ({ doc, course, onOpen }) => {
-  const track = trackById(doc, course.track);
-  const color = trackColorOf(doc, course.track);
-  return (
-    <div onClick={onOpen} role="button" tabIndex={0}
-      style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusCard, background: T.card, overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column', boxShadow: T.shadowSm }}>
-      <AcademyThumb doc={doc} course={course} radius={0} />
-      <div style={{ padding: 15, display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, fontWeight: 600, color }}>
-            <Icon name={course.icon || 'bookOpen'} size={12} color={color} />{track ? track.label : 'No track'}
-          </span>
-          <span style={{ width: 3, height: 3, borderRadius: 999, background: T.mutedSoft }} />
-          <span style={{ fontSize: 10.5, color: T.muted }}>{course.level || 'Beginner'}</span>
-        </div>
-        <div style={{ fontSize: 14.5, fontWeight: 700, color: T.text, lineHeight: 1.3, letterSpacing: -0.2 }}>{course.title || 'Untitled course'}</div>
-        <Helper style={{ fontSize: 11.5, lineHeight: 1.5, flex: 1 }}>{course.summary || <span style={{ color: T.mutedSoft, fontStyle: 'italic' }}>No summary yet</span>}</Helper>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: T.muted }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{plural((course.lessons || []).length, 'lesson')}</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color }}>Start<Icon name="arrow" size={12} color={color} /></span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const PreviewPathCard = ({ doc, path }) => {
-  const courses = (path.courseIds || []).map(id => findCourse(doc, id)).filter(Boolean);
-  const lessons = courses.flatMap(c => c.lessons || []);
-  const mins = courses.reduce((s, c) => s + courseMins(c), 0);
-  const next = courses[0];
-  return (
-    <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusCard, background: T.card, padding: 16, boxShadow: T.shadowSm, display: 'flex', flexDirection: 'column', gap: 11 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
-        <span style={{ width: 34, height: 34, borderRadius: 10, background: T.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Icon name="graduation" size={17} color={T.primary} />
-        </span>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -0.2 }}>{path.title || 'Untitled path'}</div>
-          <div style={{ fontSize: 10.5, color: T.muted, marginTop: 1 }}>{path.forRole || '—'}</div>
-        </div>
-      </div>
-      <Helper style={{ fontSize: 11.5 }}>{path.blurb || <span style={{ color: T.mutedSoft, fontStyle: 'italic' }}>No blurb yet</span>}</Helper>
-      <div style={{ display: 'flex', gap: 3 }}>
-        {courses.map(c => <div key={c.id} style={{ flex: 1, height: 4, borderRadius: 999, background: withAlpha(trackColorOf(doc, c.track), 0.35) }} />)}
-      </div>
-      {next && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: T.radius, background: T.fieldBg, border: `1px solid ${T.borderSoft}` }}>
-          <span style={{ width: 28, height: 28, borderRadius: 8, background: T.card, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Icon name={next.icon || 'bookOpen'} size={14} color={trackColorOf(doc, next.track)} />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', color: T.mutedSoft }}>Start with</div>
-            <div style={{ fontSize: 11.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{next.title || 'Untitled'}</div>
-          </div>
-        </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 11, color: T.muted }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="layers" size={12} color={T.mutedSoft} />{plural(courses.length, 'course')}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="bookOpen" size={12} color={T.mutedSoft} />{plural(lessons.length, 'lesson')}</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Icon name="clock" size={12} color={T.mutedSoft} />{mins} min</span>
-      </div>
-    </div>
-  );
-};
-
 /* The 16:9 stage, matching index.html's VideoStage: a real player when there's a
    video, otherwise the branded poster learners actually get. */
-const PreviewStage = ({ doc, course, lesson }) => {
-  const [playing, setPlaying] = useState(false);
-  const color = trackColorOf(doc, course.track);
-  useEffect(() => { setPlaying(false); }, [lesson.id]);
-  const stage = { position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radiusLg, overflow: 'hidden' };
-
-  if (playing && lesson.videoUrl) return (
-    <div style={{ ...stage, background: '#000' }}>
-      <video src={lesson.videoUrl} controls autoPlay preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
-    </div>
-  );
-  if (playing && lesson.embedUrl) {
-    const src = lesson.embedUrl + (lesson.embedUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-    return (
-      <div style={{ ...stage, background: '#000' }}>
-        <iframe src={src} title={lesson.title} frameBorder="0" allow="autoplay; encrypted-media; fullscreen" allowFullScreen
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} />
-      </div>
-    );
-  }
-  // Matches index.html: the poster always offers a play button; a lesson with no
-  // footage yet only reveals "coming soon" once the learner actually clicks it.
-  const comingSoon = playing && !lessonHasVideo(lesson);
-  return (
-    <div style={{ ...stage, background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.46)} 100%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: `radial-gradient(110% 80% at 14% -6%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 50%)` }} />
-      <div style={{ position: 'absolute', right: -26, bottom: -32, opacity: 0.13, transform: 'rotate(-8deg)', pointerEvents: 'none' }}>
-        <Icon name={course.icon || 'bookOpen'} size={210} color="#fff" strokeWidth={1.2} />
-      </div>
-      <div style={{ position: 'absolute', top: 16, left: 18, zIndex: 2, maxWidth: '70%' }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.82)' }}>Video lesson</div>
-        <div style={{ fontSize: 17, fontWeight: 700, marginTop: 3, color: '#fff', letterSpacing: -0.2 }}>{lesson.title || 'Untitled lesson'}</div>
-      </div>
-      <div style={{ position: 'absolute', top: 16, right: 18, zIndex: 2, display: 'inline-flex', alignItems: 'center', gap: 5, background: withAlpha('#0F1117', 0.34), color: '#fff', fontSize: 11.5, fontWeight: 600, padding: '4px 9px', borderRadius: 999 }}>
-        <Icon name="clock" size={12} color="#fff" />{lesson.mins || 0} min
-      </div>
-      {comingSoon ? (
-        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', color: '#fff', padding: '0 24px' }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700 }}>Preview coming soon</div>
-          <div style={{ fontSize: 12.5, opacity: 0.88, marginTop: 5, maxWidth: 380, lineHeight: 1.5 }}>The full video for this lesson is being recorded. Explore the feature live in your dashboard, then mark it complete.</div>
-        </div>
-      ) : (
-        <button data-btn onClick={() => setPlaying(true)} aria-label="Play lesson" style={{
-          position: 'relative', zIndex: 2, width: 82, height: 82, borderRadius: '50%', border: 'none',
-          background: withAlpha('#FFFFFF', 0.97), display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 16px 40px rgba(0,0,0,0.30)' }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill={color} style={{ marginLeft: 4 }}><polygon points="6,4 20,12 6,20" /></svg>
-        </button>
-      )}
-    </div>
-  );
-};
-
-const PreviewScreen = ({ doc }) => {
-  const [tab, setTab] = useState('catalog');
-  const [openCourseId, setOpenCourseId] = useState(null);
-  const [lessonId, setLessonId] = useState(null);
-  const courses = doc.courses || [];
-  const paths = doc.paths || [];
-  const tracks = doc.tracks || [];
-  const [track, setTrack] = useState('all');
-
-  const openCourse = courses.find(c => c.id === openCourseId) || null;
-  const lessons = openCourse ? (openCourse.lessons || []) : [];
-  const lesson = lessons.find(l => l.id === lessonId) || lessons[0] || null;
-  const popular = courses.filter(c => c.popular);
-  const shown = track === 'all' ? courses : courses.filter(c => c.track === track);
-
-  const open = (c) => { setOpenCourseId(c.id); setLessonId((c.lessons || [])[0] ? c.lessons[0].id : null); setTab('player'); };
-
-  return (
-    <div className="scroll" style={{ flex: 1, minHeight: 0, background: T.bg }}>
-      <div style={{ padding: '16px 24px 0' }}>
-        <Banner tone="accent" icon="eye" title="This is what learners see">
-          The real Academy components, rendered from your draft. Progress always shows as “not started” — this previews the content, not one person's history.
-        </Banner>
-        <div style={{ display: 'flex', gap: 6, margin: '14px 0 0' }}>
-          {[{ id: 'catalog', label: 'Catalog', icon: 'layers' }, { id: 'paths', label: 'Learning paths', icon: 'graduation' }, { id: 'player', label: 'Course player', icon: 'play' }].map(t => (
-            <Chip key={t.id} selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</Chip>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ padding: '18px 24px 60px' }}>
-        {tab === 'catalog' && (
-          <>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="graduation" size={22} color={T.primary} />{(doc.meta && doc.meta.title) || 'Sole Academy'}
-            </div>
-            <Helper style={{ marginTop: 3, maxWidth: 640 }}>{(doc.meta && doc.meta.blurb) || ''}</Helper>
-
-            {popular.length > 0 && (
-              <div style={{ marginTop: 22 }}>
-                <SectionTitle style={{ marginBottom: 10 }}>Popular courses</SectionTitle>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 14 }}>
-                  {popular.map(c => <PreviewCourseCard key={c.id} doc={doc} course={c} onOpen={() => open(c)} />)}
-                </div>
-              </div>
-            )}
-
-            <div style={{ marginTop: 24 }}>
-              <SectionTitle style={{ marginBottom: 10 }}>All courses</SectionTitle>
-              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
-                <Chip selected={track === 'all'} onClick={() => setTrack('all')}>{`All · ${courses.length}`}</Chip>
-                {tracks.map(t => {
-                  const n = courses.filter(x => x.track === t.id).length;
-                  return n ? <Chip key={t.id} tone={t.color} selected={track === t.id} onClick={() => setTrack(t.id)}>{`${t.label} · ${n}`}</Chip> : null;
-                })}
-              </div>
-              {shown.length === 0
-                ? <Card><EmptyState icon="layers" title="Nothing to show" hint="Add a course in Curriculum and it appears here." /></Card>
-                : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 14 }}>
-                    {shown.map(c => <PreviewCourseCard key={c.id} doc={doc} course={c} onOpen={() => open(c)} />)}
-                  </div>}
-            </div>
-          </>
-        )}
-
-        {tab === 'paths' && (
-          paths.length === 0
-            ? <Card><EmptyState icon="graduation" title="No learning paths" hint="Build one on the Learning paths screen." /></Card>
-            : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))', gap: 14 }}>
-                {paths.map(p => <PreviewPathCard key={p.id} doc={doc} path={p} />)}
-              </div>
-        )}
-
-        {tab === 'player' && (
-          !openCourse || !lesson ? (
-            <Card><EmptyState icon="play" title="Pick a course first"
-              hint="Open one from the Catalog tab to see the lesson player."
-              action={<Btn variant="soft" size="sm" onClick={() => setTab('catalog')}>Go to the catalog</Btn>} /></Card>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 300px', gap: 18, alignItems: 'start' }}>
-              <div>
-                <PreviewStage doc={doc} course={openCourse} lesson={lesson} />
-                <div style={{ marginTop: 16 }}>
-                  <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: -0.3 }}>{lesson.title || 'Untitled lesson'}</div>
-                  <Helper style={{ marginTop: 6, fontSize: 12.5 }}>{lesson.description || ''}</Helper>
-                </div>
-                {(lesson.takeaways || []).filter(Boolean).length > 0 && (
-                  <Card style={{ marginTop: 16 }}>
-                    <SectionTitle style={{ marginBottom: 9 }}>What you'll be able to do</SectionTitle>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {lesson.takeaways.filter(Boolean).map((t, i) => (
-                        <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12.5 }}>
-                          <Icon name="checkCircle" size={14} color={T.greenDark} />{t}
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-                {(lesson.resources || []).filter(r => r.label).length > 0 && (
-                  <Card style={{ marginTop: 14 }}>
-                    <SectionTitle style={{ marginBottom: 9 }}>Downloads</SectionTitle>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {lesson.resources.filter(r => r.label).map((r, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: r.href ? T.primary : T.mutedSoft }}>
-                          <Icon name="download" size={13} color={r.href ? T.primary : T.mutedSoft} />{r.label}{!r.href && <span style={{ fontSize: 10.5 }}>(no link)</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-                {(lesson.transcript || '').trim() && (
-                  <Card style={{ marginTop: 14 }}>
-                    <SectionTitle style={{ marginBottom: 9 }}>Transcript</SectionTitle>
-                    {lesson.transcript.split('\n').filter(p => p.trim()).map((p, i) => (
-                      <p key={i} style={{ margin: '0 0 9px', fontSize: 12.5, lineHeight: 1.62, color: T.textSoft }}>{p}</p>
-                    ))}
-                  </Card>
-                )}
-              </div>
-              <Card pad={0} style={{ overflow: 'hidden' }}>
-                <div style={{ padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700 }}>{openCourse.title || 'Untitled course'}</div>
-                  <Helper style={{ fontSize: 10.5, marginTop: 2 }}>{plural(lessons.length, 'lesson')} · {courseMins(openCourse)} min</Helper>
-                </div>
-                {lessons.map((l, i) => {
-                  const active = l.id === lesson.id;
-                  return (
-                    <div key={l.id} onClick={() => setLessonId(l.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer',
-                        borderTop: i ? `1px solid ${T.borderSoft}` : 'none', background: active ? T.primarySofter : 'transparent' }}>
-                      <span style={{ width: 22, height: 22, borderRadius: 999, border: `1px solid ${active ? T.primary : T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: active ? T.primary : T.mutedSoft, flexShrink: 0 }}>{i + 1}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: active ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || 'Untitled lesson'}</div>
-                        <div style={{ fontSize: 10, color: T.mutedSoft, display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
-                          <Icon name={lessonHasVideo(l) ? 'video' : 'clock'} size={10} color={T.mutedSoft} />{l.mins || 0} min
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </Card>
-            </div>
-          )
-        )}
-      </div>
-    </div>
-  );
-};
 
 /* ===== media library ======================================================
    Thumbnails, checklists and screenshots — the files that go WITH lessons.
    Videos are never uploaded here; they live on YouTube/Vimeo/Loom and the lesson
    stores the link. Shared across both products on purpose: a logo or a checklist
    is rarely product-specific. */
-const MediaScreen = ({ assets, onUpload, onDelete, cloud, fireToast, busy, doc }) => {
-  const [q, setQ] = useState('');
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const fileRef = useRef(null);
-  const query = q.trim().toLowerCase();
-  const shown = assets.filter(a => !query || ((a.name || '') + ' ' + (a.tags || '')).toLowerCase().includes(query));
 
-  // Deleting a file removes the bytes from storage — there's nothing to undo, so
-  // this confirms instead. It also checks whether any lesson still links to the
-  // file, because a silent 404 in a published lesson is the worst outcome here.
-  const usedBy = (asset) => {
-    const url = asset && (asset.url || asset.public_url);
-    if (!url || !doc) return [];
-    const hits = [];
-    (doc.courses || []).forEach(c => (c.lessons || []).forEach(l => {
-      const inResources = (l.resources || []).some(r => r.href === url);
-      const inThumb = l.thumbUrl === url;
-      if (inResources || inThumb) hits.push(`${l.title || 'Untitled lesson'} (${c.title || 'Untitled course'})`);
-    }));
-    return hits;
-  };
-
-  const copy = (url) => {
-    if (!url) return;
-    if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => fireToast('Link copied'), () => fireToast({ message: 'Could not copy', tone: 'error' }));
-    else fireToast({ message: 'Clipboard not available', tone: 'warn' });
-  };
-
-  return (
-    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div>
-          <SectionTitle style={{ fontSize: 16 }}>Media</SectionTitle>
-          <Helper style={{ marginTop: 2, maxWidth: 560 }}>
-            Thumbnails, checklists and screenshots. Upload once, paste the link into any lesson's Downloads. Shared across both products.
-          </Helper>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.docx,.xlsx,.csv" style={{ display: 'none' }}
-            onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) onUpload(fs); e.target.value = ''; }} />
-          <Btn variant="primary" size="sm" icon="upload" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy}>
-            {busy ? 'Uploading…' : 'Upload files'}
-          </Btn>
-        </div>
-      </div>
-
-      {!cloud && (
-        <Banner tone="warn" icon="alertTriangle" title="Local only — these files are in this browser" style={{ marginBottom: 16 }}>
-          Uploads are held in this browser until the shared backend is connected, so teammates can't see them and a cleared cache loses them. Fine for trying things out; connect Supabase before you rely on it. See <b>docs/ACADEMY_STUDIO_SETUP.md</b>.
-        </Banner>
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 11px', border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card, maxWidth: 300, marginBottom: 16 }}>
-        <Icon name="search" size={13} color={T.muted} />
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search files…"
-          style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 12.5 }} />
-      </div>
-
-      {shown.length === 0 ? (
-        <Card><EmptyState icon="image" title={assets.length ? 'Nothing matches' : 'No files yet'}
-          hint={assets.length ? 'Try a different search.' : 'Upload a checklist PDF or a custom thumbnail and it appears here, ready to link from any lesson.'}
-          action={!assets.length ? <Btn variant="soft" size="sm" icon="upload" onClick={() => fileRef.current && fileRef.current.click()}>Upload a file</Btn> : null} /></Card>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px,1fr))', gap: 13 }}>
-          {shown.map(a => {
-            const url = a.url || a.public_url || a.dataUri;
-            const isImg = /^image\//.test(a.mime || '') || /\.(png|jpe?g|gif|webp|svg)$/i.test(a.name || '');
-            return (
-              <Card key={a.id} pad={0} style={{ overflow: 'hidden' }}>
-                <div style={{ height: 104, background: T.fieldBg, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: `1px solid ${T.borderSoft}` }}>
-                  {isImg && url
-                    ? <img src={url} alt={a.name || ''} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                    : <Icon name="fileText" size={26} color={T.mutedSoft} />}
-                </div>
-                <div style={{ padding: 10 }}>
-                  <div title={a.name} style={{ fontSize: 11.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name || 'Untitled'}</div>
-                  <div style={{ fontSize: 10, color: T.mutedSoft, marginTop: 2 }}>{a.created_by_email || ''}</div>
-                  <div style={{ display: 'flex', gap: 5, marginTop: 9 }}>
-                    <Btn variant="outline" size="sm" icon="copy" onClick={() => copy(url)} style={{ flex: 1 }}>Link</Btn>
-                    <Btn variant="ghost" size="sm" icon="trash" aria-label="Delete" onClick={() => setPendingDelete(a)} style={{ color: T.mutedSoft, padding: '5px 7px' }} />
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      <Modal open={!!pendingDelete} onClose={() => setPendingDelete(null)} title="Delete this file?"
-        footer={<>
-          <Btn variant="outline" onClick={() => setPendingDelete(null)}>Cancel</Btn>
-          <Btn variant="danger" icon="trash" onClick={() => { onDelete(pendingDelete); setPendingDelete(null); }}>Delete for good</Btn>
-        </>}>
-        <Helper>
-          <b>{pendingDelete && pendingDelete.name}</b> will be removed permanently. Unlike everything else in the Studio, this one can't be undone.
-        </Helper>
-        {pendingDelete && usedBy(pendingDelete).length > 0 && (
-          <Banner tone="danger" icon="alertTriangle" title={`Still used by ${plural(usedBy(pendingDelete).length, 'lesson')}`} style={{ marginTop: 12 }}>
-            Those links will break for learners. Point them somewhere else first:
-            <div style={{ marginTop: 6 }}>
-              {usedBy(pendingDelete).map((s, i) => <div key={i} style={{ fontSize: 11 }}>· {s}</div>)}
-            </div>
-          </Banner>
-        )}
-      </Modal>
-    </div>
-  );
-};
-
-/* ===== readiness + publish ================================================ */
-const IssuesPanel = ({ issues, onJump }) => {
-  const [open, setOpen] = useState({});
-  const blocks = issues.filter(i => i.severity === 'block');
-  const warns = issues.filter(i => i.severity === 'warn');
-
-  const groups = [];
-  issues.forEach(i => {
-    let g = groups.find(x => x.group === i.group && x.severity === i.severity);
-    if (!g) { g = { group: i.group, severity: i.severity, items: [] }; groups.push(g); }
-    g.items.push(i);
-  });
-  groups.sort((a, b) => (a.severity === b.severity ? b.items.length - a.items.length : a.severity === 'block' ? -1 : 1));
-
-  if (!issues.length) return (
-    <Banner tone="success" icon="checkCircle" title="Everything checks out">
-      No blockers and nothing missing. This curriculum is ready to publish.
-    </Banner>
-  );
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {blocks.length > 0 && <Pill color={T.red} icon="xCircle">{plural(blocks.length, 'blocker')}</Pill>}
-        {warns.length > 0 && <Pill color={T.amber} icon="alertTriangle">{plural(warns.length, 'warning')}</Pill>}
-      </div>
-      {blocks.length > 0 && (
-        <Banner tone="danger" icon="xCircle" title="Fix these before publishing">
-          Each of these would visibly break something for a learner, so publishing is held until they're resolved.
-        </Banner>
-      )}
-      <Card pad={0} style={{ overflow: 'hidden' }}>
-        {groups.map((g, gi) => {
-          const key = g.severity + ':' + g.group;
-          const isOpen = !!open[key];
-          const tone = g.severity === 'block' ? T.red : T.amber;
-          return (
-            <div key={key} style={{ borderTop: gi ? `1px solid ${T.borderSoft}` : 'none' }}>
-              <button data-btn onClick={() => setOpen(o => ({ ...o, [key]: !o[key] }))}
-                style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', border: 'none', background: 'transparent', padding: '10px 14px', textAlign: 'left' }}>
-                <Icon name={isOpen ? 'chevronDown' : 'chevronRight'} size={13} color={T.mutedSoft} />
-                <Icon name={g.severity === 'block' ? 'xCircle' : 'alertTriangle'} size={14} color={tone} />
-                <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600 }}>{g.group}</span>
-                <Pill color={tone}>{g.items.length}</Pill>
-              </button>
-              {isOpen && (
-                <div style={{ padding: '0 14px 10px 44px' }}>
-                  {g.items.map(i => (
-                    <div key={i.id} style={{ padding: '7px 0', borderTop: `1px solid ${T.borderSoft}` }}>
-                      <button data-btn onClick={() => onJump(i.target)}
-                        style={{ border: 'none', background: 'transparent', padding: 0, textAlign: 'left', fontSize: 12, fontWeight: 600, color: T.primary }}>
-                        {i.label} →
-                      </button>
-                      <Helper style={{ fontSize: 11, marginTop: 2 }}>{i.detail}</Helper>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </Card>
-    </div>
-  );
-};
 
 const indexDoc = (d) => {
   const map = {};
@@ -2102,173 +1283,107 @@ const diffDocs = (a, b) => {
   return { added, removed, changed, total: added.length + removed.length + changed.length };
 };
 
-const PublishScreen = ({ doc, product, productLabel, versions, latest, onPublish, onRollback, onJump, cloud, fireToast, publishing, onRefresh }) => {
-  const issues = useMemo(() => computeIssues(doc), [doc]);
-  const blockers = issues.filter(i => i.severity === 'block');
-  const published = useMemo(() => toPublished(doc), [doc]);
-  const diff = useMemo(() => diffDocs(latest ? latest.doc : null, published), [latest, published]);
+const PublishScreen = ({ doc, product, productLabel, latest, onPublish, cloud, publishing }) => {
   const [note, setNote] = useState('');
-  const [confirming, setConfirming] = useState(false);
-  const [showJson, setShowJson] = useState(false);
-
-  const download = (filename, text, mime) => {
-    try {
-      const blob = new Blob([text], { type: mime || 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-    } catch (_) { fireToast({ message: 'Download failed in this browser', tone: 'error' }); }
-  };
-
-  const asSeedCode = () => {
-    const tracks = published.tracks.map(t => ({ id: t.id, label: t.label, color: t.color, blurb: t.blurb }));
-    const courses = published.courses.map(c => ({ id: c.id, title: c.title, menuGroup: c.menuGroup, track: c.track, icon: c.icon, level: c.level, summary: c.summary, lessons: c.lessons }));
-    const popular = published.courses.filter(c => c.popular).map(c => c.id);
-    return [
-      '// Generated by Sole Academy Studio — ' + productLabel + ' — ' + new Date().toISOString(),
-      '// Paste over the matching consts in index.html. See docs/ACADEMY_INTEGRATION.md.',
-      'const ACADEMY_TRACKS = ' + JSON.stringify(tracks, null, 2) + ';',
-      'const ACADEMY_COURSES = ' + JSON.stringify(courses, null, 2) + ';',
-      'const ACADEMY_POPULAR = ' + JSON.stringify(popular) + ';',
-      'const LEARNING_PATHS = ' + JSON.stringify(published.paths, null, 2) + ';',
-    ].join('\n\n');
-  };
-  const copySeed = () => {
-    const text = asSeedCode();
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => fireToast('Seed code copied'), () => fireToast({ message: 'Could not copy', tone: 'error' }));
-    else fireToast({ message: 'Clipboard not available', tone: 'warn' });
-  };
-
+  const lessons = allLessons(doc);
+  const withVideo = lessons.filter(({ lesson }) => !!(lesson.videoUrl || lesson.embedUrl));
+  const published = useMemo(() => toPublished(doc), [doc]);
   const changeLine = (g) => `${g.kind} · ${g.label}${g.parent ? ` (in ${g.parent})` : ''}`;
+  const diff = useMemo(() => diffDocs(latest ? latest.doc : null, published), [latest, published]);
 
   return (
-    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
-      <div style={{ marginBottom: 16 }}>
+    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '24px 28px 60px' }}>
+      <div style={{ maxWidth: 720 }}>
         <SectionTitle style={{ fontSize: 16 }}>Publish</SectionTitle>
-        <Helper style={{ marginTop: 2, maxWidth: 620 }}>
-          Publishing takes a snapshot of this curriculum and makes it the live one for <b>{productLabel}</b>. Your draft keeps working after — nothing you edit reaches learners until you publish again.
+        <Helper style={{ marginTop: 4, marginBottom: 20 }}>
+          Takes a snapshot of <b>{productLabel}</b> and makes it the live curriculum. Your draft keeps
+          working afterwards, and nothing you edit reaches learners until you publish again.
         </Helper>
-      </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 820 }}>
-        <div>
-          <SectionTitle style={{ marginBottom: 9 }}>1 · Readiness</SectionTitle>
-          <IssuesPanel issues={issues} onJump={onJump} />
-        </div>
+        {/* One number, because one number is what decides whether it is worth
+            publishing: how many chapters a learner can actually watch. */}
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -1, color: withVideo.length ? T.greenDark : T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>
+              {withVideo.length}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>
+                {withVideo.length === 1 ? 'chapter is ready to watch' : 'chapters are ready to watch'}
+              </div>
+              <Helper style={{ marginTop: 2 }}>
+                Out of {lessons.length}. The rest show their title and description with no play button,
+                which is fine to publish.
+              </Helper>
+            </div>
+          </div>
+        </Card>
 
-        <div>
-          <SectionTitle style={{ marginBottom: 9 }}>2 · What's changing</SectionTitle>
+        <Card style={{ marginBottom: 16 }}>
+          <SectionTitle style={{ marginBottom: 9 }}>What&rsquo;s changing</SectionTitle>
           {!cloud ? (
-            <Banner tone="warn" icon="alertTriangle" title="Not connected — publishing is off">
-              Publishing needs the shared backend so the live app has somewhere to read from. Until then, use <b>Download curriculum.json</b> below and hand the file over. See <b>docs/ACADEMY_STUDIO_SETUP.md</b>.
+            <Banner tone="warn" icon="alertTriangle" title="Not connected">
+              Publishing needs the shared backend. Sign in and try again.
             </Banner>
           ) : !latest ? (
             <Banner tone="accent" icon="send" title="Nothing published yet">
-              This would be version 1 — {plural(published.courses.length, 'course')}, {plural(published.courses.reduce((s, c) => s + c.lessons.length, 0), 'lesson')} and {plural(published.paths.length, 'learning path')}.
+              This would be version 1: {plural(published.courses.length, 'module')} and{' '}
+              {plural(published.courses.reduce((n, c) => n + c.lessons.length, 0), 'chapter')}.
             </Banner>
           ) : diff.total === 0 ? (
             <Banner tone="info" icon="checkCircle" title={`No changes since version ${latest.version}`}>
-              Your draft matches what's live. Published {fmtWhen(latest.published_at)}{latest.published_by_email ? ` by ${latest.published_by_email}` : ''}.
+              Your draft matches what is live.
             </Banner>
           ) : (
-            <Card>
+            <div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
                 {diff.added.length > 0 && <Pill color={T.greenDark} icon="plus">{diff.added.length} new</Pill>}
                 {diff.changed.length > 0 && <Pill color={T.blue} icon="edit">{diff.changed.length} edited</Pill>}
                 {diff.removed.length > 0 && <Pill color={T.red} icon="trash">{diff.removed.length} removed</Pill>}
-                <Helper style={{ fontSize: 11 }}>vs live version {latest.version}</Helper>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 260, overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 240, overflowY: 'auto' }}>
                 {diff.added.map((g, i) => <div key={'a' + i} style={{ fontSize: 11.5, color: T.greenDark, display: 'flex', gap: 7 }}><Icon name="plus" size={12} color={T.greenDark} />{changeLine(g)}</div>)}
                 {diff.changed.map((g, i) => <div key={'c' + i} style={{ fontSize: 11.5, color: T.textSoft, display: 'flex', gap: 7 }}><Icon name="edit" size={12} color={T.blue} />{changeLine(g)}</div>)}
                 {diff.removed.map((g, i) => <div key={'r' + i} style={{ fontSize: 11.5, color: T.red, display: 'flex', gap: 7 }}><Icon name="trash" size={12} color={T.red} />{changeLine(g)}</div>)}
               </div>
-            </Card>
-          )}
-        </div>
-
-        <div>
-          <SectionTitle style={{ marginBottom: 9 }}>3 · Go live</SectionTitle>
-          <Card>
-            <Field label="What changed in this release?" hint="Shows in the version history so anyone can see why a version exists.">
-              <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Added the four payroll videos" />
-            </Field>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-              <Btn variant="success" icon="send" disabled={!cloud || blockers.length > 0 || publishing}
-                onClick={() => setConfirming(true)}>
-                {publishing ? 'Publishing…' : latest ? `Publish version ${latest.version + 1}` : 'Publish version 1'}
-              </Btn>
-              <Btn variant="outline" icon="download" onClick={() => download(`academy-${product}-curriculum.json`, JSON.stringify(published, null, 2))}>Download curriculum.json</Btn>
-              <Btn variant="outline" icon="copy" onClick={copySeed}>Copy as code</Btn>
-              <Btn variant="ghost" icon="eye" onClick={() => setShowJson(true)} style={{ color: T.muted }}>View JSON</Btn>
             </div>
-            {blockers.length > 0 && <Helper style={{ marginTop: 10, color: T.red }}>{plural(blockers.length, 'blocker')} above must be fixed first.</Helper>}
-          </Card>
-        </div>
-
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 9 }}>
-            <SectionTitle>Version history</SectionTitle>
-            {cloud && <Btn variant="ghost" size="sm" icon="refresh" onClick={onRefresh} style={{ color: T.muted }}>Refresh</Btn>}
-          </div>
-          {!versions.length ? (
-            <Card><Helper>Nothing published yet.</Helper></Card>
-          ) : (
-            <Card pad={0} style={{ overflow: 'hidden' }}>
-              {versions.map((v, i) => (
-                <div key={v.id || v.version} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderTop: i ? `1px solid ${T.borderSoft}` : 'none' }}>
-                  <Pill color={i === 0 ? T.greenDark : T.mutedSoft}>{i === 0 ? 'Live' : 'v' + v.version}</Pill>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{v.note || `Version ${v.version}`}</div>
-                    <Helper style={{ fontSize: 10.5 }}>{fmtWhen(v.published_at)}{v.published_by_email ? ` · ${v.published_by_email}` : ''}</Helper>
-                  </div>
-                  <Helper style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>
-                    {((v.doc && v.doc.courses) || []).length}c · {((v.doc && v.doc.courses) || []).reduce((s, c) => s + ((c.lessons || []).length), 0)}l
-                  </Helper>
-                  <Btn variant="outline" size="sm" icon="undo" onClick={() => onRollback(v)}>Load into draft</Btn>
-                </div>
-              ))}
-            </Card>
           )}
-        </div>
-      </div>
+        </Card>
 
-      <Modal open={confirming} onClose={() => setConfirming(false)} title="Publish this curriculum?"
-        footer={<>
-          <Btn variant="outline" onClick={() => setConfirming(false)}>Cancel</Btn>
-          <Btn variant="success" icon="send" onClick={() => { setConfirming(false); onPublish(note); setNote(''); }}>Publish</Btn>
-        </>}>
-        <Helper style={{ marginBottom: 12 }}>
-          This becomes the live curriculum for <b>{productLabel}</b> — {plural(published.courses.length, 'course')}, {plural(published.courses.reduce((s, c) => s + c.lessons.length, 0), 'lesson')}, {plural(published.paths.length, 'learning path')}.
+        <Card>
+          <Field label="What changed in this release?" hint="Optional. Shows in the version list so anyone can see why a version exists.">
+            <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Added the four payroll videos" />
+          </Field>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+            <Btn variant="success" size="lg" icon="send" disabled={!cloud || publishing}
+              onClick={() => onPublish(note, () => setNote(''))}>
+              {publishing ? 'Publishing…' : latest ? `Publish version ${latest.version + 1}` : 'Publish version 1'}
+            </Btn>
+            {latest && <Helper>Live now: v{latest.version}, {fmtWhen(latest.published_at)}</Helper>}
+          </div>
+        </Card>
+
+        {/* Every version is kept in the database, so a rollback is always
+            possible. There is deliberately no button for it: nobody has ever
+            needed one here, and a wall of versions is the kind of thing that
+            makes a simple tool feel like an admin console. */}
+        <Helper style={{ marginTop: 14 }}>
+          Every version is kept. If something needs rolling back, ask Rishabh.
         </Helper>
-        {issues.filter(i => i.severity === 'warn').length > 0 && (
-          <Banner tone="warn" icon="alertTriangle" title={`${plural(issues.filter(i => i.severity === 'warn').length, 'warning')} — publishing anyway is fine`}>
-            Mostly lessons without video yet. They'll show the “coming soon” poster until footage is attached.
-          </Banner>
-        )}
-        <Helper style={{ marginTop: 12 }}>Previous versions stay in the history, so this is reversible.</Helper>
-      </Modal>
-
-      <Modal open={showJson} onClose={() => setShowJson(false)} title="Published curriculum JSON" width={720}
-        footer={<Btn variant="outline" onClick={() => setShowJson(false)}>Close</Btn>}>
-        <Helper style={{ marginBottom: 10 }}>Exactly what a consumer receives. Internal production fields are stripped.</Helper>
-        <pre style={{ margin: 0, fontSize: 10.5, lineHeight: 1.5, background: T.fieldBg, border: `1px solid ${T.borderSoft}`, borderRadius: T.radius, padding: 12, overflow: 'auto', maxHeight: '55vh', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>
-          {JSON.stringify(published, null, 2)}
-        </pre>
-      </Modal>
+      </div>
     </div>
   );
 };
 
 /* ===== shell ============================================================== */
+// Two screens, on purpose. The job this tool exists for is "put the video
+// against the chapter, then publish". Learning paths, the production tracker,
+// the media library and the in-tool preview were all real features and all of
+// them were things to read past on the way to that job. Paths and tracks are
+// still in the document and still render in the Academy; they are just not
+// edited here any more. The preview is the live Academy itself.
 const NAV = [
   { id: 'curriculum', label: 'Curriculum', icon: 'layers' },
-  { id: 'paths', label: 'Learning paths', icon: 'graduation' },
-  { id: 'production', label: 'Production', icon: 'clipboardCheck' },
-  { id: 'media', label: 'Media', icon: 'image' },
-  { id: 'preview', label: 'Preview', icon: 'eye' },
   { id: 'publish', label: 'Publish', icon: 'send' },
 ];
 
@@ -2289,15 +1404,12 @@ const AcademyStudio = () => {
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
 
-  // cloud. `localOnly` lets someone use the whole tool before any backend setup
-  // has happened — every authoring feature works against localStorage, so gating
-  // it behind a login would be a wall for no benefit. Signing in is what turns
-  // *sharing* on, not what unlocks the tool.
+  // THE TOOL IS LOCKED. There used to be a "work in this browser instead" escape
+  // hatch that ran the whole thing against localStorage without signing in. It
+  // was there so the tool worked before any backend existed, and it meant anyone
+  // with the URL could open and edit the curriculum. The backend exists now, so
+  // the hatch is gone and the sign-in gate below is unconditional.
   const cloudConfigured = !!(CLOUD && CLOUD.isConfigured && CLOUD.isConfigured());
-  const [localOnly, setLocalOnly] = useState(!!savedUI.localOnly);
-  // Push the preference into the cloud layer before anything reads its state, so
-  // "work locally" also means media/uploads stay local. Idempotent by design.
-  if (CLOUD && CLOUD.forceLocal) CLOUD.forceLocal(localOnly);
   const cloudReady = !!(CLOUD && CLOUD.isCloud && CLOUD.isCloud());
   const needsAuth = !!(CLOUD && CLOUD.needsAuth && CLOUD.needsAuth());
   const [cloudError, setCloudError] = useState('');
@@ -2309,9 +1421,7 @@ const AcademyStudio = () => {
   const [saveState, setSaveState] = useState('idle');   // idle | saving | saved | error | conflict
   const [conflictBy, setConflictBy] = useState('');
   const [versions, setVersions] = useState({});          // product → [rows]
-  const [assets, setAssets] = useState([]);
   const [publishing, setPublishing] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const stamps = useRef({});                             // product → server updated_at
   const loadedFromCloud = useRef({});                    // product → bool
   const skipNextSave = useRef(true);
@@ -2337,24 +1447,8 @@ const AcademyStudio = () => {
     });
   }, [product]);
 
-  const owners = useMemo(() => {
-    const set = {};
-    PRODUCTS.forEach(p => {
-      const d = docs[p.id];
-      if (!d) return;
-      allLessons(d).forEach(({ lesson }) => {
-        const o = (lesson.production && lesson.production.owner || '').trim();
-        if (o) set[o] = true;
-      });
-    });
-    return Object.keys(set).sort();
-  }, [docs]);
-
-  const issues = useMemo(() => computeIssues(doc), [doc]);
-  const blockerCount = issues.filter(i => i.severity === 'block').length;
-
   /* ---- local mirror (always) + shared draft (when connected) ------------ */
-  useEffect(() => { lsWrite(LS_UI, { product, collapsed, localOnly }); }, [product, collapsed, localOnly]);
+  useEffect(() => { lsWrite(LS_UI, { product, collapsed }); }, [product, collapsed]);
 
   useEffect(() => {
     lsWrite(LS_DOCS, docs);
@@ -2426,18 +1520,9 @@ const AcademyStudio = () => {
     PRODUCTS.forEach(p => { if (!loadedFromCloud.current[p.id]) pullProduct(p.id); });
   }, [cloudReady, needsAuth, user, pullProduct]);
 
-  // Media works in local mode too (data URIs in this browser), so this is only
-  // gated on the sign-in step, not on having a backend.
-  useEffect(() => {
-    if (!CLOUD) return;
-    if (cloudReady && needsAuth && !user) return;
-    CLOUD.listAssets().then(a => setAssets(a || [])).catch(() => {});
-  }, [cloudReady, needsAuth, user]);
-
   /* ---- selection helpers ----------------------------------------------- */
   const jumpTo = useCallback((target) => {
     if (!target) return;
-    if (target.kind === 'path') { setScreen('paths'); return; }
     setScreen('curriculum');
     if (target.kind === 'lesson') {
       setCollapsed(c => {
@@ -2451,8 +1536,6 @@ const AcademyStudio = () => {
       const course = findCourse(doc, target.id);
       if (course) setCollapsed(c => ({ ...c, [course.track]: false }));
       setSel({ kind: 'course', id: target.id });
-    } else {
-      setSel({ kind: 'track', id: target.id });
     }
   }, [doc]);
 
@@ -2486,32 +1569,6 @@ const AcademyStudio = () => {
   };
 
   /* ---- media ------------------------------------------------------------ */
-  const onUpload = (files) => {
-    if (!CLOUD) { fireToast({ message: 'Media needs resources/academy-cloud.js — it did not load', tone: 'error' }); return; }
-    setUploading(true);
-    const readOne = (file) => new Promise((resolve) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve({ name: file.name, mime: file.type || 'application/octet-stream', dataUri: fr.result, product });
-      fr.onerror = () => resolve(null);
-      fr.readAsDataURL(file);
-    });
-    Promise.all(files.map(readOne))
-      .then(recs => Promise.all(recs.filter(Boolean).map(r => CLOUD.saveAsset(r).catch(() => null))))
-      .then(saved => {
-        const ok = (saved || []).filter(Boolean);
-        if (ok.length) setAssets(prev => ok.concat(prev.filter(a => !ok.some(s => s.id === a.id))));
-        fireToast(ok.length ? `${plural(ok.length, 'file')} uploaded` : { message: 'Upload failed', tone: 'error' });
-      })
-      .then(() => setUploading(false), () => setUploading(false));
-  };
-  const onDeleteAsset = (a) => {
-    if (!CLOUD) return;
-    CLOUD.deleteAsset(a.id).then(() => {
-      setAssets(prev => prev.filter(x => x.id !== a.id));
-      fireToast('File deleted');
-    }).catch(() => fireToast({ message: 'Could not delete', tone: 'error' }));
-  };
-
   /* ---- copy a course across products ----------------------------------- */
   const copyCourseToOther = (course) => {
     if (!other) return;
@@ -2537,32 +1594,6 @@ const AcademyStudio = () => {
     });
   };
 
-  /* ---- backup / restore the draft -------------------------------------- */
-  const fileRef = useRef(null);
-  const exportDraft = () => {
-    try {
-      const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `academy-${product}-draft.json`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      fireToast('Draft downloaded');
-    } catch (_) { fireToast({ message: 'Download failed', tone: 'error' }); }
-  };
-  const importDraft = (file) => {
-    const fr = new FileReader();
-    fr.onload = () => {
-      try {
-        const parsed = JSON.parse(fr.result);
-        const snapshot = clone(doc);
-        setDocs(prev => ({ ...prev, [product]: normaliseDoc(parsed, product) }));
-        fireToast({ message: 'Draft replaced from file', action: { label: 'Undo', onClick: () => setDocs(prev => ({ ...prev, [product]: snapshot })) } });
-      } catch (_) { fireToast({ message: 'That file is not a valid curriculum', tone: 'error' }); }
-    };
-    fr.onerror = () => fireToast({ message: 'Could not read that file', tone: 'error' });
-    fr.readAsText(file);
-  };
   const resetToSeed = () => {
     const snapshot = clone(doc);
     setDocs(prev => ({ ...prev, [product]: normaliseDoc(clone(SEED[product] || {}), product) }));
@@ -2578,7 +1609,21 @@ const AcademyStudio = () => {
     CLOUD.signIn(e).then(() => setAuthSent(true)).catch(err => setAuthErr((err && err.message) || 'Could not send the link'));
   };
 
-  if (cloudReady && needsAuth && !authChecked) {
+  if (!cloudConfigured) {
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Card style={{ width: '100%', maxWidth: 420, textAlign: 'center' }} pad={28}>
+          <SectionTitle style={{ fontSize: 16 }}>Not configured</SectionTitle>
+          <Helper style={{ marginTop: 8 }}>
+            This Studio has no backend set up, so there is nothing to sign in to and nothing to
+            publish. See <b>docs/ACADEMY_STUDIO_SETUP.md</b>.
+          </Helper>
+        </Card>
+      </div>
+    );
+  }
+
+  if (needsAuth && !authChecked) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2.5px solid ${T.border}`, borderTopColor: T.primary, animation: 'spin 700ms linear infinite' }} />
@@ -2586,7 +1631,7 @@ const AcademyStudio = () => {
     );
   }
 
-  if (cloudReady && needsAuth && !user) {
+  if (needsAuth && !user) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Card style={{ width: '100%', maxWidth: 400, textAlign: 'center' }} pad={28}>
@@ -2609,12 +1654,6 @@ const AcademyStudio = () => {
               <Helper style={{ fontSize: 10.5, marginTop: 12 }}>Only teammates who've been invited can sign in.</Helper>
             </form>
           )}
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${T.borderSoft}` }}>
-            <Btn variant="ghost" size="sm" onClick={() => setLocalOnly(true)} style={{ color: T.muted }}>Work in this browser instead →</Btn>
-            <Helper style={{ fontSize: 10.5, marginTop: 6 }}>
-              Everything works without signing in — your curriculum just stays on this computer instead of being shared, and publishing is off.
-            </Helper>
-          </div>
         </Card>
       </div>
     );
@@ -2622,10 +1661,6 @@ const AcademyStudio = () => {
 
   /* ---- editor pane for the curriculum screen --------------------------- */
   const renderEditor = () => {
-    if (sel.kind === 'track') {
-      const track = trackById(doc, sel.id);
-      if (track) return <TrackEditor doc={doc} track={track} edit={edit} />;
-    }
     if (sel.kind === 'course') {
       const course = findCourse(doc, sel.id);
       if (course) return (
@@ -2637,12 +1672,12 @@ const AcademyStudio = () => {
     if (sel.kind === 'lesson') {
       const course = findCourse(doc, sel.courseId);
       const lesson = findLesson(doc, sel.courseId, sel.id);
-      if (course && lesson) return <LessonEditor doc={doc} course={course} lesson={lesson} edit={edit} fireToast={fireToast} owners={owners} setSel={setSel} />;
+      if (course && lesson) return <LessonEditor doc={doc} course={course} lesson={lesson} edit={edit} fireToast={fireToast} setSel={setSel} />;
     }
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <EmptyState icon="layers" title="Pick something to edit"
-          hint="Choose a track, course or lesson from the tree. Drag rows, or use the little arrows, to reorder them." />
+          hint="Pick a chapter from the tree on the left, then paste its video link. Drag rows, or use the little arrows, to reorder them." />
       </div>
     );
   };
@@ -2695,7 +1730,10 @@ const AcademyStudio = () => {
         <nav className="scroll" style={{ flex: 1, padding: '10px 10px 20px' }}>
           {NAV.map(n => {
             const active = screen === n.id;
-            const badge = n.id === 'publish' && blockerCount > 0 ? blockerCount : null;
+            // The nav used to carry a red count of readiness blockers. There is
+            // no readiness engine any more: a chapter without a video is a normal,
+            // publishable state, so there was nothing left for it to count.
+            const badge = null;
             return (
               <button key={n.id} data-btn onClick={() => setScreen(n.id)}
                 style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', marginBottom: 2, borderRadius: T.radius,
@@ -2709,15 +1747,7 @@ const AcademyStudio = () => {
           })}
 
           <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${T.borderSoft}` }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: T.mutedSoft, marginBottom: 7, paddingLeft: 10 }}>This draft</div>
-            <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: 'none' }}
-              onChange={e => { const f = (e.target.files || [])[0]; if (f) importDraft(f); e.target.value = ''; }} />
-            <button data-btn onClick={exportDraft} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '7px 10px', borderRadius: T.radius, border: 'none', background: 'transparent', color: T.muted, fontSize: 11.5, textAlign: 'left' }}>
-              <Icon name="download" size={13} color={T.mutedSoft} />Back up to a file
-            </button>
-            <button data-btn onClick={() => fileRef.current && fileRef.current.click()} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '7px 10px', borderRadius: T.radius, border: 'none', background: 'transparent', color: T.muted, fontSize: 11.5, textAlign: 'left' }}>
-              <Icon name="upload" size={13} color={T.mutedSoft} />Restore from a file
-            </button>
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: T.mutedSoft, marginBottom: 7, paddingLeft: 10 }}>Start over</div>
             <button data-btn onClick={resetToSeed} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '7px 10px', borderRadius: T.radius, border: 'none', background: 'transparent', color: T.muted, fontSize: 11.5, textAlign: 'left' }}>
               <Icon name="undo" size={13} color={T.mutedSoft} />Reset to starter
             </button>
@@ -2725,19 +1755,9 @@ const AcademyStudio = () => {
         </nav>
 
         <div style={{ padding: '10px 12px', borderTop: `1px solid ${T.borderSoft}` }}>
-          {cloudReady
-            ? <div title="Shared with your team" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: T.greenDark }}>
-                <span style={{ width: 7, height: 7, borderRadius: 999, background: T.green }} />Shared
-              </div>
-            : <div title="This browser only — sign in to share with the team">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: T.amber }}>
-                  <span style={{ width: 7, height: 7, borderRadius: 999, background: T.amber }} />Local only
-                </div>
-                {cloudConfigured && (
-                  <button data-btn onClick={() => setLocalOnly(false)}
-                    style={{ border: 'none', background: 'transparent', padding: '3px 0 0', color: T.primary, fontSize: 10, fontWeight: 700 }}>Sign in to share →</button>
-                )}
-              </div>}
+          <div title="Shared with your team" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: T.greenDark }}>
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: T.green }} />Shared
+          </div>
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
               <span style={{ flex: 1, minWidth: 0, fontSize: 9.5, color: T.mutedSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</span>
@@ -2761,7 +1781,7 @@ const AcademyStudio = () => {
             <span style={{ width: 6, height: 6, borderRadius: 999, background: saveColor }} />{saveLabel}
           </div>
           {latest && <Pill color={T.mutedSoft} icon="send">Live: v{latest.version}</Pill>}
-          <Btn variant="outline" size="sm" icon="eye" onClick={() => setScreen('preview')}>Preview</Btn>
+          <Btn variant="outline" size="sm" icon="eye" onClick={() => window.open('academy.html', '_blank', 'noopener')}>See the Academy</Btn>
           <Btn variant="primary" size="sm" icon="send" onClick={() => setScreen('publish')}>Publish</Btn>
         </header>
 
@@ -2804,16 +1824,9 @@ const AcademyStudio = () => {
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>{renderEditor()}</div>
           </div>
         )}
-        {screen === 'paths' && <PathsScreen doc={doc} edit={edit} fireToast={fireToast} />}
-        {screen === 'production' && <ProductionScreen doc={doc} edit={edit} jumpToLesson={jumpToLesson} owners={owners} />}
-        {screen === 'media' && <MediaScreen assets={assets} onUpload={onUpload} onDelete={onDeleteAsset} cloud={cloudReady} fireToast={fireToast} busy={uploading} doc={doc} />}
-        {screen === 'preview' && <PreviewScreen doc={doc} />}
         {screen === 'publish' && (
           <PublishScreen doc={doc} product={product} productLabel={productMeta.label}
-            versions={versions[product] || []} latest={latest}
-            onPublish={onPublish} onRollback={onRollback} onJump={jumpTo}
-            cloud={cloudReady} fireToast={fireToast} publishing={publishing}
-            onRefresh={() => { CLOUD.listVersions(product).then(rows => { setVersions(v => ({ ...v, [product]: rows || [] })); fireToast('History refreshed'); }).catch(() => {}); }} />
+            latest={latest} onPublish={onPublish} cloud={cloudReady} publishing={publishing} />
         )}
       </div>
 
