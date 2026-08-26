@@ -15,10 +15,13 @@
  * Setup (~10 minutes, no coding): docs/ACADEMY_STUDIO_SETUP.md
  * ------------------------------------------------------------------------- */
 window.SOLE_ACADEMY_CONFIG = {
-  // Same project the Rebranding Studio uses — the Academy adds its own tables,
-  // so there's nothing new to sign up for. Swap these to use a separate project.
-  supabaseUrl: "https://eycyiwhhygoiysqymzbp.supabase.co",
-  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5Y3lpd2hoeWdvaXlzcXltemJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0NzYzNzEsImV4cCI6MjEwMTA1MjM3MX0.QeY_0UCEeq0HxnC8ArWj_KPLbuzfJ-hBud64NdUqSJQ",
+  // Project "Sole Academy" (ref lecdrfapvjydknuzjrfs, ap-northeast-2), created
+  // 26 Aug 2026 as the Academy's OWN backend. It used to point at the Rebranding
+  // Studio's project; the two tools no longer share one. Everything the Academy
+  // needs lives here: the curriculum tables, the team's logins, and the `site`
+  // bucket the standalone learner page is served out of.
+  supabaseUrl: "https://lecdrfapvjydknuzjrfs.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlY2RyZmFwdmp5ZGtudXpqcmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NDI1MDIsImV4cCI6MjEwMzMxODUwMn0.lYT3mWW0iO58YMdYbOA4_dv-LKEKa4PcH3W4oWTQlTI",
 
   // Access model:
   //   'magic-link' (recommended) — teammates sign in with a one-time email link;

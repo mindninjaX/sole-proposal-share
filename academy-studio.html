@@ -562,9 +562,13 @@ const toPublished = (doc) => ({
       // and certificate rules are built on it (docs/ACADEMY_INTEGRATION.md).
       let status = prodStatus === 'published' ? 'published'
         : (prodStatus === 'idea' || prodStatus === 'outlined') ? 'planned' : 'recording';
-      // Belt-and-braces: never claim "published" for a lesson whose production
-      // isn't actually signed off, even if a video URL happens to be attached.
+      // Belt-and-braces, both directions. Never claim "published" for a lesson
+      // whose production isn't signed off even if a video URL happens to be
+      // attached, AND never claim it for a lesson with nothing to watch. The
+      // second case is the one that bit: 7 seed lessons were marked published
+      // with no video, which put a dead play button in front of learners.
       if (lessonHasVideo(l) && prodStatus !== 'published') status = 'recording';
+      if (!lessonHasVideo(l) && status === 'published') status = 'recording';
       const out = {
         id: l.id, title: l.title, mins: Number(l.mins) || 0, type: l.type || 'video', status,
         description: l.description || '',

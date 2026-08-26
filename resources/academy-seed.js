@@ -51,8 +51,8 @@
   var A = '#D97706';   // T.amber
   var V = '#4F46E5';   // T.primaryDark
 
-  var SAMPLE_1 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4';
-  var SAMPLE_2 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+  var SAMPLE_1 = '';
+  var SAMPLE_2 = '';
 
   // `extra.production` merges onto the default { status: 'idea', owner: '', due: '', notes: '' }
   // rather than replacing it, so a lesson only needs to say what's non-default.
@@ -97,7 +97,7 @@
             takeaways: ['What each group in the menu is for', 'How work flows from a deal to delivery', 'Where to go next depending on your role'],
             transcript: 'Welcome to Sole Practice Manager. In the next few minutes we’ll walk through the whole platform so you know where everything lives.\n\nOn the left is your menu, grouped by what you’re trying to do: My focus, Firm Overview, Deals, Proposals, Clients, Deliver, Scheduling, Teams, Payroll, and the automation and finance groups underneath.\n\nA typical job starts as a Deal, becomes a Proposal, and once it’s signed it turns into onboarding, then work your team delivers, reviews and bills. Payroll and compliance run alongside. Don’t worry about memorising it — every group in that menu has its own module right here in the Academy, named exactly the same way.',
             resources: [{ label: 'Quick-start checklist (PDF)', href: '#' }, { label: 'Menu map', href: '#' }],
-            production: { status: 'published' } }),
+            production: { status: 'outlined' } }),
           L('l-gs-2', 'Finding your way around', 5,
             'The grouped menu, the anatomy of a page (title, subtitle, period control, primary action), the sidebar timer and the user card.', {
             takeaways: ['Collapse and expand menu groups', 'Read any page header the same way', 'Start and stop the time tracker'],
@@ -148,14 +148,14 @@
             takeaways: ['Tell committed from uncommitted pipeline', 'Read unallocated hours as a staffing gap', 'Use Capacity Impact before accepting work'],
             transcript: 'Pipeline Forecast answers one question: if we win what’s in front of us, can we actually deliver it?\n\nThe Forecast Pipeline tab gives you six numbers across the top — open pipeline, committed forecast, forecast hours, unallocated hours, people over capacity, and expected starts. Unallocated hours is the one to watch: that’s work you’re forecasting with nobody assigned to do it.\n\nThe Committed / Uncommitted toggle switches between deals that are effectively won and everything still in play. Then Capacity Impact shows three donuts — your current utilisation, the pipeline laid over it, and where you land if everything is accepted. If that third number is over 100%, you either need to move dates or add people.',
             resources: [{ label: 'Pipeline table export (CSV)', href: '#' }],
-            production: { status: 'published' } }),
+            production: { status: 'outlined' } }),
           L('l-deals-2', 'Deals', 7,
             'Work the board end to end: the six stages, deal cards and the WIN slider, the deal drawer, marking Won or Lost, and creating a deal from scratch.', {
             videoUrl: SAMPLE_1,
             takeaways: ['Move a deal through the six stages', 'Use the WIN slider and priority', 'Work the deal drawer: Overview, Contact, Files, Notes, Activity', 'Create a deal and pick the client entity type'],
             transcript: 'The Deals board is your pipeline as a Kanban. Six columns, left to right: New Enquiry, Discovery Booked, Discovery Completed, Proposal Required, Proposal Sent, and Onboarding.\n\nA card shows you priority, source, value, a WIN slider for likelihood, the client, the owner and a date pill. Drag a card to move the deal; the four KPIs above — open, likely to win, at risk, and average deal value — update as you go.\n\nClick a card to open the deal drawer. Overview holds the commercials, then Contact, Files, Notes and Activity. At the top you set the status, or mark the deal Won or Lost. And notice the Sole Link banner: when a client books through your booking link, a New Enquiry deal is created here automatically, so nothing gets typed twice.',
             resources: [{ label: 'Deal stage definitions', href: '#' }],
-            production: { status: 'published' } }),
+            production: { status: 'outlined' } }),
         ] },
 
       { id: 'c-proposals', title: 'Proposals', menuGroup: 'Proposals', track: 'win-work', icon: 'proposal', level: 'Beginner',
@@ -395,7 +395,7 @@
             takeaways: ['What Unibox, the Dashboard and the left-hand menu are each for', 'How your plan plus add-ons decides what you see', 'Where to go first depending on what you need today'],
             transcript: 'Welcome to Sole. Sole is one app for the money side of your business — invoices going out, expenses coming in, and the tax you\'ll owe on whatever\'s left. This takes about four minutes, and by the end you\'ll know where everything lives.\n\nStart with Unibox. It\'s your daily list: invoices to send, invoices to chase, bank lines to match, receipts to attach. If you only open one screen a day, open that one. The Dashboard behind it is the wider picture — revenue, profit, what\'s forecast — and the menu on the left is where you go when you want to dig into one thing: Sales, Expenses, Assets, Reporting.\n\nSole is modular, so you only see what you\'re paying for. Your plan gives you invoicing, expenses and assets; add-ons switch on things like bank feeds, time tracking or a kilometre logbook. Don\'t try to learn all of it today. Five minutes a day is genuinely enough, and there\'s a short lesson here for every part of it.',
             resources: [{ label: 'Sole quick-start checklist', href: '#' }, { label: 'Small Business Launch Toolkit', href: '#' }],
-            production: { status: 'published' } }),
+            production: { status: 'outlined' } }),
           L('l-start-2', 'Set up your business: ABN, GST and your logo', 5,
             'Add your business name, ABN and contact details, tell Sole whether you\'re registered for GST, and drop your logo on so invoices go out looking like you.', {
             production: { status: 'recording' } }),
@@ -415,13 +415,13 @@
             videoUrl: SAMPLE_2,
             takeaways: ['Why your five most urgent things are all you need to look at', 'How clearing one item lifts your business health score', 'What the streak counts — and what it never does'],
             transcript: 'Most accounting software hands you a dashboard and leaves you to work out what to do with it. Unibox does the opposite. It reads your books and gives you a list of things that actually need you today — and nothing else.\n\nAt the top you\'ll see "If you\'ve got 5 minutes". That\'s your five most urgent items, ranked: overdue invoices first, then invoices waiting to go out, then bank lines to match and receipts to attach. Clear one and the next moves up, so a backlog of seventeen still gets worked through five at a time. Everything else sits behind "Show everything else" until you want it.\n\nAbove the list is your business health score. It starts at 100, drops when things pile up, and lifts back as you clear them — plus a streak for the days you check in. Neither one is homework. They\'re there so you can tell in a single glance whether you\'re on top of it. When the list is empty you\'ll get "You\'re all clear", and you can shut the laptop.',
-            production: { status: 'published' } }),
+            production: { status: 'outlined' } }),
           L('l-ub-2', 'Clearing your top five', 4,
             'Work the "If you\'ve got 5 minutes" card: send, chase, match, categorise — all without leaving the row you\'re on.', {
-            production: { status: 'published' } }),
+            production: { status: 'outlined' } }),
           L('l-ub-3', 'Business health, streaks and what they\'re for', 4,
             'What lowers your health score, what lifts it, what the streak actually counts, and why neither is something to feel bad about on a quiet week.', {
-            production: { status: 'published' } }),
+            production: { status: 'outlined' } }),
         ] },
 
       { id: 'c-invoice', title: 'Invoices that get paid', menuGroup: '', track: 'get-paid', icon: 'dollar', level: 'Beginner', popular: true,
