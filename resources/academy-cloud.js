@@ -65,7 +65,10 @@
   };
 
   /* ---- auth ------------------------------------------------------------- */
-  function needsAuth() { return cloud && authMode === 'magic-link'; }
+  // 'open' is the only mode that does not gate the tool. Both 'password' and
+  // 'magic-link' require a real session before anything loads.
+  function needsAuth() { return cloud && authMode !== 'open'; }
+  function isPasswordMode() { return authMode === 'password'; }
 
   function getUser() {
     if (!cloud) { currentUser = { id: 'local', email: 'this browser' }; return Promise.resolve(currentUser); }
@@ -78,11 +81,23 @@
     var r = client.auth.onAuthStateChange(function (_e, session) { currentUser = session ? session.user : null; cb(currentUser); });
     return (r && r.data) ? r.data.subscription : null;
   }
+  // Email is deliberately NOT in the sign-in path. Supabase's built-in mail
+  // service is capped at 2 messages an hour and cannot be raised without custom
+  // SMTP, so a magic link locked the team out of their own tool. Passwords are
+  // set from the dashboard and handed over directly.
+  function signInWithPassword(email, password) {
+    if (!cloud) return Promise.resolve();
+    return client.auth.signInWithPassword({ email: email, password: password })
+      .then(function (r) { if (r && r.error) throw r.error; return r.data; });
+  }
+
+  // Kept for the magic-link mode, which is still selectable in the config but is
+  // not what the Studio ships with. See signInWithPassword above for why.
   function signIn(email) {
     if (!cloud) return Promise.resolve();
     var redirect = location.href.split('#')[0];
-    // shouldCreateUser:false — only teammates invited in Supabase Auth can sign
-    // in; a stranger who finds the link and types their email gets nothing back.
+    // shouldCreateUser:false, so only teammates invited in Supabase Auth can
+    // sign in; a stranger who finds the link and types their email gets nothing.
     return client.auth.signInWithOtp({ email: email, options: { emailRedirectTo: redirect, shouldCreateUser: false } })
       .then(function (r) { if (r && r.error) throw r.error; });
   }
@@ -237,6 +252,8 @@
     isCloud: function () { return cloud; },
     forceLocal: forceLocal,
     needsAuth: needsAuth,
+    isPasswordMode: isPasswordMode,
+    signInWithPassword: signInWithPassword,
     getUser: getUser, onAuth: onAuth, signIn: signIn, signOut: signOut,
     loadDraft: loadDraft, saveDraft: saveDraft,
     listVersions: listVersions, publishVersion: publishVersion,

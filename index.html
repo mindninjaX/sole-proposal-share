@@ -110102,10 +110102,12 @@ const PromptLibraryPage = ({
 // + a sidebarActive branch.
 //   NOTE — "onboarding" here means NEW-USER onboarding (learning the tool),
 //   which is distinct from the client KYC "Onboarding" template builder.
-//   VideoStage supports both a real <video> file (videoUrl) and a YouTube/Vimeo
-//   iframe (embedUrl). Two hero lessons carry a placeholder sample MP4 so the
-//   player actually plays; swap videoUrl/embedUrl for real Sole clips when they
-//   exist (see docs/BACKLOG.md). Every other lesson shows the branded poster.
+//   THE SHAPE IS DELIBERATELY FLAT: a module, and the videos inside it. There
+//   is no category above the module, no guided path beside it, no cover art and
+//   no tab bar. A video that has not been recorded is not listed anywhere, so
+//   every row a learner sees plays. Keep it that way.
+//   VideoStage mounts the real player (embedUrl iframe, or a videoUrl file)
+//   rather than a custom poster, so YouTube draws its own frame and controls.
 const ACADEMY_LEARNER = 'Sarah Mitchell'; // demo signed-in staff member (matches owners used across the app)
 // Placeholder clips (Google public sample bucket) — stand-ins until real videos exist.
 const ACADEMY_SAMPLE_1 = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4';
@@ -110312,8 +110314,9 @@ const ACADEMY_COURSES = [{
   }, {
     id: 'l-deals-2',
     title: 'Deals',
-    mins: 7,
+    mins: 3,
     status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/hVKF16UCGZU',
     description: 'Work the board end to end: the six stages, deal cards and the WIN slider, the deal drawer, marking Won or Lost, and creating a deal from scratch.',
     takeaways: ['Move a deal through the six stages', 'Use the WIN slider and priority', 'Work the deal drawer: Overview, Contact, Files, Notes, Activity', 'Create a deal and pick the client entity type'],
     transcript: 'The Deals board is your pipeline as a Kanban. Six columns, left to right: New Enquiry, Discovery Booked, Discovery Completed, Proposal Required, Proposal Sent, and Onboarding.\n\nA card shows you priority, source, value, a WIN slider for likelihood, the client, the owner and a date pill. Drag a card to move the deal; the four KPIs above — open, likely to win, at risk, and average deal value — update as you go.\n\nClick a card to open the deal drawer. Overview holds the commercials, then Contact, Files, Notes and Activity. At the top you set the status, or mark the deal Won or Lost. And notice the Sole Link banner: when a client books through your booking link, a New Enquiry deal is created here automatically, so nothing gets typed twice.',
@@ -110340,15 +110343,17 @@ const ACADEMY_COURSES = [{
   }, {
     id: 'l-pr-2',
     title: 'Proposals',
-    mins: 5,
-    status: 'planned',
+    mins: 6,
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/rSjbx3Bnb2Y',
     description: 'The proposals list and what every status actually means — Draft, Awaiting acceptance, Viewed, Accepted, Won, Lost, Work started, Ending soon, Expired.',
     takeaways: ['Find any proposal by status tab', 'Read the status pills correctly', 'Start a proposal from a template or from scratch']
   }, {
     id: 'l-pr-3',
     title: 'Services',
-    mins: 7,
-    status: 'planned',
+    mins: 1,
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/D2M58WW588I',
     description: 'Build the service catalogue: service lines, the four price types (Fixed, Variant bands, Minimum price, Unit price), billing type, and service terms.',
     takeaways: ['Add a service with the right price type', 'Set up Variant pricing bands', 'Write reusable service terms']
   }, {
@@ -110411,8 +110416,9 @@ const ACADEMY_COURSES = [{
   lessons: [{
     id: 'l-cl-1',
     title: 'Clients Management',
-    mins: 6,
-    status: 'planned',
+    mins: 3,
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/LSLsnApDACY',
     description: 'Every client in one register: status tabs, filters by type, group, billing and risk, and the onboarding-progress column.',
     takeaways: ['Move a client Prospect → Onboarding → Active', 'Filter the register by risk and type', 'Create a client and assign a group'],
     appRoute: 'clients-management'
@@ -110459,21 +110465,24 @@ const ACADEMY_COURSES = [{
     id: 'l-dl-3',
     title: 'Work Management',
     mins: 6,
-    status: 'planned',
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/seheOv34dq4',
     description: 'Task-level work across every project: My Tasks and My Reviews, the client filter, and the task detail rail with dependencies and reviewers.',
     appRoute: 'work-management'
   }, {
     id: 'l-dl-4',
     title: 'Project Dashboard',
-    mins: 7,
-    status: 'planned',
+    mins: 2,
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/gqnYGh88bTI',
     description: 'Financials, WIP, Budget WIP and Resourcing — budget versus actual versus forecast, WIP ageing, health bands, and per-project staffing.',
     appRoute: 'project-tracking'
   }, {
     id: 'l-dl-5',
     title: 'Job Management',
     mins: 8,
-    status: 'planned',
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/3Dj4NGgoIEU',
     description: 'The Client → Project → Job → Task hierarchy: add a project with pricing and billing, then add internal tasks, client requests and jobs.',
     takeaways: ['Create a billable project', 'Tell an internal task from a client request', 'Chase a client request without leaving the project']
   }, {
@@ -110679,8 +110688,9 @@ const ACADEMY_COURSES = [{
   }, {
     id: 'l-ob-2',
     title: 'Essentials',
-    mins: 6,
-    status: 'planned',
+    mins: 5,
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/lbDOfTxyM5g',
     description: 'Name the template, choose which entity types it applies to and is default for, set the client-portal brand colour, and switch on the KYC/AML section.',
     appRoute: 'questionnaires-forms'
   }, {
@@ -110741,7 +110751,8 @@ const ACADEMY_COURSES = [{
     id: 'l-cm-1',
     title: 'Messages',
     mins: 4,
-    status: 'planned',
+    status: 'published',
+    embedUrl: 'https://www.youtube.com/embed/veCO8cFgsoA',
     description: 'The native inbox: conversation list, read and unread, threads, and starting a new conversation.'
   }, {
     id: 'l-cm-2',
@@ -110816,6 +110827,11 @@ const ACADEMY_COURSES = [{
     description: 'The checklist to run when someone joins: account, role, service lines, schedule, payroll record, and which learning path to send them down.'
   }]
 }];
+// DATA ONLY, nothing renders these two any more. They stay because the
+// published-document contract Academy Studio writes still carries them
+// (docs/ACADEMY_INTEGRATION.md) and scripts/build-academy-standalone.js lifts
+// both out of this file. Deleting them here would break the build, not just
+// the demo. See "THE SHAPE IS DELIBERATELY FLAT" at the top of Module 15.
 const ACADEMY_POPULAR = ['c-deals', 'c-get-started', 'c-payroll'];
 
 // Role paths. JO asked that these "establish what it would be for the staff",
@@ -110934,6 +110950,11 @@ const chapterStatus = lesson => {
 const isPublished = lesson => chapterStatus(lesson) === 'published';
 const publishedLessons = course => (course ? course.lessons : []).filter(isPublished);
 const isModuleFullyPublished = course => !!course && course.lessons.length > 0 && course.lessons.every(isPublished);
+// Only modules with a real, watchable chapter are shown to learners: a module
+// that is 100% planned or recording has nothing to click on yet, so it does
+// not belong in any browsing surface (Home, Modules, search). It still exists
+// in the data the moment Academy Studio publishes its first chapter for it.
+const visibleCourses = () => ACADEMY_COURSES.filter(c => publishedLessons(c).length > 0);
 // The module's own state: published if anything can be watched, else recording
 // if anything is in production, else planned.
 const moduleStatus = course => publishedLessons(course).length ? 'published' : (course ? course.lessons : []).some(l => chapterStatus(l) === 'recording') ? 'recording' : 'planned';
@@ -110956,10 +110977,6 @@ const tourHref = lesson => `screen-tour.html#${lesson.tour}`;
 // therefore the certificate — additionally requires the whole module to be
 // published, so no one is certified on a course that doesn't exist yet.
 const courseDoneCount = course => (course ? course.lessons : []).filter(l => isLessonComplete(l.id)).length;
-const courseProgressPct = course => {
-  const n = course ? course.lessons.length : 0;
-  return n ? Math.round(courseDoneCount(course) / n * 100) : 0;
-};
 const isCourseComplete = course => !!course && isModuleFullyPublished(course) && courseDoneCount(course) === course.lessons.length;
 // Resume never lands you on an unrecorded chapter.
 const resumeLesson = course => {
@@ -110970,155 +110987,29 @@ const resumeLesson = course => {
   const pub = publishedLessons(course);
   return (pub.find(l => !isLessonComplete(l.id)) || pub[0] || ls[0]).id;
 };
-const nextUpCourse = () => {
-  const watchable = ACADEMY_COURSES.filter(c => publishedLessons(c).length > 0);
-  const pool = watchable.length ? watchable : ACADEMY_COURSES;
-  const lc = loadAcademy().lastCourse;
-  if (lc && courseById(lc) && !isCourseComplete(courseById(lc))) return courseById(lc);
-  return pool.find(c => courseDoneCount(c) > 0 && !isCourseComplete(c)) || pool.find(c => courseDoneCount(c) === 0) || pool[0];
-};
-const certifiedCourses = () => ACADEMY_COURSES.filter(isCourseComplete);
-const academyStats = () => {
-  const all = ACADEMY_COURSES.flatMap(c => c.lessons);
-  const available = all.filter(isPublished);
-  const done = all.filter(l => isLessonComplete(l.id));
-  return {
-    coursesDone: certifiedCourses().length,
-    // Denominators are what actually exists today, so the tiles don't read as a
-    // 3/67 failure while the videos are still being filmed.
-    coursesAvailable: ACADEMY_COURSES.filter(isModuleFullyPublished).length,
-    lessonsDone: done.length,
-    totalLessons: available.length,
-    inProduction: all.length - available.length,
-    modules: ACADEMY_COURSES.length,
-    minutes: done.reduce((s, l) => s + (l.mins || 0), 0),
-    certificates: certifiedCourses().length
-  };
-};
-// The recording queue, in menu order — what a learner can expect next. Surfaced
-// on the Academy home so "when does the rest land?" has an answer on the page.
-const academyComingNext = (limit = 4) => ACADEMY_COURSES.filter(c => moduleStatus(c) === 'recording' || moduleStatus(c) === 'published' && recordingCount(c) > 0).slice(0, limit);
-
-// The 16:9 video-first surface. Plays a real <video> file or a YouTube/Vimeo
-// iframe when available; otherwise a branded gradient poster + play chrome.
-//   The clips are hosted off-domain, so a blocked network or a moved file would
-//   otherwise leave a black rectangle with no explanation. `failed` catches the
-//   <video> error event and falls back to the branded poster with a retry, so the
-//   surface degrades to "couldn't load" rather than "appears broken".
+// The 16:9 stage. A video only ever reaches this page when there is something
+// to play, so the real player mounts straight away rather than a custom poster
+// over a dimmed screenshot: YouTube draws its own frame, title and controls,
+// which reads as the video it is.
 const VideoStage = ({
-  lesson,
-  color = T.primary,
-  catIcon = 'video',
-  playing,
-  onPlay
+  lesson
 }) => {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    setFailed(false);
-  }, [lesson.id, playing]);
-  const hasFile = !!lesson.videoUrl;
-  const hasEmbed = !!lesson.embedUrl;
   const stage = {
     position: 'relative',
     width: '100%',
     aspectRatio: '16 / 9',
     borderRadius: T.radiusLg,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    background: '#000'
   };
-  if (playing && hasFile && !failed) {
+  if (lesson.embedUrl) {
     return /*#__PURE__*/React.createElement("div", {
-      style: {
-        ...stage,
-        background: '#000'
-      }
-    }, /*#__PURE__*/React.createElement("video", {
-      src: lesson.videoUrl,
-      controls: true,
-      autoPlay: true,
-      preload: "metadata",
-      onError: () => setFailed(true),
-      style: {
-        position: 'absolute',
-        inset: 0,
-        width: '100%',
-        height: '100%',
-        objectFit: 'contain',
-        background: '#000'
-      }
-    }));
-  }
-  if (failed) {
-    return /*#__PURE__*/React.createElement("div", {
-      style: {
-        ...stage,
-        background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.46)} 100%)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        position: 'absolute',
-        right: -26,
-        bottom: -32,
-        opacity: 0.13,
-        pointerEvents: 'none',
-        transform: 'rotate(-8deg)'
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: catIcon,
-      size: 210,
-      color: "#fff",
-      strokeWidth: 1.2
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        position: 'relative',
-        zIndex: 2,
-        textAlign: 'center',
-        color: '#fff',
-        padding: '0 24px'
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: "alertTriangle",
-      size: 26,
-      color: "#fff"
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 14.5,
-        fontWeight: 700,
-        marginTop: 8
-      }
-    }, "This clip couldn\u2019t load"), /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12.5,
-        opacity: 0.88,
-        marginTop: 5,
-        maxWidth: 400,
-        lineHeight: 1.5
-      }
-    }, "Check your connection and try again \u2014 the notes, transcript and resources below are all still here."), /*#__PURE__*/React.createElement("div", {
-      style: {
-        marginTop: 13
-      }
-    }, /*#__PURE__*/React.createElement(Btn, {
-      variant: "soft",
-      size: "sm",
-      icon: "refresh",
-      onClick: () => setFailed(false)
-    }, "Try again"))));
-  }
-  if (playing && hasEmbed) {
-    const src = lesson.embedUrl + (lesson.embedUrl.includes('?') ? '&' : '?') + 'autoplay=1';
-    return /*#__PURE__*/React.createElement("div", {
-      style: {
-        ...stage,
-        background: '#000'
-      }
+      style: stage
     }, /*#__PURE__*/React.createElement("iframe", {
-      src: src,
+      src: lesson.embedUrl,
       title: lesson.title,
       frameBorder: "0",
-      allow: "autoplay; encrypted-media; fullscreen",
+      allow: "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen",
       allowFullScreen: true,
       style: {
         position: 'absolute',
@@ -111129,821 +111020,210 @@ const VideoStage = ({
       }
     }));
   }
-  // An unrecorded chapter shows its production state on the poster instead of a
-  // play button, so nobody clicks play and gets nothing.
-  const state = chapterStatus(lesson);
-  const pending = state !== 'published';
+  if (lesson.videoUrl) {
+    return /*#__PURE__*/React.createElement("div", {
+      style: stage
+    }, /*#__PURE__*/React.createElement("video", {
+      src: lesson.videoUrl,
+      controls: true,
+      preload: "metadata",
+      style: {
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain',
+        background: '#000'
+      }
+    }));
+  }
+  // Defensive only: no surface lists a video that has not been recorded.
   return /*#__PURE__*/React.createElement("div", {
     style: {
       ...stage,
-      background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.46)} 100%)`,
+      background: T.fieldBg,
+      border: `1px solid ${T.border}`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      position: 'absolute',
-      inset: 0,
-      pointerEvents: 'none',
-      background: `radial-gradient(110% 80% at 14% -6%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 50%)`
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      right: -26,
-      bottom: -32,
-      opacity: 0.13,
-      color: '#fff',
-      transform: 'rotate(-8deg)',
-      pointerEvents: 'none'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: catIcon,
-    size: 210,
-    color: "#fff",
-    strokeWidth: 1.2
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      top: 16,
-      left: 18,
-      zIndex: 2,
-      maxWidth: '70%'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10.5,
-      fontWeight: 700,
-      letterSpacing: 1.4,
-      textTransform: 'uppercase',
-      color: 'rgba(255,255,255,0.82)'
-    }
-  }, pending ? state === 'recording' ? 'In production' : 'Scripted' : 'Video chapter'), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 17,
-      fontWeight: 700,
-      marginTop: 3,
-      color: '#fff',
-      letterSpacing: -0.2
-    }
-  }, lesson.title)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      top: 16,
-      right: 18,
-      zIndex: 2,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      background: withAlpha('#0F1117', 0.34),
-      color: '#fff',
-      fontSize: 11.5,
-      fontWeight: 600,
-      padding: '4px 9px',
-      borderRadius: 999,
-      backdropFilter: 'blur(4px)',
-      WebkitBackdropFilter: 'blur(4px)'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "clock",
-    size: 12,
-    color: "#fff"
-  }), lesson.mins, " min"), pending ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'relative',
-      zIndex: 2,
       textAlign: 'center',
-      color: '#fff',
       padding: '0 24px'
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: state === 'recording' ? 'video' : 'clock',
-    size: 30,
-    color: "#fff"
+    name: "clock",
+    size: 24,
+    color: T.muted
   }), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 14.5,
-      fontWeight: 700,
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: T.text,
       marginTop: 8
     }
-  }, state === 'recording' ? 'Being recorded now' : 'Coming soon'), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      opacity: 0.88,
-      marginTop: 5,
-      maxWidth: 400,
-      lineHeight: 1.5
-    }
-  }, state === 'recording' ? 'The video lands shortly. What it covers is written up below.' : 'This chapter is scripted and queued for filming. What it covers is written up below.')) : /*#__PURE__*/React.createElement("button", {
-    onClick: onPlay,
-    "aria-label": "Play chapter",
-    style: {
-      position: 'relative',
-      zIndex: 2,
-      width: 82,
-      height: 82,
-      borderRadius: '50%',
-      border: 'none',
-      cursor: 'pointer',
-      background: withAlpha('#FFFFFF', 0.97),
-      color,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: '0 16px 40px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.12)',
-      transition: 'transform .14s'
-    },
-    onMouseEnter: e => e.currentTarget.style.transform = 'scale(1.07)',
-    onMouseLeave: e => e.currentTarget.style.transform = 'scale(1)'
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: "28",
-    height: "28",
-    viewBox: "0 0 24 24",
-    fill: "currentColor",
-    style: {
-      marginLeft: 4
-    }
-  }, /*#__PURE__*/React.createElement("polygon", {
-    points: "6,4 20,12 6,20"
-  }))), !pending && /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 2,
-      display: 'flex',
-      alignItems: 'center',
-      gap: 11,
-      padding: '11px 15px',
-      background: 'linear-gradient(180deg, transparent, rgba(0,0,0,0.38))'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "play",
-    size: 15,
-    color: "#fff"
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      height: 4,
-      borderRadius: 999,
-      background: 'rgba(255,255,255,0.3)',
-      overflow: 'hidden'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: '0%',
-      height: '100%',
-      background: '#fff'
-    }
-  })), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: 'rgba(255,255,255,0.9)',
-      fontVariantNumeric: 'tabular-nums'
-    }
-  }, "0:00 / ", lesson.mins, ":00"), /*#__PURE__*/React.createElement(Icon, {
-    name: "video",
-    size: 15,
-    color: "rgba(255,255,255,0.9)"
-  })));
+  }, "Not recorded yet")));
 };
 
-// Shared module thumbnail — the module's signature motif. A track-hued gradient
-// carries an oversized, cropped watermark of the module's OWN sidebar icon, so a
-// card is recognisable as "the thing that lives at <menu item>" rather than just
-// another play tile. Plus a frosted duration chip, a completed badge, a centred
-// play button (grows on card hover via .academy-play), and a YouTube-style
-// progress bar welded to the bottom edge. Reused by CourseCard + the Home hero.
-//   When nothing in the module is published yet, the play button is replaced by a
-//   "Recording" / "Coming soon" chip — the tile must never promise a video that
-//   hasn't been filmed.
-const AcademyThumb = ({
+// One module, and the videos inside it. This is the whole browsing surface.
+// No cover art: a 16:9 tile of a dimmed product screenshot told a learner
+// nothing and, with one module published, blew up to the width of the page.
+// A row is a video that exists and plays; nothing else is ever listed.
+const ModuleCard = ({
   course,
-  height,
-  radius = T.radiusLg,
-  playSize = 54,
-  watermark = 132
+  openCourse,
+  openLesson
 }) => {
+  const {
+    isMobile
+  } = useViewport();
   const face = moduleFace(course);
   const color = face.color;
-  const pct = courseProgressPct(course);
-  const done = isCourseComplete(course);
-  const started = courseDoneCount(course) > 0;
-  const mStatus = moduleStatus(course);
-  const watchable = mStatus === 'published';
+  const lessons = publishedLessons(course);
+  const mins = lessons.reduce((s, l) => s + (l.mins || 0), 0);
+  const count = `${lessons.length} video${lessons.length === 1 ? '' : 's'} · ${mins} min`;
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      position: 'relative',
+      border: `1px solid ${T.border}`,
+      borderRadius: T.radiusCard,
+      background: T.card,
+      boxShadow: T.shadowSm,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => openCourse(course),
+    "data-hover": "row",
+    style: {
       width: '100%',
-      ...(height ? {
-        height
-      } : {
-        aspectRatio: '16 / 9'
-      }),
-      borderRadius: radius,
-      overflow: 'hidden',
-      background: `linear-gradient(142deg, ${color} 0%, ${darkenHex(color, 0.44)} 100%)`
+      display: 'flex',
+      alignItems: isMobile ? 'flex-start' : 'center',
+      gap: 12,
+      padding: '14px 16px',
+      border: 'none',
+      background: 'transparent',
+      textAlign: 'left',
+      cursor: 'pointer'
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      position: 'absolute',
-      inset: 0,
-      background: `radial-gradient(120% 84% at 12% -8%, ${withAlpha('#FFFFFF', 0.20)} 0%, transparent 52%)`
-    }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      right: -20,
-      bottom: -26,
-      opacity: 0.15,
-      color: '#fff',
-      transform: 'rotate(-8deg)',
-      pointerEvents: 'none'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: face.icon,
-    size: watermark,
-    color: "#fff",
-    strokeWidth: 1.3
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      top: 12,
-      right: 12,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      background: withAlpha('#0F1117', 0.34),
-      color: '#fff',
-      fontSize: 11,
-      fontWeight: 600,
-      padding: '3px 9px',
-      borderRadius: 999,
-      backdropFilter: 'blur(4px)',
-      WebkitBackdropFilter: 'blur(4px)'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "clock",
-    size: 11,
-    color: "#fff"
-  }), courseMins(course), " min"), done && /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      top: 12,
-      left: 12,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 4,
-      background: T.green,
-      color: '#fff',
-      fontSize: 10.5,
-      fontWeight: 700,
-      padding: '3px 8px',
-      borderRadius: 999,
-      boxShadow: '0 2px 8px rgba(5,150,105,0.4)'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "check",
-    size: 11,
-    color: "#fff"
-  }), "Done"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      inset: 0,
+      width: 36,
+      height: 36,
+      borderRadius: 9,
+      flexShrink: 0,
+      background: withAlpha(color, 0.12),
+      color,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center'
     }
-  }, watchable ? /*#__PURE__*/React.createElement("div", {
-    className: "academy-play",
-    style: {
-      width: playSize,
-      height: playSize,
-      borderRadius: '50%',
-      background: withAlpha('#FFFFFF', 0.97),
-      color,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: '0 10px 28px rgba(0,0,0,0.30)'
-    }
-  }, /*#__PURE__*/React.createElement("svg", {
-    width: Math.round(playSize * 0.33),
-    height: Math.round(playSize * 0.33),
-    viewBox: "0 0 24 24",
-    fill: "currentColor",
-    style: {
-      marginLeft: 2
-    }
-  }, /*#__PURE__*/React.createElement("polygon", {
-    points: "6,4 20,12 6,20"
-  }))) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      background: withAlpha('#0F1117', 0.42),
-      color: '#fff',
-      fontSize: 11.5,
-      fontWeight: 600,
-      padding: '6px 12px',
-      borderRadius: 999,
-      backdropFilter: 'blur(4px)',
-      WebkitBackdropFilter: 'blur(4px)'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: mStatus === 'recording' ? 'video' : 'clock',
-    size: 13,
-    color: "#fff"
-  }), mStatus === 'recording' ? 'Being recorded' : 'Coming soon')), started && !done && /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: 4,
-      background: withAlpha('#0F1117', 0.28)
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: `${pct}%`,
-      height: '100%',
-      background: '#fff'
-    }
-  })));
-};
-
-// Catalog grid card — thumbnail + a quiet, scannable body. The meta line names
-// the menu group this module teaches (the whole point of the Aug-4 restructure),
-// then the track and level. The status line flips between real progress, the
-// production state, and "N chapters".
-const CourseCard = ({
-  course,
-  onOpen
-}) => {
-  const face = moduleFace(course);
-  const pct = courseProgressPct(course);
-  const done = isCourseComplete(course);
-  const started = courseDoneCount(course) > 0;
-  const color = face.color;
-  const avail = publishedLessons(course).length;
-  const pending = recordingCount(course);
-  const mStatus = moduleStatus(course);
-  return /*#__PURE__*/React.createElement("div", {
-    onClick: onOpen,
-    role: "button",
-    tabIndex: 0,
-    "data-academy-card": true,
-    onKeyDown: e => {
-      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        onOpen();
-      }
-    },
-    style: {
-      border: `1px solid ${T.border}`,
-      borderRadius: T.radiusCard,
-      background: T.card,
-      overflow: 'hidden',
-      cursor: 'pointer',
-      display: 'flex',
-      flexDirection: 'column',
-      boxShadow: T.shadowSm,
-      transition: 'border-color .14s, box-shadow .14s, transform .14s'
-    },
-    onMouseEnter: e => {
-      e.currentTarget.style.borderColor = T.borderStrong;
-      e.currentTarget.style.boxShadow = '0 10px 26px rgba(15,17,23,0.10)';
-      e.currentTarget.style.transform = 'translateY(-2px)';
-    },
-    onMouseLeave: e => {
-      e.currentTarget.style.borderColor = T.border;
-      e.currentTarget.style.boxShadow = T.shadowSm;
-      e.currentTarget.style.transform = 'none';
-    }
-  }, /*#__PURE__*/React.createElement(AcademyThumb, {
-    course: course,
-    radius: 0
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 15,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 9,
-      flex: 1
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 6,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5,
-      fontSize: 10.5,
-      fontWeight: 600,
-      color: color
-    }
   }, /*#__PURE__*/React.createElement(Icon, {
     name: face.icon,
-    size: 12,
+    size: 17,
     color: color
-  }), face.trackLabel), /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 3,
-      height: 3,
-      borderRadius: 999,
-      background: T.mutedSoft
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10.5,
-      color: T.muted
-    }
-  }, course.level)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 14.5,
-      fontWeight: 700,
-      color: T.text,
-      lineHeight: 1.3,
-      letterSpacing: -0.2
-    }
-  }, course.title), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5,
-      lineHeight: 1.5,
-      flex: 1
-    }
-  }, course.summary), started ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      fontSize: 10.5,
-      fontWeight: 500,
-      color: done ? T.greenDark : T.muted,
-      marginBottom: 5
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 4
-    }
-  }, done ? /*#__PURE__*/React.createElement(Icon, {
-    name: "checkCircle",
-    size: 12,
-    color: T.greenDark
-  }) : /*#__PURE__*/React.createElement(Icon, {
-    name: "play",
-    size: 11,
-    color: T.muted
-  }), done ? 'Completed' : `${courseDoneCount(course)} of ${course.lessons.length} chapters`), /*#__PURE__*/React.createElement("span", null, pct, "%")), /*#__PURE__*/React.createElement(ProgressBar, {
-    pct: pct,
-    color: done ? T.green : color,
-    height: 5
-  })) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-      fontSize: 11,
-      color: T.muted
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "bookOpen",
-    size: 12,
-    color: T.mutedSoft
-  }), course.lessons.length, " chapters"), mStatus === 'published' ? /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 4,
-      fontWeight: 600,
-      color
-    }
-  }, pending ? `${avail} ready` : 'Start', /*#__PURE__*/React.createElement(Icon, {
-    name: "arrow",
-    size: 12,
-    color: color
-  })) : /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 4,
-      color: mStatus === 'recording' ? T.amber : T.mutedSoft,
-      fontWeight: 600
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: mStatus === 'recording' ? 'video' : 'clock',
-    size: 12,
-    color: mStatus === 'recording' ? T.amber : T.mutedSoft
-  }), mStatus === 'recording' ? 'Recording' : 'Coming soon'))));
-};
-
-// Which paths contain a given course (used by the player's "Part of" card).
-const pathsForCourse = courseId => LEARNING_PATHS.filter(p => p.courseIds.includes(courseId));
-
-// A path can hold any number of courses, so the card must NOT render the full
-// list (it wouldn't scale and rows would be uneven). Instead: a fixed-height
-// summary — a segmented tracker (one segment per course, so it scales to any
-// count) + a single "up next / start with" course callout + counts. The full
-// ordered sequence lives in the player ("Part of these paths") / on open.
-const LearningPathCard = ({
-  path,
-  onOpen
-}) => {
-  const courses = path.courseIds.map(courseById).filter(Boolean);
-  const allLessons = courses.flatMap(c => c.lessons);
-  const doneN = allLessons.filter(l => isLessonComplete(l.id)).length;
-  const pct = allLessons.length ? Math.round(doneN / allLessons.length * 100) : 0;
-  const doneCourses = courses.filter(isCourseComplete).length;
-  const started = doneN > 0;
-  const complete = pct === 100;
-  const totalMins = courses.reduce((s, c) => s + courseMins(c), 0);
-  const currentIdx = courses.findIndex(c => !isCourseComplete(c)); // first unfinished; -1 if all done
-  const nextCourse = currentIdx >= 0 ? courses[currentIdx] : null;
-  // What follows the up-next module — the part that differentiates one path from
-  // another (all five open with "Getting started with SPM").
-  const rest = nextCourse ? courses.slice(currentIdx + 1) : [];
-  return /*#__PURE__*/React.createElement("div", {
-    "data-academy-card": true,
-    onClick: onOpen,
-    role: "button",
-    tabIndex: 0,
-    onKeyDown: e => {
-      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        onOpen();
-      }
-    },
-    style: {
-      border: `1px solid ${T.border}`,
-      borderRadius: T.radiusCard,
-      background: T.card,
-      overflow: 'hidden',
-      cursor: 'pointer',
-      boxShadow: T.shadowSm,
-      display: 'flex',
-      flexDirection: 'column',
-      transition: 'border-color .14s, box-shadow .14s, transform .14s'
-    },
-    onMouseEnter: e => {
-      e.currentTarget.style.borderColor = T.borderStrong;
-      e.currentTarget.style.boxShadow = '0 10px 26px rgba(15,17,23,0.10)';
-      e.currentTarget.style.transform = 'translateY(-2px)';
-    },
-    onMouseLeave: e => {
-      e.currentTarget.style.borderColor = T.border;
-      e.currentTarget.style.boxShadow = T.shadowSm;
-      e.currentTarget.style.transform = 'none';
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '15px 18px',
-      borderBottom: `1px solid ${T.borderSoft}`,
-      background: T.primarySofter
-    }
-  }, /*#__PURE__*/React.createElement(IconChip, {
-    icon: "graduation",
-    tone: "accent",
-    size: 40,
-    gradient: true
-  }), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
       minWidth: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 15,
+      fontSize: 14.5,
       fontWeight: 700,
       color: T.text,
-      letterSpacing: -0.2,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
+      letterSpacing: -0.2
     }
-  }, path.title), /*#__PURE__*/React.createElement("div", {
+  }, course.title), isMobile && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 11.5,
       color: T.muted,
-      marginTop: 2,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5
+      marginTop: 2
     }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "users",
-    size: 12,
-    color: T.mutedSoft
-  }), path.forRole)), complete ? /*#__PURE__*/React.createElement(Pill, {
-    color: "green",
-    style: {
-      fontSize: 9.5
-    }
-  }, "Complete") : started ? /*#__PURE__*/React.createElement(Pill, {
-    color: "accent",
-    style: {
-      fontSize: 9.5
-    }
-  }, pct, "%") : null), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '14px 18px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 14,
-      flex: 1
-    }
-  }, /*#__PURE__*/React.createElement(Helper, {
+  }, count), /*#__PURE__*/React.createElement(Helper, {
     style: {
       fontSize: 12,
+      marginTop: 2,
       lineHeight: 1.5,
-      minHeight: 36,
       display: '-webkit-box',
       WebkitLineClamp: 2,
       WebkitBoxOrient: 'vertical',
       overflow: 'hidden'
     }
-  }, path.blurb), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, course.summary)), !isMobile && /*#__PURE__*/React.createElement("span", {
     style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 7
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      fontWeight: 600,
-      color: T.textSoft
-    }
-  }, "Module path"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 10.5,
-      color: T.muted
-    }
-  }, doneCourses, " of ", courses.length, " done")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      gap: 4
-    }
-  }, courses.map((c, i) => {
-    const cDone = isCourseComplete(c);
-    const cCur = i === currentIdx;
-    return /*#__PURE__*/React.createElement("div", {
-      key: c.id,
-      title: c.title,
-      style: {
-        flex: 1,
-        height: 6,
-        borderRadius: 999,
-        background: cDone ? T.green : cCur ? T.primary : T.border
-      }
-    });
-  }))), complete ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      fontSize: 12,
-      fontWeight: 600,
-      color: T.greenDark
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "checkCircle",
-    size: 15,
-    color: T.green
-  }), "All ", courses.length, " modules complete") : nextCourse ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '9px 11px',
-      borderRadius: 10,
-      background: T.fieldBg,
-      border: `1px solid ${T.borderSoft}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
-      background: T.card,
-      border: `1px solid ${T.border}`,
-      color: catColor(nextCourse),
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: moduleFace(nextCourse).icon,
-    size: 15,
-    color: catColor(nextCourse)
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 0
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 9.5,
+      fontSize: 11.5,
       color: T.muted,
-      fontWeight: 700,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5
-    }
-  }, started ? 'Up next' : 'Start with'), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: T.text,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
+      flexShrink: 0,
       whiteSpace: 'nowrap'
     }
-  }, nextCourse.title)), /*#__PURE__*/React.createElement("span", {
+  }, count)), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10.5,
-      color: T.muted,
-      flexShrink: 0
-    }
-  }, nextCourse.lessons.length, " chapters")) : null, rest.length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 11,
-      color: T.muted,
-      lineHeight: 1.5,
-      display: 'flex',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontWeight: 700,
-      flexShrink: 0
-    }
-  }, "then"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      minWidth: 0
-    }
-  }, rest.map(c => c.title).join(' · ')))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '13px 18px',
       borderTop: `1px solid ${T.borderSoft}`,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-      background: T.surface
+      padding: 6
     }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    variant: complete ? 'soft' : 'primary',
-    size: "sm",
-    icon: complete ? 'checkCircle' : 'play'
-  }, complete ? 'Review path' : started ? 'Continue' : 'Start path'), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: T.muted,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 12
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "bookOpen",
-    size: 12,
-    color: T.mutedSoft
-  }), courses.length, " modules"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 4
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "clock",
-    size: 12,
-    color: T.mutedSoft
-  }), totalMins, " min"))));
+  }, lessons.map(l => {
+    const watched = isLessonComplete(l.id);
+    return /*#__PURE__*/React.createElement("button", {
+      key: l.id,
+      onClick: () => openLesson(course, l),
+      "data-hover": "row",
+      style: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '9px 10px',
+        border: 'none',
+        background: 'transparent',
+        borderRadius: 8,
+        textAlign: 'left',
+        cursor: 'pointer'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 22,
+        height: 22,
+        borderRadius: '50%',
+        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: watched ? T.green : withAlpha(color, 0.12),
+        color: watched ? '#fff' : color
+      }
+    }, watched ? /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 12,
+      color: "#fff"
+    }) : /*#__PURE__*/React.createElement("svg", {
+      width: "10",
+      height: "10",
+      viewBox: "0 0 24 24",
+      fill: "currentColor",
+      style: {
+        marginLeft: 1
+      }
+    }, /*#__PURE__*/React.createElement("polygon", {
+      points: "6,4 20,12 6,20"
+    }))), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        minWidth: 0,
+        fontSize: 13,
+        fontWeight: 500,
+        color: T.text,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }
+    }, l.title), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        flexShrink: 0
+      }
+    }, l.mins, " min"));
+  })));
 };
 
 // One chapter in the player's playlist. Unpublished chapters read as muted with a
@@ -112174,330 +111454,40 @@ const CertificateModal = ({
   }, "\u2022"), "le"), " Academy"))));
 };
 
-// --- Sole Academy catalog views ---
-const AcademyHome = ({
+// --- Sole Academy page ---
+// Every module that has a video, with its videos under it. There is no
+// category above the module and no guided path beside it: module, then video,
+// is the entire hierarchy.
+const AcademyModules = ({
   openCourse,
-  openPath,
-  goView
+  openLesson
 }) => {
   const {
     isTablet
   } = useViewport();
-  const stats = academyStats();
-  const resume = nextUpCourse();
-  const resumePct = resume ? courseProgressPct(resume) : 0;
-  const resumeStarted = resume ? courseDoneCount(resume) > 0 : false;
-  const recommendedPath = LEARNING_PATHS[0];
-  const popular = ACADEMY_POPULAR.map(courseById).filter(Boolean);
-  const comingNext = academyComingNext(4);
-  const color = resume ? catColor(resume) : T.primary;
+  const modules = visibleCourses();
   return /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
       gap: 22
     }
-  }, resume && /*#__PURE__*/React.createElement("div", {
+  }, modules.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
+    icon: "video",
+    title: "No videos yet",
+    hint: "Modules appear here as their videos are published. This page updates on its own, no new link needed."
+  })) : /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'grid',
-      gridTemplateColumns: isTablet ? '1fr' : 'minmax(0,1.35fr) minmax(0,1fr)',
-      border: `1px solid ${T.border}`,
-      borderRadius: T.radiusLg,
-      overflow: 'hidden',
-      background: T.card,
-      boxShadow: T.shadowSm
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: isTablet ? '24px 24px 8px' : '28px 30px',
       display: 'flex',
       flexDirection: 'column',
-      justifyContent: 'center',
-      gap: 11
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 7,
-      fontSize: 11,
-      fontWeight: 700,
-      letterSpacing: 0.4,
-      textTransform: 'uppercase',
-      color: T.primary
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      background: T.primary
-    }
-  }), resumeStarted ? 'Continue learning' : 'Start here'), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 23,
-      fontWeight: 800,
-      letterSpacing: -0.5,
-      lineHeight: 1.12
-    }
-  }, resume.title), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 13,
-      lineHeight: 1.55,
-      maxWidth: 460
-    }
-  }, resume.summary), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 14,
-      fontSize: 11.5,
-      color: T.muted,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "bookOpen",
-    size: 13,
-    color: T.mutedSoft
-  }), resume.lessons.length, " chapters"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "clock",
-    size: 13,
-    color: T.mutedSoft
-  }), courseMins(resume), " min"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: moduleFace(resume).icon,
-    size: 13,
-    color: T.mutedSoft
-  }), resume.menuGroup)), resumeStarted && /*#__PURE__*/React.createElement("div", {
-    style: {
-      maxWidth: 320
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      fontSize: 10.5,
-      color: T.muted,
-      marginBottom: 5
-    }
-  }, /*#__PURE__*/React.createElement("span", null, courseDoneCount(resume), " of ", resume.lessons.length, " done"), /*#__PURE__*/React.createElement("span", null, resumePct, "%")), /*#__PURE__*/React.createElement(ProgressBar, {
-    pct: resumePct,
-    color: color,
-    height: 6
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: 4
-    }
-  }, /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    size: "lg",
-    icon: "play",
-    onClick: () => openCourse(resume)
-  }, resumeStarted ? 'Resume module' : 'Start module'))), /*#__PURE__*/React.createElement("div", {
-    "data-academy-card": true,
-    onClick: () => openCourse(resume),
-    style: {
-      cursor: 'pointer',
-      padding: isTablet ? '0 24px 24px' : 20,
-      display: 'flex',
-      alignItems: 'center'
-    }
-  }, /*#__PURE__*/React.createElement(AcademyThumb, {
-    course: resume,
-    playSize: 64,
-    watermark: 156
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))',
       gap: 12
     }
-  }, /*#__PURE__*/React.createElement(StatCard, {
-    icon: "bookOpen",
-    tone: "accent",
-    label: "Chapters watched",
-    value: `${stats.lessonsDone}/${stats.totalLessons}`,
-    sub: stats.inProduction ? `${stats.inProduction} more in production` : undefined
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "graduation",
-    tone: "blue",
-    label: "Modules complete",
-    value: `${stats.coursesDone}/${stats.modules}`,
-    sub: stats.coursesAvailable === stats.modules ? undefined : `${stats.coursesAvailable} fully recorded so far`
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "clock",
-    tone: "amber",
-    label: "Minutes learned",
-    value: stats.minutes
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "award",
-    tone: "green",
-    label: "Certificates",
-    value: stats.certificates
-  })), comingNext.length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      border: `1px solid ${T.border}`,
-      borderRadius: T.radiusCard,
-      background: T.card,
-      boxShadow: T.shadowSm,
-      overflow: 'hidden'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '13px 16px',
-      borderBottom: `1px solid ${T.borderSoft}`,
-      background: T.surface,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "video",
-    size: 15,
-    color: T.amber
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 13,
-      fontWeight: 700,
-      color: T.text
-    }
-  }, "Being recorded now"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5,
-      flex: 1,
-      minWidth: 180
-    }
-  }, stats.inProduction, " chapters across ", stats.modules, " modules are still in production \u2014 these are next out.")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: 8
-    }
-  }, comingNext.map(c => /*#__PURE__*/React.createElement("button", {
-    key: c.id,
-    "data-hover": "row",
-    onClick: () => openCourse(c),
-    style: {
-      width: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 11,
-      padding: '9px 10px',
-      border: 'none',
-      background: 'transparent',
-      borderRadius: 8,
-      cursor: 'pointer',
-      textAlign: 'left'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
-      flexShrink: 0,
-      background: withAlpha(catColor(c), 0.12),
-      color: catColor(c),
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: moduleFace(c).icon,
-    size: 14,
-    color: catColor(c)
-  })), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
-      minWidth: 0,
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: T.text,
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
-    }
-  }, c.title), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 11,
-      color: T.muted,
-      flexShrink: 0
-    }
-  }, recordingCount(c), " of ", c.lessons.length, " to come"), /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 15,
-    color: T.mutedSoft
-  }))))), recommendedPath && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Guided learning paths"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => goView('paths'),
-    style: {
-      border: 'none',
-      background: 'transparent',
-      color: T.primary,
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: 'pointer'
-    }
-  }, "All paths \u2192")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr',
-      gap: 14,
-      alignItems: 'start'
-    }
-  }, LEARNING_PATHS.slice(0, 2).map(p => /*#__PURE__*/React.createElement(LearningPathCard, {
-    key: p.id,
-    path: p,
-    onOpen: () => openPath(p)
-  })))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 10
-    }
-  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Popular modules"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => goView('courses'),
-    style: {
-      border: 'none',
-      background: 'transparent',
-      color: T.primary,
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: 'pointer'
-    }
-  }, "Browse all \u2192")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(260px,1fr))',
-      gap: 14
-    }
-  }, popular.map(c => /*#__PURE__*/React.createElement(CourseCard, {
+  }, modules.map(c => /*#__PURE__*/React.createElement(ModuleCard, {
     key: c.id,
     course: c,
-    onOpen: () => openCourse(c)
-  })))), /*#__PURE__*/React.createElement(AcademySopPromo, {
+    openCourse: openCourse,
+    openLesson: openLesson
+  }))), /*#__PURE__*/React.createElement(AcademySopPromo, {
     isTablet: isTablet
   }));
 };
@@ -112586,409 +111576,38 @@ const AcademySopPromo = ({
   }, "Open Our SOPs"));
 };
 
-// The full catalogue. Grouped under track headings when unfiltered so the 16
-// modules read as a structure rather than a wall of cards; a single flat grid
-// once a track chip is picked. Search lives in the page header now (it spans
-// chapters and guides, not just module titles) — see AcademySearchResults.
-const AcademyCourses = ({
-  track,
-  setTrack,
-  openCourse
-}) => {
-  const groups = (track === 'all' ? ACADEMY_TRACKS : ACADEMY_TRACKS.filter(t => t.id === track)).map(t => ({
-    track: t,
-    modules: ACADEMY_COURSES.filter(c => c.track === t.id)
-  })).filter(g => g.modules.length);
-  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Banner, {
-    tone: "info",
-    icon: "menu",
-    title: "Every module is a menu item",
-    style: {
-      marginBottom: 16
-    }
-  }, "Modules are named after the groups in your left-hand menu, and the chapters inside each one are that group's screens \u2014 so what you learn maps straight onto where you'll click."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      flexWrap: 'wrap',
-      marginBottom: 18
-    }
-  }, /*#__PURE__*/React.createElement(Chip, {
-    size: "sm",
-    selected: track === 'all',
-    onClick: () => setTrack('all')
-  }, `All · ${ACADEMY_COURSES.length}`), ACADEMY_TRACKS.map(t => {
-    const n = ACADEMY_COURSES.filter(x => x.track === t.id).length;
-    return n ? /*#__PURE__*/React.createElement(Chip, {
-      key: t.id,
-      size: "sm",
-      selected: track === t.id,
-      onClick: () => setTrack(t.id)
-    }, `${t.label} · ${n}`) : null;
-  })), groups.length === 0 ? /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(EmptyState, {
-    icon: "search",
-    title: "No modules in this track",
-    hint: "Pick a different track or go back to All."
-  })) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 24
-    }
-  }, groups.map(g => /*#__PURE__*/React.createElement("div", {
-    key: g.track.id
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'baseline',
-      gap: 9,
-      marginBottom: 10,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      fontSize: 13,
-      fontWeight: 700,
-      color: T.text
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 8,
-      height: 8,
-      borderRadius: 999,
-      background: g.track.color
-    }
-  }), g.track.label), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11.5
-    }
-  }, g.track.blurb)), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-      gap: 14
-    }
-  }, g.modules.map(c => /*#__PURE__*/React.createElement(CourseCard, {
-    key: c.id,
-    course: c,
-    onOpen: () => openCourse(c)
-  })))))));
-};
-const AcademyPaths = ({
-  openPath
-}) => /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Banner, {
-  tone: "accent",
-  icon: "graduation",
-  title: "Guided learning paths",
-  style: {
-    marginBottom: 16
-  }
-}, "Ordered sequences of modules by job, not by topic. Everyone starts with \"New team member\" in their first week, then follows the path that matches what they actually do."), /*#__PURE__*/React.createElement("div", {
-  style: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-    gap: 14
-  }
-}, LEARNING_PATHS.map(p => /*#__PURE__*/React.createElement(LearningPathCard, {
-  key: p.id,
-  path: p,
-  onOpen: () => openPath(p)
-}))));
-const AcademyProgress = ({
-  openCourse,
-  openPath
-}) => {
-  const stats = academyStats();
-  const certs = certifiedCourses();
-  const inProgress = ACADEMY_COURSES.filter(c => courseDoneCount(c) > 0 && !isCourseComplete(c));
-  const nothing = inProgress.length === 0 && certs.length === 0;
-  // "Ready to watch now" has to actually be ready — ACADEMY_POPULAR includes
-  // modules that aren't recorded yet, and showing a "Coming soon" card under that
-  // heading contradicts it. Fall back to any module with a published chapter.
-  const suggested = (() => {
-    const watchable = ACADEMY_POPULAR.map(courseById).filter(c => c && publishedLessons(c).length > 0);
-    return watchable.length ? watchable : ACADEMY_COURSES.filter(c => publishedLessons(c).length > 0).slice(0, 3);
-  })();
-  return /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 20
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))',
-      gap: 12
-    }
-  }, /*#__PURE__*/React.createElement(StatCard, {
-    icon: "bookOpen",
-    tone: "accent",
-    label: "Chapters watched",
-    value: `${stats.lessonsDone}/${stats.totalLessons}`,
-    sub: stats.inProduction ? `${stats.inProduction} more in production` : undefined
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "graduation",
-    tone: "blue",
-    label: "Modules complete",
-    value: `${stats.coursesDone}/${stats.modules}`,
-    sub: stats.coursesAvailable === stats.modules ? undefined : `${stats.coursesAvailable} fully recorded so far`
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "clock",
-    tone: "amber",
-    label: "Minutes learned",
-    value: stats.minutes
-  }), /*#__PURE__*/React.createElement(StatCard, {
-    icon: "award",
-    tone: "green",
-    label: "Certificates",
-    value: stats.certificates
-  })), nothing ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      overflow: 'hidden',
-      borderRadius: T.radiusLg,
-      border: `1px solid ${T.border}`,
-      background: T.card,
-      boxShadow: T.shadowSm
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 16,
-      padding: '20px 24px',
-      background: T.primarySofter,
-      borderBottom: `1px solid ${T.borderSoft}`,
-      flexWrap: 'wrap'
-    }
-  }, /*#__PURE__*/React.createElement(IconChip, {
-    icon: "rocket",
-    tone: "accent",
-    size: 44,
-    gradient: true
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      flex: 1,
-      minWidth: 220
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 16,
-      fontWeight: 800,
-      letterSpacing: -0.2
-    }
-  }, "Start your learning journey"), /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 12.5,
-      marginTop: 2,
-      maxWidth: 520
-    }
-  }, "Nothing here yet. Follow the recommended path or jump into a module that's ready to watch \u2014 your progress and certificates collect here as you go.")), /*#__PURE__*/React.createElement(Btn, {
-    variant: "primary",
-    icon: "graduation",
-    onClick: () => openPath(LEARNING_PATHS[0])
-  }, "Start recommended path")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '16px 18px'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10.5,
-      fontWeight: 700,
-      color: T.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 12
-    }
-  }, "Ready to watch now"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 380px))',
-      gap: 14
-    }
-  }, suggested.map(c => /*#__PURE__*/React.createElement(CourseCard, {
-    key: c.id,
-    course: c,
-    onOpen: () => openCourse(c)
-  }))))) : /*#__PURE__*/React.createElement(Fragment, null, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
-    style: {
-      marginBottom: 10
-    }
-  }, "Continue learning"), inProgress.length === 0 ? /*#__PURE__*/React.createElement(Banner, {
-    tone: "info",
-    icon: "bookOpen",
-    title: "Nothing in progress",
-    action: /*#__PURE__*/React.createElement(Btn, {
-      variant: "soft",
-      size: "sm",
-      onClick: () => {
-        window.location.hash = '#/practice/academy-courses';
-      }
-    }, "Browse modules")
-  }, "Start a module and it'll appear here so you can pick up where you left off.") : /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10
-    }
-  }, inProgress.map(c => {
-    const pct = courseProgressPct(c);
-    return /*#__PURE__*/React.createElement(Card, {
-      key: c.id,
-      hover: true,
-      onClick: () => openCourse(c),
-      style: {
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14
-      }
-    }, /*#__PURE__*/React.createElement(IconChip, {
-      icon: moduleFace(c).icon,
-      tone: "accent",
-      size: 40,
-      gradient: true
-    }), /*#__PURE__*/React.createElement("div", {
-      style: {
-        flex: 1,
-        minWidth: 0
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: 10,
-        alignItems: 'baseline'
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 13.5,
-        fontWeight: 600
-      }
-    }, c.title), /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 11,
-        color: T.muted,
-        flexShrink: 0
-      }
-    }, courseDoneCount(c), " of ", c.lessons.length, " \xB7 ", pct, "%")), /*#__PURE__*/React.createElement("div", {
-      style: {
-        marginTop: 9
-      }
-    }, /*#__PURE__*/React.createElement(ProgressBar, {
-      pct: pct,
-      color: catColor(c),
-      height: 6
-    }))), /*#__PURE__*/React.createElement(Btn, {
-      variant: "soft",
-      size: "sm",
-      iconRight: "arrow"
-    }, "Resume"));
-  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionTitle, {
-    style: {
-      marginBottom: 10
-    }
-  }, "Certificates ", /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontWeight: 500,
-      color: T.muted
-    }
-  }, "\xB7 ", certs.length)), certs.length === 0 ? /*#__PURE__*/React.createElement(Banner, {
-    tone: "accent",
-    icon: "award",
-    title: "No certificates yet"
-  }, "Finish every chapter in a fully-recorded module to earn your first certificate.") : /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 380px))',
-      gap: 12
-    }
-  }, certs.map(c => {
-    const color = catColor(c);
-    return /*#__PURE__*/React.createElement(Card, {
-      key: c.id,
-      hover: true,
-      onClick: () => openCourse(c),
-      style: {
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        width: 42,
-        height: 42,
-        borderRadius: 10,
-        background: `linear-gradient(135deg, ${color}, ${darkenHex(color, 0.4)})`,
-        color: '#fff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0
-      }
-    }, /*#__PURE__*/React.createElement(Icon, {
-      name: "award",
-      size: 20,
-      color: "#fff"
-    })), /*#__PURE__*/React.createElement("div", {
-      style: {
-        minWidth: 0,
-        flex: 1
-      }
-    }, /*#__PURE__*/React.createElement("div", {
-      style: {
-        fontSize: 12.5,
-        fontWeight: 700,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
-      }
-    }, c.title), /*#__PURE__*/React.createElement(Helper, {
-      style: {
-        fontSize: 11
-      }
-    }, ACADEMY_LEARNER)), /*#__PURE__*/React.createElement(Icon, {
-      name: "chevronRight",
-      size: 16,
-      color: T.muted
-    }));
-  })))));
-};
-
-// Full course view — video-first player + lesson playlist + progress + cert.
+// The module page: the video playing, the rest of the module beside it. Only
+// videos that exist are listed, so every row here is watchable.
 const CoursePlayerPage = ({
   courseId,
   lessonId,
   fireToast
 }) => {
   const course = courseById(courseId);
+  const lessons = course ? publishedLessons(course) : [];
   const {
     isTablet
   } = useViewport();
   const [, tick] = useState(0);
   const refresh = () => tick(t => t + 1);
-  const [playing, setPlaying] = useState(false);
-  const [tab, setTab] = useState('overview');
+  const [showTranscript, setShowTranscript] = useState(false);
   const [certFor, setCertFor] = useState(null);
-  // The ROUTE owns the active chapter (#/practice/course/<module>/<chapter>), so
-  // every chapter is deep-linkable, survives a reload, and can be handed to
-  // someone in Slack. `lessonId` absent → fall back to the resume point.
-  const routeLesson = course && lessonId && course.lessons.some(l => l.id === lessonId) ? lessonId : null;
+  const goHome = () => {
+    window.location.hash = '#/practice/academy';
+  };
+  // The ROUTE owns the active video (#/practice/course/<module>/<video>), so
+  // every one is deep-linkable, survives a reload, and can be pasted into
+  // Slack. `lessonId` absent falls back to the resume point.
+  const routeLesson = lessonId && lessons.some(l => l.id === lessonId) ? lessonId : null;
   const activeId = routeLesson || (course ? resumeLesson(course) : null);
   const goLesson = id => {
     if (course) window.location.hash = `#/practice/course/${course.id}/${id}`;
   };
   useEffect(() => {
     if (course && activeId) setLastLesson(course.id, activeId);
-    setPlaying(false);
-    setTab('overview');
+    setShowTranscript(false);
   }, [activeId]);
-  if (!course) {
+  if (!course || !lessons.length) {
     return /*#__PURE__*/React.createElement("main", {
       style: {
         flex: 1,
@@ -112999,61 +111618,53 @@ const CoursePlayerPage = ({
       variant: "ghost",
       size: "sm",
       icon: "chevronLeft",
-      onClick: () => {
-        window.location.hash = '#/practice/academy-courses';
-      }
-    }, "Back to modules"), /*#__PURE__*/React.createElement(Card, {
+      onClick: goHome
+    }, "Back to Academy"), /*#__PURE__*/React.createElement(Card, {
       style: {
         marginTop: 16
       }
     }, /*#__PURE__*/React.createElement(EmptyState, {
-      icon: "search",
-      title: "Module not found",
-      hint: "This training module may have moved.",
+      icon: "video",
+      title: course ? 'Nothing to watch yet' : 'Module not found',
+      hint: course ? 'No video has been published for this module. It shows up here the moment one is.' : 'This module may have moved.',
       action: /*#__PURE__*/React.createElement(Btn, {
         variant: "primary",
         size: "sm",
         icon: "bookOpen",
-        onClick: () => {
-          window.location.hash = '#/practice/academy-courses';
-        }
-      }, "Browse modules")
+        onClick: goHome
+      }, "Back to Academy")
     })));
   }
-  const lessons = course.lessons;
   const idx = Math.max(0, lessons.findIndex(l => l.id === activeId));
   const lesson = lessons[idx];
   const face = moduleFace(course);
   const color = face.color;
-  const pct = courseProgressPct(course);
-  const done = courseDoneCount(course);
-  const complete = isLessonComplete(lesson.id);
+  const done = lessons.filter(l => isLessonComplete(l.id)).length;
+  const pct = lessons.length ? Math.round(done / lessons.length * 100) : 0;
+  const watched = isLessonComplete(lesson.id);
   const isLast = idx === lessons.length - 1;
-  const lessonPub = isPublished(lesson);
-  const lessonState = chapterStatus(lesson);
+  const nextLesson = !isLast ? lessons[idx + 1] : null;
+  const prevLesson = idx > 0 ? lessons[idx - 1] : null;
+  const totalMins = lessons.reduce((s, l) => s + (l.mins || 0), 0);
   const completeAndNext = () => {
     const wasComplete = isCourseComplete(course);
     markLessonComplete(lesson.id);
     if (!wasComplete && isCourseComplete(course)) {
       setCertFor(course);
-      fireToast('🎓 Module complete — certificate earned!');
+      fireToast('Module complete, certificate earned');
       refresh();
     } else {
-      fireToast('Chapter marked complete');
+      fireToast('Marked as watched');
       if (!isLast) goLesson(lessons[idx + 1].id);else refresh();
     }
   };
-  const toggleComplete = () => {
-    setLessonComplete(lesson.id, !complete);
+  const toggleWatched = () => {
+    setLessonComplete(lesson.id, !watched);
     refresh();
   };
-  const nextLesson = !isLast ? lessons[idx + 1] : null;
-  const prevLesson = idx > 0 ? lessons[idx - 1] : null;
-  const inPaths = pathsForCourse(course.id);
-  const aboutRows = [['menu', 'Menu group', course.menuGroup], ['bookOpen', 'Chapters', `${lessons.length}`], ['clock', 'Duration', `${courseMins(course)} min`], [face.icon, 'Track', face.trackLabel], ['gauge', 'Level', course.level]];
 
-  // ← / → move through chapters. Guarded so it never fires while someone is
-  // typing in the header search or any other field.
+  // Left and right arrows move through the module. Guarded so it never fires
+  // while someone is typing in a field.
   useEffect(() => {
     const onKey = e => {
       const t = e.target;
@@ -113093,21 +111704,16 @@ const CoursePlayerPage = ({
       fontSize: 13,
       fontWeight: 700
     }
-  }, "Chapters"), /*#__PURE__*/React.createElement("span", {
+  }, "Videos"), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 11,
       color: T.muted
     }
-  }, done, "/", lessons.length, " \xB7 ", pct, "%")), /*#__PURE__*/React.createElement(ProgressBar, {
+  }, done, " of ", lessons.length, " watched")), /*#__PURE__*/React.createElement(ProgressBar, {
     pct: pct,
     color: pct === 100 ? T.green : color,
     height: 6
-  }), recordingCount(course) > 0 && /*#__PURE__*/React.createElement(Helper, {
-    style: {
-      fontSize: 11,
-      marginTop: 8
-    }
-  }, publishedLessons(course).length, " ready to watch \xB7 ", recordingCount(course), " still in production")), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: 6,
       maxHeight: isTablet ? 'none' : 520,
@@ -113121,93 +111727,6 @@ const CoursePlayerPage = ({
     complete: isLessonComplete(l.id),
     onClick: () => goLesson(l.id)
   }))));
-  const aboutCard = /*#__PURE__*/React.createElement(Card, {
-    padded: false,
-    style: {
-      overflow: 'hidden'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '13px 16px',
-      borderBottom: `1px solid ${T.borderSoft}`,
-      fontSize: 13,
-      fontWeight: 700
-    }
-  }, "About this module"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: '12px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 11
-    }
-  }, aboutRows.map(([ic, label, val], i) => /*#__PURE__*/React.createElement("div", {
-    key: i,
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      fontSize: 12
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 7,
-      color: T.muted
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: ic,
-    size: 13,
-    color: T.mutedSoft
-  }), label), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontWeight: 600,
-      color: T.text
-    }
-  }, val))), inPaths.length > 0 && /*#__PURE__*/React.createElement("div", {
-    style: {
-      borderTop: `1px solid ${T.borderSoft}`,
-      paddingTop: 11,
-      marginTop: 1
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      fontWeight: 700,
-      color: T.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 7
-    }
-  }, "Part of these paths"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: 6
-    }
-  }, inPaths.map(p => /*#__PURE__*/React.createElement("button", {
-    key: p.id,
-    onClick: () => {
-      window.location.hash = '#/practice/academy-paths';
-    },
-    style: {
-      border: `1px solid ${T.border}`,
-      background: T.card,
-      borderRadius: 999,
-      padding: '4px 10px',
-      fontSize: 10.5,
-      fontWeight: 600,
-      color: T.textSoft,
-      cursor: 'pointer',
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "graduation",
-    size: 11,
-    color: T.primary
-  }), p.title))))));
   return /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -113219,10 +111738,8 @@ const CoursePlayerPage = ({
     variant: "ghost",
     size: "sm",
     icon: "chevronLeft",
-    onClick: () => {
-      window.location.hash = '#/practice/academy-courses';
-    }
-  }, "Back to modules"), /*#__PURE__*/React.createElement("div", {
+    onClick: goHome
+  }, "Back to Academy"), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 12,
       marginBottom: 16
@@ -113231,46 +111748,12 @@ const CoursePlayerPage = ({
     style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 6,
+      gap: 7,
       flexWrap: 'wrap',
-      fontSize: 11,
+      fontSize: 11.5,
       color: T.muted
     }
-  }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      window.location.hash = '#/practice/academy';
-    },
-    style: {
-      border: 'none',
-      background: 'transparent',
-      padding: 0,
-      color: T.muted,
-      fontSize: 11,
-      fontWeight: 500,
-      cursor: 'pointer'
-    }
-  }, "Academy"), /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 11,
-    color: T.mutedSoft
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      window.location.hash = '#/practice/academy-courses';
-    },
-    style: {
-      border: 'none',
-      background: 'transparent',
-      padding: 0,
-      color: T.muted,
-      fontSize: 11,
-      fontWeight: 500,
-      cursor: 'pointer'
-    }
-  }, face.trackLabel), /*#__PURE__*/React.createElement(Icon, {
-    name: "chevronRight",
-    size: 11,
-    color: T.mutedSoft
-  }), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -113289,19 +111772,13 @@ const CoursePlayerPage = ({
       borderRadius: 999,
       background: T.mutedSoft
     }
-  }), /*#__PURE__*/React.createElement("span", null, course.level), isCourseComplete(course) && /*#__PURE__*/React.createElement(Pill, {
+  }), /*#__PURE__*/React.createElement("span", null, lessons.length, " video", lessons.length === 1 ? '' : 's', " \xB7 ", totalMins, " min"), isCourseComplete(course) && /*#__PURE__*/React.createElement(Pill, {
     color: "green",
     style: {
       fontSize: 9.5,
       marginLeft: 2
     }
-  }, "Completed"), !isModuleFullyPublished(course) && /*#__PURE__*/React.createElement(Pill, {
-    color: moduleStatus(course) === 'recording' ? 'amber' : 'neutral',
-    style: {
-      fontSize: 9.5,
-      marginLeft: 2
-    }
-  }, recordingCount(course), " in production")), /*#__PURE__*/React.createElement("div", {
+  }, "Completed")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 23,
       fontWeight: 800,
@@ -113317,7 +111794,7 @@ const CoursePlayerPage = ({
   }, course.summary)), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'grid',
-      gridTemplateColumns: isTablet ? '1fr' : 'minmax(0,1fr) 340px',
+      gridTemplateColumns: isTablet ? '1fr' : 'minmax(0,1fr) 320px',
       gap: 22,
       alignItems: 'start'
     }
@@ -113326,11 +111803,7 @@ const CoursePlayerPage = ({
       minWidth: 0
     }
   }, /*#__PURE__*/React.createElement(VideoStage, {
-    lesson: lesson,
-    color: color,
-    catIcon: face.icon,
-    playing: playing,
-    onPlay: () => setPlaying(true)
+    lesson: lesson
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
@@ -113348,18 +111821,9 @@ const CoursePlayerPage = ({
     style: {
       fontSize: 11,
       color: T.muted,
-      fontWeight: 600,
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 7,
-      flexWrap: 'wrap'
+      fontWeight: 600
     }
-  }, /*#__PURE__*/React.createElement("span", null, "Chapter ", idx + 1, " of ", lessons.length, " \xB7 ", lesson.mins, " min"), !lessonPub && /*#__PURE__*/React.createElement(Pill, {
-    color: lessonState === 'recording' ? 'amber' : 'neutral',
-    style: {
-      fontSize: 9.5
-    }
-  }, ACADEMY_STATUS[lessonState].label)), /*#__PURE__*/React.createElement("div", {
+  }, `Video ${idx + 1} of ${lessons.length} · ${lesson.mins} min`), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 18,
       fontWeight: 700,
@@ -113372,20 +111836,20 @@ const CoursePlayerPage = ({
       gap: 8,
       flexWrap: 'wrap'
     }
-  }, !lessonPub ? null : complete ? /*#__PURE__*/React.createElement(Btn, {
+  }, watched ? /*#__PURE__*/React.createElement(Btn, {
     key: "lesson-done",
     variant: "soft",
     size: "sm",
     icon: "check",
-    onClick: toggleComplete
-  }, "Completed") : /*#__PURE__*/React.createElement(Btn, {
+    onClick: toggleWatched
+  }, "Watched") : /*#__PURE__*/React.createElement(Btn, {
     key: "lesson-todo",
     variant: "primary",
     size: "sm",
     icon: "check",
     iconRight: !isLast ? 'arrow' : undefined,
     onClick: completeAndNext
-  }, isLast ? 'Mark complete' : 'Complete & next'), prevLesson && /*#__PURE__*/React.createElement(Btn, {
+  }, isLast ? 'Mark watched' : 'Watched, next'), prevLesson && /*#__PURE__*/React.createElement(Btn, {
     variant: "ghost",
     size: "sm",
     icon: "chevronLeft",
@@ -113395,60 +111859,21 @@ const CoursePlayerPage = ({
     size: "sm",
     iconRight: "arrow",
     onClick: () => goLesson(nextLesson.id)
-  }, "Next"))), /*#__PURE__*/React.createElement(Tabs, {
-    tabs: [{
-      id: 'overview',
-      label: 'Overview'
-    }, {
-      id: 'transcript',
-      label: 'Transcript'
-    }, {
-      id: 'resources',
-      label: 'Resources',
-      count: (lesson.resources || []).length || undefined
-    }],
-    value: tab,
-    onChange: setTab,
+  }, "Next"))), /*#__PURE__*/React.createElement(Card, {
     style: {
       marginTop: 16
     }
-  }), tab === 'overview' && /*#__PURE__*/React.createElement(Card, null, !lessonPub && /*#__PURE__*/React.createElement(Banner, {
-    tone: lessonState === 'recording' ? 'warn' : 'info',
-    icon: lessonState === 'recording' ? 'video' : 'clock',
-    title: lessonState === 'recording' ? 'This chapter is being recorded' : 'This chapter is scripted, not yet filmed',
-    style: {
-      marginBottom: 14
-    }
-    /* When an annotated walkthrough exists it's the better answer than
-       the raw screen — it explains every number rather than just
-       showing them. Prefer it; fall back to the live screen. */,
-    action: hasTour(lesson) ? /*#__PURE__*/React.createElement(Btn, {
-      variant: "soft",
-      size: "sm",
-      icon: "image",
-      iconRight: "arrow",
-      onClick: () => {
-        window.open(tourHref(lesson), '_blank', 'noopener');
-      }
-    }, "Read the walkthrough") : lesson.appRoute ? /*#__PURE__*/React.createElement(Btn, {
-      variant: "soft",
-      size: "sm",
-      iconRight: "arrow",
-      onClick: () => {
-        window.location.hash = `#/practice/${lesson.appRoute}`;
-      }
-    }, "Open in the app") : undefined
-  }, lessonState === 'recording' ? hasTour(lesson) ? 'The video lands shortly. Until then the annotated walkthrough already explains every number on this screen.' : 'The video lands shortly. In the meantime, here’s what it covers — and you can go and click through the real screen now.' : hasTour(lesson) ? 'Here’s what it will cover. The annotated walkthrough of this screen is ready now if you don’t want to wait.' : 'Here’s what it will cover. It’ll appear here as soon as it’s recorded.'), /*#__PURE__*/React.createElement("div", {
+  }, lesson.description && /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13.5,
       color: T.textSoft,
       lineHeight: 1.65
     }
-  }, lesson.description), lesson.takeaways && /*#__PURE__*/React.createElement("div", {
+  }, lesson.description), (lesson.takeaways || []).length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
-      marginTop: 16
+      marginTop: lesson.description ? 16 : 0
     }
-  }, /*#__PURE__*/React.createElement(SectionTitle, null, "What you'll learn"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "What you\u2019ll learn"), /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: 9,
       display: 'flex',
@@ -113475,7 +111900,7 @@ const CoursePlayerPage = ({
     "data-hover": "row",
     "data-academy-tour": true,
     style: {
-      marginTop: 18,
+      marginTop: 16,
       display: 'flex',
       alignItems: 'center',
       gap: 12,
@@ -113524,65 +111949,87 @@ const CoursePlayerPage = ({
     name: "arrow",
     size: 15,
     color: T.muted
-  })), lessonPub && lesson.appRoute && /*#__PURE__*/React.createElement("div", {
-    onClick: () => {
-      window.location.hash = `#/practice/${lesson.appRoute}`;
-    },
-    "data-hover": "row",
+  })), (lesson.resources || []).length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
-      marginTop: 12,
+      marginTop: 16
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Downloads"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 9,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8
+    }
+  }, lesson.resources.map((r, i) => /*#__PURE__*/React.createElement("a", {
+    key: i,
+    href: r.href || '#',
+    onClick: e => {
+      if (!r.href || r.href === '#') {
+        e.preventDefault();
+        fireToast('Opening resource (demo)');
+      }
+    },
+    style: {
       display: 'flex',
       alignItems: 'center',
-      gap: 12,
-      padding: '11px 12px',
+      gap: 10,
+      padding: '10px 12px',
       border: `1px solid ${T.border}`,
       borderRadius: 10,
-      cursor: 'pointer'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 34,
-      height: 34,
-      borderRadius: 8,
-      background: withAlpha(color, 0.12),
-      color,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0
+      textDecoration: 'none',
+      color: T.text,
+      fontSize: 12.5,
+      fontWeight: 500
     }
   }, /*#__PURE__*/React.createElement(Icon, {
-    name: face.icon,
+    name: "fileText",
     size: 15,
-    color: color
-  })), /*#__PURE__*/React.createElement("div", {
+    color: T.primary
+  }), /*#__PURE__*/React.createElement("span", {
     style: {
-      flex: 1,
-      minWidth: 0
+      flex: 1
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 10,
-      color: T.muted,
-      fontWeight: 700,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5
-    }
-  }, "Try it yourself"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      fontWeight: 600,
-      color: T.text
-    }
-  }, "Open this screen in the app")), /*#__PURE__*/React.createElement(Icon, {
+  }, r.label), /*#__PURE__*/React.createElement(Icon, {
     name: "arrow",
-    size: 15,
+    size: 13,
     color: T.muted
-  })), nextLesson && /*#__PURE__*/React.createElement("div", {
+  }))))), lesson.transcript && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 16,
+      borderTop: `1px solid ${T.borderSoft}`,
+      paddingTop: 13
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowTranscript(v => !v),
+    style: {
+      border: 'none',
+      background: 'transparent',
+      padding: 0,
+      color: T.primary,
+      fontSize: 12,
+      fontWeight: 600,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: showTranscript ? 'chevronDown' : 'chevronRight',
+    size: 13,
+    color: T.primary
+  }), showTranscript ? 'Hide transcript' : 'Show transcript'), showTranscript && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 10,
+      fontSize: 12.5,
+      color: T.muted,
+      lineHeight: 1.7,
+      whiteSpace: 'pre-wrap'
+    }
+  }, lesson.transcript)), nextLesson && /*#__PURE__*/React.createElement("div", {
     onClick: () => goLesson(nextLesson.id),
     "data-hover": "row",
     style: {
-      marginTop: 12,
+      marginTop: 16,
       display: 'flex',
       alignItems: 'center',
       gap: 12,
@@ -113633,57 +112080,7 @@ const CoursePlayerPage = ({
     name: "arrow",
     size: 15,
     color: T.muted
-  }))), tab === 'transcript' && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: 12.5,
-      color: T.muted,
-      lineHeight: 1.7,
-      whiteSpace: 'pre-wrap'
-    }
-  }, lesson.transcript || 'A full transcript will be available once this chapter’s video is published.')), tab === 'resources' && /*#__PURE__*/React.createElement(Card, null, (lesson.resources || []).length ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 8
-    }
-  }, lesson.resources.map((r, i) => /*#__PURE__*/React.createElement("a", {
-    key: i,
-    href: r.href || '#',
-    onClick: e => {
-      if (!r.href || r.href === '#') {
-        e.preventDefault();
-        fireToast('Opening resource (demo)');
-      }
-    },
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: '10px 12px',
-      border: `1px solid ${T.border}`,
-      borderRadius: 10,
-      textDecoration: 'none',
-      color: T.text,
-      fontSize: 12.5,
-      fontWeight: 500
-    }
-  }, /*#__PURE__*/React.createElement(Icon, {
-    name: "fileText",
-    size: 15,
-    color: T.primary
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1
-    }
-  }, r.label), /*#__PURE__*/React.createElement(Icon, {
-    name: "arrow",
-    size: 13,
-    color: T.muted
-  })))) : /*#__PURE__*/React.createElement(EmptyState, {
-    icon: "paperclip",
-    title: "No resources for this chapter",
-    hint: "Downloadable templates and checklists will appear here."
-  }))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: 0,
       display: 'flex',
@@ -113732,7 +112129,7 @@ const CoursePlayerPage = ({
     variant: "soft",
     size: "sm",
     onClick: () => setCertFor(course)
-  }, "View")), aboutCard)), /*#__PURE__*/React.createElement(CertificateModal, {
+  }, "View")))), /*#__PURE__*/React.createElement(CertificateModal, {
     course: certFor,
     open: !!certFor,
     onClose: () => setCertFor(null),
@@ -113751,11 +112148,14 @@ const academySearch = query => {
   const q = (query || '').trim().toLowerCase();
   if (q.length < 2) return null;
   const has = (...parts) => parts.filter(Boolean).join(' ').toLowerCase().includes(q);
-  const modules = ACADEMY_COURSES.filter(c => has(c.title, c.summary, c.menuGroup, moduleFace(c).trackLabel));
+  // Search only ever surfaces modules and chapters a learner could actually
+  // open, the same rule as every other browsing surface: nothing with no
+  // video behind it.
+  const modules = visibleCourses().filter(c => has(c.title, c.summary, c.menuGroup, moduleFace(c).trackLabel));
   const chapters = [];
   const guides = [];
   ACADEMY_COURSES.forEach(c => {
-    c.lessons.forEach(l => {
+    publishedLessons(c).forEach(l => {
       // `tags` is in the published contract (docs/ACADEMY_INTEGRATION.md) and the
       // Studio can author it, but this index used to ignore it, so synonyms the
       // content team typed were silently discarded. Tags are how a vocabulary miss
@@ -113920,24 +112320,18 @@ const AcademySearchResults = ({
     color: catColor(c),
     kind: "Module",
     title: c.title,
-    crumb: `${moduleFace(c).trackLabel} · ${c.lessons.length} chapters · ${courseMins(c)} min`,
+    crumb: `${publishedLessons(c).length} video${publishedLessons(c).length === 1 ? '' : 's'} · ${publishedLessons(c).reduce((s, l) => s + (l.mins || 0), 0)} min`,
     onClick: () => openCourse(c)
-  }))), group('Chapters', result.chapters.length, result.chapters.map(({
+  }))), group('Videos', result.chapters.length, result.chapters.map(({
     course,
     lesson
   }) => /*#__PURE__*/React.createElement(Row, {
     key: course.id + lesson.id,
-    icon: isPublished(lesson) ? 'play' : 'clock',
+    icon: "play",
     color: catColor(course),
-    kind: "Chapter",
+    kind: "Video",
     title: lesson.title,
     crumb: `${course.title} · ${lesson.mins} min`,
-    statusPill: !isPublished(lesson) ? /*#__PURE__*/React.createElement(Pill, {
-      color: chapterStatus(lesson) === 'recording' ? 'amber' : 'neutral',
-      style: {
-        fontSize: 9.5
-      }
-    }, ACADEMY_STATUS[chapterStatus(lesson)].label) : undefined,
     onClick: () => openLesson(course, lesson)
   }))), group('In written guides', result.guides.length, result.guides.map(({
     course,
@@ -113954,19 +112348,14 @@ const AcademySearchResults = ({
   }))))));
 };
 
-// The Academy catalog page — Home / Modules / Learning paths / My progress, with
-// a persistent search that spans all of them (it used to live inside the Courses
-// tab and reset on every tab change).
+// The Academy page. One page, not four tabs: search at the top, then every
+// module with its videos under it. Search spans modules, videos and written
+// guides, so it stays in the header rather than inside a tab.
 const AcademyPage = ({
-  view = 'home',
   fireToast
 }) => {
   const [search, setSearch] = useState('');
-  const [track, setTrack] = useState('all');
   const searchRef = useRef(null);
-  useEffect(() => {
-    setTrack('all');
-  }, [view]);
   // "/" focuses search from anywhere on the page; Esc clears it. Matches the
   // app's global-shortcut convention (preventDefault, platform-agnostic).
   useEffect(() => {
@@ -113985,40 +112374,13 @@ const AcademyPage = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-  const goView = v => {
-    window.location.hash = '#/practice/' + (v === 'home' ? 'academy' : v === 'courses' ? 'academy-courses' : v === 'paths' ? 'academy-paths' : 'academy-progress');
-  };
   const openCourse = c => {
     window.location.hash = '#/practice/course/' + c.id;
   };
   const openLesson = (c, l) => {
     window.location.hash = `#/practice/course/${c.id}/${l.id}`;
   };
-  const openPath = p => {
-    const courses = p.courseIds.map(courseById).filter(Boolean);
-    const next = courses.find(c => !isCourseComplete(c)) || courses[0];
-    if (next) openCourse(next);
-  };
   const result = academySearch(search);
-  const tabs = [{
-    id: 'home',
-    label: 'Home',
-    icon: 'rocket'
-  }, {
-    id: 'courses',
-    label: 'Modules',
-    icon: 'bookOpen',
-    count: ACADEMY_COURSES.length
-  }, {
-    id: 'paths',
-    label: 'Learning paths',
-    icon: 'graduation',
-    count: LEARNING_PATHS.length
-  }, {
-    id: 'progress',
-    label: 'My progress',
-    icon: 'checkCircle'
-  }];
   return /*#__PURE__*/React.createElement("main", {
     style: {
       flex: 1,
@@ -114056,7 +112418,7 @@ const AcademyPage = ({
       marginTop: 2,
       maxWidth: 620
     }
-  }, "Learn Sole Practice Manager at your own pace. One module per menu group, a chapter for every screen inside it, plus guided paths to get a whole team up to speed.")), /*#__PURE__*/React.createElement("div", {
+  }, "Short videos that show you how to use Sole Practice Manager. Each module is a group in the left-hand menu.")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       alignItems: 'center',
@@ -114112,31 +112474,18 @@ const AcademyPage = ({
       padding: '1px 5px',
       fontFamily: 'inherit'
     }
-  }, "/"))), /*#__PURE__*/React.createElement(Tabs, {
-    tabs: tabs,
-    value: view,
-    onChange: goView,
+  }, "/"))), /*#__PURE__*/React.createElement("div", {
     style: {
-      marginTop: 16
+      marginTop: 20
     }
-  }), result ? /*#__PURE__*/React.createElement(AcademySearchResults, {
+  }, result ? /*#__PURE__*/React.createElement(AcademySearchResults, {
     result: result,
     openCourse: openCourse,
     openLesson: openLesson,
     onClear: () => setSearch('')
-  }) : /*#__PURE__*/React.createElement(Fragment, null, view === 'home' && /*#__PURE__*/React.createElement(AcademyHome, {
+  }) : /*#__PURE__*/React.createElement(AcademyModules, {
     openCourse: openCourse,
-    openPath: openPath,
-    goView: goView
-  }), view === 'courses' && /*#__PURE__*/React.createElement(AcademyCourses, {
-    track: track,
-    setTrack: setTrack,
-    openCourse: openCourse
-  }), view === 'paths' && /*#__PURE__*/React.createElement(AcademyPaths, {
-    openPath: openPath
-  }), view === 'progress' && /*#__PURE__*/React.createElement(AcademyProgress, {
-    openCourse: openCourse,
-    openPath: openPath
+    openLesson: openLesson
   })));
 };
 
@@ -118678,7 +117027,7 @@ const PracticeApp = () => {
   // user keeps their bearings while drilled into a run. workload-planner
   // now collapses into the merged Capacity & Workload entry, so light
   // up 'capacity-planner' for either underlying route.
-  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' || route.section === 'prompts-mine' || route.section === 'prompts-favs' ? 'prompts' : route.section === 'academy-courses' || route.section === 'academy-paths' || route.section === 'academy-progress' || route.section === 'course' ? 'academy' : route.section === 'sops-mine' || route.section === 'sops-drafts' || route.section === 'sops-templates' || route.section === 'sop' || route.section === 'sop-edit' ? 'sops' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
+  const sidebarActive = route.section === 'compliance-detail' ? 'clients-management' : route.section === 'prompt' || route.section === 'prompts-mine' || route.section === 'prompts-favs' ? 'prompts' : route.section === 'academy-courses' || route.section === 'course' ? 'academy' : route.section === 'sops-mine' || route.section === 'sops-drafts' || route.section === 'sops-templates' || route.section === 'sop' || route.section === 'sop-edit' ? 'sops' : route.section === 'payrun-detail' ? 'payroll-list' : route.section === 'workflow-builder' || route.section === 'workflow-settings' || route.section === 'workflow-templates' || route.section === 'workflow-recipes' ? 'workflow' : route.section === 'workload-planner' || route.section === 'workload-management' ? 'capacity-planner' : route.section;
   const renderContent = () => {
     switch (route.section) {
       case 'overview':
@@ -118789,24 +117138,14 @@ const PracticeApp = () => {
           openId: route.id,
           fireToast: fireToast
         });
+      // The Academy is one page now. academy-courses stays as an alias so links
+      // handed out while it had tabs still land somewhere real.
       case 'academy':
         return /*#__PURE__*/React.createElement(AcademyPage, {
-          view: "home",
           fireToast: fireToast
         });
       case 'academy-courses':
         return /*#__PURE__*/React.createElement(AcademyPage, {
-          view: "courses",
-          fireToast: fireToast
-        });
-      case 'academy-paths':
-        return /*#__PURE__*/React.createElement(AcademyPage, {
-          view: "paths",
-          fireToast: fireToast
-        });
-      case 'academy-progress':
-        return /*#__PURE__*/React.createElement(AcademyPage, {
-          view: "progress",
           fireToast: fireToast
         });
       case 'course':

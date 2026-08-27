@@ -24,13 +24,16 @@ window.SOLE_ACADEMY_CONFIG = {
   supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlY2RyZmFwdmp5ZGtudXpqcmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NDI1MDIsImV4cCI6MjEwMzMxODUwMn0.lYT3mWW0iO58YMdYbOA4_dv-LKEKa4PcH3W4oWTQlTI",
 
   // Access model:
-  //   'magic-link' (recommended) — teammates sign in with a one-time email link;
-  //                                only people you've invited in Supabase Auth
-  //                                can get in.
-  //   'open'                     — anyone with the link can edit the curriculum
-  //                                (also enable the OPEN MODE policies in
-  //                                supabase/migrations/0003_academy_cms.sql).
-  authMode: 'magic-link',
+  //   'password'   (what we ship) - email + password, set from the Supabase
+  //                dashboard and handed to the person directly. No email is
+  //                sent at any point, which matters: Supabase's built-in mail
+  //                service is capped at 2 messages an hour and the cap cannot
+  //                be raised without wiring up custom SMTP, so magic links
+  //                locked the team out of their own tool.
+  //   'magic-link' one-time email link. Still implemented, needs custom SMTP
+  //                before it is usable by more than one person an hour.
+  //   'open'       no sign-in at all. Anyone with the URL can edit.
+  authMode: 'password',
 
   // Storage bucket for lesson attachments (thumbnails, checklists, screenshots).
   // Videos are NEVER uploaded — they live on YouTube/Vimeo/Loom and the lesson

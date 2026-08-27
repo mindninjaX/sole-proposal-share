@@ -640,216 +640,103 @@ const RowActions = ({ onUp, onDown, onDelete, canUp, canDown, extra }) => (
 /* ===== the curriculum tree ================================================
    Track → course → lesson, collapsible, drag or arrow to reorder. Selecting
    any row opens it in the editor pane on the right. */
-const CurriculumTree = ({ doc, sel, setSel, edit, fireToast, collapsed, setCollapsed }) => {
-  const tracks = doc.tracks || [];
-  const moveTrack = useDragOrder((f, t) => edit(d => { d.tracks = moveItem(d.tracks, f, t); }));
+/* ---- live vs waiting ------------------------------------------------------
+   The one question this tool kept failing to answer: can a learner watch this
+   right now? It is not "does the row have a video", it is "is that exact video
+   in the published version". Everything on screen reads from these two. */
+const liveVideoMap = (liveDoc) => {
+  const map = {};
+  ((liveDoc && liveDoc.courses) || []).forEach(c => (c.lessons || []).forEach(l => {
+    const url = l.embedUrl || l.videoUrl;
+    if (url && l.status === 'published') map[l.id] = url;
+  }));
+  return map;
+};
+// 'live'    published, and the link has not changed since
+// 'waiting' has a video that learners cannot see yet
+// 'none'    no video attached
+const lessonLiveState = (lesson, live) => {
+  const url = lesson.embedUrl || lesson.videoUrl;
+  if (!url) return 'none';
+  return live[lesson.id] === url ? 'live' : 'waiting';
+};
+const LIVE_FACE = {
+  live:    { label: 'Live',     color: T.greenDark, bg: T.greenSoft,  icon: 'checkCircle' },
+  waiting: { label: 'Not live', color: T.amber,     bg: T.amberSoft,  icon: 'alertTriangle' },
+  none:    { label: 'No video', color: T.mutedSoft, bg: T.fieldBg,    icon: 'clock' },
+};
+const waitingLessons = (doc, live) => allLessons(doc)
+  .filter(({ lesson }) => lessonLiveState(lesson, live) === 'waiting');
 
-  const isOpen = (id) => !collapsed[id];
+/* ---- the curriculum tree --------------------------------------------------
+   Read only, on purpose. It used to add, delete, reorder and rename tracks,
+   modules and chapters. The structure mirrors the app's own left-hand menu, so
+   it is not the content team's to change, and every one of those controls was a
+   way to lose work at 2am. What is left is navigation plus one honest marker
+   per row: live, not live, or no video. */
+const Tree = ({ doc, live, sel, setSel, collapsed, setCollapsed }) => {
+  const courses = doc.courses || [];
   const toggle = (id) => setCollapsed(c => ({ ...c, [id]: !c[id] }));
-
-  const addTrack = () => {
-    const t = emptyTrack();
-    t.label = 'New track';
-    edit(d => { d.tracks.push(t); });
-    setSel({ kind: 'track', id: t.id });
-  };
-  const addCourse = (trackId) => {
-    const c = emptyCourse(trackId);
-    c.title = 'New module';
-    edit(d => { d.courses.push(c); });
-    setCollapsed(s => ({ ...s, [trackId]: false }));
-    setSel({ kind: 'course', id: c.id });
-  };
-  const addLesson = (courseId) => {
-    const l = emptyLesson();
-    l.title = 'New lesson';
-    edit(d => { const c = findCourse(d, courseId); if (c) c.lessons.push(l); });
-    setCollapsed(s => ({ ...s, [courseId]: false }));
-    setSel({ kind: 'lesson', id: l.id, courseId });
-  };
-
-  const deleteTrack = (track) => {
-    const owned = (doc.courses || []).filter(c => c.track === track.id);
-    if (owned.length) { fireToast({ message: `Move or delete its ${plural(owned.length, 'module')} first`, tone: 'warn' }); return; }
-    const snapshot = clone(doc.tracks);
-    edit(d => { d.tracks = d.tracks.filter(t => t.id !== track.id); });
-    if (sel.kind === 'track' && sel.id === track.id) setSel({ kind: null });
-    fireToast({ message: `Deleted "${track.label || 'track'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.tracks = snapshot; }) } });
-  };
-  const deleteCourse = (course) => {
-    const snapshot = clone(doc.courses);
-    const snapPaths = clone(doc.paths);
-    edit(d => {
-      d.courses = d.courses.filter(c => c.id !== course.id);
-      d.paths.forEach(p => { p.courseIds = p.courseIds.filter(id => id !== course.id); });
-    });
-    if (sel.id === course.id || sel.courseId === course.id) setSel({ kind: null });
-    fireToast({ message: `Deleted "${course.title || 'module'}"`, action: { label: 'Undo', onClick: () => edit(d => { d.courses = snapshot; d.paths = snapPaths; }) } });
-  };
-  const deleteLesson = (course, lesson) => {
-    const snapshot = clone(course.lessons);
-    edit(d => { const c = findCourse(d, course.id); if (c) c.lessons = c.lessons.filter(l => l.id !== lesson.id); });
-    if (sel.kind === 'lesson' && sel.id === lesson.id) setSel({ kind: 'course', id: course.id });
-    fireToast({ message: `Deleted "${lesson.title || 'lesson'}"`, action: { label: 'Undo', onClick: () => edit(d => { const c = findCourse(d, course.id); if (c) c.lessons = snapshot; }) } });
-  };
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700 }}>Curriculum</div>
-          <Helper style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{plural((doc.courses || []).length, 'module')} · {plural(allLessons(doc).length, 'chapter')}</Helper>
-        </div>
+      <div style={{ padding: '12px 14px', borderBottom: `1px solid ${T.borderSoft}` }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700 }}>Every module in the app</div>
+        <Helper style={{ fontSize: 10.5, marginTop: 2 }}>Pick the chapter you filmed, then paste its link.</Helper>
       </div>
-
       <div className="scroll" style={{ flex: 1, padding: '8px 8px 40px' }}>
-        {tracks.length === 0 && (
-          <EmptyState icon="layers" title="No tracks yet"
-            hint="Tracks are the filter chips learners see across the top of the catalog. Start with one, then add courses inside it."
-            action={<Btn variant="primary" size="sm" icon="plus" onClick={addTrack}>Add the first track</Btn>} />
-        )}
-        {tracks.map((track, ti) => {
-          const courses = (doc.courses || []).filter(c => c.track === track.id);
-          const open = isOpen(track.id);
-          const selectedTrack = sel.kind === 'track' && sel.id === track.id;
+        {courses.map(course => {
+          const lessons = course.lessons || [];
+          const open = !collapsed[course.id];
+          const liveN = lessons.filter(l => lessonLiveState(l, live) === 'live').length;
+          const waitN = lessons.filter(l => lessonLiveState(l, live) === 'waiting').length;
           return (
-            <div key={track.id} {...moveTrack(ti)} style={{ marginBottom: 3, borderRadius: T.radius }}>
-              <div data-row onClick={() => setSel({ kind: 'track', id: track.id })}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '6px 8px', borderRadius: T.radius, cursor: 'pointer',
-                  background: selectedTrack ? T.primarySoft : 'transparent' }}
-                onMouseEnter={e => { if (!selectedTrack) e.currentTarget.style.background = T.fieldBg; }}
-                onMouseLeave={e => { if (!selectedTrack) e.currentTarget.style.background = 'transparent'; }}>
-                <button data-btn onClick={e => { e.stopPropagation(); toggle(track.id); }} aria-label={open ? 'Collapse' : 'Expand'}
-                  style={{ border: 'none', background: 'transparent', padding: 0, color: T.mutedSoft, display: 'flex' }}>
-                  <Icon name={open ? 'chevronDown' : 'chevronRight'} size={13} />
-                </button>
-                <span style={{ width: 20, height: 20, borderRadius: 6, background: withAlpha(track.color || T.primary, 0.13), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon name="layers" size={12} color={track.color || T.primary} />
-                </span>
+            <div key={course.id} style={{ marginBottom: 2 }}>
+              <div data-row onClick={() => toggle(course.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 8px', borderRadius: T.radius, cursor: 'pointer' }}
+                onMouseEnter={e => { e.currentTarget.style.background = T.fieldBg; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                <Icon name={open ? 'chevronDown' : 'chevronRight'} size={13} color={T.mutedSoft} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {track.label || <span style={{ color: T.red }}>Untitled track</span>}
+                  {course.title || course.id}
                 </span>
-                <span style={{ fontSize: 10, color: T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>{courses.length}</span>
-                <RowActions
-                  canUp={ti > 0} canDown={ti < tracks.length - 1}
-                  onUp={() => edit(d => { d.tracks = moveItem(d.tracks, ti, ti - 1); })}
-                  onDown={() => edit(d => { d.tracks = moveItem(d.tracks, ti, ti + 1); })}
-                  onDelete={() => deleteTrack(track)}
-                  extra={<button data-btn onClick={(e) => { e.stopPropagation(); addCourse(track.id); }} aria-label="Add course"
-                    style={{ border: 'none', background: 'transparent', padding: 2, color: T.muted }}><Icon name="plus" size={13} /></button>} />
+                {waitN > 0 && <span title={`${waitN} not live yet`} style={{ fontSize: 9.5, fontWeight: 800, color: T.amber }}>{waitN}</span>}
+                <span style={{ fontSize: 9.5, color: liveN ? T.greenDark : T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>{liveN}/{lessons.length}</span>
               </div>
-
               {open && (
-                <div style={{ marginLeft: 14, borderLeft: `1px solid ${T.borderSoft}`, paddingLeft: 6, marginTop: 2 }}>
-                  {courses.length === 0 && (
-                    <button data-btn onClick={() => addCourse(track.id)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', padding: '5px 8px', color: T.mutedSoft, fontSize: 11, textAlign: 'left' }}>
-                      <Icon name="plus" size={12} />Add a module
-                    </button>
-                  )}
-                  {courses.map((course) => (
-                    <CourseBranch key={course.id} doc={doc} track={track} course={course} courses={courses}
-                      sel={sel} setSel={setSel} edit={edit}
-                      open={isOpen(course.id)} toggle={() => toggle(course.id)}
-                      onAddLesson={() => addLesson(course.id)}
-                      onDeleteCourse={() => deleteCourse(course)}
-                      onDeleteLesson={(l) => deleteLesson(course, l)} />
-                  ))}
+                <div style={{ marginLeft: 13, borderLeft: `1px solid ${T.borderSoft}`, paddingLeft: 6, marginTop: 1 }}>
+                  {lessons.map(l => {
+                    const state = lessonLiveState(l, live);
+                    const face = LIVE_FACE[state];
+                    const on = sel.kind === 'lesson' && sel.id === l.id;
+                    return (
+                      <div key={l.id} data-row onClick={() => setSel({ kind: 'lesson', id: l.id, courseId: course.id })}
+                        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', marginBottom: 1, borderRadius: 6, cursor: 'pointer',
+                          background: on ? T.primarySoft : 'transparent' }}
+                        onMouseEnter={e => { if (!on) e.currentTarget.style.background = T.fieldBg; }}
+                        onMouseLeave={e => { if (!on) e.currentTarget.style.background = 'transparent'; }}>
+                        <Icon name={face.icon} size={12} color={face.color} />
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: on ? T.text : T.textSoft, fontWeight: on ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {l.title || l.id}
+                        </span>
+                        {state !== 'none' && (
+                          <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.3, textTransform: 'uppercase', color: face.color }}>{face.label}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
           );
         })}
       </div>
-    </div>
-  );
-};
-
-/* One course row plus its lesson list. Split out so each course owns its own
-   drag state — a single shared one would make every list jump at once. */
-const CourseBranch = ({ doc, track, course, courses, sel, setSel, edit, open, toggle, onAddLesson, onDeleteCourse, onDeleteLesson }) => {
-  const idx = courses.indexOf(course);
-  const globalIdx = (doc.courses || []).indexOf(course);
-  // Reorder within the track: translate a local swap into the global array.
-  const moveWithinTrack = (from, to) => edit(d => {
-    const ids = courses.map(c => c.id);
-    const reordered = moveItem(ids, from, to);
-    const others = d.courses.filter(c => c.track !== track.id);
-    const mine = reordered.map(id => d.courses.find(c => c.id === id)).filter(Boolean);
-    // Keep the track's courses contiguous at the position of its first member.
-    const firstAt = d.courses.findIndex(c => c.track === track.id);
-    const out = others.slice();
-    out.splice(Math.max(0, firstAt), 0, ...mine);
-    d.courses = out;
-  });
-  const courseDnd = useDragOrder(moveWithinTrack);
-  const moveLesson = (f, t) => edit(d => { const c = findCourse(d, course.id); if (c) c.lessons = moveItem(c.lessons, f, t); });
-  const lessonDnd = useDragOrder(moveLesson);
-  const selectedCourse = sel.kind === 'course' && sel.id === course.id;
-  const lessons = course.lessons || [];
-  const withVideo = lessons.filter(lessonHasVideo).length;
-
-  return (
-    <div {...courseDnd(idx)} style={{ marginBottom: 2, borderRadius: T.radius }}>
-      <div data-row onClick={() => setSel({ kind: 'course', id: course.id })}
-        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', borderRadius: T.radius, cursor: 'pointer',
-          background: selectedCourse ? T.primarySoft : 'transparent' }}
-        onMouseEnter={e => { if (!selectedCourse) e.currentTarget.style.background = T.fieldBg; }}
-        onMouseLeave={e => { if (!selectedCourse) e.currentTarget.style.background = 'transparent'; }}>
-        <button data-btn onClick={e => { e.stopPropagation(); toggle(); }} aria-label={open ? 'Collapse' : 'Expand'}
-          style={{ border: 'none', background: 'transparent', padding: 0, color: T.mutedSoft, display: 'flex' }}>
-          <Icon name={open ? 'chevronDown' : 'chevronRight'} size={12} />
-        </button>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {course.title || <span style={{ color: T.red }}>Untitled course</span>}
-        </span>
-        {course.popular && <Icon name="star" size={10} color={T.amber} />}
-        <span style={{ fontSize: 9.5, color: withVideo === lessons.length && lessons.length ? T.greenDark : T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>
-          {withVideo}/{lessons.length}
-        </span>
-        <RowActions
-          canUp={idx > 0} canDown={idx < courses.length - 1}
-          onUp={() => moveWithinTrack(idx, idx - 1)}
-          onDown={() => moveWithinTrack(idx, idx + 1)}
-          onDelete={onDeleteCourse}
-          extra={<button data-btn onClick={(e) => { e.stopPropagation(); onAddLesson(); }} aria-label="Add lesson"
-            style={{ border: 'none', background: 'transparent', padding: 2, color: T.muted }}><Icon name="plus" size={12} /></button>} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', borderTop: `1px solid ${T.borderSoft}`, flexWrap: 'wrap' }}>
+        {['live', 'waiting', 'none'].map(k => (
+          <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, color: T.muted }}>
+            <Icon name={LIVE_FACE[k].icon} size={11} color={LIVE_FACE[k].color} />{LIVE_FACE[k].label}
+          </span>
+        ))}
       </div>
-
-      {open && (
-        <div style={{ marginLeft: 12, borderLeft: `1px solid ${T.borderSoft}`, paddingLeft: 6, marginTop: 1 }}>
-          {lessons.length === 0 && (
-            <button data-btn onClick={onAddLesson}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', border: 'none', background: 'transparent', padding: '4px 8px', color: T.mutedSoft, fontSize: 10.5, textAlign: 'left' }}>
-              <Icon name="plus" size={11} />Add a lesson
-            </button>
-          )}
-          {lessons.map((l, li) => {
-            const selectedLesson = sel.kind === 'lesson' && sel.id === l.id;
-            const st = statusById(l.production && l.production.status);
-            return (
-              <div key={l.id} {...lessonDnd(li)} data-row
-                onClick={() => setSel({ kind: 'lesson', id: l.id, courseId: course.id })}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', marginBottom: 1, borderRadius: 6, cursor: 'pointer',
-                  background: selectedLesson ? T.primarySoft : 'transparent' }}
-                onMouseEnter={e => { if (!selectedLesson) e.currentTarget.style.background = T.fieldBg; }}
-                onMouseLeave={e => { if (!selectedLesson) e.currentTarget.style.background = 'transparent'; }}>
-                <span title={st.label} style={{ width: 6, height: 6, borderRadius: 999, background: st.color, flexShrink: 0 }} />
-                <Icon name={lessonHasVideo(l) ? 'video' : 'clock'} size={11} color={lessonHasVideo(l) ? T.greenDark : T.borderStrong} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 11, color: selectedLesson ? T.text : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {l.title || <span style={{ color: T.red }}>Untitled lesson</span>}
-                </span>
-                <span style={{ fontSize: 9.5, color: T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>{l.mins || 0}m</span>
-                <RowActions
-                  canUp={li > 0} canDown={li < lessons.length - 1}
-                  onUp={() => moveLesson(li, li - 1)}
-                  onDown={() => moveLesson(li, li + 1)}
-                  onDelete={() => onDeleteLesson(l)} />
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 };
@@ -873,272 +760,94 @@ const EditorShell = ({ eyebrow, title, icon, color, children, actions }) => (
   </div>
 );
 
-const CourseEditor = ({ doc, course, edit, fireToast, onCopyToOtherProduct, otherProductLabel, setSel }) => {
-  const set = (patch) => edit(d => { const c = findCourse(d, course.id); if (c) Object.assign(c, patch); });
-  const tracks = doc.tracks || [];
-  const lessons = course.lessons || [];
-  const inPaths = (doc.paths || []).filter(p => (p.courseIds || []).includes(course.id));
-  const color = trackColorOf(doc, course.track);
-
-  // The YouTube-description helper Johann asked for: a course's lesson list as
-  // chapter text, ready to paste into a video description.
-  const contentPack = () => {
-    const lines = [];
-    lines.push(course.title || 'Untitled course');
-    if (course.summary) lines.push('', course.summary);
-    lines.push('', 'In this course:');
-    let t = 0;
-    lessons.forEach((l) => {
-      const mm = String(Math.floor(t / 60)).padStart(2, '0');
-      const ss = String(t % 60).padStart(2, '0');
-      lines.push(`${mm}:${ss} ${l.title || 'Untitled lesson'}`);
-      t += (Number(l.mins) || 0) * 60;
-    });
-    const text = lines.join('\n');
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(
-      () => fireToast('Course content pack copied'),
-      () => fireToast({ message: 'Could not copy — check clipboard permissions', tone: 'error' }));
-    else fireToast({ message: 'Clipboard not available in this browser', tone: 'warn' });
-  };
-
-  return (
-    <EditorShell eyebrow="Course" title={course.title || 'Untitled course'} icon={course.icon || 'bookOpen'} color={color}
-      actions={<>
-        <Btn variant="outline" size="sm" icon="copy" onClick={contentPack}>Content pack</Btn>
-        {onCopyToOtherProduct && <Btn variant="outline" size="sm" icon="layers" onClick={onCopyToOtherProduct}>Copy to {otherProductLabel}</Btn>}
-      </>}>
-      <Card>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <Field label="Title" hint="What learners scan in the catalog. Name it after the thing they want to do.">
-            <Input value={course.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Running a payrun, step by step" />
-          </Field>
-          <Field label="Summary" hint="Two lines max — it fills the body of the course card.">
-            <Textarea rows={2} value={course.summary || ''} onChange={e => set({ summary: e.target.value })} placeholder="Run compliant Australian payroll end-to-end — from employers to a finalised, STP-reported payrun." />
-          </Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <Field label="Track">
-              <Select value={course.track || ''} onChange={e => set({ track: e.target.value })}>
-                <option value="">— none —</option>
-                {tracks.map(t => <option key={t.id} value={t.id}>{t.label || t.id}</option>)}
-              </Select>
-            </Field>
-            <Field label="Level">
-              <Select value={course.level || 'Beginner'} onChange={e => set({ level: e.target.value })}>
-                {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-              </Select>
-            </Field>
-          </div>
-          <Field label="Menu group" hint="The group in the app's left-hand menu this module teaches — leave blank if not applicable (e.g. for the B2C product).">
-            <Input value={course.menuGroup || ''} onChange={e => set({ menuGroup: e.target.value })} placeholder="Payroll" />
-          </Field>
-          <Field label="Icon" hint="This exact set is what the app can draw. Anything else would render as a fallback.">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {COURSE_ICONS.map(n => (
-                <button key={n} data-btn onClick={() => set({ icon: n })} title={n}
-                  style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: `1px solid ${course.icon === n ? color : T.border}`,
-                    background: course.icon === n ? withAlpha(color, 0.12) : T.card }}>
-                  <Icon name={n} size={15} color={course.icon === n ? color : T.muted} />
-                </button>
-              ))}
-            </div>
-          </Field>
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
-            <input type="checkbox" checked={!!course.popular} onChange={e => set({ popular: e.target.checked })} style={{ marginTop: 2, accentColor: T.primary }} />
-            <span>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>Feature on the Academy home page</span>
-              <Helper style={{ fontSize: 10.5 }}>Shows under “Popular courses”. Three or four is about right — feature everything and you've featured nothing.</Helper>
-            </span>
-          </label>
-          <Field label="Id" hint="Learner progress is stored against this. Changing it resets everyone's progress for this course.">
-            <Input value={course.id} onChange={e => {
-              const next = slug(e.target.value) || course.id;
-              edit(d => {
-                (d.paths || []).forEach(p => { p.courseIds = p.courseIds.map(id => id === course.id ? next : id); });
-                const c = findCourse(d, course.id); if (c) c.id = next;
-              });
-              setSel({ kind: 'course', id: next });
-            }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
-          </Field>
-        </div>
-      </Card>
-
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <SectionTitle>Lessons</SectionTitle>
-          <Helper style={{ fontSize: 11 }}>{plural(lessons.length, 'chapter')} · {courseMins(course)} min total</Helper>
-        </div>
-        {lessons.length === 0
-          ? <Helper>No lessons yet. Add them from the tree on the left.</Helper>
-          : <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {lessons.map((l, i) => {
-                const st = statusById(l.production && l.production.status);
-                return (
-                  <div key={l.id} onClick={() => setSel({ kind: 'lesson', id: l.id, courseId: course.id })}
-                    style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: T.radius, border: `1px solid ${T.borderSoft}`, cursor: 'pointer', background: T.fieldBg }}>
-                    <span style={{ fontSize: 10.5, color: T.mutedSoft, fontVariantNumeric: 'tabular-nums', width: 14 }}>{i + 1}</span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title || 'Untitled lesson'}</span>
-                    {!lessonHasVideo(l) && <Pill color={T.amber}>No video</Pill>}
-                    <Pill color={st.color}>{st.label}</Pill>
-                    <span style={{ fontSize: 10.5, color: T.mutedSoft }}>{l.mins || 0} min</span>
-                  </div>
-                );
-              })}
-            </div>}
-      </Card>
-
-      {inPaths.length > 0 && (
-        <Card>
-          <SectionTitle style={{ marginBottom: 8 }}>Part of these learning paths</SectionTitle>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {inPaths.map(p => <Pill key={p.id} color={T.primary} icon="graduation">{p.title || p.id}</Pill>)}
-          </div>
-        </Card>
-      )}
-    </EditorShell>
-  );
-};
-
 /* ---- the video field ------------------------------------------------------
-   Paste a link, get everything else. We derive the provider, embed URL and
-   poster from the id (deterministic, works offline), then try oEmbed for the
-   real title/length/poster. The embed renders live underneath so a wrong or
-   private link is obvious in the editor rather than in front of a learner. */
+   Paste a link, press Attach, watch it play right here. If it plays here it
+   plays for a learner, which is the whole point of showing the embed. */
 const VideoField = ({ lesson, onApply, fireToast }) => {
   const [raw, setRaw] = useState(lesson.videoUrl || lesson.embedUrl || '');
   const [busy, setBusy] = useState(false);
-  const [meta, setMeta] = useState(null);
-  const [showEmbed, setShowEmbed] = useState(false);
+  const [err, setErr] = useState('');
+  const [note, setNote] = useState('');
 
-  // Reset when the selected lesson changes.
   useEffect(() => {
     setRaw(lesson.videoUrl || lesson.embedUrl || '');
-    setMeta(null);
-    setShowEmbed(false);
+    setErr(''); setNote('');
   }, [lesson.id]);
 
-  const parsed = useMemo(() => parseVideoLink(raw), [raw]);
   const attached = lessonHasVideo(lesson);
 
   const attach = () => {
-    if (!parsed || parsed.provider === 'invalid') { fireToast({ message: 'That does not look like a video link', tone: 'error' }); return; }
+    const parsed = parseVideoLink(raw);
+    if (!parsed || parsed.provider === 'invalid') {
+      setErr('That does not look like a video link. Copy the address from the browser bar on the YouTube page, it should start with https://www.youtube.com/ or https://youtu.be/');
+      return;
+    }
+    setErr('');
     const patch = parsed.provider === 'file'
       ? { videoUrl: parsed.fileUrl, embedUrl: '', thumbUrl: lesson.thumbUrl || '' }
       : { videoUrl: '', embedUrl: parsed.embedUrl, thumbUrl: parsed.thumbUrl || lesson.thumbUrl || '' };
     onApply(patch);
+    fireToast('Video attached. Publish to make it live.');
+    // The video knows its own length; the number in the curriculum was a guess.
     setBusy(true);
     fetchVideoMeta(parsed).then(m => {
       setBusy(false);
-      if (m && (m.title || m.mins || m.thumbUrl)) setMeta(m);
-      if (m && m.thumbUrl && !parsed.thumbUrl) onApply({ thumbUrl: m.thumbUrl });
+      if (m && m.mins) { onApply({ mins: m.mins }); setNote('Length set to ' + m.mins + ' min, taken from the video.'); }
     });
-    fireToast(`${parsed.label} video attached`);
   };
 
-  const clear = () => { onApply({ videoUrl: '', embedUrl: '', thumbUrl: '' }); setRaw(''); setMeta(null); setShowEmbed(false); };
-
-  const providerTone = parsed && parsed.provider === 'invalid' ? T.red
-    : parsed && parsed.provider === 'unknown' ? T.amber : T.greenDark;
+  const clear = () => { onApply({ videoUrl: '', embedUrl: '', thumbUrl: '' }); setRaw(''); setErr(''); setNote(''); };
 
   return (
-    <Card style={{ borderColor: attached ? withAlpha(T.green, 0.35) : T.border }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-        <SectionTitle>Video</SectionTitle>
-        {attached
-          ? <Pill color={T.greenDark} icon="checkCircle">Attached</Pill>
-          : <Pill color={T.amber} icon="alertTriangle">No video yet</Pill>}
+    <Card>
+      <SectionTitle style={{ marginBottom: 10 }}>1. The video</SectionTitle>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <Input value={raw} onChange={e => { setRaw(e.target.value); setErr(''); }}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); attach(); } }}
+          placeholder="Paste the YouTube link here" />
+        <Btn variant="primary" icon="link" onClick={attach} disabled={!raw.trim()}>Attach</Btn>
       </div>
+      <Helper style={{ marginTop: 7 }}>Unlisted YouTube links are fine, and are what we recommend.</Helper>
 
-      <Field hint="Paste the YouTube, Vimeo or Loom link. Unlisted links are fine — that's what we recommend. We work out the embed and the thumbnail from it.">
-        <div style={{ display: 'flex', gap: 6 }}>
-          <Input value={raw} onChange={e => setRaw(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); attach(); } }}
-            placeholder="https://www.youtube.com/watch?v=…" />
-          <Btn variant="primary" size="sm" icon="link" onClick={attach} disabled={!raw.trim()}>Attach</Btn>
-          {attached && <Btn variant="ghost" size="sm" icon="close" onClick={clear} style={{ color: T.muted }}>Clear</Btn>}
-        </div>
-      </Field>
-
-      {raw.trim() && parsed && (
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5 }}>
-          <Pill color={providerTone} icon={parsed.provider === 'invalid' ? 'xCircle' : 'video'}>{parsed.label}</Pill>
-          {parsed.provider === 'unknown' && <Helper style={{ fontSize: 11 }}>We'll embed it as-is. Check the preview below actually plays.</Helper>}
-          {busy && <Helper style={{ fontSize: 11 }}>Looking up the details…</Helper>}
+      {err && (
+        <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: T.radius, background: T.redSoft, border: `1px solid ${withAlpha(T.red, 0.3)}`,
+          fontSize: 12, color: T.red, display: 'flex', gap: 8 }}>
+          <Icon name="alertTriangle" size={14} color={T.red} /><span>{err}</span>
         </div>
       )}
-
-      {meta && (
-        <div style={{ marginTop: 12, padding: 11, borderRadius: T.radius, background: T.primarySofter, border: `1px solid ${T.borderSoft}` }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: T.primaryDark, marginBottom: 7 }}>Found on the video — use it?</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {meta.title && <Btn variant="outline" size="sm" icon="check" onClick={() => { onApply({ title: meta.title }); setMeta({ ...meta, title: null }); }}>Title: “{meta.title.length > 42 ? meta.title.slice(0, 42) + '…' : meta.title}”</Btn>}
-            {meta.mins && <Btn variant="outline" size="sm" icon="check" onClick={() => { onApply({ mins: meta.mins }); setMeta({ ...meta, mins: null }); }}>Length: {meta.mins} min</Btn>}
-          </div>
-        </div>
-      )}
+      {busy && <Helper style={{ marginTop: 8 }}>Looking up the video&rsquo;s details…</Helper>}
+      {note && <Helper style={{ marginTop: 8, color: T.greenDark }}>{note}</Helper>}
 
       {attached && (
         <div style={{ marginTop: 13 }}>
-          {showEmbed ? (
-            <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radius, overflow: 'hidden', background: '#000' }}>
-              {lesson.videoUrl
-                ? <video src={lesson.videoUrl} controls autoPlay preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
-                : <iframe src={lesson.embedUrl} title={lesson.title || 'Lesson video'} frameBorder="0"
-                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowFullScreen
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} />}
-            </div>
-          ) : (
-            <button data-btn onClick={() => setShowEmbed(true)}
-              style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radius, overflow: 'hidden', border: `1px solid ${T.border}`, padding: 0,
-                background: lesson.thumbUrl ? `#000 center/cover no-repeat url("${lesson.thumbUrl}")` : T.fieldBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 22px rgba(0,0,0,0.3)' }}>
-                <Icon name="play" size={18} color={T.primary} />
-              </span>
-              <span style={{ position: 'absolute', bottom: 9, left: 11, fontSize: 10.5, fontWeight: 700, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>Click to test the embed</span>
-            </button>
-          )}
-          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <Helper style={{ fontSize: 10.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', wordBreak: 'break-all', flex: 1, minWidth: 200 }}>
-              {lesson.embedUrl || lesson.videoUrl}
-            </Helper>
-            {(lesson.embedUrl || lesson.videoUrl) && (
-              <a href={lesson.embedUrl || lesson.videoUrl} target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 11, fontWeight: 600, color: T.primary, textDecoration: 'none', whiteSpace: 'nowrap' }}>Open in a new tab →</a>
-            )}
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', borderRadius: T.radius, overflow: 'hidden', background: '#000' }}>
+            {lesson.videoUrl
+              ? <video src={lesson.videoUrl} controls preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
+              : <iframe src={lesson.embedUrl} title={lesson.title || 'Chapter video'} frameBorder="0"
+                  allow="encrypted-media; fullscreen; picture-in-picture" allowFullScreen
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} />}
           </div>
-          <Field label="Thumbnail override" hint="Leave blank to use the video's own poster. Paste an image URL to use something else." style={{ marginTop: 12 }}>
-            <Input value={lesson.thumbUrl || ''} onChange={e => onApply({ thumbUrl: e.target.value })} placeholder="https://… (optional)" />
-          </Field>
+          <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <Helper style={{ flex: 1, minWidth: 200, fontSize: 11 }}>Play it here. If it plays for you it plays for a learner.</Helper>
+            <Btn variant="ghost" size="sm" icon="close" onClick={clear} style={{ color: T.muted }}>Remove this video</Btn>
+          </div>
         </div>
-      )}
-
-      {!attached && (
-        <Banner tone="info" icon="info" style={{ marginTop: 12 }}>
-          Until a video is attached, learners see a branded poster and “Preview coming soon”. The lesson still appears in the catalog, so it's safe to publish an outline first and add footage later.
-        </Banner>
       )}
     </Card>
   );
 };
 
-const LessonEditor = ({ doc, course, lesson, edit, fireToast, setSel }) => {
+const LessonEditor = ({ doc, course, lesson, live, edit, fireToast, setSel, onPublish, publishing }) => {
   const set = (patch) => edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) Object.assign(l, patch); });
-  const setProd = (patch) => edit(d => {
-    const l = findLesson(d, course.id, lesson.id);
-    if (l) l.production = { ...(l.production || {}), ...patch };
-  });
-  const prod = lesson.production || {};
   const lessons = course.lessons || [];
   const idx = lessons.indexOf(lesson);
-  const hasVideo = !!(lesson.videoUrl || lesson.embedUrl);
-  // Everything below the fold. These fields are already filled in from the
-  // starter curriculum and are almost never the reason someone opened a chapter,
-  // so they stay out of the way until asked for.
+  const state = lessonLiveState(lesson, live);
+  const face = LIVE_FACE[state];
   const [more, setMore] = useState(false);
+  useEffect(() => { setMore(false); }, [lesson.id]);
 
   return (
-    <EditorShell eyebrow={`Chapter ${idx + 1} of ${lessons.length} · ${course.title || 'Untitled module'}`}
-      title={lesson.title || 'Untitled chapter'} icon="video" color={trackColorOf(doc, course.track)}
+    <EditorShell eyebrow={course.title || 'Module'} title={lesson.title || 'Untitled chapter'} icon="video"
       actions={<>
         <Btn variant="outline" size="sm" icon="chevronUp" disabled={idx <= 0}
           onClick={() => setSel({ kind: 'lesson', id: lessons[idx - 1].id, courseId: course.id })}>Prev</Btn>
@@ -1146,46 +855,43 @@ const LessonEditor = ({ doc, course, lesson, edit, fireToast, setSel }) => {
           onClick={() => setSel({ kind: 'lesson', id: lessons[idx + 1].id, courseId: course.id })}>Next</Btn>
       </>}>
 
-      {/* The video comes first because it is the reason this tool exists. */}
+      {/* The answer to "why can't I see it in the Academy", on the chapter
+          itself, in the words the person is thinking. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '13px 15px', borderRadius: T.radius,
+        background: face.bg, border: `1px solid ${withAlpha(face.color, 0.3)}` }}>
+        <Icon name={face.icon} size={18} color={face.color} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: face.color }}>
+            {state === 'live' ? 'Live in the Academy right now'
+              : state === 'waiting' ? 'Not live yet'
+              : 'No video on this chapter'}
+          </div>
+          <Helper style={{ marginTop: 2 }}>
+            {state === 'live' ? 'Anyone with the Academy link can watch this.'
+              : state === 'waiting' ? 'The video is saved, but learners cannot see it until you press Publish.'
+              : 'Paste the link below. Chapters with no video are hidden from learners.'}
+          </Helper>
+        </div>
+        {state === 'waiting' && (
+          <Btn variant="success" size="sm" icon="send" disabled={publishing} onClick={onPublish}>
+            {publishing ? 'Publishing…' : 'Publish'}
+          </Btn>
+        )}
+      </div>
+
       <VideoField lesson={lesson} onApply={set} fireToast={fireToast} />
 
-      {/* One honest line about what a learner sees right now. It is derived from
-          whether a video is attached, never from a status someone forgot to
-          change, which is what used to let a chapter claim to be ready when it
-          had nothing behind it. */}
-      <Card style={{ background: hasVideo ? T.greenSoft : T.fieldBg, borderColor: hasVideo ? '#A7F3D0' : T.border }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <Icon name={hasVideo ? 'check' : 'clock'} size={15} color={hasVideo ? T.greenDark : T.muted} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: hasVideo ? T.greenDark : T.textSoft }}>
-              {hasVideo ? 'Live for learners once you publish' : (prod.status === 'recording' ? 'Shows as "Being recorded now"' : 'Shows as "Coming soon"')}
-            </div>
-            <Helper style={{ marginTop: 2 }}>
-              {hasVideo
-                ? 'A video is attached, so this chapter can be watched and counts towards the module.'
-                : 'No video yet. The chapter still shows its title and description, with no play button.'}
-            </Helper>
-          </div>
-          {!hasVideo && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 600, color: T.textSoft, whiteSpace: 'nowrap' }}>
-              <input type="checkbox" checked={prod.status === 'recording'}
-                onChange={e => setProd({ status: e.target.checked ? 'recording' : 'idea' })} />
-              Being recorded
-            </label>
-          )}
-        </div>
-      </Card>
-
       <Card>
+        <SectionTitle style={{ marginBottom: 12 }}>2. What it is called</SectionTitle>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <Field label="Chapter title" hint="Phrase it as the thing the learner will be able to do.">
+          <Field label="Chapter title">
             <Input value={lesson.title || ''} onChange={e => set({ title: e.target.value })} placeholder="Running a payrun, step by step" />
           </Field>
-          <Field label="Length (min)" hint="Rounded up.">
+          <Field label="Length in minutes" hint="Filled in for you when you attach the video.">
             <Input type="number" min="0" style={{ maxWidth: 120 }} value={lesson.mins || 0}
               onChange={e => set({ mins: Math.max(0, Number(e.target.value) || 0) })} />
           </Field>
-          <Field label="Description" hint="One or two sentences shown under the player.">
+          <Field label="Description" hint="One or two sentences, shown under the video.">
             <Textarea rows={3} value={lesson.description || ''} onChange={e => set({ description: e.target.value })}
               placeholder="Walk the payrun wizard: Basic info, Pay list, Expenses, Deductions, Review." />
           </Field>
@@ -1197,59 +903,33 @@ const LessonEditor = ({ doc, course, lesson, edit, fireToast, setSel }) => {
         border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card,
         color: T.muted, fontSize: 12, fontWeight: 600, textAlign: 'left' }}>
         <Icon name={more ? 'chevronDown' : 'chevronRight'} size={13} color={T.mutedSoft} />
-        {more ? 'Hide the rest' : 'More detail'}
+        {more ? 'Hide the extras' : 'Extras, only if you want them'}
         <span style={{ flex: 1 }} />
-        <span style={{ fontSize: 10.5, fontWeight: 500, color: T.mutedSoft }}>takeaways · transcript · downloads · id</span>
+        <span style={{ fontSize: 10.5, fontWeight: 500, color: T.mutedSoft }}>takeaways · transcript · downloads</span>
       </button>
 
       {more && (<>
         <Card>
           <SectionTitle style={{ marginBottom: 4 }}>What they&rsquo;ll be able to do</SectionTitle>
-          <Helper style={{ marginBottom: 11 }}>Three is the sweet spot. Shown as a checklist beside the video.</Helper>
+          <Helper style={{ marginBottom: 11 }}>Three is the sweet spot. Shown as a checklist under the video.</Helper>
           <StringListEditor items={lesson.takeaways} onChange={v => set({ takeaways: v })}
-            placeholder="Start a payrun and pick the pay period" addLabel="Add a takeaway" />
+            placeholder="Start a payrun and pick the pay period" addLabel="Add one" />
         </Card>
-
         <Card>
           <SectionTitle style={{ marginBottom: 4 }}>Transcript</SectionTitle>
-          <Helper style={{ marginBottom: 11 }}>Makes the chapter findable by search and gives people who would rather read something to read. Blank lines become paragraphs.</Helper>
+          <Helper style={{ marginBottom: 11 }}>Makes the chapter findable by search. Blank lines become paragraphs.</Helper>
           <Textarea rows={8} value={lesson.transcript || ''} onChange={e => set({ transcript: e.target.value })}
             placeholder="Welcome to Sole Practice Manager. In the next few minutes we'll walk through…" />
-          <Helper style={{ fontSize: 10.5, marginTop: 6 }}>
-            {(lesson.transcript || '').trim() ? `${(lesson.transcript || '').trim().split(/\s+/).length} words` : 'Empty'}
-          </Helper>
         </Card>
-
         <Card>
           <SectionTitle style={{ marginBottom: 4 }}>Downloads &amp; links</SectionTitle>
-          <Helper style={{ marginBottom: 11 }}>Checklists, templates or reference pages that go with the chapter.</Helper>
+          <Helper style={{ marginBottom: 11 }}>Checklists or templates that go with the chapter.</Helper>
           <ResourceListEditor items={lesson.resources} onChange={v => set({ resources: v })} />
-        </Card>
-
-        <Card>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Field label="Search keywords" hint="Extra words that should find this chapter.">
-              <Input value={(lesson.tags || []).join(', ')}
-                onChange={e => set({ tags: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })}
-                placeholder="payrun, wizard, payslips" />
-            </Field>
-            <Field label="Screen Tour link" hint="Optional. The id of an annotated walkthrough, e.g. practice-dashboard.">
-              <Input value={lesson.tour || ''} onChange={e => set({ tour: e.target.value })} placeholder="practice-dashboard" />
-            </Field>
-            <Field label="Chapter id" hint="Progress is stored against this. Changing it marks the chapter unwatched for everyone.">
-              <Input value={lesson.id} onChange={e => {
-                const next = slug(e.target.value) || lesson.id;
-                edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) l.id = next; });
-                setSel({ kind: 'lesson', id: next, courseId: course.id });
-              }} style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11.5 }} />
-            </Field>
-          </div>
         </Card>
       </>)}
     </EditorShell>
   );
 };
-
 
 /* ===== production board ===================================================
 /* The 16:9 stage, matching index.html's VideoStage: a real player when there's a
@@ -1272,125 +952,91 @@ const indexDoc = (d) => {
   ((d && d.paths) || []).forEach(p => { map['path:' + p.id] = { kind: 'Path', label: p.title || p.id, obj: p }; });
   return map;
 };
+// Postgres `jsonb` does not preserve object key order: a published document read
+// back out of the database holds exactly the same data with its keys reordered
+// (shortest key first, then alphabetical). Comparing JSON.stringify output
+// therefore reported EVERY lesson as changed, forever. That is what "93 changes
+// not live yet" meant on 27 Aug 2026, on a draft that was byte-equal to the live
+// version. A diff that always says "everything changed" is a diff nobody reads,
+// which is a plausible part of why a night's work sat unpublished.
+const stableJson = (v) => {
+  if (Array.isArray(v)) return '[' + v.map(stableJson).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stableJson(v[k])).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+};
 const diffDocs = (a, b) => {
   const A = indexDoc(a), B = indexDoc(b);
   const added = [], removed = [], changed = [];
   Object.keys(B).forEach(k => {
     if (!A[k]) added.push(B[k]);
-    else if (JSON.stringify(A[k].obj) !== JSON.stringify(B[k].obj)) changed.push(B[k]);
+    else if (stableJson(A[k].obj) !== stableJson(B[k].obj)) changed.push(B[k]);
   });
   Object.keys(A).forEach(k => { if (!B[k]) removed.push(A[k]); });
   return { added, removed, changed, total: added.length + removed.length + changed.length };
 };
 
-const PublishScreen = ({ doc, product, productLabel, latest, onPublish, cloud, publishing }) => {
-  const [note, setNote] = useState('');
-  const lessons = allLessons(doc);
-  const withVideo = lessons.filter(({ lesson }) => !!(lesson.videoUrl || lesson.embedUrl));
-  const published = useMemo(() => toPublished(doc), [doc]);
-  const changeLine = (g) => `${g.kind} · ${g.label}${g.parent ? ` (in ${g.parent})` : ''}`;
-  const diff = useMemo(() => diffDocs(latest ? latest.doc : null, published), [latest, published]);
-
-  return (
-    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '24px 28px 60px' }}>
-      <div style={{ maxWidth: 720 }}>
-        <SectionTitle style={{ fontSize: 16 }}>Publish</SectionTitle>
-        <Helper style={{ marginTop: 4, marginBottom: 20 }}>
-          Takes a snapshot of <b>{productLabel}</b> and makes it the live curriculum. Your draft keeps
-          working afterwards, and nothing you edit reaches learners until you publish again.
-        </Helper>
-
-        {/* One number, because one number is what decides whether it is worth
-            publishing: how many chapters a learner can actually watch. */}
-        <Card style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -1, color: withVideo.length ? T.greenDark : T.mutedSoft, fontVariantNumeric: 'tabular-nums' }}>
-              {withVideo.length}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>
-                {withVideo.length === 1 ? 'chapter is ready to watch' : 'chapters are ready to watch'}
-              </div>
-              <Helper style={{ marginTop: 2 }}>
-                Out of {lessons.length}. The rest show their title and description with no play button,
-                which is fine to publish.
-              </Helper>
-            </div>
-          </div>
-        </Card>
-
-        <Card style={{ marginBottom: 16 }}>
-          <SectionTitle style={{ marginBottom: 9 }}>What&rsquo;s changing</SectionTitle>
-          {!cloud ? (
-            <Banner tone="warn" icon="alertTriangle" title="Not connected">
-              Publishing needs the shared backend. Sign in and try again.
-            </Banner>
-          ) : !latest ? (
-            <Banner tone="accent" icon="send" title="Nothing published yet">
-              This would be version 1: {plural(published.courses.length, 'module')} and{' '}
-              {plural(published.courses.reduce((n, c) => n + c.lessons.length, 0), 'chapter')}.
-            </Banner>
-          ) : diff.total === 0 ? (
-            <Banner tone="info" icon="checkCircle" title={`No changes since version ${latest.version}`}>
-              Your draft matches what is live.
-            </Banner>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                {diff.added.length > 0 && <Pill color={T.greenDark} icon="plus">{diff.added.length} new</Pill>}
-                {diff.changed.length > 0 && <Pill color={T.blue} icon="edit">{diff.changed.length} edited</Pill>}
-                {diff.removed.length > 0 && <Pill color={T.red} icon="trash">{diff.removed.length} removed</Pill>}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 240, overflowY: 'auto' }}>
-                {diff.added.map((g, i) => <div key={'a' + i} style={{ fontSize: 11.5, color: T.greenDark, display: 'flex', gap: 7 }}><Icon name="plus" size={12} color={T.greenDark} />{changeLine(g)}</div>)}
-                {diff.changed.map((g, i) => <div key={'c' + i} style={{ fontSize: 11.5, color: T.textSoft, display: 'flex', gap: 7 }}><Icon name="edit" size={12} color={T.blue} />{changeLine(g)}</div>)}
-                {diff.removed.map((g, i) => <div key={'r' + i} style={{ fontSize: 11.5, color: T.red, display: 'flex', gap: 7 }}><Icon name="trash" size={12} color={T.red} />{changeLine(g)}</div>)}
-              </div>
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <Field label="What changed in this release?" hint="Optional. Shows in the version list so anyone can see why a version exists.">
-            <Input value={note} onChange={e => setNote(e.target.value)} placeholder="Added the four payroll videos" />
-          </Field>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-            <Btn variant="success" size="lg" icon="send" disabled={!cloud || publishing}
-              onClick={() => onPublish(note, () => setNote(''))}>
-              {publishing ? 'Publishing…' : latest ? `Publish version ${latest.version + 1}` : 'Publish version 1'}
-            </Btn>
-            {latest && <Helper>Live now: v{latest.version}, {fmtWhen(latest.published_at)}</Helper>}
-          </div>
-        </Card>
-
-        {/* Every version is kept in the database, so a rollback is always
-            possible. There is deliberately no button for it: nobody has ever
-            needed one here, and a wall of versions is the kind of thing that
-            makes a simple tool feel like an admin console. */}
-        <Helper style={{ marginTop: 14 }}>
-          Every version is kept. If something needs rolling back, ask Rishabh.
-        </Helper>
-      </div>
-    </div>
-  );
+/* Browser and Postgres error strings are not for the person reading them.
+   Translate the two that actually happen; pass anything else through so a real
+   cause is never hidden. */
+const plainError = (msg) => {
+  const m = String(msg || '');
+  if (/failed to fetch|networkerror|load failed/i.test(m)) return 'Could not reach the server. Check your internet connection and try again.';
+  if (/jwt|token|expired|not authenticated/i.test(m)) return 'Your sign-in expired. Reload the page and sign in again.';
+  if (/duplicate/i.test(m)) return 'Someone else published at the same moment. Reload the page and try again.';
+  return m || 'Unknown error';
 };
 
-/* ===== shell ============================================================== */
-// Two screens, on purpose. The job this tool exists for is "put the video
-// against the chapter, then publish". Learning paths, the production tracker,
-// the media library and the in-tool preview were all real features and all of
-// them were things to read past on the way to that job. Paths and tracks are
-// still in the document and still render in the Academy; they are just not
-// edited here any more. The preview is the live Academy itself.
-const NAV = [
-  { id: 'curriculum', label: 'Curriculum', icon: 'layers' },
-  { id: 'publish', label: 'Publish', icon: 'send' },
-];
+/* ---- the publish confirmation --------------------------------------------
+   Publishing is the step that was invisible, so it gets a moment of its own:
+   it names exactly which videos are about to go live, and a failure stays on
+   screen instead of vanishing with a toast. */
+const PublishModal = ({ open, onClose, waiting, otherChanges, onConfirm, publishing, error }) => (
+  <Modal open={open} onClose={publishing ? () => {} : onClose} title="Publish to the Academy" width={520}
+    footer={<div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      <Btn variant="ghost" onClick={onClose} disabled={publishing}>Cancel</Btn>
+      <Btn variant="success" icon="send" onClick={onConfirm} disabled={publishing}>
+        {publishing ? 'Publishing…' : 'Yes, publish'}
+      </Btn>
+    </div>}>
+    {error && (
+      <div style={{ marginBottom: 14, padding: '11px 12px', borderRadius: T.radius, background: T.redSoft, border: `1px solid ${withAlpha(T.red, 0.3)}` }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: T.red, marginBottom: 3 }}>Nothing was published</div>
+        <div style={{ fontSize: 12, color: T.textSoft }}>{error}</div>
+        <div style={{ fontSize: 11.5, color: T.muted, marginTop: 6 }}>Your work is still saved. Check your connection and try again.</div>
+      </div>
+    )}
+    <Helper style={{ marginBottom: 14 }}>
+      Everyone with the Academy link sees this straight away. Nothing else in the curriculum changes.
+    </Helper>
+    {waiting.length > 0 ? (
+      <div>
+        <SectionTitle style={{ marginBottom: 8 }}>{plural(waiting.length, 'video')} going live</SectionTitle>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 240, overflowY: 'auto' }}>
+          {waiting.map(({ course, lesson }) => (
+            <div key={lesson.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: T.textSoft }}>
+              <Icon name="checkCircle" size={13} color={T.greenDark} />
+              <span style={{ fontWeight: 600 }}>{lesson.title}</span>
+              <span style={{ color: T.mutedSoft }}>in {course.title}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : (
+      <SectionTitle>No new videos, just text edits</SectionTitle>
+    )}
+    {otherChanges > 0 && (
+      <Helper style={{ marginTop: 12 }}>Plus {plural(otherChanges, 'other edit')} to titles or descriptions.</Helper>
+    )}
+  </Modal>
+);
 
 const AcademyStudio = () => {
   const savedUI = lsRead(LS_UI, {});
-  const [product, setProduct] = useState(savedUI.product && PRODUCTS.some(p => p.id === savedUI.product) ? savedUI.product : PRODUCTS[0].id);
-  const [screen, setScreen] = useState('curriculum');
+  // LOCKED TO ONE PRODUCT. The switcher used to sit in the rail, and it is how
+  // a night's work can land in the wrong curriculum: the B2C draft was edited
+  // by accident once already. SPM is the only one anything reads today. The
+  // other document is untouched in the database if it is ever needed again.
+  const product = PRODUCTS[0].id;
   const [docs, setDocs] = useState(() => {
     const stored = lsRead(LS_DOCS, null);
     const base = seedDocs();
@@ -1434,8 +1080,6 @@ const AcademyStudio = () => {
   }, []);
 
   const doc = docs[product] || seedDocs()[product];
-  const productMeta = PRODUCTS.find(p => p.id === product) || PRODUCTS[0];
-  const other = PRODUCTS.find(p => p.id !== product) || null;
 
   const edit = useCallback((mutator) => {
     setDocs(prev => {
@@ -1521,94 +1165,92 @@ const AcademyStudio = () => {
   }, [cloudReady, needsAuth, user, pullProduct]);
 
   /* ---- selection helpers ----------------------------------------------- */
-  const jumpTo = useCallback((target) => {
-    if (!target) return;
-    setScreen('curriculum');
-    if (target.kind === 'lesson') {
-      setCollapsed(c => {
-        const n = { ...c };
-        const course = findCourse(doc, target.courseId);
-        if (course) { n[target.courseId] = false; n[course.track] = false; }
-        return n;
-      });
-      setSel({ kind: 'lesson', id: target.id, courseId: target.courseId });
-    } else if (target.kind === 'course') {
-      const course = findCourse(doc, target.id);
-      if (course) setCollapsed(c => ({ ...c, [course.track]: false }));
-      setSel({ kind: 'course', id: target.id });
-    }
-  }, [doc]);
-
-  const jumpToLesson = useCallback((courseId, lessonId) => jumpTo({ kind: 'lesson', id: lessonId, courseId }), [jumpTo]);
-
   /* ---- publish / rollback ---------------------------------------------- */
   const latest = (versions[product] || [])[0] || null;
 
-  const onPublish = (note) => {
-    if (!cloudReady) return;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [publishError, setPublishError] = useState('');
+
+  const onPublish = () => {
+    if (!cloudReady) {
+      // Was a bare `return`, so a click while disconnected did nothing at all
+      // and looked exactly like a click that worked.
+      setPublishError('You are not connected to the shared curriculum, so nothing was sent.');
+      return;
+    }
+    setPublishError('');
     setPublishing(true);
-    CLOUD.publishVersion(product, toPublished(doc), note)
+    CLOUD.publishVersion(product, toPublished(doc), '')
       .then(row => {
         setVersions(v => ({ ...v, [product]: [row].concat(v[product] || []) }));
-        fireToast(`Published version ${row.version} of ${productMeta.label}`);
+        setConfirmOpen(false);
+        fireToast('Published. It is live in the Academy now.');
       })
-      .catch(e => fireToast({ message: 'Publish failed — ' + ((e && e.message) || 'unknown error'), tone: 'error' }))
+      .catch(e => setPublishError(plainError(e && e.message)))
       .then(() => setPublishing(false));
   };
 
-  const onRollback = (v) => {
-    const snapshot = clone(doc);
-    // A published snapshot has no production metadata; keep what the draft knows
-    // so loading an old version doesn't wipe the team's status board.
-    const merged = normaliseDoc(clone(v.doc), product);
-    const prodBy = {};
-    allLessons(doc).forEach(({ lesson }) => { if (lesson.production) prodBy[lesson.id] = lesson.production; });
-    merged.courses.forEach(c => c.lessons.forEach(l => { if (prodBy[l.id]) l.production = prodBy[l.id]; }));
-    setDocs(prev => ({ ...prev, [product]: merged }));
-    fireToast({ message: `Loaded version ${v.version} into your draft`, action: { label: 'Undo', onClick: () => setDocs(prev => ({ ...prev, [product]: snapshot })) } });
-  };
-
-  /* ---- media ------------------------------------------------------------ */
-  /* ---- copy a course across products ----------------------------------- */
-  const copyCourseToOther = (course) => {
-    if (!other) return;
-    const copy = clone(course);
-    const taken = {};
-    (docs[other.id].courses || []).forEach(c => { taken[c.id] = true; (c.lessons || []).forEach(l => { taken[l.id] = true; }); });
-    if (taken[copy.id]) copy.id = copy.id + '-copy';
-    copy.lessons.forEach(l => { if (taken[l.id]) l.id = l.id + '-copy'; });
-    // Carry the track across if the other product has one with the same id;
-    // otherwise leave it unset so the readiness check flags it for a decision.
-    const hasTrack = (docs[other.id].tracks || []).some(t => t.id === copy.track);
-    if (!hasTrack) copy.track = '';
-    setDocs(prev => {
-      const next = { ...prev };
-      const d = clone(prev[other.id]);
-      d.courses.push(copy);
-      next[other.id] = d;
-      return next;
-    });
-    fireToast({
-      message: `Copied to ${other.label}`,
-      action: { label: 'Go there', onClick: () => { setProduct(other.id); setScreen('curriculum'); setSel({ kind: 'course', id: copy.id }); } },
-    });
-  };
-
-  const resetToSeed = () => {
-    const snapshot = clone(doc);
-    setDocs(prev => ({ ...prev, [product]: normaliseDoc(clone(SEED[product] || {}), product) }));
-    setSel({ kind: null });
-    fireToast({ message: 'Reset to the starter curriculum', action: { label: 'Undo', onClick: () => setDocs(prev => ({ ...prev, [product]: snapshot })) } });
-  };
-
   /* ---- auth gate ------------------------------------------------------- */
+  const [password, setPassword] = useState('');
+  const [signingIn, setSigningIn] = useState(false);
+  const passwordMode = !!(CLOUD && CLOUD.isPasswordMode && CLOUD.isPasswordMode());
+
   const doSignIn = () => {
     setAuthErr('');
     const e = email.trim();
     if (!e) return;
+    if (passwordMode) {
+      if (!password) { setAuthErr('Enter your password'); return; }
+      setSigningIn(true);
+      CLOUD.signInWithPassword(e, password)
+        .then(() => setSigningIn(false))
+        .catch(err => {
+          setSigningIn(false);
+          // GoTrue says "Invalid login credentials" for a wrong password AND for
+          // an address with no account, on purpose. Do not guess which.
+          const m = (err && err.message) || '';
+          setAuthErr(/invalid login/i.test(m) ? 'That email and password do not match an account.' : (m || 'Could not sign in'));
+        });
+      return;
+    }
     CLOUD.signIn(e).then(() => setAuthSent(true)).catch(err => setAuthErr((err && err.message) || 'Could not send the link'));
   };
 
+  /* ---- what is attached but not live yet --------------------------------
+     This cost a night on 27 Aug 2026. Rishav attached 10 videos, saw the green
+     video icon on every one of them, and reasonably read that as "live". It
+     means "attached to the draft". Nothing reaches a learner until Publish,
+     and the tool said so nowhere except on a screen he had no reason to open.
+     "Saved" and "live" are two different things here, so the header now says
+     which one you have, and offers the missing step in one click. */
+  // What learners can watch this second, straight from the published version.
+  const live = useMemo(() => liveVideoMap(latest ? latest.doc : null), [latest]);
+  const waiting = useMemo(() => waitingLessons(doc, live), [doc, live]);
+  const draftAsPublished = useMemo(() => toPublished(doc), [doc]);
+  const pending = useMemo(() => diffDocs(latest ? latest.doc : null, draftAsPublished), [latest, draftAsPublished]);
+  const countWatchable = (d) => (d ? d.courses || [] : []).reduce((n, c) =>
+    n + (c.lessons || []).filter(l => l.status === 'published').length, 0);
+
+  /* ---- do not lose work to a closed tab ---------------------------------
+     Two different losses, one dialog. An edit that has not reached the server
+     yet is gone for good; work that is saved but unpublished is safe, but the
+     person almost certainly meant to publish it. The browser picks the wording,
+     so all we control is when it appears. */
+  const unsaved = saveState === 'saving' || saveState === 'error' || saveState === 'conflict';
+  const unpublished = pending.total > 0;
+  useEffect(() => {
+    if (!unsaved && !unpublished) return;
+    const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; return ''; };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [unsaved, unpublished]);
+
+  /* ======================================================================
+     EVERY HOOK MUST BE ABOVE THIS LINE. What follows are early returns for the
+     sign-in gate, so a hook added below runs on some renders and not others,
+     and React throws "Rendered more hooks than during the previous render".
+     That has now happened twice. Put new useState/useEffect/useMemo up there.
+     ====================================================================== */
   if (!cloudConfigured) {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -1640,7 +1282,9 @@ const AcademyStudio = () => {
           </div>
           <SectionTitle style={{ fontSize: 17 }}>Sole Academy Studio</SectionTitle>
           <Helper style={{ margin: '8px 0 18px' }}>
-            Sign in to open the team's curriculum. We'll email you a one-time link — no password to remember.
+            {passwordMode
+              ? "Sign in to open the team's curriculum. Rishabh has your password."
+              : "Sign in to open the team's curriculum. We'll email you a one-time link."}
           </Helper>
           {authSent ? (
             <Banner tone="success" icon="mail" title="Check your email">
@@ -1648,10 +1292,27 @@ const AcademyStudio = () => {
             </Banner>
           ) : (
             <form onSubmit={e => { e.preventDefault(); doSignIn(); }}>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@soleapp.com.au" style={{ textAlign: 'center' }} />
-              <Btn variant="primary" size="lg" icon="mail" type="submit" style={{ width: '100%', marginTop: 10 }}>Email me a link</Btn>
+              <Input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@soleapp.com.au" style={{ textAlign: 'center' }} />
+              {passwordMode && (
+                <Input type="password" autoComplete="current-password" value={password}
+                  onChange={e => setPassword(e.target.value)} placeholder="Password"
+                  style={{ textAlign: 'center', marginTop: 8 }} />
+              )}
+              {/* No icon in password mode: the `lock` glyph in this file's icon set
+                  draws as a plain circle at button size, which reads as an info
+                  badge rather than a padlock. A wrong glyph passes every check
+                  except looking at it. */}
+              <Btn variant="primary" size="lg" icon={passwordMode ? undefined : 'mail'} type="submit"
+                disabled={signingIn} style={{ width: '100%', marginTop: 10 }}>
+                {passwordMode ? (signingIn ? 'Signing in…' : 'Sign in') : 'Email me a link'}
+              </Btn>
               {authErr && <Helper style={{ color: T.red, marginTop: 10 }}>{authErr}</Helper>}
-              <Helper style={{ fontSize: 10.5, marginTop: 12 }}>Only teammates who've been invited can sign in.</Helper>
+              <Helper style={{ fontSize: 10.5, marginTop: 12 }}>
+                {passwordMode
+                  ? 'Only people Rishabh has set up can sign in. Ask him if you need a password.'
+                  : "Only teammates who've been invited can sign in."}
+              </Helper>
             </form>
           )}
         </Card>
@@ -1659,181 +1320,135 @@ const AcademyStudio = () => {
     );
   }
 
-  /* ---- editor pane for the curriculum screen --------------------------- */
+  /* ---- the editor pane ------------------------------------------------- */
   const renderEditor = () => {
-    if (sel.kind === 'course') {
-      const course = findCourse(doc, sel.id);
-      if (course) return (
-        <CourseEditor doc={doc} course={course} edit={edit} fireToast={fireToast} setSel={setSel}
-          otherProductLabel={other ? other.short : ''}
-          onCopyToOtherProduct={other ? () => copyCourseToOther(course) : null} />
-      );
-    }
     if (sel.kind === 'lesson') {
       const course = findCourse(doc, sel.courseId);
       const lesson = findLesson(doc, sel.courseId, sel.id);
-      if (course && lesson) return <LessonEditor doc={doc} course={course} lesson={lesson} edit={edit} fireToast={fireToast} setSel={setSel} />;
+      if (course && lesson) return (
+        <LessonEditor doc={doc} course={course} lesson={lesson} live={live} edit={edit} fireToast={fireToast}
+          setSel={setSel} onPublish={() => setConfirmOpen(true)} publishing={publishing} />
+      );
     }
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <EmptyState icon="layers" title="Pick something to edit"
-          hint="Pick a chapter from the tree on the left, then paste its video link. Drag rows, or use the little arrows, to reorder them." />
+        <EmptyState icon="video" title="Pick a chapter on the left"
+          hint="Open the module you filmed, click the chapter, paste the YouTube link, then press Publish." />
       </div>
     );
   };
 
+
   const saveLabel = saveState === 'saving' ? 'Saving…'
-    : saveState === 'saved' ? 'Saved'
-    : saveState === 'error' ? 'Save failed'
+    : saveState === 'error' ? 'Not saved'
     : saveState === 'conflict' ? 'Out of date'
-    : cloudReady ? 'Up to date' : 'Saved in this browser';
+    : 'Saved';
   const saveColor = saveState === 'error' || saveState === 'conflict' ? T.red : saveState === 'saving' ? T.amber : T.greenDark;
 
+  const liveCount = countWatchable(latest ? latest.doc : null);
+
   return (
-    <div style={{ height: '100%', display: 'grid', gridTemplateColumns: '212px minmax(0,1fr)', background: T.bg }}>
-      {/* rail */}
-      <aside style={{ background: T.card, borderRight: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ padding: '15px 14px 12px', borderBottom: `1px solid ${T.borderSoft}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 26, height: 26, borderRadius: 8, background: T.primary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="graduation" size={14} color="#fff" />
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: -0.2 }}>Academy Studio</div>
-              <div style={{ fontSize: 9.5, color: T.mutedSoft }}>Internal · content team</div>
-            </div>
-          </div>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: T.bg }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 20px', background: T.card, borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
+        <span style={{ width: 26, height: 26, borderRadius: 8, background: T.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Icon name="graduation" size={14} color="#fff" />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: -0.2 }}>Academy Studio</div>
+          <div style={{ fontSize: 10, color: T.mutedSoft }}>Sole Practice Manager</div>
         </div>
 
-        <div style={{ padding: '12px 12px 10px', borderBottom: `1px solid ${T.borderSoft}` }}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: T.mutedSoft, marginBottom: 7 }}>Curriculum for</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {PRODUCTS.map(p => {
-              const active = p.id === product;
-              const d = docs[p.id];
-              return (
-                <button key={p.id} data-btn onClick={() => { setProduct(p.id); setSel({ kind: null }); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: T.radius, textAlign: 'left',
-                    border: `1px solid ${active ? T.primary : T.border}`, background: active ? T.primarySoft : T.card }}>
-                  <span style={{ width: 22, height: 22, borderRadius: 6, background: active ? T.primary : T.fieldBg, color: active ? '#fff' : T.muted,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 800, flexShrink: 0 }}>{p.short}</span>
-                  <span style={{ minWidth: 0, flex: 1 }}>
-                    <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: active ? T.primaryDark : T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.label}</span>
-                    <span style={{ display: 'block', fontSize: 9.5, color: T.mutedSoft }}>{d ? `${(d.courses || []).length}c · ${allLessons(d).length}l` : ''}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        {/* The scoreboard. Two numbers, and the second one is the whole reason
+            this header exists: work that is saved is not work that is live. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginLeft: 8, paddingLeft: 14, borderLeft: `1px solid ${T.borderSoft}` }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: T.greenDark }}>
+            <Icon name="checkCircle" size={14} color={T.greenDark} />{liveCount} live
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: waiting.length ? T.amber : T.mutedSoft }}>
+            <Icon name="alertTriangle" size={14} color={waiting.length ? T.amber : T.mutedSoft} />{waiting.length} not live
+          </span>
         </div>
 
-        <nav className="scroll" style={{ flex: 1, padding: '10px 10px 20px' }}>
-          {NAV.map(n => {
-            const active = screen === n.id;
-            // The nav used to carry a red count of readiness blockers. There is
-            // no readiness engine any more: a chapter without a video is a normal,
-            // publishable state, so there was nothing left for it to count.
-            const badge = null;
-            return (
-              <button key={n.id} data-btn onClick={() => setScreen(n.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', marginBottom: 2, borderRadius: T.radius,
-                  border: 'none', background: active ? T.primarySoft : 'transparent', color: active ? T.primaryDark : T.textSoft,
-                  fontSize: 12, fontWeight: active ? 700 : 500, textAlign: 'left' }}>
-                <Icon name={n.icon} size={14} color={active ? T.primary : T.mutedSoft} />
-                <span style={{ flex: 1 }}>{n.label}</span>
-                {badge && <Pill color={T.red}>{badge}</Pill>}
-              </button>
-            );
-          })}
+        <div style={{ flex: 1 }} />
 
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${T.borderSoft}` }}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: T.mutedSoft, marginBottom: 7, paddingLeft: 10 }}>Start over</div>
-            <button data-btn onClick={resetToSeed} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '7px 10px', borderRadius: T.radius, border: 'none', background: 'transparent', color: T.muted, fontSize: 11.5, textAlign: 'left' }}>
-              <Icon name="undo" size={13} color={T.mutedSoft} />Reset to starter
-            </button>
-          </div>
-        </nav>
-
-        <div style={{ padding: '10px 12px', borderTop: `1px solid ${T.borderSoft}` }}>
-          <div title="Shared with your team" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, color: T.greenDark }}>
-            <span style={{ width: 7, height: 7, borderRadius: 999, background: T.green }} />Shared
-          </div>
-          {user && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 9.5, color: T.mutedSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</span>
-              <button data-btn onClick={() => CLOUD.signOut().then(() => setUser(null))} aria-label="Sign out"
-                style={{ border: 'none', background: 'transparent', padding: 2, color: T.mutedSoft }}><Icon name="logout" size={12} /></button>
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: saveColor }}>
+          <span style={{ width: 6, height: 6, borderRadius: 999, background: saveColor }} />{saveLabel}
         </div>
-      </aside>
-
-      {/* main */}
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-        <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', background: T.card, borderBottom: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {(NAV.find(n => n.id === screen) || {}).label}
-              <span style={{ fontSize: 10.5, fontWeight: 600, color: T.muted }}>· {productMeta.label}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 600, color: saveColor }}>
-            <span style={{ width: 6, height: 6, borderRadius: 999, background: saveColor }} />{saveLabel}
-          </div>
-          {latest && <Pill color={T.mutedSoft} icon="send">Live: v{latest.version}</Pill>}
-          <Btn variant="outline" size="sm" icon="eye" onClick={() => window.open('academy.html', '_blank', 'noopener')}>See the Academy</Btn>
-          <Btn variant="primary" size="sm" icon="send" onClick={() => setScreen('publish')}>Publish</Btn>
-        </header>
-
-        {cloudError && saveState !== 'conflict' && (
-          <div style={{ padding: '10px 20px 0' }}>
-            <Banner tone="warn" icon="alertTriangle" title="Can't reach the shared curriculum"
-              action={<Btn variant="outline" size="sm" onClick={() => setCloudError('')}>Dismiss</Btn>}>
-              Your work is still being saved in this browser, so nothing is lost. If this is a fresh setup, the database tables probably aren't created yet — run <b>supabase/migrations/0003_academy_cms.sql</b> once (see <b>docs/ACADEMY_STUDIO_SETUP.md</b>). Details: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 10.5 }}>{cloudError}</span>
-            </Banner>
-          </div>
+        <Btn variant="outline" size="sm" icon="eye" onClick={() => window.open('academy.html', '_blank', 'noopener')}>See the Academy</Btn>
+        <Btn variant={unpublished ? 'success' : 'outline'} size="sm" icon="send"
+          disabled={!unpublished} onClick={() => { setPublishError(''); setConfirmOpen(true); }}>
+          {unpublished ? 'Publish' : 'Everything is live'}
+        </Btn>
+        {user && (
+          <button data-btn onClick={() => CLOUD.signOut().then(() => setUser(null))} title={user.email + ' · sign out'} aria-label="Sign out"
+            style={{ border: 'none', background: 'transparent', padding: 4, color: T.mutedSoft, display: 'flex' }}><Icon name="logout" size={14} /></button>
         )}
+      </header>
 
-        {saveState === 'conflict' && (
-          <div style={{ padding: '10px 20px', background: T.redSoft, borderBottom: `1px solid ${withAlpha(T.red, 0.25)}` }}>
-            <Banner tone="danger" icon="alertTriangle" title={`${conflictBy} saved changes while you were editing`}
-              action={<div style={{ display: 'flex', gap: 7 }}>
-                <Btn variant="outline" size="sm" icon="refresh" onClick={() => {
-                  loadedFromCloud.current[product] = false;
-                  setSaveState('idle');
-                  pullProduct(product);
-                  fireToast('Reloaded the shared version');
-                }}>Load theirs</Btn>
-                <Btn variant="danger" size="sm" onClick={() => {
-                  stamps.current[product] = null;   // force-win the next write
-                  setSaveState('idle');
-                  fireToast('Your next edit will overwrite theirs');
-                }}>Keep mine</Btn>
-              </div>}>
-              To avoid clobbering their work, saving has paused. Load their version (you'll lose your unsaved edits), or keep yours and overwrite.
-            </Banner>
+      {/* The missing step, made impossible to miss. It only shows when the draft
+          really is ahead of what learners can see, and it goes the moment you
+          publish. */}
+      {cloudReady && unpublished && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          padding: '12px 20px', background: T.amberSoft, borderBottom: `1px solid ${withAlpha(T.amber, 0.30)}` }}>
+          <Icon name="alertTriangle" size={16} color={T.amber} />
+          <div style={{ flex: 1, minWidth: 240, fontSize: 13, color: T.text }}>
+            <b>{waiting.length > 0
+              ? `${plural(waiting.length, 'video')} saved but not live yet.`
+              : 'You have edits that are not live yet.'}</b>
+            <span style={{ color: T.muted }}> Nobody can see {waiting.length === 1 ? 'it' : 'them'} until you publish.</span>
           </div>
-        )}
+          <Btn variant="success" size="sm" icon="send" disabled={publishing}
+            onClick={() => { setPublishError(''); setConfirmOpen(true); }}>Publish now</Btn>
+        </div>
+      )}
 
-        {screen === 'curriculum' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '330px minmax(0,1fr)', flex: 1, minHeight: 0 }}>
-            <div style={{ background: T.card, borderRight: `1px solid ${T.border}`, minHeight: 0 }}>
-              <CurriculumTree doc={doc} sel={sel} setSel={setSel} edit={edit} fireToast={fireToast}
-                collapsed={collapsed} setCollapsed={setCollapsed} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>{renderEditor()}</div>
-          </div>
-        )}
-        {screen === 'publish' && (
-          <PublishScreen doc={doc} product={product} productLabel={productMeta.label}
-            latest={latest} onPublish={onPublish} cloud={cloudReady} publishing={publishing} />
-        )}
+      {cloudError && saveState !== 'conflict' && (
+        <div style={{ padding: '10px 20px 0' }}>
+          <Banner tone="warn" icon="alertTriangle" title="Cannot reach the shared curriculum"
+            action={<Btn variant="outline" size="sm" onClick={() => setCloudError('')}>Dismiss</Btn>}>
+            Your work is still saved in this browser, so nothing is lost, but it is not reaching the team
+            and it cannot be published. Check your connection, then reload. Details: <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 10.5 }}>{cloudError}</span>
+          </Banner>
+        </div>
+      )}
+
+      {saveState === 'conflict' && (
+        <div style={{ padding: '10px 20px', background: T.redSoft, borderBottom: `1px solid ${withAlpha(T.red, 0.25)}` }}>
+          <Banner tone="danger" icon="alertTriangle" title={`${conflictBy} saved changes while you were editing`}
+            action={<div style={{ display: 'flex', gap: 7 }}>
+              <Btn variant="outline" size="sm" icon="refresh" onClick={() => {
+                loadedFromCloud.current[product] = false;
+                setSaveState('idle');
+                pullProduct(product);
+                fireToast('Reloaded the shared version');
+              }}>Load theirs</Btn>
+              <Btn variant="danger" size="sm" onClick={() => {
+                stamps.current[product] = null;   // force-win the next write
+                setSaveState('idle');
+                fireToast('Your next edit will overwrite theirs');
+              }}>Keep mine</Btn>
+            </div>}>
+            To avoid clobbering their work, saving has paused. Load their version, which loses your unsaved edits, or keep yours and overwrite.
+          </Banner>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '330px minmax(0,1fr)', flex: 1, minHeight: 0 }}>
+        <div style={{ background: T.card, borderRight: `1px solid ${T.border}`, minHeight: 0 }}>
+          <Tree doc={doc} live={live} sel={sel} setSel={setSel} collapsed={collapsed} setCollapsed={setCollapsed} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>{renderEditor()}</div>
       </div>
 
+      <PublishModal open={confirmOpen} onClose={() => setConfirmOpen(false)}
+        waiting={waiting} otherChanges={Math.max(0, pending.total - waiting.length)}
+        onConfirm={onPublish} publishing={publishing} error={publishError} />
       <Toast toast={toast} />
     </div>
   );
 };
+
 
 class ErrorBoundary extends React.Component {
   constructor(p) { super(p); this.state = { error: null }; }
