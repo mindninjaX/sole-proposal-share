@@ -28890,7 +28890,49 @@ const AppSidebar = ({
       marginTop: 1,
       lineHeight: 1.3
     }
-  }, "Demo shortcut \u2014 not a real nav item"))), items.map((m, i) => {
+  }, "Demo shortcut, not a real nav item"))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = '#/implementations';
+    },
+    style: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '7px 10px',
+      border: `1px dashed ${T.border}`,
+      borderRadius: 8,
+      background: 'transparent',
+      color: T.muted,
+      fontSize: 12.5,
+      fontWeight: 500,
+      cursor: 'pointer',
+      textAlign: 'left',
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "rocket",
+    size: 13,
+    color: T.muted
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: T.muted
+    }
+  }, "Launch Hub"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: T.muted,
+      fontStyle: 'italic',
+      marginTop: 1,
+      lineHeight: 1.3
+    }
+  }, "Sole's implementations console"))), items.map((m, i) => {
     const hasSub = !!m.sub;
     // Default {} → all groups open. Active group force-expands so the
     // current page is always reachable even if the user tucked it away.
@@ -132641,6 +132683,4657 @@ const FeedbackLandingApp = () => {
   }));
 };
 
+// ============================================================================
+// --- Launch Hub (Module 17): client readiness and rollout -------------------
+// Sole onboarding a FIRM onto SPM. Not to be confused with the Onboarding module
+// (E11), which is the firm onboarding its own clients. Two things called
+// "onboarding" one level apart is a support ticket waiting to happen, so this
+// surface is called the Launch Hub everywhere a customer can read it, and
+// "Implementations" everywhere only Sole can.
+//
+// Two surfaces, one data model:
+//   #/launch/<firmId>/<screen>   the FIRM's hub. White-labelled, own shell, no
+//                                SPM sidebar. This is the link you hand out, and
+//                                it is also the thing you present on a call.
+//   #/implementations[/<firmId>] SOLE's console. Tailor the plan, then preview.
+//
+// Origin: Jo's SPM_Launch_Hub_Design_Spec (31 Aug 2026) plus the 28 Aug call.
+// Stephen asked three questions nobody had a written answer to (how long, what
+// guidance, what training), so the Overview screen answers those three above the
+// fold or it has failed.
+//
+// Deliberately NOT built, per the spec's own "do not build Jira for clients":
+// messages, a ticket queue, a Gantt with dependencies, a client-visible
+// readiness score, per-system automatic integrations.
+//
+// SECURITY RULE, binding on whoever builds this for real: none of the three data
+// routes may ever collect a password, an API secret or an MFA code. "Approved
+// access" means OAuth or an invite to a named Sole account, nothing else. This
+// prototype accepts no files at all, because there is nowhere safe to put them.
+// ============================================================================
+
+// The six phases every rollout passes through. Client-facing labels.
+const LH_PHASES = [{
+  id: 'setup',
+  label: 'Setup',
+  blurb: 'Getting your workspace and your people set up.'
+}, {
+  id: 'data',
+  label: 'Data',
+  blurb: 'Getting your client, staff and job data out of your current systems.'
+}, {
+  id: 'config',
+  label: 'Configuration',
+  blurb: 'Sole builds your services, templates and workflows.'
+}, {
+  id: 'training',
+  label: 'Training',
+  blurb: 'Your team learns the parts of SPM they will actually use.'
+}, {
+  id: 'validation',
+  label: 'Validation',
+  blurb: 'You check your data and settings before anything goes live.'
+}, {
+  id: 'golive',
+  label: 'Go live',
+  blurb: 'SPM becomes the system your firm runs on.'
+}];
+const lhPhase = id => LH_PHASES.find(p => p.id === id) || LH_PHASES[0];
+const lhPhaseIndex = id => Math.max(0, LH_PHASES.findIndex(p => p.id === id));
+
+// Rollout bands. INTERNAL classification: it sets the dates and the effort, and
+// the firm never sees the word. The spec is explicit that a client-visible
+// complexity score is a thing not to build, so `clientLine` is what they read.
+// `span` is the day offset [from, to] of each phase from the rollout start, which
+// is what makes a Complex rollout genuinely longer rather than just labelled so.
+const LH_BANDS = {
+  standard: {
+    label: 'Standard',
+    tone: 'green',
+    total: 21,
+    note: 'Few systems, clean exports, one office, limited configuration.',
+    clientLine: 'Indicative rollout: 2 to 4 weeks.',
+    span: {
+      setup: [0, 2],
+      data: [2, 8],
+      config: [8, 12],
+      training: [12, 16],
+      validation: [16, 19],
+      golive: [21, 21]
+    }
+  },
+  assisted: {
+    label: 'Assisted',
+    tone: 'blue',
+    total: 35,
+    note: 'Multiple systems or data cleanup, several teams, broader training.',
+    clientLine: 'Indicative rollout: 4 to 6 weeks.',
+    span: {
+      setup: [0, 3],
+      data: [3, 14],
+      config: [12, 22],
+      training: [21, 26],
+      validation: [26, 31],
+      golive: [35, 35]
+    }
+  },
+  complex: {
+    label: 'Complex',
+    tone: 'amber',
+    total: 63,
+    note: 'Multiple offices, difficult extraction, significant history or custom workflows.',
+    clientLine: "We will confirm your rollout plan once we have reviewed your data.",
+    span: {
+      setup: [0, 5],
+      data: [5, 28],
+      config: [24, 42],
+      training: [42, 49],
+      validation: [49, 58],
+      golive: [63, 63]
+    }
+  }
+};
+
+// What Sole actually needs from a firm. Grounded in what Shishir listed on the
+// 28 Aug call ("the client list, the existing proposals, templates they may have
+// set up, and projects"), plus staff, which he named separately.
+const LH_DATA_ITEMS = [{
+  id: 'clients',
+  label: 'Client list',
+  required: true,
+  detail: 'Every active client: entity type, ABN, primary contact, and who manages them.'
+}, {
+  id: 'staff',
+  label: 'Staff and users',
+  required: true,
+  detail: 'Names, emails, roles, and which office each person sits in.'
+}, {
+  id: 'services',
+  label: 'Services and pricing',
+  required: true,
+  detail: 'Your service list with prices, so proposals and jobs price themselves correctly.'
+}, {
+  id: 'jobs',
+  label: 'Jobs and recurring work',
+  required: true,
+  detail: 'Recurring services, due dates, and who owns each job.'
+}, {
+  id: 'proposals',
+  label: 'Proposals and templates',
+  required: false,
+  detail: 'Anything written in your current tools that you want carried across.'
+}, {
+  id: 'documents',
+  label: 'Documents',
+  required: false,
+  detail: 'Where your files live now, and whether they move across or stay where they are.'
+}];
+
+// Review states for a data item. Four, per the spec, and no more.
+const LH_ITEM_STATES = {
+  waiting: {
+    label: 'Waiting on you',
+    tone: 'neutral',
+    sole: false
+  },
+  received: {
+    label: 'Received',
+    tone: 'blue',
+    sole: true
+  },
+  attention: {
+    label: 'Needs attention',
+    tone: 'amber',
+    sole: false
+  },
+  accepted: {
+    label: 'Accepted',
+    tone: 'green',
+    sole: true
+  }
+};
+
+// The three ways a firm can hand data over. The client never sees infrastructure.
+const LH_METHODS = {
+  upload: {
+    label: 'Send us the files',
+    icon: 'upload',
+    blurb: 'You have exports ready, or you can produce them.',
+    next: 'You will get a secure, firm-only upload area. Nothing goes near a public link.'
+  },
+  access: {
+    label: 'Give us access',
+    icon: 'shield',
+    blurb: 'The data sits in a system it is easier for us to read directly.',
+    next: 'You invite a named Sole account with the least access that works. We never ask for your password.'
+  },
+  help: {
+    label: 'Help me get it out',
+    icon: 'phone',
+    blurb: 'You are not sure how to export it, or the export looks wrong.',
+    next: 'We book a short call, look at the system with you, and do the extract together.'
+  }
+};
+
+// The systems questionnaire. Kept short on purpose: the spec's target is under
+// 10 minutes for most firms.
+const LH_SYSTEM_KINDS = [{
+  id: 'pms',
+  label: 'Practice management',
+  key: true,
+  hint: 'Where your client list, jobs and workflow live today.',
+  options: ['Xero Practice Manager', 'MYOB Practice', 'Karbon', 'CCH iFirm', 'APS', 'Handisoft', 'Spreadsheets only', 'Something else']
+}, {
+  id: 'docs',
+  label: 'Document storage',
+  key: true,
+  hint: 'Where client files and working papers are kept.',
+  options: ['SharePoint', 'Google Drive', 'Dropbox', 'Suitefiles', 'FYI', 'A local server', 'Something else']
+}, {
+  id: 'tax',
+  label: 'Tax and lodgement',
+  hint: 'What you lodge returns through.',
+  options: ['Xero Tax', 'MYOB Tax', 'Handitax', 'LodgeiT', 'Something else', 'Not applicable']
+}, {
+  id: 'proposals',
+  label: 'Proposals and pricing',
+  hint: 'Where your engagement letters and quotes are written.',
+  options: ['Cone', 'Ignition', 'GoProposal', 'Word or PDF documents', 'Nothing formal', 'Something else']
+}, {
+  id: 'crm',
+  label: 'CRM or client database',
+  hint: 'Only if it is separate from your practice management system.',
+  options: ['HubSpot', 'Salesforce', 'A spreadsheet', 'Nothing separate', 'Something else']
+}, {
+  id: 'ledger',
+  label: 'Client ledgers',
+  hint: 'What your clients keep their books in.',
+  options: ['Xero', 'MYOB', 'QuickBooks', 'Reckon', 'A mix of these', 'Something else']
+}];
+
+// INTERNAL extraction notes, the spec's "simple admin configuration table". These
+// are the implementation team's working assumptions and are shown to Sole only,
+// labelled "to confirm" in the UI, because nobody has signed them off yet. Do not
+// print any of this on a firm-facing screen and do not treat it as fact.
+const LH_EXTRACTION = {
+  'Xero Practice Manager': {
+    method: 'CSV export',
+    effort: 'low'
+  },
+  'MYOB Practice': {
+    method: 'CSV export',
+    effort: 'low'
+  },
+  'Karbon': {
+    method: 'CSV export',
+    effort: 'medium'
+  },
+  'CCH iFirm': {
+    method: 'Assisted extract',
+    effort: 'high'
+  },
+  'APS': {
+    method: 'Assisted extract',
+    effort: 'high'
+  },
+  'Handisoft': {
+    method: 'Assisted extract',
+    effort: 'high'
+  },
+  'Spreadsheets only': {
+    method: 'Upload as is',
+    effort: 'medium'
+  },
+  'SharePoint': {
+    method: 'Named-account invite',
+    effort: 'medium'
+  },
+  'Google Drive': {
+    method: 'Named-account invite',
+    effort: 'medium'
+  },
+  'Dropbox': {
+    method: 'Named-account invite',
+    effort: 'medium'
+  },
+  'Suitefiles': {
+    method: 'Assisted extract',
+    effort: 'high'
+  },
+  'FYI': {
+    method: 'Assisted extract',
+    effort: 'high'
+  },
+  'A local server': {
+    method: 'Assisted extract',
+    effort: 'high'
+  },
+  'Cone': {
+    method: 'CSV export',
+    effort: 'low'
+  },
+  'Ignition': {
+    method: 'CSV export',
+    effort: 'low'
+  },
+  'GoProposal': {
+    method: 'Assisted extract',
+    effort: 'medium'
+  },
+  'HubSpot': {
+    method: 'CSV export',
+    effort: 'low'
+  },
+  'Salesforce': {
+    method: 'CSV export',
+    effort: 'medium'
+  }
+};
+const lhExtraction = name => LH_EXTRACTION[name] || {
+  method: 'To be confirmed',
+  effort: 'medium'
+};
+const LH_EFFORT_TONE = {
+  low: 'green',
+  medium: 'blue',
+  high: 'amber'
+};
+
+// Training options. Four, per the spec. `academyIds` deep-links each option at
+// the real Sole Academy modules a firm would watch, so nothing here invents
+// training content that does not exist.
+const LH_TRAINING_OPTIONS = [{
+  id: 'walkthrough',
+  label: 'Guided walkthrough',
+  shape: '45 to 60 minutes, one session',
+  best: 'Small firms, or a team that is confident picking software up.',
+  detail: 'One live pass through the whole platform, recorded, plus the Academy videos to work through afterwards.',
+  academyIds: ['c-get-started', 'c-my-focus']
+}, {
+  id: 'workshops',
+  label: 'Role-based workshops',
+  shape: 'Two sessions, by role',
+  best: 'Most firms.',
+  detail: 'An admin and champion session on setup, then an all-staff session on the day-to-day work.',
+  academyIds: ['c-get-started', 'c-deals', 'c-proposals', 'c-clients', 'c-deliver']
+}, {
+  id: 'implementation',
+  label: 'Implementation workshop',
+  shape: 'Hands-on, half a day',
+  best: 'Larger firms, or a practice with processes it wants rebuilt properly.',
+  detail: 'We sit with you and configure your services, workflows, roles and templates together.',
+  academyIds: ['c-workflow', 'c-onboarding', 'c-setup', 'c-teams']
+}, {
+  id: 'mixed',
+  label: 'A mix',
+  shape: 'Built around your teams',
+  best: 'Firms where different teams need very different things.',
+  detail: 'Pick the shape per team. We will put the combination into your plan.',
+  academyIds: ['c-get-started', 'c-deals', 'c-payroll', 'c-setup']
+}];
+const lhTrainingOption = id => LH_TRAINING_OPTIONS.find(o => o.id === id) || LH_TRAINING_OPTIONS[1];
+const LH_AUDIENCES = [{
+  id: 'champions',
+  label: 'Admins and champions'
+}, {
+  id: 'partners',
+  label: 'Partners and managers'
+}, {
+  id: 'staff',
+  label: 'All staff'
+}];
+
+// The task template. `pos` is where the task sits inside its phase window (0 to
+// 1), so a Complex rollout spreads the same tasks over ten weeks rather than
+// three, without a second template. `owner` is 'firm' or 'sole' and is the thing
+// the client actually reads.
+const LH_TASK_TEMPLATE = [{
+  id: 'lead',
+  phase: 'setup',
+  owner: 'firm',
+  pos: 0.1,
+  title: 'Nominate your implementation lead',
+  detail: 'One person we work with day to day, plus a backup for when they are away.'
+}, {
+  id: 'readiness',
+  phase: 'setup',
+  owner: 'firm',
+  pos: 0.5,
+  title: 'Complete the readiness questions',
+  detail: 'About 10 minutes. It is what sizes your rollout and tells us how to get your data out.'
+}, {
+  id: 'workspace',
+  phase: 'setup',
+  owner: 'sole',
+  pos: 0.8,
+  title: 'Create your SPM workspace',
+  detail: 'Your firm, your branding, and an implementation owner on our side.'
+}, {
+  id: 'method',
+  phase: 'data',
+  owner: 'firm',
+  pos: 0.05,
+  title: 'Choose how you will send us your data',
+  detail: 'Files, approved access, or ask us to help you extract it.'
+}, {
+  id: 'cleanup',
+  phase: 'data',
+  owner: 'firm',
+  pos: 0.35,
+  title: 'Tidy your client list',
+  detail: 'Mark clients who have left, merge the obvious duplicates, and check who manages whom.'
+}, {
+  id: 'handover',
+  phase: 'data',
+  owner: 'firm',
+  pos: 0.6,
+  title: 'Send us your client, staff and job data',
+  detail: 'The four required items on your Data and access screen.'
+}, {
+  id: 'review',
+  phase: 'data',
+  owner: 'sole',
+  pos: 0.9,
+  title: 'Review your data and come back with anything missing',
+  detail: 'We check every file, flag what needs another look, and tell you exactly what is wrong.'
+}, {
+  id: 'services',
+  phase: 'config',
+  owner: 'sole',
+  pos: 0.2,
+  title: 'Build your services and pricing',
+  detail: 'So proposals and jobs price themselves rather than being typed each time.'
+}, {
+  id: 'import',
+  phase: 'config',
+  owner: 'sole',
+  pos: 0.5,
+  title: 'Import your clients, staff and jobs'
+}, {
+  id: 'permissions',
+  phase: 'config',
+  owner: 'firm',
+  pos: 0.75,
+  title: 'Confirm who can see what',
+  detail: 'Roles and permissions for your team, before anyone logs in.'
+}, {
+  id: 'workflows',
+  phase: 'config',
+  owner: 'sole',
+  pos: 0.9,
+  title: 'Set up your workflows and templates'
+}, {
+  id: 'academy',
+  phase: 'training',
+  owner: 'firm',
+  pos: 0.05,
+  title: 'Start on the Academy videos',
+  detail: 'Your team can begin the moment your workspace exists. No need to wait for the workshop.'
+}, {
+  id: 'schedule',
+  phase: 'training',
+  owner: 'sole',
+  pos: 0.2,
+  title: 'Confirm your training dates'
+}, {
+  id: 'attend',
+  phase: 'training',
+  owner: 'firm',
+  pos: 0.8,
+  title: 'Attend your training sessions'
+}, {
+  id: 'validate',
+  phase: 'validation',
+  owner: 'firm',
+  pos: 0.35,
+  title: 'Check a sample of your migrated data',
+  detail: 'We will point you at 20 clients and a payrun. You tell us whether they look right.'
+}, {
+  id: 'fix',
+  phase: 'validation',
+  owner: 'sole',
+  pos: 0.7,
+  title: 'Resolve anything you flag'
+}, {
+  id: 'signoff',
+  phase: 'validation',
+  owner: 'firm',
+  pos: 0.95,
+  title: 'Sign off on going live'
+}, {
+  id: 'activate',
+  phase: 'golive',
+  owner: 'sole',
+  pos: 0.5,
+  title: 'Switch your firm live'
+}, {
+  id: 'hypercare',
+  phase: 'golive',
+  owner: 'sole',
+  pos: 1,
+  title: 'Two weeks of daily check-ins',
+  detail: 'Someone from Sole is on hand every day while your team settles in.'
+}];
+const LH_TASK_STATUSES = {
+  todo: {
+    label: 'To do',
+    tone: 'neutral'
+  },
+  doing: {
+    label: 'In progress',
+    tone: 'blue'
+  },
+  waitfirm: {
+    label: 'Waiting on your firm',
+    tone: 'amber'
+  },
+  waitsole: {
+    label: 'Waiting on Sole',
+    tone: 'amber'
+  },
+  done: {
+    label: 'Complete',
+    tone: 'green'
+  }
+};
+const LH_OWNER_LABEL = {
+  firm: 'Your team',
+  sole: 'Sole team'
+};
+
+// --- date helpers -----------------------------------------------------------
+// One clock for the whole module: dates are stored as day offsets from a firm's
+// `startedDaysAgo`, so the demo never goes stale sitting in a branch.
+const lhToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+const lhShift = (base, days) => {
+  const d = new Date(base);
+  d.setDate(d.getDate() + Math.round(days));
+  return d;
+};
+const lhFmt = d => fmtDate(d instanceof Date ? d : new Date(d));
+const lhDaysBetween = (a, b) => Math.round((b - a) / 86400000);
+// "in 12 days" / "3 days ago" / "today". Used wherever a bare date would make
+// someone do arithmetic in their head.
+const lhRelative = d => {
+  const n = lhDaysBetween(lhToday(), d instanceof Date ? d : new Date(d));
+  if (n === 0) return 'today';
+  if (n === 1) return 'tomorrow';
+  if (n === -1) return 'yesterday';
+  return n > 0 ? `in ${n} days` : `${Math.abs(n)} days ago`;
+};
+// The spec asks for "target week" wherever a date is not locked, so an
+// unconfirmed milestone never reads as a promise.
+const lhWeekOf = d => `week of ${lhFmt(d)}`;
+
+// --- the plan generator -----------------------------------------------------
+// The spec's "automatic plan generation", and the part that makes this tailored
+// rather than a static page. Readiness answers in, band plus milestones plus
+// tasks out. It returns its own `reasons`, because "Assisted, because 3 systems
+// and the client list needs cleanup" is the sentence Sole has to be able to say
+// out loud on a call, and a number nobody can explain is worse than no number.
+const lhBandScore = r => {
+  const reasons = [];
+  let score = 0;
+  const bump = (n, why) => {
+    score += n;
+    reasons.push(why);
+  };
+  const clients = Number(r.clients) || 0;
+  if (clients > 1500) bump(2, `${clients.toLocaleString('en-AU')} clients`);else if (clients > 500) bump(1, `${clients.toLocaleString('en-AU')} clients`);
+  const staff = Number(r.staff) || 0;
+  if (staff > 20) bump(2, `${staff} staff`);else if (staff > 8) bump(1, `${staff} staff`);
+  const offices = Number(r.offices) || 1;
+  if (offices > 1) bump(1, `${offices} offices`);
+
+  // Only systems that carry data we have to move count. "Nothing formal",
+  // "Not applicable" and an empty answer are not systems. `ledger` is excluded
+  // outright: client ledgers are the CLIENTS' books, they stay where they are,
+  // and counting them was pushing ordinary firms a whole band harder than they
+  // are.
+  const live = LH_SYSTEM_KINDS.filter(k => k.id !== 'ledger').map(k => r.systems && r.systems[k.id]).filter(v => v && v !== 'Nothing separate' && v !== 'Nothing formal' && v !== 'Not applicable');
+  if (live.length >= 4) bump(2, `${live.length} systems to move data out of`);else if (live.length === 3) bump(1, '3 systems to move data out of');
+  const hard = live.filter(n => lhExtraction(n).effort === 'high');
+  if (hard.length) bump(2, `${hard.join(' and ')} needs an assisted extract`);
+  if (r.dataCondition === 'needs-work') bump(2, 'the client list needs cleanup');else if (r.dataCondition === 'some-cleanup') bump(1, 'some cleanup on the client list');
+  if (r.history === 'everything') bump(2, 'all history migrated, not just active clients');else if (r.history === 'some-history') bump(1, 'some history migrated');
+  if (r.training === 'implementation') bump(1, 'a hands-on implementation workshop');
+
+  // Complex is a TRIGGER, not a total. The spec describes it as "multiple
+  // offices, difficult extraction, significant history or custom workflows", so
+  // any one of those is enough on its own, and no amount of ordinary
+  // mid-sized-firm points adds up to it. Getting this wrong the additive way put
+  // a clean 14-person firm on a 9-week plan, which would have been a promise
+  // made 5 weeks too pessimistic on the first screen they ever saw.
+  const triggers = [];
+  if (offices > 1) triggers.push(`${offices} offices`);
+  if (hard.length) triggers.push(`${hard.join(' and ')} needs an assisted extract`);
+  if (r.history === 'everything') triggers.push('they want all their history, not just active clients');
+  if (clients > 1500) triggers.push(`${clients.toLocaleString('en-AU')} clients`);
+  if (staff > 30) triggers.push(`${staff} staff`);
+  const band = triggers.length ? 'complex' : score >= 3 ? 'assisted' : 'standard';
+  return {
+    band,
+    score,
+    reasons,
+    triggers
+  };
+};
+
+// Conditional tasks. The spec's progressive-disclosure principle applied to the
+// plan rather than the form: a firm only gets the task if the thing is true.
+const lhConditionalTasks = r => {
+  const out = [];
+  const sys = r.systems || {};
+  if (sys.docs === 'SharePoint' || sys.docs === 'Google Drive') {
+    out.push({
+      id: 'docs-decision',
+      phase: 'data',
+      owner: 'firm',
+      pos: 0.2,
+      title: `Decide whether your documents move across or stay in ${sys.docs}`,
+      detail: 'Plenty of firms leave them where they are. Either is fine, we just need to know which.'
+    });
+  }
+  LH_SYSTEM_KINDS.forEach(k => {
+    const name = sys[k.id];
+    if (name && lhExtraction(name).effort === 'high') {
+      out.push({
+        id: `extract-${k.id}`,
+        phase: 'data',
+        owner: 'sole',
+        pos: 0.3,
+        title: `Work through the ${name} extract with you`,
+        detail: 'This one does not export cleanly on its own, so we do it together rather than sending you instructions.'
+      });
+    }
+  });
+  if ((Number(r.offices) || 1) > 1) {
+    out.push({
+      id: 'offices',
+      phase: 'config',
+      owner: 'firm',
+      pos: 0.35,
+      title: 'Confirm which staff and clients belong to which office'
+    });
+  }
+  if (r.dataCondition === 'needs-work') {
+    out.push({
+      id: 'dupes',
+      phase: 'data',
+      owner: 'sole',
+      pos: 0.45,
+      title: 'Send you a duplicate and inactive-client report to work from',
+      detail: 'You should not have to find them by eye.'
+    });
+  }
+  if (r.training === 'implementation' || r.training === 'mixed') {
+    out.push({
+      id: 'process',
+      phase: 'training',
+      owner: 'firm',
+      pos: 0.5,
+      title: 'Bring the processes you want rebuilt to the workshop'
+    });
+  }
+  return out;
+};
+
+// Build milestones and dates from the band. `start` is a Date.
+const lhBuildMilestones = (band, start) => {
+  const spec = LH_BANDS[band];
+  return LH_PHASES.map(p => {
+    const [from, to] = spec.span[p.id];
+    return {
+      id: p.id,
+      label: p.label,
+      from: lhShift(start, from),
+      to: lhShift(start, to),
+      confirmed: false
+    };
+  });
+};
+const generateRolloutPlan = (readiness, start, bandOverride) => {
+  const scored = lhBandScore(readiness);
+  const band = bandOverride || scored.band;
+  const spec = LH_BANDS[band];
+  const milestones = lhBuildMilestones(band, start);
+  const byPhase = Object.fromEntries(milestones.map(m => [m.id, m]));
+  const tasks = LH_TASK_TEMPLATE.concat(lhConditionalTasks(readiness)).map(t => {
+    const m = byPhase[t.phase] || milestones[0];
+    const span = lhDaysBetween(m.from, m.to);
+    return {
+      ...t,
+      due: lhShift(m.from, Math.max(1, Math.round(span * t.pos))),
+      status: 'todo'
+    };
+  }).sort((a, b) => a.due - b.due);
+  return {
+    band,
+    bandAuto: scored.band,
+    overridden: !!bandOverride && bandOverride !== scored.band,
+    reasons: scored.reasons,
+    score: scored.score,
+    clientLine: spec.clientLine,
+    goLive: milestones[milestones.length - 1].to,
+    milestones,
+    tasks
+  };
+};
+
+// --- the store --------------------------------------------------------------
+// One object, persisted to localStorage. Both surfaces read it, so an edit in the
+// console is what the firm sees when you preview. Namespaced per the origin rule
+// in docs/MEMORY.md: prototypes on one GitHub Pages origin share storage.
+const LH_KEY = 'sole.launch.v1';
+
+// Three seeded firms, one per band, so switching between them proves "tailored
+// per firm" rather than asserting it. Every person here is invented; no real
+// firm's details go in a prototype.
+const LH_SEED_FIRMS = [{
+  id: 'harbour-finch',
+  name: 'Harbour & Finch',
+  short: 'Harbour',
+  brandHex: '#0F766E',
+  lead: 'Nadia Fischer',
+  leadRole: 'Practice Manager',
+  leadEmail: 'nadia@harbourfinch.com.au',
+  soleContact: 'Priya Raman',
+  soleRole: 'Sole implementation',
+  startedDaysAgo: 4,
+  progressThrough: 'data',
+  donePlus: 3,
+  readiness: {
+    submitted: true,
+    staff: 5,
+    partners: 2,
+    offices: 1,
+    clients: 180,
+    backup: 'Owen Fischer',
+    targetMonth: 'October 2026',
+    blackout: 'None we know of',
+    systems: {
+      pms: 'Xero Practice Manager',
+      docs: 'Google Drive',
+      tax: 'Xero Tax',
+      proposals: 'Nothing formal',
+      crm: 'Nothing separate',
+      ledger: 'Xero'
+    },
+    exportable: {
+      pms: 'yes',
+      docs: 'yes',
+      tax: 'yes'
+    },
+    masterList: 'Xero Practice Manager',
+    inactiveFlagged: 'yes',
+    duplicates: 'no',
+    ownersReliable: 'yes',
+    jobsStructured: 'yes',
+    dataCondition: 'clean',
+    history: 'active-only',
+    cleanupOwner: 'Nadia Fischer',
+    training: 'walkthrough',
+    audiences: ['champions', 'staff'],
+    attendees: 5,
+    delivery: 'online',
+    days: 'Tuesday or Thursday',
+    window: '9:00 AM to 12:00 PM',
+    record: true,
+    method: 'upload',
+    consent: true
+  }
+}, {
+  id: 'mason-co',
+  name: 'Mason & Co',
+  short: 'Mason',
+  brandHex: '#1F6FEB',
+  lead: 'Alex Mason',
+  leadRole: 'Partner',
+  leadEmail: 'alex@masonco.com.au',
+  soleContact: 'Priya Raman',
+  soleRole: 'Sole implementation',
+  startedDaysAgo: 12,
+  progressThrough: 'data',
+  donePlus: 2,
+  readiness: {
+    submitted: true,
+    staff: 14,
+    partners: 3,
+    offices: 1,
+    clients: 620,
+    backup: 'Ruth Delaney',
+    targetMonth: 'October 2026',
+    blackout: 'Nothing between 20 and 27 September, two partners away',
+    systems: {
+      pms: 'Xero Practice Manager',
+      docs: 'SharePoint',
+      tax: 'Xero Tax',
+      proposals: 'Cone',
+      crm: 'Nothing separate',
+      ledger: 'A mix of these'
+    },
+    exportable: {
+      pms: 'yes',
+      docs: 'not-sure',
+      tax: 'yes',
+      proposals: 'yes'
+    },
+    masterList: 'Xero Practice Manager',
+    inactiveFlagged: 'not-sure',
+    duplicates: 'yes',
+    ownersReliable: 'yes',
+    jobsStructured: 'not-sure',
+    dataCondition: 'some-cleanup',
+    history: 'some-history',
+    cleanupOwner: 'Ruth Delaney',
+    training: 'workshops',
+    audiences: ['champions', 'staff'],
+    attendees: 14,
+    delivery: 'online',
+    days: 'Tuesday or Thursday',
+    window: '1:00 PM to 4:00 PM',
+    record: true,
+    method: 'upload',
+    consent: true
+  }
+}, {
+  id: 'rowland-advisory',
+  name: 'Rowland Advisory Group',
+  short: 'Rowland',
+  brandHex: '#3B4252',
+  lead: 'Daniel Okonkwo',
+  leadRole: 'Chief Operating Officer',
+  leadEmail: 'daniel@rowlandadvisory.com.au',
+  soleContact: 'Tom Bennett',
+  soleRole: 'Sole implementation',
+  startedDaysAgo: 9,
+  progressThrough: 'data',
+  donePlus: 0,
+  readiness: {
+    submitted: true,
+    staff: 42,
+    partners: 7,
+    offices: 3,
+    clients: 2900,
+    backup: 'Hana Sato',
+    targetMonth: 'December 2026',
+    blackout: 'Nothing in the last two weeks of October',
+    systems: {
+      pms: 'APS',
+      docs: 'A local server',
+      tax: 'Handitax',
+      proposals: 'Word or PDF documents',
+      crm: 'HubSpot',
+      ledger: 'A mix of these'
+    },
+    exportable: {
+      pms: 'not-sure',
+      docs: 'no',
+      tax: 'not-sure',
+      proposals: 'yes',
+      crm: 'yes'
+    },
+    masterList: 'APS',
+    inactiveFlagged: 'no',
+    duplicates: 'yes',
+    ownersReliable: 'no',
+    jobsStructured: 'no',
+    dataCondition: 'needs-work',
+    history: 'everything',
+    cleanupOwner: 'Not decided yet',
+    training: 'implementation',
+    audiences: ['champions', 'partners', 'staff'],
+    attendees: 42,
+    delivery: 'on-site',
+    days: 'Any weekday',
+    window: '9:00 AM to 5:00 PM',
+    record: true,
+    method: 'help',
+    consent: true
+  }
+}];
+
+// Build a firm's full runtime record: seed plus a generated plan plus the data
+// item states. Statuses are derived from where the firm has got to, so the three
+// demo firms look like three firms at three different points rather than three
+// copies of a blank plan.
+const lhBuildFirm = seed => {
+  const start = lhShift(lhToday(), -seed.startedDaysAgo);
+  const plan = generateRolloutPlan(seed.readiness, start);
+  const throughIdx = lhPhaseIndex(seed.progressThrough);
+  const today = lhToday();
+  // `progressThrough` is the phase the firm is IN, so everything before it is
+  // done. `donePlus` is how far into that phase they have got, which is what
+  // makes the three demo firms look like three firms at three different speeds
+  // rather than three copies of an untouched plan. Deriving it purely from the
+  // calendar instead was tried and read worse: every firm came out blocked.
+  const curTasks = plan.tasks.filter(t => lhPhaseIndex(t.phase) === throughIdx).sort((a, b) => a.due - b.due);
+  const donePlus = new Set(curTasks.slice(0, seed.donePlus || 0).map(t => t.id));
+  const tasks = plan.tasks.map(t => {
+    const idx = lhPhaseIndex(t.phase);
+    let status = 'todo';
+    if (idx < throughIdx || donePlus.has(t.id)) status = 'done';else if (idx === throughIdx) {
+      if (t.due < today) status = t.owner === 'firm' ? 'waitfirm' : 'doing';else if (t.due <= lhShift(today, 5)) status = t.owner === 'firm' ? 'todo' : 'doing';
+    }
+    return {
+      ...t,
+      status
+    };
+  });
+  // Data items: everything before the data phase is accepted, the current one is
+  // part-done, later ones are still waiting.
+  const items = LH_DATA_ITEMS.map((it, i) => {
+    let state = 'waiting';
+    if (throughIdx > lhPhaseIndex('data')) state = 'accepted';else if (throughIdx === lhPhaseIndex('data')) state = i === 0 ? 'attention' : i < 3 ? 'accepted' : 'waiting';
+    return {
+      id: it.id,
+      state,
+      method: seed.readiness.method,
+      note: state === 'attention' ? 'Two hundred rows have no client manager against them, and 14 look like duplicates. We have sent you the list.' : '',
+      updated: state === 'waiting' ? null : lhShift(today, -(i + 1) * 2)
+    };
+  });
+  return {
+    ...seed,
+    start,
+    plan,
+    tasks,
+    items,
+    training: {
+      confirmed: false,
+      when: null,
+      trainer: seed.soleContact,
+      link: ''
+    },
+    bandOverride: null
+  };
+};
+const lhFreshState = () => ({
+  v: 1,
+  firms: LH_SEED_FIRMS.map(lhBuildFirm)
+});
+
+// Dates do not survive JSON, so every read rehydrates them. Cheap, and it means a
+// stale saved state from last week still renders with sensible relative dates.
+const lhReviveFirm = f => ({
+  ...f,
+  start: new Date(f.start),
+  plan: {
+    ...f.plan,
+    goLive: new Date(f.plan.goLive),
+    milestones: (f.plan.milestones || []).map(m => ({
+      ...m,
+      from: new Date(m.from),
+      to: new Date(m.to)
+    }))
+  },
+  tasks: (f.tasks || []).map(t => ({
+    ...t,
+    due: new Date(t.due)
+  })),
+  items: (f.items || []).map(i => ({
+    ...i,
+    updated: i.updated ? new Date(i.updated) : null
+  })),
+  training: {
+    ...(f.training || {}),
+    when: f.training && f.training.when ? new Date(f.training.when) : null
+  }
+});
+const lhLoad = () => {
+  try {
+    const raw = localStorage.getItem(LH_KEY);
+    if (!raw) return lhFreshState();
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.firms) || !parsed.firms.length) return lhFreshState();
+    return {
+      ...parsed,
+      firms: parsed.firms.map(lhReviveFirm)
+    };
+  } catch (_) {
+    return lhFreshState();
+  }
+};
+const lhSave = state => {
+  try {
+    localStorage.setItem(LH_KEY, JSON.stringify(state));
+  } catch (_) {}
+};
+const lhReset = () => {
+  try {
+    localStorage.removeItem(LH_KEY);
+  } catch (_) {}
+};
+
+// --- derived reads ----------------------------------------------------------
+const lhFirmById = (state, id) => (state.firms || []).find(f => f.id === id) || (state.firms || [])[0];
+const lhProgress = firm => {
+  const t = firm.tasks || [];
+  if (!t.length) return 0;
+  return Math.round(t.filter(x => x.status === 'done').length / t.length * 100);
+};
+// Where the rollout actually is: the first phase that still has open work.
+const lhCurrentPhase = firm => {
+  const open = (firm.tasks || []).filter(t => t.status !== 'done');
+  if (!open.length) return 'golive';
+  return open.map(t => t.phase).sort((a, b) => lhPhaseIndex(a) - lhPhaseIndex(b))[0];
+};
+const lhPhaseState = (firm, phaseId) => {
+  const inPhase = (firm.tasks || []).filter(t => t.phase === phaseId);
+  if (!inPhase.length) return 'todo';
+  if (inPhase.every(t => t.status === 'done')) return 'done';
+  const cur = lhCurrentPhase(firm);
+  return phaseId === cur ? 'doing' : lhPhaseIndex(phaseId) < lhPhaseIndex(cur) ? 'done' : 'todo';
+};
+// The next thing each side owes. The spec: the dashboard calls out the next
+// required action, not just a percentage.
+const lhNextFor = (firm, owner) => (firm.tasks || []).filter(t => t.owner === owner && t.status !== 'done').sort((a, b) => a.due - b.due)[0] || null;
+const lhOpenFor = (firm, owner) => (firm.tasks || []).filter(t => t.owner === owner && t.status !== 'done').sort((a, b) => a.due - b.due);
+// One word for the whole rollout, shown to Sole and to the firm.
+const lhHealth = firm => {
+  const overdue = (firm.tasks || []).filter(t => t.status !== 'done' && t.due < lhToday());
+  if (overdue.length >= 3) return {
+    label: 'Needs attention',
+    tone: 'amber'
+  };
+  if (overdue.length) return {
+    label: 'Slipping',
+    tone: 'amber'
+  };
+  return {
+    label: 'On track',
+    tone: 'green'
+  };
+};
+// Outstanding counts REQUIRED items only. Including the optional two made the
+// sidebar badge read 4 when only 2 things were actually holding the rollout up,
+// and an amber badge that overstates the problem stops being believed.
+const lhRequiredOutstanding = firm => {
+  const req = new Set(LH_DATA_ITEMS.filter(i => i.required).map(i => i.id));
+  return (firm.items || []).filter(i => req.has(i.id) && (i.state === 'waiting' || i.state === 'attention'));
+};
+const lhItemsOutstanding = firm => lhRequiredOutstanding(firm).length;
+
+// --- shared presentation ----------------------------------------------------
+// The firm hub is themed off ONE hex per firm, reusing the client portal's
+// makePortalTheme rather than a second colour system. A pale brand still gets
+// readable buttons because the derivation handles it.
+const lhTheme = hex => makePortalTheme(hex || '#4A3FBE');
+const lhVars = P => ({
+  '--pt-brand': P.brand,
+  '--pt-brand-mid': P.brandMid,
+  '--pt-brand-deep': P.brandDeep,
+  '--pt-brand-soft': P.brandSoft,
+  '--pt-brand-softer': P.brandSofter,
+  '--pt-brand-border': P.brandBorder,
+  '--pt-ink': P.ink,
+  '--pt-border': P.border,
+  '--pt-page-bg': P.pageBg,
+  '--pt-ring': ptRgba(P.brand, 0.14),
+  '--pt-row-hover': ptLighten(P.brand, 0.95)
+});
+
+// Owner is the strongest organising idea in the spec: the firm needs to answer
+// "what do we do?" and "what is Sole doing?" before anything else, so every task
+// and every milestone carries one of these two and never a person's name.
+const LhOwner = ({
+  owner,
+  P
+}) => /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '2px 9px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+    background: owner === 'firm' ? P ? P.brandSoft : T.primarySoft : T.fieldBg,
+    color: owner === 'firm' ? P ? P.brandDeep : T.primary : T.muted,
+    border: `1px solid ${owner === 'firm' ? P ? P.brandBorder : '#C7C9FB' : T.border}`
+  }
+}, /*#__PURE__*/React.createElement(Icon, {
+  name: owner === 'firm' ? 'building' : 'sparkle',
+  size: 11
+}), LH_OWNER_LABEL[owner]);
+const LhStatus = ({
+  status
+}) => {
+  const s = LH_TASK_STATUSES[status] || LH_TASK_STATUSES.todo;
+  return /*#__PURE__*/React.createElement(Pill, {
+    color: s.tone
+  }, s.label);
+};
+
+// The milestone rail. Six nodes, a connecting line, and dates under each. On a
+// narrow screen it scrolls sideways rather than wrapping, because a wrapped
+// timeline stops reading as a timeline.
+const LhMilestones = ({
+  firm,
+  P,
+  compact
+}) => {
+  const ms = firm.plan.milestones;
+  const cur = lhCurrentPhase(firm);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto',
+      paddingBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      minWidth: compact ? 520 : 680
+    }
+  }, ms.map((m, i) => {
+    const state = lhPhaseState(firm, m.id);
+    const on = m.id === cur;
+    const dot = state === 'done' ? P.brand : on ? P.brand : '#D8DBE2';
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      style: {
+        flex: 1,
+        minWidth: 0,
+        position: 'relative'
+      }
+    }, i < ms.length - 1 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        top: 10,
+        left: '50%',
+        right: '-50%',
+        height: 2,
+        background: state === 'done' ? P.brand : '#E6E8EC'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'relative',
+        display: 'flex',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 22,
+        height: 22,
+        borderRadius: '50%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        background: state === 'done' ? P.brand : on ? '#FFFFFF' : '#FFFFFF',
+        border: `2px solid ${dot}`,
+        color: '#FFFFFF',
+        boxShadow: on ? `0 0 0 4px ${ptRgba(P.brand, 0.13)}` : 'none'
+      }
+    }, state === 'done' ? /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 12,
+      color: "#FFFFFF",
+      strokeWidth: 3
+    }) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: on ? P.brand : '#D8DBE2'
+      }
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'center',
+        marginTop: 8,
+        padding: '0 4px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: on ? 700 : 600,
+        color: on ? P.ink : state === 'done' ? P.ink : P.muted
+      }
+    }, m.label), !compact && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: P.muted,
+        marginTop: 2
+      }
+    }, m.id === 'golive' ? lhFmt(m.to) : `${lhFmt(m.from).slice(0, 6)} to ${lhFmt(m.to).slice(0, 6)}`)));
+  })));
+};
+
+// One task, on the firm's side. Read-only: a firm ticking its own box is a
+// promise this prototype cannot keep, so the affordance is deliberately absent.
+const LhTaskRow = ({
+  task,
+  P,
+  last
+}) => {
+  const overdue = task.status !== 'done' && task.due < lhToday();
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 12,
+      padding: '13px 2px',
+      borderBottom: last ? 'none' : `1px solid ${P.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 18,
+      height: 18,
+      borderRadius: '50%',
+      marginTop: 1,
+      flexShrink: 0,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: task.status === 'done' ? P.brand : 'transparent',
+      border: `1.5px solid ${task.status === 'done' ? P.brand : '#CFD3DA'}`
+    }
+  }, task.status === 'done' && /*#__PURE__*/React.createElement(Icon, {
+    name: "check",
+    size: 11,
+    color: "#FFFFFF",
+    strokeWidth: 3
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: task.status === 'done' ? P.muted : P.ink,
+      textDecoration: task.status === 'done' ? 'line-through' : 'none'
+    }
+  }, task.title), !!task.detail && task.status !== 'done' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: P.muted,
+      marginTop: 3,
+      lineHeight: 1.5
+    }
+  }, task.detail), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 7,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(LhOwner, {
+    owner: task.owner,
+    P: P
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: overdue ? T.amber : P.muted,
+      fontWeight: overdue ? 600 : 500
+    }
+  }, task.status === 'done' ? 'Done' : `Due ${lhFmt(task.due)}, ${lhRelative(task.due)}`))));
+};
+
+// Academy modules, rendered through the same honesty rule Academy applies to
+// itself: an unrecorded module gets "Coming soon", never a play button. If an id
+// in a training option ever stops existing this filters it out rather than
+// rendering a dead row (docs/MEMORY.md: cross-module id references die silently).
+const LhAcademy = ({
+  ids,
+  P
+}) => {
+  const courses = (ids || []).map(id => ACADEMY_COURSES.find(c => c.id === id)).filter(Boolean);
+  if (!courses.length) return null;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 8
+    }
+  }, courses.map(c => {
+    const st = moduleStatus(c);
+    const meta = ACADEMY_STATUS[st] || ACADEMY_STATUS.planned;
+    const watchable = st === 'published';
+    const n = publishedLessons(c).length;
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '11px 13px',
+        border: `1px solid ${P.border}`,
+        borderRadius: 10,
+        background: P.surface
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 32,
+        height: 32,
+        borderRadius: 9,
+        flexShrink: 0,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: watchable ? P.brandSoft : T.fieldBg
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: c.icon || 'bookOpen',
+      size: 16,
+      color: watchable ? P.brand : T.mutedSoft
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: P.ink
+      }
+    }, c.title), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: P.muted,
+        marginTop: 1
+      }
+    }, watchable ? `${n} ${n === 1 ? 'video' : 'videos'} ready to watch` : 'Being recorded now')), watchable ? /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: "play",
+      onClick: () => {
+        window.location.hash = `#/practice/course/${c.id}`;
+      },
+      style: {
+        background: P.brandSoft,
+        color: P.brandDeep,
+        borderColor: P.brandBorder
+      }
+    }, "Watch") : /*#__PURE__*/React.createElement(Pill, {
+      color: meta.pill
+    }, meta.label));
+  }));
+};
+
+// A labelled block on the firm's side. Same rhythm on every screen so the hub
+// reads as one thing rather than five pages that happen to share a sidebar.
+const LhSection = ({
+  title,
+  hint,
+  right,
+  children,
+  P,
+  style
+}) => /*#__PURE__*/React.createElement("section", {
+  style: {
+    marginBottom: 28,
+    ...style
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 12
+  }
+}, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: P.ink,
+    letterSpacing: -0.2
+  }
+}, title), !!hint && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 12.5,
+    color: P.muted,
+    marginTop: 3
+  }
+}, hint)), right), children);
+const LhCard = ({
+  children,
+  P,
+  style,
+  pad = 18
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    background: P.surface,
+    border: `1px solid ${P.border}`,
+    borderRadius: P.radius,
+    boxShadow: P.shadowSoft,
+    padding: pad,
+    ...style
+  }
+}, children);
+
+// --- routing ----------------------------------------------------------------
+// #/launch/<firmId>/<screen>. Three segments, same shape as the practice router,
+// and the normaliser below has to carry all three or a deep link to a screen
+// snaps back to Overview on load (the trap recorded for parsePracticeHash).
+const LH_SCREENS = [{
+  id: 'overview',
+  label: 'Overview',
+  icon: 'gauge'
+}, {
+  id: 'readiness',
+  label: 'Readiness',
+  icon: 'clipboardCheck'
+}, {
+  id: 'data',
+  label: 'Data and access',
+  icon: 'layers'
+}, {
+  id: 'training',
+  label: 'Training',
+  icon: 'graduation'
+}, {
+  id: 'rollout',
+  label: 'Rollout',
+  icon: 'calendarCheck'
+}];
+const parseLaunchHash = hash => {
+  const m = (hash || '').match(/^#\/launch\/?([\w-]+)?(?:\/([\w-]+))?/);
+  return {
+    firmId: m && m[1] || LH_SEED_FIRMS[0].id,
+    screen: m && m[2] || 'overview'
+  };
+};
+
+// Re-plan a firm from edited readiness, keeping the progress it has already made.
+// Task statuses are carried across by id, so changing "how many staff" does not
+// silently un-tick six completed items. Tasks that stop applying disappear; new
+// conditional ones arrive as To do, which is the honest default.
+const lhRegenerate = (firm, readiness, bandOverride) => {
+  const plan = generateRolloutPlan(readiness, firm.start, bandOverride || undefined);
+  const prev = Object.fromEntries((firm.tasks || []).map(t => [t.id, t.status]));
+  const tasks = plan.tasks.map(t => ({
+    ...t,
+    status: prev[t.id] || 'todo'
+  }));
+  return {
+    ...firm,
+    readiness,
+    bandOverride: bandOverride || null,
+    plan,
+    tasks
+  };
+};
+
+// --- firm-facing form atoms -------------------------------------------------
+const LhField = ({
+  label,
+  hint,
+  children,
+  P,
+  wide
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    gridColumn: wide ? '1 / -1' : 'auto'
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 12.5,
+    fontWeight: 600,
+    color: P.ink,
+    marginBottom: 5
+  }
+}, label), !!hint && /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11.5,
+    color: P.muted,
+    marginBottom: 7,
+    lineHeight: 1.45
+  }
+}, hint), children);
+const LhInput = ({
+  value,
+  onChange,
+  placeholder,
+  P,
+  type
+}) => /*#__PURE__*/React.createElement("input", {
+  type: type || 'text',
+  value: value == null ? '' : value,
+  placeholder: placeholder,
+  onChange: e => onChange(e.target.value),
+  style: {
+    width: '100%',
+    padding: '9px 12px',
+    border: `1px solid ${P.border}`,
+    borderRadius: 8,
+    background: P.surface,
+    color: P.ink,
+    outline: 'none',
+    fontSize: 13
+  }
+});
+const LhSelect = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  P
+}) => /*#__PURE__*/React.createElement("select", {
+  value: value || '',
+  onChange: e => onChange(e.target.value),
+  style: {
+    width: '100%',
+    padding: '9px 12px',
+    border: `1px solid ${P.border}`,
+    borderRadius: 8,
+    background: P.surface,
+    color: value ? P.ink : P.muted,
+    appearance: 'none',
+    fontSize: 13,
+    backgroundImage: `linear-gradient(45deg, transparent 50%, ${P.muted} 50%), linear-gradient(135deg, ${P.muted} 50%, transparent 50%)`,
+    backgroundPosition: 'calc(100% - 16px) 50%, calc(100% - 11px) 50%',
+    backgroundSize: '5px 5px, 5px 5px',
+    backgroundRepeat: 'no-repeat',
+    paddingRight: 32,
+    cursor: 'pointer'
+  }
+}, /*#__PURE__*/React.createElement("option", {
+  value: ""
+}, placeholder || 'Select'), options.map(o => /*#__PURE__*/React.createElement("option", {
+  key: o,
+  value: o
+}, o)));
+// A row of mutually exclusive answers. Used for every yes / no / not sure, which
+// is most of the data-condition step.
+const LhChoice = ({
+  value,
+  onChange,
+  options,
+  P
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: 'flex',
+    gap: 7,
+    flexWrap: 'wrap'
+  }
+}, options.map(o => {
+  const on = value === o.id;
+  return /*#__PURE__*/React.createElement("button", {
+    key: o.id,
+    type: "button",
+    onClick: () => onChange(o.id),
+    style: {
+      padding: '7px 13px',
+      borderRadius: 999,
+      fontSize: 12.5,
+      cursor: 'pointer',
+      fontWeight: on ? 600 : 500,
+      whiteSpace: 'nowrap',
+      border: `1px solid ${on ? P.brand : P.border}`,
+      background: on ? P.brandSoft : P.surface,
+      color: on ? P.brandDeep : P.muted
+    }
+  }, o.label);
+}));
+const LH_YES_NO = [{
+  id: 'yes',
+  label: 'Yes'
+}, {
+  id: 'no',
+  label: 'No'
+}, {
+  id: 'not-sure',
+  label: 'Not sure'
+}];
+
+// --- screen 1: overview -----------------------------------------------------
+// The firm should be able to answer "how long, what do you need, how do we learn
+// it" within five seconds. Those three questions are the ones Stephen actually
+// asked on 27 Aug, so they get the top of the screen and everything else waits.
+const LhOverview = ({
+  firm,
+  P,
+  go
+}) => {
+  const {
+    isMobile
+  } = useViewport();
+  const health = lhHealth(firm);
+  const yours = lhOpenFor(firm, 'firm').slice(0, 3);
+  const ours = lhOpenFor(firm, 'sole').slice(0, 3);
+  const outstanding = lhItemsOutstanding(firm);
+  const training = lhTrainingOption(firm.readiness.training);
+  const answers = [{
+    icon: 'clock',
+    q: 'How long will this take?',
+    a: firm.plan.clientLine,
+    sub: `Target go-live ${lhWeekOf(firm.plan.goLive)}, ${lhRelative(firm.plan.goLive)}.`,
+    cta: 'See the full plan',
+    to: 'rollout'
+  }, {
+    icon: 'layers',
+    q: 'What do you need from us?',
+    a: outstanding === 0 ? 'Nothing right now.' : `${outstanding} ${outstanding === 1 ? 'thing' : 'things'} still to send us.`,
+    sub: outstanding === 0 ? 'We have everything we asked for. We will tell you if that changes.' : lhRequiredOutstanding(firm).map(i => (LH_DATA_ITEMS.find(d => d.id === i.id) || {}).label).filter(Boolean).join(', ') + '.',
+    cta: 'Go to Data and access',
+    to: 'data'
+  }, {
+    icon: 'graduation',
+    q: 'How will our team learn it?',
+    a: training.label,
+    sub: firm.training.confirmed && firm.training.when ? `Booked for ${lhFmt(firm.training.when)}.` : `${training.shape}. We will confirm the date with you.`,
+    cta: 'See your training',
+    to: 'training'
+  }];
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    pad: 0,
+    style: {
+      marginBottom: 24,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: isMobile ? 20 : '26px 28px',
+      background: P.brandSofter,
+      borderBottom: `1px solid ${P.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 20,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 700,
+      color: P.brandDeep,
+      letterSpacing: 0.7,
+      textTransform: 'uppercase'
+    }
+  }, "Your SPM rollout"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: isMobile ? 26 : 32,
+      fontWeight: 800,
+      color: P.ink,
+      letterSpacing: -0.8,
+      marginTop: 6
+    }
+  }, lhWeekOf(firm.plan.goLive)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      color: P.muted,
+      marginTop: 4
+    }
+  }, "Target go-live, ", lhRelative(firm.plan.goLive), ". ", firm.plan.clientLine)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-end',
+      gap: 8
+    }
+  }, /*#__PURE__*/React.createElement(Pill, {
+    color: health.tone,
+    style: {
+      fontSize: 12,
+      padding: '4px 11px'
+    }
+  }, health.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      color: P.muted
+    }
+  }, lhProgress(firm), "% of the plan complete")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: isMobile ? '18px 16px' : '22px 28px'
+    }
+  }, /*#__PURE__*/React.createElement(LhMilestones, {
+    firm: firm,
+    P: P
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+      gap: 14,
+      marginBottom: 28
+    }
+  }, answers.map(x => /*#__PURE__*/React.createElement(LhCard, {
+    key: x.q,
+    P: P,
+    style: {
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      marginBottom: 12
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      background: P.brandSoft,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: x.icon,
+    size: 15,
+    color: P.brand
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: P.muted
+    }
+  }, x.q)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 16,
+      fontWeight: 700,
+      color: P.ink,
+      letterSpacing: -0.2
+    }
+  }, x.a), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: P.muted,
+      marginTop: 6,
+      lineHeight: 1.5,
+      flex: 1
+    }
+  }, x.sub), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go(x.to),
+    style: {
+      marginTop: 14,
+      alignSelf: 'flex-start',
+      border: 'none',
+      background: 'transparent',
+      padding: 0,
+      cursor: 'pointer',
+      color: P.brand,
+      fontSize: 12.5,
+      fontWeight: 700,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, x.cta, /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 13,
+    color: P.brand
+  }))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+      gap: 14,
+      marginBottom: 28
+    }
+  }, [{
+    owner: 'firm',
+    title: 'Your next steps',
+    list: yours,
+    empty: 'Nothing on your plate right now.'
+  }, {
+    owner: 'sole',
+    title: 'What Sole is doing',
+    list: ours,
+    empty: 'Nothing open on our side.'
+  }].map(col => /*#__PURE__*/React.createElement(LhCard, {
+    key: col.owner,
+    P: P
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9,
+      marginBottom: 4
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: P.ink,
+      flex: 1
+    }
+  }, col.title), /*#__PURE__*/React.createElement(LhOwner, {
+    owner: col.owner,
+    P: P
+  })), col.list.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: P.muted,
+      padding: '14px 0'
+    }
+  }, col.empty) : col.list.map((t, i) => /*#__PURE__*/React.createElement(LhTaskRow, {
+    key: t.id,
+    task: t,
+    P: P,
+    last: i === col.list.length - 1
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => go('rollout'),
+    style: {
+      marginTop: 12,
+      border: 'none',
+      background: 'transparent',
+      padding: 0,
+      cursor: 'pointer',
+      color: P.brand,
+      fontSize: 12.5,
+      fontWeight: 700,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, "See everything", /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 13,
+    color: P.brand
+  }))))), /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: firm.soleContact,
+    size: 40
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 180
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 700,
+      color: P.ink
+    }
+  }, firm.soleContact), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: P.muted,
+      marginTop: 1
+    }
+  }, "Your implementation contact at Sole. Anything on this page, ask ", firm.soleContact.split(' ')[0], " first.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "mail",
+    style: {
+      background: P.brandSoft,
+      color: P.brandDeep,
+      borderColor: P.brandBorder
+    }
+  }, "Send a message")));
+};
+
+// --- screen 2: readiness ----------------------------------------------------
+// Four steps, autosaved, roughly 8 questions each. Changing an answer and saving
+// regenerates the plan, which is the whole point: this form is not paperwork, it
+// is what decides the dates.
+const LH_STEPS = [{
+  id: 'profile',
+  label: 'Your firm'
+}, {
+  id: 'systems',
+  label: 'Your systems'
+}, {
+  id: 'data',
+  label: 'Your data'
+}, {
+  id: 'training',
+  label: 'Training'
+}];
+const LhReadiness = ({
+  firm,
+  P,
+  onSave,
+  fireToast
+}) => {
+  const {
+    isMobile
+  } = useViewport();
+  const [step, setStep] = useState(0);
+  const [draft, setDraft] = useState(firm.readiness);
+  const set = patch => setDraft(d => ({
+    ...d,
+    ...patch
+  }));
+  const setSystem = (kind, v) => setDraft(d => ({
+    ...d,
+    systems: {
+      ...d.systems,
+      [kind]: v
+    }
+  }));
+  const setExport = (kind, v) => setDraft(d => ({
+    ...d,
+    exportable: {
+      ...d.exportable,
+      [kind]: v
+    }
+  }));
+  const dirty = JSON.stringify(draft) !== JSON.stringify(firm.readiness);
+  // Preview the plan the current answers would produce, so the consequence of an
+  // answer is visible before it is committed.
+  const preview = lhBandScore(draft);
+  const grid = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+    gap: 16
+  };
+  const save = () => {
+    onSave(draft);
+    fireToast(preview.band === lhBandScore(firm.readiness).band ? 'Your answers are saved.' : 'Your answers are saved, and your rollout plan has been updated.');
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    style: {
+      marginBottom: 20,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      background: P.brandSofter,
+      borderColor: P.brandBorder
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "checkCircle",
+    size: 18,
+    color: P.brand
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 13,
+      color: P.ink
+    }
+  }, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      fontWeight: 700
+    }
+  }, "Your answers are in."), ' ', "Change anything here whenever it changes at your end, and your plan updates with it.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 8,
+      marginBottom: 22,
+      overflowX: 'auto',
+      paddingBottom: 2
+    }
+  }, LH_STEPS.map((s, i) => {
+    const on = i === step;
+    return /*#__PURE__*/React.createElement("button", {
+      key: s.id,
+      onClick: () => setStep(i),
+      style: {
+        flex: isMobile ? '0 0 auto' : 1,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 14px',
+        borderRadius: 10,
+        cursor: 'pointer',
+        textAlign: 'left',
+        border: `1px solid ${on ? P.brand : P.border}`,
+        background: on ? P.brandSoft : P.surface,
+        boxShadow: on ? `0 0 0 3px ${ptRgba(P.brand, 0.1)}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        flexShrink: 0,
+        fontSize: 11,
+        fontWeight: 700,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: on ? P.brand : T.fieldBg,
+        color: on ? '#FFFFFF' : P.muted
+      }
+    }, i + 1), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        fontWeight: on ? 700 : 600,
+        color: on ? P.brandDeep : P.muted,
+        whiteSpace: 'nowrap'
+      }
+    }, s.label));
+  })), /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    pad: isMobile ? 18 : 24
+  }, step === 0 && /*#__PURE__*/React.createElement("div", {
+    style: grid
+  }, /*#__PURE__*/React.createElement(LhField, {
+    label: "Who is leading this at your firm?",
+    hint: "One person we work with day to day.",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.lead || firm.lead,
+    onChange: v => set({
+      lead: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Who covers for them?",
+    hint: "So nothing stalls while they are on leave.",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.backup,
+    onChange: v => set({
+      backup: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Partners",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    type: "number",
+    value: draft.partners,
+    onChange: v => set({
+      partners: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Staff, including partners",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    type: "number",
+    value: draft.staff,
+    onChange: v => set({
+      staff: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Offices",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    type: "number",
+    value: draft.offices,
+    onChange: v => set({
+      offices: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Roughly how many active clients?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    type: "number",
+    value: draft.clients,
+    onChange: v => set({
+      clients: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "When would you like to be live?",
+    hint: "A month is enough. We will come back with real dates.",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.targetMonth,
+    onChange: v => set({
+      targetMonth: v
+    }),
+    P: P,
+    placeholder: "October 2026"
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Anything we should work around?",
+    hint: "Lodgement peaks, leave, a busy period, an office move.",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.blackout,
+    onChange: v => set({
+      blackout: v
+    }),
+    P: P
+  }))), step === 1 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: P.muted,
+      lineHeight: 1.55
+    }
+  }, "This is the part that decides how long your rollout takes, so it is worth a minute. If you are not sure about one, say so. Not sure is a real answer and we will find out for you."), LH_SYSTEM_KINDS.map(k => /*#__PURE__*/React.createElement("div", {
+    key: k.id,
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr',
+      gap: 14,
+      alignItems: 'start',
+      paddingBottom: 16,
+      borderBottom: `1px solid ${P.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement(LhField, {
+    label: k.label,
+    hint: k.hint,
+    P: P
+  }, /*#__PURE__*/React.createElement(LhSelect, {
+    value: (draft.systems || {})[k.id],
+    onChange: v => setSystem(k.id, v),
+    options: k.options,
+    P: P,
+    placeholder: "Select a system"
+  })), !!(draft.systems || {})[k.id] && (draft.systems || {})[k.id].indexOf('Nothing') !== 0 && (draft.systems || {})[k.id] !== 'Not applicable' && /*#__PURE__*/React.createElement(LhField, {
+    label: "Can you export from it?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: (draft.exportable || {})[k.id],
+    onChange: v => setExport(k.id, v),
+    options: LH_YES_NO,
+    P: P
+  }))))), step === 2 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 18
+    }
+  }, /*#__PURE__*/React.createElement(LhField, {
+    label: "Where does your master client list live?",
+    P: P,
+    wide: true
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.masterList,
+    onChange: v => set({
+      masterList: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement("div", {
+    style: grid
+  }, /*#__PURE__*/React.createElement(LhField, {
+    label: "Are clients who have left clearly marked?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: draft.inactiveFlagged,
+    onChange: v => set({
+      inactiveFlagged: v
+    }),
+    options: LH_YES_NO,
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Do you know there are duplicates?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: draft.duplicates,
+    onChange: v => set({
+      duplicates: v
+    }),
+    options: LH_YES_NO,
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Is the manager or owner against each client reliable?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: draft.ownersReliable,
+    onChange: v => set({
+      ownersReliable: v
+    }),
+    options: LH_YES_NO,
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Are your recurring jobs set up as jobs?",
+    hint: "Rather than living in someone's head or a spreadsheet.",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: draft.jobsStructured,
+    onChange: v => set({
+      jobsStructured: v
+    }),
+    options: LH_YES_NO,
+    P: P
+  }))), /*#__PURE__*/React.createElement(LhField, {
+    label: "Honestly, what state is that data in?",
+    P: P,
+    wide: true
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: draft.dataCondition,
+    onChange: v => set({
+      dataCondition: v
+    }),
+    P: P,
+    options: [{
+      id: 'clean',
+      label: 'Clean, we keep on top of it'
+    }, {
+      id: 'some-cleanup',
+      label: 'Mostly fine, some tidying needed'
+    }, {
+      id: 'needs-work',
+      label: 'It needs real work'
+    }]
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "What should we bring across?",
+    hint: "Most firms take active clients only. History can follow later.",
+    P: P,
+    wide: true
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: draft.history,
+    onChange: v => set({
+      history: v
+    }),
+    P: P,
+    options: [{
+      id: 'active-only',
+      label: 'Active clients only'
+    }, {
+      id: 'some-history',
+      label: 'Active plus recent history'
+    }, {
+      id: 'everything',
+      label: 'Everything we have'
+    }]
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Who at your firm owns the tidy-up?",
+    P: P,
+    wide: true
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.cleanupOwner,
+    onChange: v => set({
+      cleanupOwner: v
+    }),
+    P: P
+  }))), step === 3 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gap: 18
+    }
+  }, /*#__PURE__*/React.createElement(LhField, {
+    label: "What shape of training suits your team?",
+    P: P,
+    wide: true
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+      gap: 10
+    }
+  }, LH_TRAINING_OPTIONS.map(o => {
+    const on = draft.training === o.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.id,
+      onClick: () => set({
+        training: o.id
+      }),
+      style: {
+        textAlign: 'left',
+        padding: 14,
+        borderRadius: 10,
+        cursor: 'pointer',
+        border: `1px solid ${on ? P.brand : P.border}`,
+        background: on ? P.brandSoft : P.surface,
+        boxShadow: on ? `0 0 0 3px ${ptRgba(P.brand, 0.1)}` : 'none'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: on ? P.brandDeep : P.ink
+      }
+    }, o.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: P.muted,
+        marginTop: 2
+      }
+    }, o.shape), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: P.muted,
+        marginTop: 7,
+        lineHeight: 1.5
+      }
+    }, o.best));
+  }))), /*#__PURE__*/React.createElement(LhField, {
+    label: "Who needs to be trained?",
+    P: P,
+    wide: true
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 7,
+      flexWrap: 'wrap'
+    }
+  }, LH_AUDIENCES.map(a => {
+    const on = (draft.audiences || []).includes(a.id);
+    return /*#__PURE__*/React.createElement("button", {
+      key: a.id,
+      onClick: () => set({
+        audiences: on ? draft.audiences.filter(x => x !== a.id) : [...(draft.audiences || []), a.id]
+      }),
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        padding: '8px 13px',
+        borderRadius: 999,
+        fontSize: 12.5,
+        fontWeight: on ? 600 : 500,
+        cursor: 'pointer',
+        border: `1px solid ${on ? P.brand : P.border}`,
+        background: on ? P.brandSoft : P.surface,
+        color: on ? P.brandDeep : P.muted
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 15,
+        height: 15,
+        borderRadius: 4,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: on ? P.brand : 'transparent',
+        border: `1.5px solid ${on ? P.brand : '#CFD3DA'}`
+      }
+    }, on && /*#__PURE__*/React.createElement(Icon, {
+      name: "check",
+      size: 9,
+      color: "#FFFFFF",
+      strokeWidth: 3
+    })), a.label);
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: grid
+  }, /*#__PURE__*/React.createElement(LhField, {
+    label: "Roughly how many will attend?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    type: "number",
+    value: draft.attendees,
+    onChange: v => set({
+      attendees: v
+    }),
+    P: P
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Online or on-site?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhChoice, {
+    value: draft.delivery,
+    onChange: v => set({
+      delivery: v
+    }),
+    P: P,
+    options: [{
+      id: 'online',
+      label: 'Online'
+    }, {
+      id: 'on-site',
+      label: 'On-site'
+    }]
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "Which days suit?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.days,
+    onChange: v => set({
+      days: v
+    }),
+    P: P,
+    placeholder: "Tuesday or Thursday"
+  })), /*#__PURE__*/React.createElement(LhField, {
+    label: "What time of day?",
+    P: P
+  }, /*#__PURE__*/React.createElement(LhInput, {
+    value: draft.window,
+    onChange: v => set({
+      window: v
+    }),
+    P: P,
+    placeholder: "9:00 AM to 12:00 PM"
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(Toggle, {
+    on: !!draft.record,
+    onChange: v => set({
+      record: v
+    })
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: P.ink
+    }
+  }, "Record the sessions so anyone who misses one can catch up")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      marginTop: 18,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "chevronLeft",
+    disabled: step === 0,
+    onClick: () => setStep(s => Math.max(0, s - 1))
+  }, "Back"), step < LH_STEPS.length - 1 && /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    iconRight: "chevronRight",
+    onClick: () => setStep(s => s + 1),
+    style: {
+      background: P.brand,
+      borderColor: P.brand
+    }
+  }, "Next"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), dirty && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.amber,
+      fontWeight: 600
+    }
+  }, "Unsaved changes"), /*#__PURE__*/React.createElement(Btn, {
+    variant: dirty ? 'primary' : 'soft',
+    icon: "save",
+    disabled: !dirty,
+    onClick: save,
+    style: dirty ? {
+      background: P.brand,
+      borderColor: P.brand
+    } : {}
+  }, "Save my answers")), dirty && preview.band !== lhBandScore(firm.readiness).band && /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    style: {
+      marginTop: 14,
+      background: T.amberSoft,
+      borderColor: '#FCD34D'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 16,
+    color: T.amber
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.text,
+      lineHeight: 1.55
+    }
+  }, "These answers change your rollout. Saving will move your plan to", ' ', /*#__PURE__*/React.createElement("strong", null, LH_BANDS[preview.band].clientLine.replace('Indicative rollout: ', '').replace('.', '')), ' ', "and update your dates. Nothing you have already done is lost."))));
+};
+
+// --- screen 3: data and access ----------------------------------------------
+// The firm picks HOW, then sees exactly what is outstanding and what we thought
+// of what they already sent. No drop zone: this prototype has nowhere safe to put
+// a real client list, and a control that looks like it accepts one is a lie with
+// a firm's data attached. The real build gets a tenant-scoped encrypted upload.
+const LhData = ({
+  firm,
+  P,
+  onMethod,
+  fireToast
+}) => {
+  const {
+    isMobile
+  } = useViewport();
+  const req = new Set(LH_DATA_ITEMS.filter(i => i.required).map(i => i.id));
+  const done = (firm.items || []).filter(i => req.has(i.id) && i.state === 'accepted').length;
+  const total = req.size;
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(LhSection, {
+    P: P,
+    title: "How would you like to get your data to us?",
+    hint: "Pick whichever is least work for you. You can change your mind, and you can use different ones for different things."
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+      gap: 12
+    }
+  }, Object.entries(LH_METHODS).map(([id, m]) => {
+    const on = firm.readiness.method === id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: id,
+      onClick: () => {
+        onMethod(id);
+        fireToast(`We will get your data across by "${m.label.toLowerCase()}".`);
+      },
+      style: {
+        textAlign: 'left',
+        padding: 16,
+        borderRadius: 12,
+        cursor: 'pointer',
+        border: `1px solid ${on ? P.brand : P.border}`,
+        background: on ? P.brandSoft : P.surface,
+        boxShadow: on ? `0 0 0 3px ${ptRgba(P.brand, 0.1)}` : P.shadowSoft
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        marginBottom: 9
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 30,
+        height: 30,
+        borderRadius: 9,
+        background: on ? P.brand : T.fieldBg,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: m.icon,
+      size: 15,
+      color: on ? '#FFFFFF' : P.muted
+    })), on && /*#__PURE__*/React.createElement(Pill, {
+      color: "green"
+    }, "Your choice")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: on ? P.brandDeep : P.ink
+      }
+    }, m.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: P.muted,
+        marginTop: 5,
+        lineHeight: 1.5
+      }
+    }, m.blurb), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: P.muted,
+        marginTop: 10,
+        paddingTop: 10,
+        borderTop: `1px solid ${P.borderSoft}`,
+        lineHeight: 1.5
+      }
+    }, m.next));
+  }))), /*#__PURE__*/React.createElement(LhSection, {
+    P: P,
+    title: "What we need from you",
+    hint: "Four of these are needed before we can build your workspace. The other two are optional and can follow later.",
+    right: /*#__PURE__*/React.createElement(Pill, {
+      color: done === total ? 'green' : 'blue'
+    }, done, " of ", total, " required accepted")
+  }, /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    pad: 0
+  }, LH_DATA_ITEMS.map((spec, i) => {
+    const item = (firm.items || []).find(x => x.id === spec.id) || {
+      state: 'waiting'
+    };
+    const st = LH_ITEM_STATES[item.state] || LH_ITEM_STATES.waiting;
+    return /*#__PURE__*/React.createElement("div", {
+      key: spec.id,
+      style: {
+        padding: isMobile ? 15 : '16px 18px',
+        borderBottom: i === LH_DATA_ITEMS.length - 1 ? 'none' : `1px solid ${P.borderSoft}`,
+        background: item.state === 'attention' ? T.amberSoft : 'transparent'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 14,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 200
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: P.ink
+      }
+    }, spec.label), !spec.required && /*#__PURE__*/React.createElement(Pill, {
+      color: "neutral"
+    }, "Optional")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: P.muted,
+        marginTop: 4,
+        lineHeight: 1.5
+      }
+    }, spec.detail), item.state === 'attention' && !!item.note && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: T.text,
+        marginTop: 9,
+        padding: 11,
+        borderRadius: 8,
+        background: '#FFFFFF',
+        border: `1px solid #FCD34D`,
+        lineHeight: 1.55
+      }
+    }, /*#__PURE__*/React.createElement("strong", {
+      style: {
+        fontWeight: 700
+      }
+    }, "What we found: "), item.note)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: 'right'
+      }
+    }, /*#__PURE__*/React.createElement(Pill, {
+      color: st.tone
+    }, st.label), !!item.updated && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: P.muted,
+        marginTop: 4
+      }
+    }, "Updated ", lhFmt(item.updated))), (item.state === 'waiting' || item.state === 'attention') && /*#__PURE__*/React.createElement(Btn, {
+      variant: "soft",
+      size: "sm",
+      icon: LH_METHODS[firm.readiness.method].icon,
+      onClick: () => fireToast('In the real Launch Hub this opens your secure upload area. This is a prototype, so nothing is sent.'),
+      style: {
+        background: P.brandSoft,
+        color: P.brandDeep,
+        borderColor: P.brandBorder
+      }
+    }, firm.readiness.method === 'help' ? 'Book a call' : firm.readiness.method === 'access' ? 'Set up access' : 'Send it'))));
+  }))), /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    style: {
+      background: T.fieldBg,
+      borderColor: P.border
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 12
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "shield",
+    size: 18,
+    color: P.brand
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: P.ink,
+      lineHeight: 1.6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      marginBottom: 5
+    }
+  }, "How we handle your data"), "Your files sit in an area only your firm and your named Sole implementation team can open. Everything is encrypted on the way to us and while it sits with us, every download is logged, and we delete it on the schedule agreed with you once you are live.", /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 7
+    }
+  }, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      fontWeight: 700
+    }
+  }, "We will never ask for a password, an API key or a code from your phone."), ' ', "If someone claiming to be from Sole asks you for one, it is not us.")))));
+};
+
+// --- screen 4: training -----------------------------------------------------
+// The firm chooses; Sole recommends. The recommendation comes from the plan, not
+// from a hard-coded default, so a 42-person firm and a 5-person firm see
+// different advice. Academy links respect Academy's own status rule.
+const LhTraining = ({
+  firm,
+  P,
+  onChoose,
+  fireToast
+}) => {
+  const {
+    isMobile
+  } = useViewport();
+  const chosen = firm.readiness.training;
+  // Recommendation, in the same spirit as the band: size plus complexity.
+  const recommended = firm.plan.band === 'complex' ? 'implementation' : firm.plan.band === 'standard' ? 'walkthrough' : 'workshops';
+  const opt = lhTrainingOption(chosen);
+  const audiences = (firm.readiness.audiences || []).map(id => (LH_AUDIENCES.find(a => a.id === id) || {}).label).filter(Boolean);
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(LhSection, {
+    P: P,
+    title: "Choose how your team learns SPM",
+    hint: "We have suggested one based on the size of your firm and how much we are moving across. Yours is the choice that counts."
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+      gap: 12
+    }
+  }, LH_TRAINING_OPTIONS.map(o => {
+    const on = chosen === o.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.id,
+      onClick: () => {
+        onChoose(o.id);
+        fireToast(`Training set to ${o.label.toLowerCase()}. We will confirm dates with you.`);
+      },
+      style: {
+        textAlign: 'left',
+        padding: 18,
+        borderRadius: 12,
+        cursor: 'pointer',
+        border: `1px solid ${on ? P.brand : P.border}`,
+        background: on ? P.brandSoft : P.surface,
+        boxShadow: on ? `0 0 0 3px ${ptRgba(P.brand, 0.1)}` : P.shadowSoft
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
+        minHeight: 22
+      }
+    }, o.id === recommended && /*#__PURE__*/React.createElement(Pill, {
+      color: "accent"
+    }, "Suggested for your firm"), on && /*#__PURE__*/React.createElement(Pill, {
+      color: "green"
+    }, "Chosen")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 15,
+        fontWeight: 700,
+        color: on ? P.brandDeep : P.ink
+      }
+    }, o.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: P.muted,
+        marginTop: 3,
+        fontWeight: 600
+      }
+    }, o.shape), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: P.muted,
+        marginTop: 10,
+        lineHeight: 1.55
+      }
+    }, o.detail), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: P.muted,
+        marginTop: 10,
+        paddingTop: 10,
+        borderTop: `1px solid ${P.borderSoft}`
+      }
+    }, /*#__PURE__*/React.createElement("strong", {
+      style: {
+        fontWeight: 700,
+        color: P.ink
+      }
+    }, "Best for: "), o.best));
+  }))), /*#__PURE__*/React.createElement(LhSection, {
+    P: P,
+    title: "Your session",
+    hint: "We confirm the date once your data review is done, so training lands when there is something real to train on."
+  }, /*#__PURE__*/React.createElement(LhCard, {
+    P: P
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+      gap: 18
+    }
+  }, [{
+    k: 'Who is coming',
+    v: audiences.length ? audiences.join(', ') : 'Not chosen yet'
+  }, {
+    k: 'How many',
+    v: `About ${firm.readiness.attendees} people`
+  }, {
+    k: 'When suits you',
+    v: `${firm.readiness.days}, ${firm.readiness.window}`
+  }, {
+    k: 'Where',
+    v: firm.readiness.delivery === 'on-site' ? 'On-site at your office' : 'Online'
+  }].map(x => /*#__PURE__*/React.createElement("div", {
+    key: x.k
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: P.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, x.k), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      color: P.ink,
+      marginTop: 5,
+      fontWeight: 600
+    }
+  }, x.v)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 18,
+      paddingTop: 16,
+      borderTop: `1px solid ${P.borderSoft}`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: firm.training.confirmed ? 'calendarCheck' : 'clock',
+    size: 16,
+    color: firm.training.confirmed ? T.green : P.muted
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 200,
+      fontSize: 13,
+      color: P.ink
+    }
+  }, firm.training.confirmed && firm.training.when ? /*#__PURE__*/React.createElement(React.Fragment, null, "Booked for ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      fontWeight: 700
+    }
+  }, lhFmt(firm.training.when)), ", run by ", firm.training.trainer, ".", !!firm.readiness.record && ' It will be recorded.') : /*#__PURE__*/React.createElement(React.Fragment, null, "Not booked yet. ", firm.soleContact, " will confirm a date with you once your data review is done.")), firm.readiness.record && /*#__PURE__*/React.createElement(Pill, {
+    color: "blue"
+  }, "Will be recorded")))), /*#__PURE__*/React.createElement(LhSection, {
+    P: P,
+    title: "Start before your session",
+    hint: "These are the Sole Academy modules that match your plan. Anyone at your firm can start watching today."
+  }, /*#__PURE__*/React.createElement(LhAcademy, {
+    ids: opt.academyIds,
+    P: P
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = '#/practice/academy';
+    },
+    style: {
+      marginTop: 12,
+      border: 'none',
+      background: 'transparent',
+      padding: 0,
+      cursor: 'pointer',
+      color: P.brand,
+      fontSize: 12.5,
+      fontWeight: 700,
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 5
+    }
+  }, "Open the Sole Academy", /*#__PURE__*/React.createElement(Icon, {
+    name: "chevronRight",
+    size: 13,
+    color: P.brand
+  }))));
+};
+
+// --- screen 5: rollout ------------------------------------------------------
+// Dates and ownership in one place. Grouped by phase and filtered by owner, not a
+// Kanban board: the spec's line is that this is a client implementation board,
+// not a general-purpose project tool.
+const LhRollout = ({
+  firm,
+  P
+}) => {
+  const {
+    isMobile
+  } = useViewport();
+  const [owner, setOwner] = useState('all');
+  const cur = lhCurrentPhase(firm);
+  const tasks = (firm.tasks || []).filter(t => owner === 'all' || t.owner === owner);
+  const counts = {
+    all: (firm.tasks || []).length,
+    firm: (firm.tasks || []).filter(t => t.owner === 'firm').length,
+    sole: (firm.tasks || []).filter(t => t.owner === 'sole').length
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(LhCard, {
+    P: P,
+    style: {
+      marginBottom: 24
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 16,
+      marginBottom: 20,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: P.ink
+    }
+  }, "Your rollout"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: P.muted,
+      marginTop: 3
+    }
+  }, firm.plan.clientLine, " Dates move only when we tell you why.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: isMobile ? 'left' : 'right'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: P.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5
+    }
+  }, "Target go-live"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      fontWeight: 800,
+      color: P.ink,
+      marginTop: 2
+    }
+  }, lhFmt(firm.plan.goLive)))), /*#__PURE__*/React.createElement(LhMilestones, {
+    firm: firm,
+    P: P
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 20,
+      paddingTop: 16,
+      borderTop: `1px solid ${P.borderSoft}`,
+      fontSize: 12.5,
+      color: P.muted,
+      lineHeight: 1.55
+    }
+  }, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      fontWeight: 700,
+      color: P.ink
+    }
+  }, lhPhase(cur).label, ": "), lhPhase(cur).blurb)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 14,
+      flexWrap: 'wrap'
+    }
+  }, [{
+    id: 'all',
+    label: 'Everything'
+  }, {
+    id: 'firm',
+    label: LH_OWNER_LABEL.firm
+  }, {
+    id: 'sole',
+    label: LH_OWNER_LABEL.sole
+  }].map(f => {
+    const on = owner === f.id;
+    return /*#__PURE__*/React.createElement("button", {
+      key: f.id,
+      onClick: () => setOwner(f.id),
+      style: {
+        padding: '7px 14px',
+        borderRadius: 999,
+        fontSize: 12.5,
+        cursor: 'pointer',
+        fontWeight: on ? 600 : 500,
+        border: `1px solid ${on ? P.brand : P.border}`,
+        background: on ? P.brandSoft : P.surface,
+        color: on ? P.brandDeep : P.muted
+      }
+    }, f.label, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        opacity: 0.7
+      }
+    }, counts[f.id]));
+  })), LH_PHASES.map(ph => {
+    const inPhase = tasks.filter(t => t.phase === ph.id);
+    if (!inPhase.length) return null;
+    const ms = firm.plan.milestones.find(m => m.id === ph.id);
+    const state = lhPhaseState(firm, ph.id);
+    return /*#__PURE__*/React.createElement(LhCard, {
+      key: ph.id,
+      P: P,
+      style: {
+        marginBottom: 12,
+        borderColor: ph.id === cur ? P.brandBorder : P.border
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 6,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: P.ink
+      }
+    }, ph.label), /*#__PURE__*/React.createElement(Pill, {
+      color: state === 'done' ? 'green' : ph.id === cur ? 'blue' : 'neutral'
+    }, state === 'done' ? 'Complete' : ph.id === cur ? 'Happening now' : 'Not started'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: P.muted
+      }
+    }, ph.id === 'golive' ? lhFmt(ms.to) : `${lhFmt(ms.from)} to ${lhFmt(ms.to)}`)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: P.muted,
+        marginBottom: 6
+      }
+    }, ph.blurb), inPhase.map((t, i) => /*#__PURE__*/React.createElement(LhTaskRow, {
+      key: t.id,
+      task: t,
+      P: P,
+      last: i === inPhase.length - 1
+    })));
+  }));
+};
+
+// --- the firm's shell -------------------------------------------------------
+// Its own chrome, deliberately not the SPM sidebar: the firm reading this has not
+// been onboarded yet, so showing them the app's menu would be showing them a
+// product they cannot log into. Uses the portal's Plus Jakarta Sans face via
+// .sole-portal so it reads as a different surface from the practice app.
+const LaunchHubApp = () => {
+  const [state, setState] = useState(lhLoad);
+  const [route, setRoute] = useState(() => parseLaunchHash(window.location.hash));
+  const [toast, setToast] = useState(null);
+  const [navOpen, setNavOpen] = useState(false);
+  const {
+    isMobile
+  } = useViewport();
+  const fireToast = t => {
+    setToast(t);
+    const dur = typeof t === 'object' && t && t.action ? 5000 : 2400;
+    setTimeout(() => setToast(null), dur);
+  };
+  // Both segments have to be in the normalised target and in the dependency
+  // array. Carrying only the first would replaceState the screen away on load,
+  // which is the exact trap recorded against parsePracticeHash.
+  useEffect(() => {
+    const target = `#/launch/${route.firmId}/${route.screen}`;
+    if (window.location.hash !== target) window.history.replaceState(null, '', target);
+    setNavOpen(false);
+  }, [route.firmId, route.screen]);
+  useEffect(() => {
+    const onHash = () => setRoute(parseLaunchHash(window.location.hash));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const firm = lhFirmById(state, route.firmId);
+  const P = lhTheme(firm.brandHex);
+  const go = screen => {
+    window.location.hash = `#/launch/${firm.id}/${screen}`;
+  };
+  const patchFirm = fn => setState(s => {
+    const next = {
+      ...s,
+      firms: s.firms.map(f => f.id === firm.id ? fn(f) : f)
+    };
+    lhSave(next);
+    return next;
+  });
+  const meta = LH_SCREENS.find(s => s.id === route.screen) || LH_SCREENS[0];
+  const SUBTITLE = {
+    overview: 'Where your rollout is, what is next, and who owns it.',
+    readiness: 'What we need to know about your firm so we can plan properly.',
+    data: 'What we need from you, how to send it, and what we have made of it so far.',
+    training: 'How your team learns SPM, and what they can start on today.',
+    rollout: 'Every step, every date, and whose job each one is.'
+  };
+  const nav = /*#__PURE__*/React.createElement("nav", {
+    style: {
+      display: 'grid',
+      gap: 2
+    }
+  }, LH_SCREENS.map(s => {
+    const on = s.id === route.screen;
+    return /*#__PURE__*/React.createElement("button", {
+      key: s.id,
+      onClick: () => go(s.id),
+      style: {
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '9px 11px',
+        border: 'none',
+        borderRadius: 9,
+        cursor: 'pointer',
+        textAlign: 'left',
+        background: on ? P.brandSoft : 'transparent',
+        color: on ? P.brandDeep : P.muted,
+        fontSize: 13.5,
+        fontWeight: on ? 700 : 600
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: s.icon,
+      size: 16,
+      color: on ? P.brand : P.muted
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1
+      }
+    }, s.label), s.id === 'data' && lhItemsOutstanding(firm) > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 10.5,
+        fontWeight: 700,
+        minWidth: 17,
+        height: 17,
+        padding: '0 5px',
+        borderRadius: 999,
+        background: T.amber,
+        color: '#FFFFFF',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }
+    }, lhItemsOutstanding(firm)));
+  }));
+  const aside = /*#__PURE__*/React.createElement("aside", {
+    style: {
+      width: 244,
+      flexShrink: 0,
+      background: P.surface,
+      borderRight: `1px solid ${P.border}`,
+      padding: '20px 14px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 18,
+      position: isMobile ? 'fixed' : 'sticky',
+      top: 0,
+      left: 0,
+      height: '100vh',
+      zIndex: 60,
+      transform: isMobile ? `translateX(${navOpen ? '0' : '-100%'})` : 'none',
+      transition: 'transform .2s ease',
+      overflowY: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '0 4px'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: P.brand,
+      color: '#FFFFFF',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 15,
+      fontWeight: 800,
+      flexShrink: 0
+    }
+  }, firm.name.charAt(0)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      fontWeight: 800,
+      color: P.ink,
+      lineHeight: 1.25,
+      wordBreak: 'break-word'
+    }
+  }, firm.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: P.muted,
+      marginTop: 1
+    }
+  }, "Launch Hub"))), nav, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 'auto',
+      display: 'grid',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 12,
+      borderRadius: 10,
+      background: P.brandSofter,
+      border: `1px solid ${P.brandBorder}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 9
+    }
+  }, /*#__PURE__*/React.createElement(Avatar, {
+    name: firm.soleContact,
+    size: 28
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: P.ink
+    }
+  }, firm.soleContact), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      color: P.muted
+    }
+  }, firm.soleRole))), /*#__PURE__*/React.createElement("button", {
+    onClick: () => fireToast('In the real Launch Hub this opens a message to your implementation contact.'),
+    style: {
+      marginTop: 9,
+      width: '100%',
+      padding: '6px 10px',
+      borderRadius: 7,
+      cursor: 'pointer',
+      border: `1px solid ${P.brandBorder}`,
+      background: P.surface,
+      color: P.brandDeep,
+      fontSize: 12,
+      fontWeight: 600
+    }
+  }, "Ask a question")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10.5,
+      color: P.muted,
+      textAlign: 'center'
+    }
+  }, "Powered by Sole"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      window.location.hash = `#/implementations/${firm.id}`;
+    },
+    style: {
+      border: `1px dashed ${P.border}`,
+      background: 'transparent',
+      borderRadius: 8,
+      padding: '6px 8px',
+      cursor: 'pointer',
+      color: P.muted,
+      fontSize: 10.5,
+      fontStyle: 'italic'
+    }
+  }, "Sole view (demo shortcut)")));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "sole-portal",
+    style: {
+      minHeight: '100vh',
+      background: P.pageBg,
+      display: 'flex',
+      position: 'relative',
+      ...lhVars(P)
+    }
+  }, aside, isMobile && navOpen && /*#__PURE__*/React.createElement("div", {
+    onClick: () => setNavOpen(false),
+    style: {
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,17,23,0.35)',
+      zIndex: 55
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0,
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("header", {
+    style: {
+      background: P.surface,
+      borderBottom: `1px solid ${P.border}`,
+      position: 'sticky',
+      top: 0,
+      zIndex: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 1080,
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: `18px ${isMobile ? 16 : 32}px`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12
+    }
+  }, isMobile && /*#__PURE__*/React.createElement("button", {
+    onClick: () => setNavOpen(true),
+    "aria-label": "Open menu",
+    style: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      border: `1px solid ${P.border}`,
+      background: P.surface,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "menu",
+    size: 20,
+    color: P.ink
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: isMobile ? 19 : 22,
+      fontWeight: 800,
+      color: P.ink,
+      letterSpacing: -0.4
+    }
+  }, meta.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: P.muted,
+      marginTop: 2
+    }
+  }, SUBTITLE[route.screen]))))), /*#__PURE__*/React.createElement("main", {
+    style: {
+      flex: 1,
+      width: '100%'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 1080,
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+      padding: `26px ${isMobile ? 16 : 32}px 56px`
+    }
+  }, route.screen === 'overview' && /*#__PURE__*/React.createElement(LhOverview, {
+    firm: firm,
+    P: P,
+    go: go
+  }), route.screen === 'readiness' && /*#__PURE__*/React.createElement(LhReadiness, {
+    firm: firm,
+    P: P,
+    fireToast: fireToast,
+    onSave: r => patchFirm(f => lhRegenerate(f, r, f.bandOverride))
+  }), route.screen === 'data' && /*#__PURE__*/React.createElement(LhData, {
+    firm: firm,
+    P: P,
+    fireToast: fireToast,
+    onMethod: m => patchFirm(f => ({
+      ...f,
+      readiness: {
+        ...f.readiness,
+        method: m
+      },
+      items: f.items.map(i => ({
+        ...i,
+        method: m
+      }))
+    }))
+  }), route.screen === 'training' && /*#__PURE__*/React.createElement(LhTraining, {
+    firm: firm,
+    P: P,
+    fireToast: fireToast,
+    onChoose: id => patchFirm(f => lhRegenerate(f, {
+      ...f.readiness,
+      training: id
+    }, f.bandOverride))
+  }), route.screen === 'rollout' && /*#__PURE__*/React.createElement(LhRollout, {
+    firm: firm,
+    P: P
+  })))), /*#__PURE__*/React.createElement(Toast, {
+    toast: toast,
+    onClose: () => setToast(null)
+  }));
+};
+
+// ============================================================================
+// --- Implementations: Sole's own console ------------------------------------
+// Every firm being onboarded, and the one screen where a rollout gets tailored.
+// This is Sole staff only. It uses T rather than the portal theme on purpose, so
+// nobody mistakes an internal screen for something a firm can see.
+// ============================================================================
+const parseImplHash = hash => {
+  const m = (hash || '').match(/^#\/implementations\/?([\w-]+)?/);
+  return {
+    firmId: m ? m[1] : undefined
+  };
+};
+const lhISO = d => {
+  const x = d instanceof Date ? d : new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+};
+const LhKpi = ({
+  label,
+  value,
+  hint,
+  tone
+}) => /*#__PURE__*/React.createElement(Card, {
+  style: {
+    padding: 16
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: T.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  }
+}, label), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 26,
+    fontWeight: 800,
+    color: tone === 'amber' ? T.amber : T.text,
+    marginTop: 6,
+    letterSpacing: -0.6
+  }
+}, value), /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: 12,
+    color: T.muted,
+    marginTop: 3
+  }
+}, hint));
+const LhConsoleList = ({
+  state,
+  onOpen
+}) => {
+  const firms = state.firms || [];
+  const soon = firms.filter(f => lhDaysBetween(lhToday(), f.plan.goLive) <= 30).length;
+  const waitFirm = firms.filter(f => (f.tasks || []).some(t => t.status === 'waitfirm')).length;
+  const slipping = firms.filter(f => lhHealth(f).tone === 'amber').length;
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+      gap: 12,
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement(LhKpi, {
+    label: "Firms in flight",
+    value: firms.length,
+    hint: "Signed and not yet live"
+  }), /*#__PURE__*/React.createElement(LhKpi, {
+    label: "Live within 30 days",
+    value: soon,
+    hint: "On the current plan"
+  }), /*#__PURE__*/React.createElement(LhKpi, {
+    label: "Waiting on the firm",
+    value: waitFirm,
+    hint: "Blocked on their side",
+    tone: waitFirm ? 'amber' : null
+  }), /*#__PURE__*/React.createElement(LhKpi, {
+    label: "Needs a nudge",
+    value: slipping,
+    hint: "Something is past its date",
+    tone: slipping ? 'amber' : null
+  })), /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      minWidth: 860
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    style: {
+      background: T.fieldBg
+    }
+  }, ['Firm', 'Band', 'Target go-live', 'Progress', 'Waiting on', 'Next action', ''].map((h, i) => /*#__PURE__*/React.createElement("th", {
+    key: i,
+    style: {
+      textAlign: i === 3 ? 'right' : 'left',
+      padding: '11px 14px',
+      fontSize: 11,
+      fontWeight: 700,
+      color: T.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      borderBottom: `1px solid ${T.border}`,
+      whiteSpace: 'nowrap'
+    }
+  }, h)))), /*#__PURE__*/React.createElement("tbody", null, firms.map(f => {
+    const band = LH_BANDS[f.plan.band];
+    const next = lhNextFor(f, 'firm') || lhNextFor(f, 'sole');
+    const health = lhHealth(f);
+    const blocked = (f.tasks || []).filter(t => t.status === 'waitfirm').length;
+    return /*#__PURE__*/React.createElement("tr", {
+      key: f.id,
+      "data-row": true,
+      style: {
+        cursor: 'pointer',
+        borderBottom: `1px solid ${T.borderSoft}`
+      },
+      onClick: () => onOpen(f.id)
+    }, /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '13px 14px'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        background: f.brandHex,
+        color: '#FFFFFF',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 12,
+        fontWeight: 800,
+        flexShrink: 0
+      }
+    }, f.name.charAt(0)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13.5,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, f.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted
+      }
+    }, f.readiness.staff, " staff, ", Number(f.readiness.clients).toLocaleString('en-AU'), " clients")))), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '13px 14px'
+      }
+    }, /*#__PURE__*/React.createElement(Pill, {
+      color: band.tone
+    }, band.label), f.bandOverride && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10.5,
+        color: T.muted,
+        marginTop: 4
+      }
+    }, "set by hand")), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '13px 14px',
+        whiteSpace: 'nowrap'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        color: T.text,
+        fontWeight: 600
+      }
+    }, lhFmt(f.plan.goLive)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted
+      }
+    }, lhRelative(f.plan.goLive))), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '13px 14px',
+        minWidth: 120
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        justifyContent: 'flex-end'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        height: 6,
+        borderRadius: 999,
+        background: T.fieldBg,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: `${lhProgress(f)}%`,
+        height: '100%',
+        background: f.brandHex
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        fontWeight: 700,
+        color: T.text,
+        minWidth: 32,
+        textAlign: 'right'
+      }
+    }, lhProgress(f), "%"))), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '13px 14px'
+      }
+    }, blocked ? /*#__PURE__*/React.createElement(Pill, {
+      color: "amber"
+    }, blocked, " on the firm") : /*#__PURE__*/React.createElement(Pill, {
+      color: health.tone
+    }, health.label)), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '13px 14px',
+        maxWidth: 240
+      }
+    }, next ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: T.text
+      }
+    }, next.title), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        marginTop: 2
+      }
+    }, LH_OWNER_LABEL[next.owner], ", due ", lhFmt(next.due))) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        color: T.muted
+      }
+    }, "Nothing open")), /*#__PURE__*/React.createElement("td", {
+      style: {
+        padding: '13px 14px',
+        textAlign: 'right'
+      }
+    }, /*#__PURE__*/React.createElement(Icon, {
+      name: "chevronRight",
+      size: 16,
+      color: T.mutedSoft
+    })));
+  }))))));
+};
+
+// One firm's rollout, and the only screen where it gets tailored. The band card
+// is the important part: it states its own reasoning in plain English, because
+// "Assisted, because 3 systems and the client list needs cleanup" is what Sole
+// has to be able to say on a call, and a number nobody can explain is worse than
+// no number at all.
+const LhConsoleFirm = ({
+  firm,
+  patch,
+  fireToast,
+  onBack
+}) => {
+  const {
+    isMobile
+  } = useViewport();
+  const [tab, setTab] = useState('plan');
+  const auto = lhBandScore(firm.readiness);
+  const band = LH_BANDS[firm.plan.band];
+  const health = lhHealth(firm);
+  const setTask = (id, p) => patch(f => ({
+    ...f,
+    tasks: f.tasks.map(t => t.id === id ? {
+      ...t,
+      ...p
+    } : t)
+  }));
+  const dropTask = id => {
+    const removed = firm.tasks.find(t => t.id === id);
+    const at = firm.tasks.findIndex(t => t.id === id);
+    patch(f => ({
+      ...f,
+      tasks: f.tasks.filter(t => t.id !== id)
+    }));
+    fireToast({
+      message: `Removed "${removed.title}".`,
+      action: {
+        label: 'Undo',
+        onClick: () => patch(f => {
+          const next = f.tasks.slice();
+          next.splice(at, 0, removed);
+          return {
+            ...f,
+            tasks: next
+          };
+        })
+      }
+    });
+  };
+  const addTask = () => {
+    const id = `custom-${Date.now().toString(36)}`;
+    const phase = lhCurrentPhase(firm);
+    patch(f => ({
+      ...f,
+      tasks: f.tasks.concat([{
+        id,
+        phase,
+        owner: 'sole',
+        pos: 0.5,
+        title: 'New task',
+        detail: '',
+        due: lhShift(lhToday(), 7),
+        status: 'todo'
+      }])
+    }));
+    fireToast('Task added. It shows on the firm\'s Rollout screen straight away.');
+  };
+  const setMilestone = (id, iso) => patch(f => ({
+    ...f,
+    plan: {
+      ...f.plan,
+      milestones: f.plan.milestones.map(m => m.id === id ? {
+        ...m,
+        to: new Date(iso),
+        confirmed: true
+      } : m),
+      goLive: id === 'golive' ? new Date(iso) : f.plan.goLive
+    }
+  }));
+  const setItem = (id, p) => patch(f => ({
+    ...f,
+    items: f.items.map(i => i.id === id ? {
+      ...i,
+      ...p,
+      updated: lhToday()
+    } : i)
+  }));
+  const label = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: T.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5
+  };
+  const td = {
+    padding: '10px 12px',
+    borderBottom: `1px solid ${T.borderSoft}`,
+    verticalAlign: 'top'
+  };
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 14,
+      marginBottom: 18,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    icon: "arrowLeft",
+    onClick: onBack
+  }, "All firms"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    icon: "copy",
+    onClick: () => {
+      const url = `${window.location.origin}${window.location.pathname}#/launch/${firm.id}/overview`;
+      try {
+        navigator.clipboard.writeText(url);
+      } catch (_) {}
+      fireToast('Link copied. In production this would be a private, invite-only link.');
+    }
+  }, "Copy the firm's link"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "eye",
+    onClick: () => {
+      window.location.hash = `#/launch/${firm.id}/overview`;
+    }
+  }, "Open the firm's hub")), /*#__PURE__*/React.createElement(Card, {
+    style: {
+      marginBottom: 18
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 16,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      background: firm.brandHex,
+      color: '#FFFFFF',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 20,
+      fontWeight: 800,
+      flexShrink: 0
+    }
+  }, firm.name.charAt(0)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 200,
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 20,
+      fontWeight: 800,
+      color: T.text,
+      letterSpacing: -0.4
+    }
+  }, firm.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: T.muted,
+      marginTop: 3
+    }
+  }, firm.lead, ", ", firm.leadRole, ". ", firm.readiness.staff, " staff across ", firm.readiness.offices, ' ', Number(firm.readiness.offices) === 1 ? 'office' : 'offices', ", ", Number(firm.readiness.clients).toLocaleString('en-AU'), " clients.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 26,
+      flexWrap: 'wrap'
+    }
+  }, [{
+    k: 'Band',
+    v: /*#__PURE__*/React.createElement(Pill, {
+      color: band.tone
+    }, band.label)
+  }, {
+    k: 'Target go-live',
+    v: /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700
+      }
+    }, lhFmt(firm.plan.goLive))
+  }, {
+    k: 'Progress',
+    v: /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700
+      }
+    }, lhProgress(firm), "%")
+  }, {
+    k: 'Status',
+    v: /*#__PURE__*/React.createElement(Pill, {
+      color: health.tone
+    }, health.label)
+  }].map(x => /*#__PURE__*/React.createElement("div", {
+    key: x.k
+  }, /*#__PURE__*/React.createElement("div", {
+    style: label
+  }, x.k), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: 6
+    }
+  }, x.v)))))), /*#__PURE__*/React.createElement(Tabs, {
+    value: tab,
+    onChange: setTab,
+    tabs: [{
+      id: 'plan',
+      label: 'Plan and tasks',
+      icon: 'calendarCheck',
+      count: firm.tasks.filter(t => t.status !== 'done').length
+    }, {
+      id: 'data',
+      label: 'Data and systems',
+      icon: 'layers',
+      count: lhItemsOutstanding(firm),
+      badgeTone: lhItemsOutstanding(firm) ? 'alert' : 'neutral'
+    }, {
+      id: 'training',
+      label: 'Training',
+      icon: 'graduation'
+    }, {
+      id: 'readiness',
+      label: 'Their answers',
+      icon: 'clipboardCheck'
+    }]
+  }), tab === 'plan' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 16,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '1 1 260px',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Why this rollout is ", band.label.toLowerCase()), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      color: T.text,
+      marginTop: 8,
+      lineHeight: 1.6
+    }
+  }, auto.triggers.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      fontWeight: 700
+    }
+  }, "Complex"), ", because ", auto.triggers.join(', '), ". Any one of those is enough on its own.") : auto.reasons.length ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      fontWeight: 700
+    }
+  }, LH_BANDS[auto.band].label), ", because ", auto.reasons.slice(0, 4).join(', '), auto.reasons.length > 4 ? `, and ${auto.reasons.length - 4} more` : '', ".") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      fontWeight: 700
+    }
+  }, "Standard"), ", because nothing about this firm makes it harder than the base case.")), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 8
+    }
+  }, "The firm never sees the band or the score. They see the dates and the wording: \"", band.clientLine, "\"")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: '0 1 240px',
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement(Label, null, "Override the band"), /*#__PURE__*/React.createElement(Select, {
+    value: firm.plan.band,
+    onChange: e => {
+      const v = e.target.value;
+      patch(f => lhRegenerate(f, f.readiness, v === auto.band ? null : v));
+      fireToast(v === auto.band ? 'Back to the calculated band.' : `Set to ${LH_BANDS[v].label}. Dates and tasks have been rebuilt.`);
+    }
+  }, Object.entries(LH_BANDS).map(([id, b]) => /*#__PURE__*/React.createElement("option", {
+    key: id,
+    value: id
+  }, b.label, id === auto.band ? ' (calculated)' : ''))), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 6
+    }
+  }, band.note), firm.bandOverride && /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      patch(f => lhRegenerate(f, f.readiness, null));
+      fireToast('Back to the calculated band.');
+    },
+    style: {
+      marginTop: 8,
+      border: 'none',
+      background: 'transparent',
+      padding: 0,
+      cursor: 'pointer',
+      color: T.primary,
+      fontSize: 12,
+      fontWeight: 600
+    }
+  }, "Use the calculated band instead")))), /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 4
+    }
+  }, "Milestones"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginBottom: 14
+    }
+  }, "Change a date and the firm sees it immediately. If a date moves, say why on the task, because the spec's rule is that dates never move silently."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+      gap: 12
+    }
+  }, firm.plan.milestones.map(m => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    style: {
+      padding: 12,
+      border: `1px solid ${T.borderSoft}`,
+      borderRadius: 10,
+      background: T.surface
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: T.text,
+      flex: 1
+    }
+  }, m.label), m.confirmed ? /*#__PURE__*/React.createElement(Pill, {
+    color: "green"
+  }, "Confirmed") : /*#__PURE__*/React.createElement(Pill, {
+    color: "neutral"
+  }, "Target week")), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: lhISO(m.to),
+    onChange: e => setMilestone(m.id, e.target.value),
+    style: {
+      width: '100%',
+      padding: '7px 10px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.text,
+      fontSize: 12.5,
+      outline: 'none'
+    }
+  }))))), /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 16px 12px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 200
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Tasks"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 3
+    }
+  }, firm.tasks.length, " in the plan, ", firm.tasks.filter(t => t.status !== 'done').length, " still open. Everything here is on the firm's Rollout screen, so keep internal work out of it.")), /*#__PURE__*/React.createElement(Btn, {
+    variant: "soft",
+    size: "sm",
+    icon: "plus",
+    onClick: addTask
+  }, "Add a task")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      minWidth: 780
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    style: {
+      background: T.fieldBg
+    }
+  }, ['Task', 'Phase', 'Owner', 'Due', 'Status', ''].map((h, i) => /*#__PURE__*/React.createElement("th", {
+    key: i,
+    style: {
+      textAlign: 'left',
+      padding: '10px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      ...label
+    }
+  }, h)))), /*#__PURE__*/React.createElement("tbody", null, firm.tasks.slice().sort((a, b) => a.due - b.due).map(t => /*#__PURE__*/React.createElement("tr", {
+    key: t.id
+  }, /*#__PURE__*/React.createElement("td", {
+    style: {
+      ...td,
+      minWidth: 240
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    value: t.title,
+    onChange: e => setTask(t.id, {
+      title: e.target.value
+    }),
+    style: {
+      width: '100%',
+      padding: '5px 7px',
+      border: `1px solid transparent`,
+      borderRadius: 6,
+      background: 'transparent',
+      color: T.text,
+      fontSize: 13,
+      fontWeight: 600,
+      outline: 'none'
+    },
+    onFocus: e => {
+      e.target.style.borderColor = T.border;
+      e.target.style.background = T.card;
+    },
+    onBlur: e => {
+      e.target.style.borderColor = 'transparent';
+      e.target.style.background = 'transparent';
+    }
+  }), !!t.detail && /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted,
+      padding: '2px 7px',
+      lineHeight: 1.45
+    }
+  }, t.detail)), /*#__PURE__*/React.createElement("td", {
+    style: td
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: t.phase,
+    onChange: e => setTask(t.id, {
+      phase: e.target.value
+    }),
+    style: {
+      padding: '5px 26px 5px 8px',
+      fontSize: 12
+    }
+  }, LH_PHASES.map(p => /*#__PURE__*/React.createElement("option", {
+    key: p.id,
+    value: p.id
+  }, p.label)))), /*#__PURE__*/React.createElement("td", {
+    style: td
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: t.owner,
+    onChange: e => setTask(t.id, {
+      owner: e.target.value
+    }),
+    style: {
+      padding: '5px 26px 5px 8px',
+      fontSize: 12
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "firm"
+  }, LH_OWNER_LABEL.firm), /*#__PURE__*/React.createElement("option", {
+    value: "sole"
+  }, LH_OWNER_LABEL.sole))), /*#__PURE__*/React.createElement("td", {
+    style: td
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: lhISO(t.due),
+    onChange: e => setTask(t.id, {
+      due: new Date(e.target.value)
+    }),
+    style: {
+      padding: '5px 8px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 6,
+      background: T.card,
+      color: T.text,
+      fontSize: 12,
+      outline: 'none'
+    }
+  })), /*#__PURE__*/React.createElement("td", {
+    style: td
+  }, /*#__PURE__*/React.createElement(Select, {
+    value: t.status,
+    onChange: e => setTask(t.id, {
+      status: e.target.value
+    }),
+    style: {
+      padding: '5px 26px 5px 8px',
+      fontSize: 12
+    }
+  }, Object.entries(LH_TASK_STATUSES).map(([id, s]) => /*#__PURE__*/React.createElement("option", {
+    key: id,
+    value: id
+  }, s.label)))), /*#__PURE__*/React.createElement("td", {
+    style: {
+      ...td,
+      textAlign: 'right'
+    }
+  }, /*#__PURE__*/React.createElement(Btn, {
+    variant: "iconOnly",
+    size: "sm",
+    icon: "trash",
+    title: "Remove",
+    onClick: () => dropTask(t.id)
+  }))))))))), tab === 'data' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 16px 12px'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "What we are getting out of what"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 3
+    }
+  }, "Extraction method and effort are the implementation team's working assumptions, not confirmed facts. Nobody has signed them off, and none of this is shown to the firm.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto'
+    }
+  }, /*#__PURE__*/React.createElement("table", {
+    style: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      minWidth: 640
+    }
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    style: {
+      background: T.fieldBg
+    }
+  }, ['System', 'What they use', 'How we get it out', 'Effort (to confirm)', 'They can export'].map((h, i) => /*#__PURE__*/React.createElement("th", {
+    key: i,
+    style: {
+      textAlign: 'left',
+      padding: '10px 12px',
+      borderBottom: `1px solid ${T.border}`,
+      ...label
+    }
+  }, h)))), /*#__PURE__*/React.createElement("tbody", null, LH_SYSTEM_KINDS.map(k => {
+    const name = (firm.readiness.systems || {})[k.id];
+    const none = !name || name.indexOf('Nothing') === 0 || name === 'Not applicable';
+    const ex = lhExtraction(name);
+    const can = (firm.readiness.exportable || {})[k.id];
+    return /*#__PURE__*/React.createElement("tr", {
+      key: k.id
+    }, /*#__PURE__*/React.createElement("td", {
+      style: {
+        ...td,
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.text
+      }
+    }, k.label), /*#__PURE__*/React.createElement("td", {
+      style: {
+        ...td,
+        fontSize: 13,
+        color: none ? T.muted : T.text
+      }
+    }, name || 'Not answered'), /*#__PURE__*/React.createElement("td", {
+      style: {
+        ...td,
+        fontSize: 13,
+        color: T.textSoft
+      }
+    }, none ? '' : ex.method), /*#__PURE__*/React.createElement("td", {
+      style: td
+    }, none ? '' : /*#__PURE__*/React.createElement(Pill, {
+      color: LH_EFFORT_TONE[ex.effort]
+    }, ex.effort)), /*#__PURE__*/React.createElement("td", {
+      style: td
+    }, none ? '' : /*#__PURE__*/React.createElement(Pill, {
+      color: can === 'yes' ? 'green' : can === 'no' ? 'red' : 'amber'
+    }, can === 'yes' ? 'Yes' : can === 'no' ? 'No' : 'Not sure')));
+  }))))), /*#__PURE__*/React.createElement(Card, {
+    padded: false
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: '16px 16px 12px'
+    }
+  }, /*#__PURE__*/React.createElement(SectionTitle, null, "Review what they have sent"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 3
+    }
+  }, "Whatever you set here, and whatever you write in the note, is exactly what the firm reads on their Data screen. Write it for them, not for us.")), LH_DATA_ITEMS.map((spec, i) => {
+    const item = firm.items.find(x => x.id === spec.id) || {
+      state: 'waiting',
+      note: ''
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      key: spec.id,
+      style: {
+        padding: '14px 16px',
+        borderTop: `1px solid ${T.borderSoft}`,
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1.2fr 160px 1.4fr',
+        gap: 12,
+        alignItems: 'start'
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.text
+      }
+    }, spec.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.muted,
+        marginTop: 3
+      }
+    }, spec.required ? 'Required' : 'Optional')), /*#__PURE__*/React.createElement(Select, {
+      value: item.state,
+      onChange: e => setItem(spec.id, {
+        state: e.target.value
+      }),
+      style: {
+        fontSize: 12.5
+      }
+    }, Object.entries(LH_ITEM_STATES).map(([id, s]) => /*#__PURE__*/React.createElement("option", {
+      key: id,
+      value: id
+    }, s.label))), /*#__PURE__*/React.createElement("textarea", {
+      value: item.note || '',
+      onChange: e => setItem(spec.id, {
+        note: e.target.value
+      }),
+      placeholder: item.state === 'attention' ? 'Tell them exactly what is wrong and what to do about it' : 'Note for the firm (optional)',
+      rows: 2,
+      style: {
+        width: '100%',
+        padding: '8px 10px',
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        background: T.card,
+        color: T.text,
+        fontSize: 12.5,
+        outline: 'none',
+        resize: 'vertical',
+        fontFamily: 'inherit'
+      }
+    }));
+  }))), tab === 'training' && /*#__PURE__*/React.createElement(Card, null, /*#__PURE__*/React.createElement(SectionTitle, null, "Training"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 3,
+      marginBottom: 16
+    }
+  }, "They chose ", lhTrainingOption(firm.readiness.training).label.toLowerCase(), ". We suggested", ' ', lhTrainingOption(firm.plan.band === 'complex' ? 'implementation' : firm.plan.band === 'standard' ? 'walkthrough' : 'workshops').label.toLowerCase(), ". The firm's choice wins, and if you think it is wrong, that is a conversation, not a setting."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
+      gap: 14,
+      marginBottom: 18
+    }
+  }, [{
+    k: 'Format',
+    v: lhTrainingOption(firm.readiness.training).label
+  }, {
+    k: 'Audience',
+    v: (firm.readiness.audiences || []).map(id => (LH_AUDIENCES.find(a => a.id === id) || {}).label).filter(Boolean).join(', ') || 'Not chosen'
+  }, {
+    k: 'Attendees',
+    v: `About ${firm.readiness.attendees}`
+  }, {
+    k: 'They prefer',
+    v: `${firm.readiness.days}, ${firm.readiness.window}`
+  }].map(x => /*#__PURE__*/React.createElement("div", {
+    key: x.k
+  }, /*#__PURE__*/React.createElement("div", {
+    style: label
+  }, x.k), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: T.text,
+      marginTop: 5,
+      fontWeight: 600
+    }
+  }, x.v)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '200px 1fr auto',
+      gap: 12,
+      alignItems: 'end',
+      paddingTop: 16,
+      borderTop: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Confirmed session date"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: firm.training.when ? lhISO(firm.training.when) : '',
+    onChange: e => patch(f => ({
+      ...f,
+      training: {
+        ...f.training,
+        when: e.target.value ? new Date(e.target.value) : null,
+        confirmed: !!e.target.value
+      }
+    })),
+    style: {
+      width: '100%',
+      padding: '8px 10px',
+      border: `1px solid ${T.border}`,
+      borderRadius: 8,
+      background: T.card,
+      color: T.text,
+      fontSize: 13,
+      outline: 'none'
+    }
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(Label, null, "Who is running it"), /*#__PURE__*/React.createElement(Input, {
+    value: firm.training.trainer || '',
+    onChange: e => patch(f => ({
+      ...f,
+      training: {
+        ...f.training,
+        trainer: e.target.value
+      }
+    }))
+  })), /*#__PURE__*/React.createElement(Btn, {
+    variant: "primary",
+    icon: "calendarCheck",
+    disabled: !firm.training.when,
+    onClick: () => {
+      patch(f => ({
+        ...f,
+        training: {
+          ...f.training,
+          confirmed: true
+        }
+      }));
+      fireToast('Confirmed. The firm sees the date on their Training screen.');
+    }
+  }, firm.training.confirmed ? 'Confirmed' : 'Confirm with the firm'))), tab === 'readiness' && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gap: 16
+    }
+  }, /*#__PURE__*/React.createElement(Card, {
+    style: {
+      background: T.primarySofter,
+      borderColor: '#C7C9FB'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 10
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    name: "info",
+    size: 16,
+    color: T.primary
+  }), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      color: T.textSoft,
+      lineHeight: 1.55
+    }
+  }, "Read-only here on purpose. If something is wrong, the firm edits it on their own Readiness screen, or you walk them through it. Changing a firm's answers behind their back is how a plan and a conversation stop matching."))), [{
+    title: 'Their firm',
+    rows: [['Implementation lead', `${firm.lead}, ${firm.leadRole}`], ['Backup contact', firm.readiness.backup], ['Partners', firm.readiness.partners], ['Staff', firm.readiness.staff], ['Offices', firm.readiness.offices], ['Active clients', Number(firm.readiness.clients).toLocaleString('en-AU')], ['They would like to be live', firm.readiness.targetMonth], ['Work around', firm.readiness.blackout]]
+  }, {
+    title: 'Their data',
+    rows: [['Master client list', firm.readiness.masterList], ['Former clients marked', firm.readiness.inactiveFlagged], ['Known duplicates', firm.readiness.duplicates], ['Client owner reliable', firm.readiness.ownersReliable], ['Recurring jobs structured', firm.readiness.jobsStructured], ['Their own read on it', {
+      clean: 'Clean, they keep on top of it',
+      'some-cleanup': 'Mostly fine, some tidying',
+      'needs-work': 'It needs real work'
+    }[firm.readiness.dataCondition]], ['What to migrate', {
+      'active-only': 'Active clients only',
+      'some-history': 'Active plus recent history',
+      everything: 'Everything they have'
+    }[firm.readiness.history]], ['Who owns the tidy-up', firm.readiness.cleanupOwner], ['How they will send it', LH_METHODS[firm.readiness.method].label]]
+  }].map(g => /*#__PURE__*/React.createElement(Card, {
+    key: g.title
+  }, /*#__PURE__*/React.createElement(SectionTitle, {
+    style: {
+      marginBottom: 12
+    }
+  }, g.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: '10px 28px'
+    }
+  }, g.rows.map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+    key: k,
+    style: {
+      display: 'flex',
+      gap: 12,
+      alignItems: 'baseline',
+      padding: '5px 0',
+      borderBottom: `1px solid ${T.borderSoft}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12.5,
+      color: T.muted,
+      minWidth: 168
+    }
+  }, k), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      color: T.text,
+      fontWeight: 600
+    }
+  }, v == null || v === '' ? 'Not answered' : String(v)))))))));
+};
+
+// The console shell. Slim, internal, and visibly not the firm's hub.
+const LaunchConsoleApp = () => {
+  const [state, setState] = useState(lhLoad);
+  const [route, setRoute] = useState(() => parseImplHash(window.location.hash));
+  const [toast, setToast] = useState(null);
+  const {
+    isMobile
+  } = useViewport();
+  const fireToast = t => {
+    setToast(t);
+    const dur = typeof t === 'object' && t && t.action ? 5000 : 2400;
+    setTimeout(() => setToast(null), dur);
+  };
+  useEffect(() => {
+    const onHash = () => setRoute(parseImplHash(window.location.hash));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const firm = route.firmId ? lhFirmById(state, route.firmId) : null;
+  const patch = fn => setState(s => {
+    const next = {
+      ...s,
+      firms: s.firms.map(f => f.id === firm.id ? fn(f) : f)
+    };
+    lhSave(next);
+    return next;
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: '100vh',
+      background: T.bg
+    }
+  }, /*#__PURE__*/React.createElement("header", {
+    style: {
+      background: T.card,
+      borderBottom: `1px solid ${T.border}`,
+      position: 'sticky',
+      top: 0,
+      zIndex: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 1340,
+      margin: '0 auto',
+      padding: `14px ${isMobile ? 16 : 28}px`,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 14,
+      flexWrap: 'wrap'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 19,
+      fontWeight: 700,
+      letterSpacing: -0.5
+    }
+  }, "S"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-block',
+      width: 12,
+      height: 12,
+      borderRadius: '50%',
+      background: `radial-gradient(circle at 30% 30%, ${T.primary}, ${T.primaryDark})`,
+      transform: 'translateY(2px)'
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 19,
+      fontWeight: 700,
+      letterSpacing: -0.5
+    }
+  }, "le")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 1,
+      height: 20,
+      background: T.border
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      color: T.text
+    }
+  }, "Implementations"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      color: T.muted
+    }
+  }, "Sole only. Firms never see this screen.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "refresh",
+    title: "Put the three demo firms back to how they started",
+    onClick: () => {
+      lhReset();
+      setState(lhFreshState());
+      fireToast('Demo data reset.');
+    }
+  }, "Reset demo"), /*#__PURE__*/React.createElement(Btn, {
+    variant: "ghost",
+    size: "sm",
+    icon: "arrowLeft",
+    onClick: () => {
+      window.location.hash = '#/practice/practice-dashboard';
+    }
+  }, "Back to SPM"))), /*#__PURE__*/React.createElement("main", {
+    style: {
+      maxWidth: 1340,
+      margin: '0 auto',
+      padding: `24px ${isMobile ? 16 : 28}px 56px`
+    }
+  }, !firm && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 24,
+      fontWeight: 800,
+      color: T.text,
+      letterSpacing: -0.5
+    }
+  }, "Firms we are onboarding"), /*#__PURE__*/React.createElement(Helper, {
+    style: {
+      marginTop: 4
+    }
+  }, "One row per firm between signing and going live. Open one to tailor its plan, then preview exactly what that firm sees.")), firm ? /*#__PURE__*/React.createElement(LhConsoleFirm, {
+    firm: firm,
+    patch: patch,
+    fireToast: fireToast,
+    onBack: () => {
+      window.location.hash = '#/implementations';
+    }
+  }) : /*#__PURE__*/React.createElement(LhConsoleList, {
+    state: state,
+    onOpen: id => {
+      window.location.hash = `#/implementations/${id}`;
+    }
+  })), /*#__PURE__*/React.createElement(Toast, {
+    toast: toast,
+    onClose: () => setToast(null)
+  }));
+};
+
 // --- root: hash-routed shell ---
 // Default landing is the Practice app (Employees). The proposal editor is
 // reachable via any non-practice hash (`#/proposal`, or the legacy empty-hash
@@ -132656,6 +137349,10 @@ const Root = () => {
     const s = h || '';
     if (s.startsWith('#/feedback')) return 'feedback';
     if (s.startsWith('#/portal')) return 'portal';
+    // Launch Hub (Module 17). Two surfaces: the firm's own hub and Sole's console.
+    // Checked before the practice test because neither prefix starts with #/practice.
+    if (s.startsWith('#/launch')) return 'launch';
+    if (s.startsWith('#/implementations')) return 'implementations';
     if (!s || s === '#' || s === '#/' || s.startsWith('#/practice')) return 'practice';
     return 'proposal';
   };
@@ -132667,6 +137364,8 @@ const Root = () => {
   }, []);
   if (view === 'feedback') return /*#__PURE__*/React.createElement(FeedbackLandingApp, null);
   if (view === 'portal') return /*#__PURE__*/React.createElement(ClientPortalApp, null);
+  if (view === 'launch') return /*#__PURE__*/React.createElement(LaunchHubApp, null);
+  if (view === 'implementations') return /*#__PURE__*/React.createElement(LaunchConsoleApp, null);
   if (view === 'practice') return /*#__PURE__*/React.createElement(PracticeApp, null);
   return /*#__PURE__*/React.createElement(App, null);
 };
