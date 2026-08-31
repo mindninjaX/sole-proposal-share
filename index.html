@@ -133390,6 +133390,11 @@ const generateRolloutPlan = (readiness, start, bandOverride) => {
 // in docs/MEMORY.md: prototypes on one GitHub Pages origin share storage.
 const LH_KEY = 'sole.launch.v1';
 
+// A placeholder mark for the demo firm, so the white-label logo slot is visible
+// rather than just claimed. Mason & Co is invented, so an invented mark is fine;
+// a real firm gets their own file dropped into `logo` and nothing else changes.
+const LH_DEMO_LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">' + '<path d="M9 36V13l7.5 11L24 13v23" fill="none" stroke="#1F6FEB" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>' + '<circle cx="36" cy="32.5" r="3.8" fill="#0F172A"/></svg>');
+
 // Three seeded firms, one per band, so switching between them proves "tailored
 // per firm" rather than asserting it. Every person here is invented; no real
 // firm's details go in a prototype.
@@ -133451,6 +133456,7 @@ const LH_SEED_FIRMS = [{
   name: 'Mason & Co',
   short: 'Mason',
   brandHex: '#1F6FEB',
+  logo: LH_DEMO_LOGO,
   lead: 'Alex Mason',
   leadRole: 'Partner',
   leadEmail: 'alex@masonco.com.au',
@@ -133736,6 +133742,87 @@ const lhVars = P => ({
   '--pt-ring': ptRgba(P.brand, 0.14),
   '--pt-row-hover': ptLighten(P.brand, 0.95)
 });
+
+// The Sole lockup, drawn rather than loaded. An <img> would need `assets/`, which
+// resolves after the workflow flattens pages/ to the hosting root but not from the
+// repo root locally, so every other Sole mark in this file is drawn too.
+const SoleMark = ({
+  size = 18,
+  color = '#0F1117'
+}) => /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    gap: size * 0.06,
+    lineHeight: 1
+  }
+}, /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: size,
+    fontWeight: 700,
+    letterSpacing: -0.5,
+    color
+  }
+}, "S"), /*#__PURE__*/React.createElement("span", {
+  style: {
+    display: 'inline-block',
+    width: size * 0.62,
+    height: size * 0.62,
+    borderRadius: '50%',
+    background: `radial-gradient(circle at 30% 30%, ${T.primary}, ${T.primaryDark})`,
+    transform: `translateY(${size * 0.09}px)`
+  }
+}), /*#__PURE__*/React.createElement("span", {
+  style: {
+    fontSize: size,
+    fontWeight: 700,
+    letterSpacing: -0.5,
+    color
+  }
+}, "le"));
+
+// A firm's mark. `logo` is the white-label seam: give a firm a logo URL or data
+// URI and it renders theirs, otherwise it falls back to an initial tile in their
+// brand colour. onError hides a broken image so a dead URL never leaves a broken
+// icon on a client-facing screen.
+const LhFirmMark = ({
+  firm,
+  size = 34,
+  radius = 10
+}) => /*#__PURE__*/React.createElement("span", {
+  style: {
+    width: size,
+    height: size,
+    borderRadius: radius,
+    flexShrink: 0,
+    position: 'relative',
+    overflow: 'hidden',
+    background: firm.logo ? '#FFFFFF' : firm.brandHex,
+    color: '#FFFFFF',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: Math.round(size * 0.44),
+    fontWeight: 800,
+    border: firm.logo ? `1px solid ${T.border}` : 'none'
+  }
+}, firm.name.charAt(0), !!firm.logo && /*#__PURE__*/React.createElement("img", {
+  src: firm.logo,
+  alt: "",
+  loading: "lazy",
+  onError: e => {
+    e.currentTarget.style.display = 'none';
+  },
+  style: {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+    padding: size * 0.12,
+    background: '#FFFFFF'
+  }
+}));
 
 // Owner is the strongest organising idea in the spec: the firm needs to answer
 // "what do we do?" and "what is Sole doing?" before anything else, so every task
@@ -134257,8 +134344,8 @@ const LhOverview = ({
   const {
     isMobile
   } = useViewport();
-  const health = lhHealth(firm);
   const yours = lhOpenFor(firm, 'firm').slice(0, 3);
+  const nextForFirm = lhNextFor(firm, 'firm');
   const ours = lhOpenFor(firm, 'sole').slice(0, 3);
   const outstanding = lhItemsOutstanding(firm);
   const training = lhTrainingOption(firm.readiness.training);
@@ -134333,23 +134420,39 @@ const LhOverview = ({
     }
   }, "Target go-live, ", lhRelative(firm.plan.goLive), ". ", firm.plan.clientLine)), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'flex-end',
-      gap: 8
+      minWidth: 190,
+      maxWidth: 260
     }
-  }, /*#__PURE__*/React.createElement(Pill, {
-    color: health.tone,
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12,
-      padding: '4px 11px'
+      fontSize: 11,
+      fontWeight: 700,
+      color: P.muted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase'
     }
-  }, health.label), /*#__PURE__*/React.createElement("div", {
+  }, nextForFirm ? 'Your next step' : 'Over to us'), nextForFirm ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 12,
-      color: P.muted
+      fontSize: 14.5,
+      fontWeight: 700,
+      color: P.ink,
+      marginTop: 6,
+      lineHeight: 1.35
     }
-  }, lhProgress(firm), "% of the plan complete")))), /*#__PURE__*/React.createElement("div", {
+  }, nextForFirm.title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      color: P.muted,
+      marginTop: 4
+    }
+  }, "Due ", lhFmt(nextForFirm.due))) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13.5,
+      color: P.muted,
+      marginTop: 6,
+      lineHeight: 1.45
+    }
+  }, "Nothing needed from you right now. We will let you know.")))), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: isMobile ? '18px 16px' : '22px 28px'
     }
@@ -135846,21 +135949,11 @@ const LaunchHubApp = () => {
       gap: 10,
       padding: '0 4px'
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
-      background: P.brand,
-      color: '#FFFFFF',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 15,
-      fontWeight: 800,
-      flexShrink: 0
-    }
-  }, firm.name.charAt(0)), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(LhFirmMark, {
+    firm: firm,
+    size: 34,
+    radius: 10
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: 0
     }
@@ -135931,11 +136024,22 @@ const LaunchHubApp = () => {
     }
   }, "Ask a question")), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 10.5,
-      color: P.muted,
-      textAlign: 'center'
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      padding: '2px 0'
     }
-  }, "Powered by Sole"), /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: P.muted,
+      letterSpacing: 0.3
+    }
+  }, "Powered by"), /*#__PURE__*/React.createElement(SoleMark, {
+    size: 15,
+    color: P.ink
+  })), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       window.location.hash = `#/implementations/${firm.id}`;
     },
@@ -136220,21 +136324,11 @@ const LhConsoleList = ({
         alignItems: 'center',
         gap: 10
       }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
-        background: f.brandHex,
-        color: '#FFFFFF',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 12,
-        fontWeight: 800,
-        flexShrink: 0
-      }
-    }, f.name.charAt(0)), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement(LhFirmMark, {
+      firm: f,
+      size: 28,
+      radius: 8
+    }), /*#__PURE__*/React.createElement("div", {
       style: {
         minWidth: 0
       }
@@ -136493,21 +136587,11 @@ const LhConsoleFirm = ({
       gap: 16,
       flexWrap: 'wrap'
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      width: 46,
-      height: 46,
-      borderRadius: 12,
-      background: firm.brandHex,
-      color: '#FFFFFF',
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: 20,
-      fontWeight: 800,
-      flexShrink: 0
-    }
-  }, firm.name.charAt(0)), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(LhFirmMark, {
+    firm: firm,
+    size: 46,
+    radius: 12
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: 200,
       flex: 1
@@ -137226,34 +137310,9 @@ const LaunchConsoleApp = () => {
       gap: 14,
       flexWrap: 'wrap'
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: 'flex',
-      alignItems: 'baseline',
-      gap: 5
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 19,
-      fontWeight: 700,
-      letterSpacing: -0.5
-    }
-  }, "S"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      display: 'inline-block',
-      width: 12,
-      height: 12,
-      borderRadius: '50%',
-      background: `radial-gradient(circle at 30% 30%, ${T.primary}, ${T.primaryDark})`,
-      transform: 'translateY(2px)'
-    }
-  }), /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: 19,
-      fontWeight: 700,
-      letterSpacing: -0.5
-    }
-  }, "le")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(SoleMark, {
+    size: 19
+  }), /*#__PURE__*/React.createElement("div", {
     style: {
       width: 1,
       height: 20,
