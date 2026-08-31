@@ -3,13 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roo — the Slack bot that remembers who owes what</title>
+<title>Taskmate — the Slack bot that remembers who owes what</title>
 <meta name="robots" content="noindex, nofollow">
 <!--
   Internal task/responsiveness bot. Pitch + clickable prototype.
 
-  THE NAME IS A PLACEHOLDER. "Roo" and the kangaroo are working identity only —
-  everything brandable lives in the BRAND object at the top of the <script>, and
+  THE NAME IS DECIDED: Taskmate, slash command /task (Rishabh, 26 Aug 2026).
+  It must match bot/manifest.json and BRAND_NAME in the service. The kangaroo
+  identity is gone with it.
+  Everything brandable lives in the BRAND object at the top of the <script>, and
   in the document every standalone mention is a <span class="bn">, every mascot
   glyph a <span class="be">, the goal word a <span class="bg">. Renaming is one
   edit to BRAND, not a find-and-replace across 900 lines.
@@ -340,8 +342,8 @@
 <header class="top">
   <div class="top-in">
     <div class="brandrow">
-      <div class="logo"><span class="be">🦘</span></div>
-      <div class="brand"><span class="bn">Roo</span><small>the Slack bot that remembers who owes what</small></div>
+      <div class="logo"><span class="be">🤝</span></div>
+      <div class="brand"><span class="bn">Taskmate</span><small>the Slack bot that remembers who owes what</small></div>
       <span class="flagchip">Working name</span>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
@@ -373,7 +375,7 @@
       </ul>
     </div>
     <div class="side good">
-      <h3>With <span class="bn">Roo</span></h3>
+      <h3>With <span class="bn">Taskmate</span></h3>
       <ul>
         <li><b>📌</b>Written down the second it's said</li>
         <li><b>🙋</b>One name on it</li>
@@ -394,9 +396,9 @@
         <div class="txt">hey <span class="mention">@Dan</span> could you get me the pricing copy before Thursday? 🙏</div></div>
       </div>
       <div class="msg">
-        <div class="av" style="background:var(--violet)"><span class="be">🦘</span></div>
+        <div class="av" style="background:var(--violet)"><span class="be">🤝</span></div>
         <div style="flex:1; min-width:0">
-          <div><span class="who bn">Roo</span> <span class="tag t-s">bot</span><span class="ts">9:12 AM</span></div>
+          <div><span class="who bn">Taskmate</span> <span class="tag t-s">bot</span><span class="ts">9:12 AM</span></div>
           <div class="txt">Got it 📌</div>
           <div class="roo-card">
             <div class="rt">Pricing copy for the launch page</div>
@@ -505,7 +507,7 @@
     <div class="app-hero">
       <div class="hero-top">
         <div class="hi">Morning, Dan 👋<small id="hero-sub">5 things on you. One is running late.</small></div>
-        <span class="lvl-badge" id="lvl-badge"><span class="be">🦘</span> Bounder</span>
+        <span class="lvl-badge" id="lvl-badge"><span class="be">🤝</span> Sharp</span>
       </div>
       <div class="xp">
         <div class="xp-track"><i id="xp-bar" style="width:55%"></i></div>
@@ -537,7 +539,7 @@
         <div class="banner">Today's run<small id="hop-count">12 of 18 cleared</small></div>
         <div class="path"></div>
         <div id="track-marks"></div>
-        <div class="roo" id="roo-sprite" style="left:65%"><span class="be">🦘</span></div>
+        <div class="roo" id="roo-sprite" style="left:65%"><span class="be">🤝</span></div>
       </div>
       <p class="sm" style="margin:0 0 14px"><strong>“Nothing needed” counts the same as a reply.</strong> Nobody else can see this screen — <a href="#" data-goto="team" style="color:var(--violet)">what we promise →</a></p>
       <div id="inbox-list"></div>
@@ -603,9 +605,9 @@
     <div class="slack-bar">#soul-of-sole</div>
     <div class="slack-body">
       <div class="msg">
-        <div class="av" style="background:var(--violet)"><span class="be">🦘</span></div>
+        <div class="av" style="background:var(--violet)"><span class="be">🤝</span></div>
         <div style="flex:1; min-width:0">
-          <div><span class="who bn">Roo</span> <span class="tag t-s">bot</span><span class="ts">Fri 4:00 PM</span></div>
+          <div><span class="who bn">Taskmate</span> <span class="tag t-s">bot</span><span class="ts">Fri 4:00 PM</span></div>
           <div class="txt">Righto you legends, that's the week 🎉</div>
           <div class="roo-card" style="background:var(--amber-soft)">
             <div class="rt">🏆 Player of the week — Tom</div>
@@ -659,7 +661,7 @@
   <h2>What I need from you</h2>
   <div class="box">
     <ul class="list" style="margin:0">
-      <li><strong>The name.</strong> “<span class="bn">Roo</span>” is a placeholder — trivial to change now, awkward once people say it out loud.</li>
+      <li><strong>Which boards, and who sits on each one.</strong> Engineering, marketing, customer success, design: name them, and name the people, so every ask lands somewhere everyone can see.</li>
       <li><strong>Do we want the inbox game at all?</strong> Most fun, most sensitive. Straw-poll the pilot first.</li>
       <li><strong>Two pilot teams</strong> — one struggling, one keen, plus one leader.</li>
       <li><strong>Sign off the six promises</strong> above. Much harder to add back later than to design in.</li>
@@ -684,15 +686,15 @@
      glyph, the level ladder and the journey landmarks. Nothing else to touch.
      ========================================================================== */
   var BRAND = {
-    name:  'Roo',
-    emoji: '🦘',
-    goal:  'the billabong',                       // what you're heading towards
-    levels: [                                     // ladder, low → high
-      { n: 'Joey', min: 0 }, { n: 'Hopper', min: 10 }, { n: 'Bounder', min: 50 },
-      { n: 'Big Red', min: 150 }, { n: 'Legend', min: 350 }
+    name:  'Taskmate',
+    emoji: '🤝',
+    goal:  'a clear board',                       // what you're heading towards
+    levels: [                                     // ladder, low → high. MUST match
+      { n: 'Starter', min: 0 }, { n: 'Regular', min: 10 }, { n: 'Sharp', min: 50 },
+      { n: 'Pro', min: 150 }, { n: 'Sole star', min: 350 }   // bot/src/points.js LEVELS
     ],
     marks: [                                      // [left%, glyph, label]
-      [5, '⛺', 'Camp'], [35, '🪨', 'The creek'], [65, '🌳', 'Gum tree'], [94, '💧', 'Billabong']
+      [5, '📥', 'Inbox'], [35, '✅', 'First close'], [65, '🔥', 'On a streak'], [94, '🎯', 'Clear board']
     ]
   };
 
