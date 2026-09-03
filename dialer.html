@@ -45,12 +45,30 @@
   .rise > *:nth-child(n+4) { animation-delay: .14s; }
   /* The 3 column workspace collapses in 2 steps: reference column first, then the people rail.
      Support agents may open this on a 13 inch laptop or on half a screen. */
+  /* The ticket list. Key and Summary always survive; the rest shed from the right. */
+  [data-trow] { grid-template-columns: 74px minmax(0, 1.9fr) 130px 118px 130px 96px 104px; }
+  @media (max-width: 1240px) { [data-board] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+  @media (max-width: 1120px) {
+    [data-trow] { grid-template-columns: 74px minmax(0, 1.9fr) 130px 130px 104px !important; }
+    [data-trow] > :nth-child(4), [data-trow] > :nth-child(6) { display: none; }
+  }
+  @media (max-width: 820px) {
+    [data-trow] { grid-template-columns: 74px minmax(0, 1fr) 104px !important; }
+    [data-trow] > :nth-child(3), [data-trow] > :nth-child(5) { display: none; }
+  }
   @media (max-width: 1180px) { [data-col="right"] { display: none !important; } }
+  @media (max-width: 1060px) { [data-nav] svg { display: none; } }
   @media (max-width: 1000px) { [data-col="left"] { display: none !important; } }
+  @media (max-width: 900px)  {
+    [data-board], [data-two] { grid-template-columns: minmax(0, 1fr) !important; }
+    [data-two] > * { grid-column: auto !important; }
+  }
   @media (max-width: 860px)  {
     [data-stats] { flex-direction: column !important; }
-    [data-cols] { grid-template-columns: 1.6fr 1fr 1.2fr !important; }
+    /* The calls table drops By and How rather than squeezing 6 columns onto a laptop. */
+    [data-cols] { grid-template-columns: 1.5fr .9fr .8fr 1.15fr !important; }
     [data-cols] > :nth-child(3), [data-cols] > :nth-child(4) { display: none; }
+    [data-switch] { display: none !important; }
   }
 </style>
 </head>
@@ -99,6 +117,16 @@ const paths = {
   x: 'M18 6L6 18 M6 6l12 12',
   activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
   star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  clip: 'M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48',
+  board: 'M4 3h4v18H4z M10 3h4v11h-4z M16 3h4v14h-4z',
+  ticket: 'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z M7 7h.01',
+  globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+  mic: 'M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4',
+  users: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+  trend: 'M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6',
+  file: 'M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z M13 2v7h7',
+  minimise: 'M5 12h14',
+  expand: 'M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7',
 };
 const Icon = ({ name, size = 16, color = 'currentColor', strokeWidth = 1.8, style }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
@@ -193,6 +221,32 @@ const Empty = ({ children }) => (
     padding: '16px 18px', color: T.muted, fontSize: 13 }}>{children}</div>
 );
 
+// --- channels ---
+// Support arrives on 5 doorsteps and Shishir, Johann and Juhi each named a different one.
+// A channel is a LABEL on the conversation, never a second inbox: the whole point of the
+// person page is that everything they said to us sits in one thread.
+const CHANNELS = {
+  app:      { label: 'In-app chat',  tone: 'brand',   via: 'Sole web app' },
+  website:  { label: 'Website chat', tone: 'neutral', via: 'via GoHighLevel' },
+  whatsapp: { label: 'WhatsApp',     tone: 'green',   via: 'via GoHighLevel' },
+  facebook: { label: 'Facebook',     tone: 'blue',    via: 'via GoHighLevel' },
+  phone:    { label: 'Phone',        tone: 'neutral', via: 'Twilio' },
+  email:    { label: 'Email',        tone: 'neutral', via: 'SendGrid' },
+  academy:  { label: 'Sole Academy', tone: 'brand',   via: 'Asked from inside a video' },
+  form:     { label: 'Help form',    tone: 'amber',   via: 'getsole.io/help' },
+};
+const ChannelChip = ({ id, showVia }) => {
+  const c = CHANNELS[id] || CHANNELS.app;
+  const t = TONES[c.tone] || TONES.neutral;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5,
+      fontWeight: 600, color: T.muted, whiteSpace: 'nowrap' }}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.fg, flexShrink: 0 }} />
+      {c.label}{showVia && <span style={{ color: T.mutedSoft, fontWeight: 500 }}>{c.via}</span>}
+    </span>
+  );
+};
+
 // A note in the prototype's own voice: tells the room what is fake and what is the idea.
 const Note = ({ children }) => (
   <div style={{ fontSize: 12, color: T.mutedSoft, marginTop: 14, display: 'flex', gap: 7, alignItems: 'flex-start' }}>
@@ -203,31 +257,56 @@ const Note = ({ children }) => (
 
 // --- mock data ---
 // Every person, number, quote and message on this page is invented for the demo.
+// Two agents, two products. Shishir asked directly whether Merlin's dialer is the same
+// thing as a support dialer, and the honest answer is no: SPM has no chatbot, the customer
+// is a practice rather than a sole trader, and Merlin is on calls rather than support. So
+// the switcher changes the data, not just the greeting.
 const AGENTS = [
-  { id: 'juhi', name: 'Juhi', product: 'Sole (small business)', hello: 'Good morning, Juhi' },
-  { id: 'merlin', name: 'Merlin', product: 'Sole Practice Manager', hello: 'Good morning, Merlin' },
+  { id: 'juhi', name: 'Juhi', product: 'sole', productLabel: 'Sole, small business',
+    job: 'Support and calls', hello: 'Good morning, Juhi' },
+  { id: 'merlin', name: 'Merlin', product: 'spm', productLabel: 'Sole Practice Manager',
+    job: 'Calls only, no support queue', hello: 'Good morning, Merlin' },
 ];
+
+// Anyone can pick up a ticket and post on it. Jira lets one person comment even when
+// someone else did the work (Shishir, 26 Aug), and that bottleneck is the reason the
+// ticket thread below is open to the whole team.
+const TEAM = [
+  { id: 'juhi', name: 'Juhi', job: 'Support' },
+  { id: 'merlin', name: 'Merlin', job: 'Calls, SPM' },
+  { id: 'ashish', name: 'Ashish', job: 'Engineering' },
+];
+
+const TICKET_STATES = [
+  { key: 'new',     label: 'New',             hint: 'Nobody has picked it up.',        tone: 'red' },
+  { key: 'with_us', label: 'With us',         hint: 'Someone is on it right now.',     tone: 'amber' },
+  { key: 'waiting', label: 'Waiting on them', hint: 'Answered. Their move.',           tone: 'blue' },
+  { key: 'closed',  label: 'Closed today',    hint: 'Answered and finished.',          tone: 'green' },
+];
+const stateOf = (k) => TICKET_STATES.find(s => s.key === k) || TICKET_STATES[0];
 
 // LANES drive the middle column's tabs. Every event carries one, so "everything" and
 // "just the emails" are the same list read through a different filter. This is why there
 // are no separate cards for emails, videos and app activity any more.
 const LANES = [
   { key: 'all',       label: 'Everything' },
-  { key: 'chat',      label: 'Chat' },
+  { key: 'chat',      label: 'Messages' },
+  { key: 'ticket',    label: 'Tickets' },
   { key: 'behaviour', label: 'What they did' },
   { key: 'content',   label: 'What they watched' },
   { key: 'email',     label: 'What we sent' },
-  { key: 'call',      label: 'Calls' },
+  { key: 'call',      label: 'Calls and meetings' },
 ];
-const LANE_ICON = { behaviour: 'activity', content: 'play', email: 'mail', chat: 'chat', call: 'phone', signup: 'user' };
+const LANE_ICON = { behaviour: 'activity', content: 'play', email: 'mail', chat: 'chat',
+  call: 'phone', signup: 'user', ticket: 'ticket' };
 
 const PEOPLE = [
   {
-    id: 'p-tessa', name: 'Tessa Nguyen', business: 'Nguyen Pilates', trade: 'Pilates instructor',
+    id: 'p-tessa', stream: 'support', name: 'Tessa Nguyen', business: 'Nguyen Pilates', trade: 'Pilates instructor',
     city: 'Perth', localTime: '8:22 AM', phone: '0421 559 730', email: 'tessa@nguyenpilates.com.au',
     website: 'nguyenpilates.com.au', abn: '54 118 902 774', userId: '18204',
     signedUp: '11 days ago', trialDay: 11, source: 'Google search', platform: 'Web app',
-    plan: 'Trial', subStatus: 'Active', renewal: '5 Sep 2026', joined: '15 Aug 2026',
+    plan: 'Trial', subStatus: 'Active', renewal: '14 Sep 2026', joined: '15 Aug 2026',
     lastActive: '12 minutes ago', totalMessages: 11,
     bucket: 'now', status: 'Asked for a person', statusTone: 'red',
     reason: 'Asked to speak to a person 12 minutes ago. She is still sitting in the chat.',
@@ -237,6 +316,7 @@ const PEOPLE = [
       'The bot answered for draft invoices when hers was already sent, so she asked for a person. She is waiting now.',
     ],
     summarySource: 'Written from 402 things she did in the app and the chat she is in at the moment.',
+    web: { state: 'not_built', lines: ['Studio in Mount Lawley, classes only, no online store.'] },
     recommend: { label: 'Reply in the chat', why: 'She is already in the chat and waiting. Answer her there.' },
     sayOne: {
       lead: 'I can see you sent that invoice twice this morning. I can void the duplicate for you right now.',
@@ -244,20 +324,29 @@ const PEOPLE = [
       spares: ['Has the client paid either of them yet?'],
     },
     chat: {
-      state: 'needs_you', unread: 2, waitingSince: '12 minutes',
-      toldUser: 'We told her someone would reply within the hour. She has not been given a name yet.',
+      state: 'needs_you', unread: 2, waitingSince: '12 minutes', waitMins: 12, channel: 'app',
+      toldUser: 'The bot offered to pass her to a person and she said yes. No time was promised, and she has not been given a name.',
       messages: [
         { from: 'user', when: '9:59 AM', text: 'hi, i accidentally sent the same invoice twice to one client. how do i cancel one of them?' },
         { from: 'bot', when: '9:59 AM', text: 'You can delete a draft invoice from the invoice list. Open Invoices, find the one you want, and choose Delete.' },
         { from: 'user', when: '10:01 AM', text: 'theres no delete option. i think because i already sent it?' },
-        { from: 'bot', when: '10:01 AM', text: 'Here is a video that may help.', video: 'Fixing a mistake on an invoice' },
+        { from: 'user', when: '10:02 AM', text: 'heres what i mean', file: { name: 'invoices-both-sent.png', size: '284 KB' } },
+        { from: 'bot', when: '10:03 AM', text: 'Here is a video that may help.', video: 'Fixing a mistake on an invoice' },
         { from: 'user', when: '10:06 AM', text: 'watched a bit of it, it doesnt cover this. the client has already seen both. can i just talk to someone please' },
         { from: 'system', when: '10:10 AM', text: 'Tessa asked to speak to a person. Nobody has replied yet.' },
       ],
     },
+    tickets: [
+      { id: 'SUP-1042', subject: 'Sent the same invoice twice and cannot cancel one', channel: 'app',
+        status: 'new', owner: null, opened: 'Today, 10:10 AM', product: 'sole',
+        reporter: 'customer', waitingOn: 'us',
+        firstLine: 'The bot answered for draft invoices. Hers was already sent, so the answer did not apply.',
+        notify: 'Juhi was tagged in #support the moment it was raised. Nobody has opened it.',
+        notes: [], answer: null, dev: null },
+    ],
     calls: [],
     timeline: [
-      { d: '2026-08-26', lane: 'chat', tone: 'red', when: '10:10 AM', title: 'Asked to speak to a person', body: 'Still sitting in the chat. Nobody has replied yet.' },
+      { d: '2026-08-26', lane: 'chat', tone: 'red', when: '10:10 AM', title: 'Asked to speak to a person', body: 'Ticket SUP-1042 opened out of the chat, with no second account to sign up for. Nobody has replied yet.' },
       { d: '2026-08-26', lane: 'content', tone: 'amber', when: '10:03 AM', title: 'Started "Fixing a mistake on an invoice"', body: 'Went back to the chat instead of finishing it.', video: { pct: 25 } },
       { d: '2026-08-26', lane: 'chat', tone: 'amber', when: '9:59 AM', title: 'Asked the chat how to cancel a duplicate invoice', body: 'The bot answered for draft invoices. Hers was already sent.' },
       { d: '2026-08-26', lane: 'behaviour', tone: 'red', when: '9:58 AM', title: 'Sent the same invoice twice', body: 'Same client, same amount, 40 seconds apart.' },
@@ -271,11 +360,11 @@ const PEOPLE = [
     ],
   },
   {
-    id: 'p-priya', name: 'Priya Raman', business: 'Raman Physio', trade: 'Physiotherapist',
+    id: 'p-priya', stream: 'support', name: 'Priya Raman', business: 'Raman Physio', trade: 'Physiotherapist',
     city: 'Melbourne', localTime: '10:22 AM', phone: '0438 217 664', email: 'priya@ramanphysio.com.au',
     website: 'ramanphysio.com.au', abn: '31 604 118 220', userId: '18455',
     signedUp: '6 days ago', trialDay: 6, source: 'Instagram ad', platform: 'Web app',
-    plan: 'Trial', subStatus: 'Active', renewal: '10 Sep 2026', joined: '20 Aug 2026',
+    plan: 'Trial', subStatus: 'Active', renewal: '19 Sep 2026', joined: '20 Aug 2026',
     lastActive: 'Yesterday, 4:41 PM', totalMessages: 7,
     bucket: 'now', status: 'Stuck', statusTone: 'red',
     reason: 'The bot could not answer her bank feed question half an hour ago and she left.',
@@ -284,7 +373,8 @@ const PEOPLE = [
       'She got invoicing working on day one, then tried twice on Tuesday to connect her Westpac account and it failed both times.',
       'She asked the bot about it half an hour ago, it had no answer, and she closed the chat. She has not opened the app since Tuesday.',
     ],
-    summarySource: 'Written from 214 things she did in the app, 3 videos, 2 chats and her website. Nobody has to read that list.',
+    summarySource: 'Written from 214 things she did in the app, 3 videos and 2 chats. Nobody has to read that list.',
+    web: { state: 'not_built', lines: ['Solo practice, one room in Brunswick, takes bookings on her own site.'] },
     recommend: { label: 'Call', why: 'She has left 2 of 3 emails unopened and walked out of the chat. A call is the one thing we have not tried.' },
     sayOne: {
       lead: 'You tried connecting your Westpac account a couple of times on Tuesday and it did not go through. I wanted to get that sorted for you.',
@@ -295,21 +385,36 @@ const PEOPLE = [
       ],
     },
     chat: {
-      state: 'quiet', unread: 0,
+      state: 'quiet', unread: 0, channel: 'app',
       toldUser: 'She closed the chat before anyone was offered. She was never told a person would come back to her.',
       messages: [
         { from: 'user', when: 'Mon 24 Aug, 9:18 AM', text: 'how do i add gst to an invoice' },
-        { from: 'bot', when: 'Mon 24 Aug, 9:19 AM', text: 'Turn on GST on the invoice line and Sole works out the amount for you.', video: 'Adding GST to an invoice' },
+        { from: 'bot', when: 'Mon 24 Aug, 9:19 AM', text: 'You sent your first invoice 15 minutes ago, so this is on the screen you are already on: turn on GST on the invoice line and Sole works the amount out for you.', video: 'Adding GST to an invoice' },
         { from: 'user', when: 'Mon 24 Aug, 9:26 AM', text: 'got it thanks' },
         { from: 'user', when: 'Today, 9:53 AM', text: 'westpac bank feed keeps failing, what do i do' },
         { from: 'bot', when: 'Today, 9:54 AM', text: 'I do not have an answer for that one. I can pass it to a person if you like.', failed: true },
         { from: 'system', when: 'Today, 9:54 AM', text: 'Priya closed the chat without answering.' },
       ],
     },
+    tickets: [
+      { id: 'SUP-1038', subject: 'Westpac bank feed fails every time', channel: 'app',
+        status: 'closed', owner: 'Juhi', opened: 'Today, 9:53 AM', product: 'sole',
+        reporter: 'customer', waitingOn: 'them',
+        firstLine: 'The bot said it did not know and she closed the chat. Juhi called her 20 minutes later.',
+        notify: 'Answered at 10:21 AM. She got an email and a note in the chat, both linking to the ticket rather than repeating the answer.',
+        notes: [
+          { who: 'Juhi', when: '10:02 AM', text: 'The bot had nothing for this. Calling her now, she has not been in the app since Tuesday.' },
+          { who: 'Ashish', when: '10:09 AM', text: 'Seen this twice this week. Westpac business sits under a separate login, it is not a feed outage.' },
+          { who: 'Juhi', when: '10:21 AM', text: 'That was it. Sorted on the call and I have written the answer up for the bot.' },
+        ],
+        answer: { q: 'Why does my Westpac business account fail to connect?', state: 'queued' },
+        dev: null },
+    ],
     calls: [
       {
         id: 'call-priya-1', when: 'Today, 10:14 AM', len: '7 min', how: 'Phone', by: 'Juhi',
-        outcome: 'Sorted on the call', outcomeTone: 'green', score: 6,
+        type: 'support', dir: 'out',
+        outcome: 'Sorted on the call', outcomeTone: 'green', score: 6, mood: 'Started flat, ended warm',
         agreed: [
           'Her Westpac feed failed because the account sits under a different business banking login. She is going to find it.',
           'You are sending her the bank connection video again with a note about which login to use.',
@@ -321,6 +426,7 @@ const PEOPLE = [
           'You asked "does that make sense" four times and she said yes each time without doing anything. "Can you try it now while I am here?" gets a real answer.',
           'You told her plainly that we cannot do payroll yet. That is the right call and it is why she trusted the rest.',
         ],
+        learned: 'Added to the call guide: ask whether they have already tried it before explaining the fix.',
         transcript: [
           ['Priya', 'Hello, Priya speaking.'],
           ['You', 'Hi Priya, it is Juhi from Sole. You tried connecting your Westpac account a couple of times on Tuesday and it did not go through. I wanted to get that sorted for you.'],
@@ -341,7 +447,7 @@ const PEOPLE = [
       { d: '2026-08-26', lane: 'chat', tone: 'red', when: '9:54 AM', title: 'The bot could not answer her', body: 'She asked about the Westpac feed. The bot said it did not know, and she closed the chat without waiting for a person.' },
       { d: '2026-08-25', lane: 'behaviour', tone: 'red', when: '4:41 PM', title: 'Bank connection failed, second try', body: 'Westpac again, same error as 3 minutes earlier. She has not opened the app since.' },
       { d: '2026-08-25', lane: 'content', tone: 'amber', when: '4:30 PM', title: 'Started "Connecting your bank"', body: 'Stopped partway and went straight to trying it herself.', video: { pct: 40 } },
-      { d: '2026-08-25', lane: 'behaviour', tone: 'amber', when: '2:14 PM', title: 'Started a recurring invoice, left before saving', body: 'Nothing was kept.' },
+      { d: '2026-08-25', lane: 'behaviour', tone: 'amber', when: '2:14 PM', title: 'Started a recurring invoice, left before saving', body: 'Nothing was kept, so the database never saw it.', frontEnd: true },
       { d: '2026-08-24', lane: 'content', tone: 'green', when: '9:26 AM', title: 'Watched "Adding GST to an invoice"', body: '', video: { pct: 100 } },
       { d: '2026-08-24', lane: 'chat', tone: 'green', when: '9:18 AM', title: 'Asked the chat how to add GST', body: 'The bot answered and linked the video. She said thanks.' },
       { d: '2026-08-24', lane: 'behaviour', tone: 'green', when: '9:02 AM', title: 'Sent her first invoice', body: '$180, to a patient.' },
@@ -353,21 +459,22 @@ const PEOPLE = [
     ],
   },
   {
-    id: 'p-nathan', name: 'Nathan Reed', business: 'Reed Plumbing & Gas', trade: 'Plumber',
+    id: 'p-nathan', stream: 'outreach', name: 'Nathan Reed', business: 'Reed Plumbing & Gas', trade: 'Plumber',
     city: 'Brisbane', localTime: '10:22 AM', phone: '0412 884 301', email: 'nathan@reedplumbing.com.au',
     website: 'reedplumbing.com.au', abn: '77 220 551 903', userId: '18512',
     signedUp: '12 minutes ago', trialDay: 1, source: 'Google search', platform: 'Web app',
     plan: 'Trial', subStatus: 'Active', renewal: 'Not set', joined: 'Today',
-    lastActive: '12 minutes ago', totalMessages: 0,
+    lastActive: '12 minutes ago', totalMessages: 0, signupMins: 12,
     bucket: 'now', status: 'New', statusTone: 'brand',
     reason: 'Signed up 12 minutes ago and has not opened the app yet.',
     summary: [
-      'Nathan is a plumber in Brisbane who has run Reed Plumbing & Gas on his own since 2019, going by his website.',
+      'Nathan is a plumber in Brisbane, working on his own as Reed Plumbing & Gas.',
       'He signed up 12 minutes ago and has not opened the app, so there is nothing to go on beyond what he typed in.',
       'He put “invoicing and chasing payments” as what he wants to fix, the most common answer we get from trades.',
     ],
-    summarySource: 'Written from his website and the signup form. He has not used the app yet, and the page says so rather than inventing something.',
-    recommend: { label: 'Call', why: 'It is 10:12 AM in Brisbane, he gave a mobile, and he signed up 12 minutes ago. He is probably still at his desk.' },
+    summarySource: 'Written from the signup form. He has not used the app yet, and the page says so rather than inventing something.',
+    web: { state: 'not_built', lines: ['Plumbing and gas, Brisbane northside, emergency callouts.'] },
+    recommend: { label: 'Call', why: 'It is 10:22 AM in Brisbane, he gave a mobile, and he signed up 12 minutes ago. He is probably still at his desk.' },
     sayOne: {
       lead: 'You signed up a few minutes ago, so I thought I would catch you while you are still in it. Is now alright?',
       why: 'Name the timing. It is the reason the call is not weird.',
@@ -380,44 +487,80 @@ const PEOPLE = [
     calls: [],
     timeline: [
       { d: '2026-08-26', lane: 'email', tone: 'neutral', when: '10:11 AM', title: 'Welcome to Sole', body: 'Sent automatically.', email: { state: 'Not opened yet', tone: 'neutral' } },
+      { d: '2026-08-26', lane: 'signup', tone: 'amber', when: '10:10 AM', title: 'Posted to #new-signups in Slack', body: 'The message is a link to this page with the call already dialling. Nobody has opened it.' },
       { d: '2026-08-26', lane: 'signup', tone: 'brand', when: '10:10 AM', title: 'Signed up', body: 'From a Google search. Said the problem is invoicing and chasing payments.' },
     ],
   },
   {
-    id: 'p-dean', name: 'Dean Halliday', business: 'Halliday Mowing', trade: 'Lawn and garden',
+    id: 'p-dean', stream: 'outreach', name: 'Dean Halliday', business: 'Halliday Mowing', trade: 'Lawn and garden',
     city: 'Adelaide', localTime: '9:52 AM', phone: '0455 903 118', email: 'dean@hallidaymowing.com.au',
     website: 'hallidaymowing.com.au', abn: '19 883 210 447', userId: '18509',
     signedUp: '2 hours ago', trialDay: 1, source: 'App Store', platform: 'iPhone app',
     plan: 'Trial', subStatus: 'Active', renewal: 'Not set', joined: 'Today',
-    lastActive: '2 hours ago', totalMessages: 0,
+    lastActive: '2 hours ago', totalMessages: 0, signupMins: 120,
     bucket: 'now', status: 'New', statusTone: 'brand',
-    reason: 'Signed up 2 hours ago on the iPhone app. Stopped halfway through setup.',
+    reason: 'Signed up 2 hours ago on the iPhone app. Stopped halfway through setup and asked for help from inside a video.',
     summary: [
       'Dean does lawn and garden work around Adelaide and signed up 2 hours ago through the App Store.',
       'He got as far as adding his business name and then stopped. No invoices, no bank.',
-      'Nothing has gone wrong. He just has not come back.',
+      'He opened the first video, asked for help from inside it, and has not come back since.',
     ],
-    summarySource: 'Written from 19 things he did in the app and the App Store listing he came from.',
-    recommend: { label: 'Send a message', why: 'He signed up on his phone and is probably out on a job. A message gets read at lunch. A call at 9:42 AM will not.' },
+    summarySource: 'Written from 19 things he did in the app and 1 video he opened in Sole Academy.',
+    web: { state: 'not_built', lines: ['Mowing and garden care, southern suburbs, no online booking.'] },
+    recommend: { label: 'Send a message', why: 'He signed up on his phone and is probably out on a job. A message gets read at lunch. A call at 9:52 AM will not.' },
     sayOne: {
       lead: 'You started setting up this morning and got halfway. Want me to finish it with you? It takes about 5 minutes.',
       why: 'Offer to do the work, not to explain the work.',
       spares: ['Are you invoicing off your phone, or from a laptop at night?'],
     },
     chat: { state: 'none', unread: 0, messages: [], empty: 'Dean has never opened the chat.' },
-    calls: [],
+    calls: [
+      { id: 'call-dean-ai', when: 'Today, 8:50 AM', len: '1 min', how: 'Phone', by: 'AI',
+        type: 'ai', dir: 'out', kind: 'Automatic, 15 minutes after he stopped',
+        outcome: 'He asked for a person', outcomeTone: 'amber', score: null, mood: 'Rushed, on a job',
+        agreed: [
+          'He is out on a job and cannot set anything up from his phone right now.',
+          'He asked to speak to a person about the ABN field, which is the ticket he raised.',
+          'He said after 5:00 PM is better.',
+        ],
+        next: { title: 'Call him after 5:00 PM', body: 'He asked for it himself, so this is not a cold call.' },
+        coach: [], learned: null,
+        transcript: [
+          ['AI', 'Hi Dean, it is Sole calling. You started setting up this morning and stopped partway. Anything I can sort out?'],
+          ['Dean', 'Yeah, I could not work out where the ABN goes. I am on a job though.'],
+          ['AI', 'No problem. Do you want one of our team to call you? What time suits?'],
+          ['Dean', 'After 5.'],
+        ],
+        approve: null,
+        ai: 'An AI voice made this call, not a person. It only runs on activation: nobody in support is ever an AI voice.' },
+    ],
+    tickets: [
+      { id: 'SUP-1041', subject: 'Cannot find where to add my ABN', channel: 'academy',
+        status: 'with_us', owner: 'Juhi', opened: 'Today, 8:36 AM', product: 'sole',
+        reporter: 'customer', waitingOn: 'us',
+        firstLine: 'Raised with the Help button inside "Set up your business details", so he never left the video.',
+        tried: 'He read 2 help articles and watched 1 minute of the video before raising it. The knowledge base got first go, which is the point of putting the form in there.',
+        notify: 'Juhi was tagged in #support at 8:36 AM.',
+        notes: [
+          { who: 'Juhi', when: '9:12 AM', text: 'Sending him the 40 second clip rather than calling. He signed up on his phone and is out on a job.' },
+        ],
+        answer: null, dev: null },
+    ],
     timeline: [
+      { d: '2026-08-26', lane: 'call', tone: 'amber', when: '8:50 AM', title: 'An AI call went out, and he asked for a person', body: 'Automatic, 15 minutes after he stopped. He is on a job and asked us to ring after 5:00 PM.' },
+      { d: '2026-08-26', lane: 'ticket', tone: 'amber', when: '8:36 AM', title: 'Asked for help from inside "Set up your business details"', body: 'Ticket SUP-1041. Raised out of the video itself, with no support account to create.' },
+      { d: '2026-08-26', lane: 'content', tone: 'amber', when: '8:34 AM', title: 'Opened "Set up your business details"', body: 'Watched the first minute, then asked for help.', video: { pct: 30 } },
       { d: '2026-08-26', lane: 'behaviour', tone: 'amber', when: '8:31 AM', title: 'Stopped halfway through setup', body: 'Added the business name, then nothing. No invoices, no bank.' },
       { d: '2026-08-26', lane: 'email', tone: 'green', when: '8:25 AM', title: 'Welcome to Sole', body: '', email: { state: 'Opened', tone: 'green' } },
       { d: '2026-08-26', lane: 'signup', tone: 'brand', when: '8:22 AM', title: 'Signed up on the iPhone app', body: 'Came from the App Store.' },
     ],
   },
   {
-    id: 'p-amara', name: 'Amara Okonkwo', business: 'Amara Okonkwo Photography', trade: 'Photographer',
+    id: 'p-amara', stream: 'support', name: 'Amara Okonkwo', business: 'Amara Okonkwo Photography', trade: 'Photographer',
     city: 'Sydney', localTime: '10:22 AM', phone: '0402 771 285', email: 'hello@amaraokonkwo.com',
     website: 'amaraokonkwo.com', abn: '62 447 019 338', userId: '18470',
     signedUp: '3 days ago', trialDay: 3, source: 'Referral', platform: 'Web app',
-    plan: 'Trial', subStatus: 'Active', renewal: '13 Sep 2026', joined: '23 Aug 2026',
+    plan: 'Trial', subStatus: 'Active', renewal: '22 Sep 2026', joined: '23 Aug 2026',
     lastActive: 'Yesterday', totalMessages: 4,
     bucket: 'waiting', status: 'Booked a call', statusTone: 'blue',
     reason: 'Booked a setup call for Thursday 2:00 PM. Nothing to do until then.',
@@ -426,15 +569,28 @@ const PEOPLE = [
       'She is already sending invoices and has booked a setup call for Thursday at 2:00 PM.',
       'She wants help with deposits and payment plans, which she wrote in the booking form.',
     ],
-    summarySource: 'Written from 88 things she did in the app, her booking form and her website.',
+    summarySource: 'Written from 88 things she did in the app and the booking form she filled in.',
+    web: { state: 'not_built', lines: ['Weddings and portraits, Inner West, prices on request.'] },
     recommend: { label: 'Wait for Thursday', why: 'She has already booked 2:00 PM Thursday. Do not chase her before then.' },
     sayOne: {
       lead: 'You mentioned deposits and payment plans when you booked. Let us start there.',
       why: 'She told us the agenda. Use it.',
       spares: ['You are already invoicing, so we can skip the basics.'],
     },
+    tickets: [
+      { id: 'SUP-1040', subject: 'Can I take a deposit and then bill the rest in stages?', channel: 'form',
+        status: 'with_us', owner: 'Juhi', opened: 'Yesterday, 11:14 AM', product: 'sole',
+        reporter: 'customer', waitingOn: 'us',
+        firstLine: 'Filled in the help form rather than the chat. She has a call booked for Thursday, so this is the agenda for it.',
+        tried: 'She read the deposits article first and it did not cover payment plans, which is what sent her to the form.',
+        notify: 'Juhi was tagged in #support when the form came in.',
+        notes: [
+          { who: 'Juhi', when: 'Yesterday, 11:40 AM', text: 'Holding this until Thursday. It is the same thing she booked the call about, so answering twice would be noise.' },
+        ],
+        answer: null, dev: null },
+    ],
     chat: {
-      state: 'quiet', unread: 0,
+      state: 'quiet', unread: 0, channel: 'app',
       toldUser: 'Nothing outstanding. The bot answered her and she was happy.',
       messages: [
         { from: 'user', when: 'Mon 24 Aug, 3:40 PM', text: 'can i take a deposit before the job' },
@@ -444,7 +600,7 @@ const PEOPLE = [
     },
     calls: [],
     timeline: [
-      { d: '2026-08-27', lane: 'call', tone: 'blue', when: '2:00 PM', title: 'Setup call booked with you', body: 'She wants help with deposits and payment plans.' },
+      { d: '2026-08-27', lane: 'call', tone: 'blue', when: '2:00 PM', title: 'Onboarding session booked with you', body: 'Google Meet, 20 minutes. She booked it herself from the web app, so it lands here rather than in a second calendar. She wants help with deposits and payment plans.' },
       { d: '2026-08-25', lane: 'behaviour', tone: 'green', when: '4:52 PM', title: 'Sent 4 invoices', body: 'Back in most days.' },
       { d: '2026-08-25', lane: 'email', tone: 'green', when: '11:02 AM', title: 'Your setup call is booked', body: '', email: { state: 'Opened', tone: 'green' } },
       { d: '2026-08-24', lane: 'chat', tone: 'green', when: '3:40 PM', title: 'Asked the chat about deposits', body: 'The bot answered and she was happy.' },
@@ -454,34 +610,55 @@ const PEOPLE = [
     ],
   },
   {
-    id: 'p-jack', name: 'Jack Boland', business: 'Boland Mobile Mechanics', trade: 'Mobile mechanic',
+    id: 'p-jack', stream: 'support', name: 'Jack Boland', business: 'Boland Mobile Mechanics', trade: 'Mobile mechanic',
     city: 'Newcastle', localTime: '10:22 AM', phone: '0417 660 492', email: 'jack@bolandmobile.com.au',
     website: 'bolandmobile.com.au', abn: '48 771 220 665', userId: '18388',
     signedUp: '9 days ago', trialDay: 9, source: 'Facebook', platform: 'Android app',
-    plan: 'Trial', subStatus: 'Active', renewal: '7 Sep 2026', joined: '17 Aug 2026',
-    lastActive: 'Yesterday', totalMessages: 0,
-    bucket: 'waiting', status: 'Called, no answer', statusTone: 'amber',
-    reason: 'You called Monday and left a voicemail. He has not called back.',
+    plan: 'Trial', subStatus: 'Active', renewal: '16 Sep 2026', joined: '17 Aug 2026',
+    lastActive: 'Yesterday', totalMessages: 2,
+    bucket: 'waiting', status: 'Answered on Facebook', statusTone: 'amber',
+    reason: 'He ignored the voicemail and messaged us on Facebook instead. You replied yesterday.',
     summary: [
       'Jack runs a mobile mechanic business out of Newcastle and signed up 9 days ago.',
       'He is using the app properly, 22 invoices sent, but has never connected a bank account.',
-      'You called Monday and left a voicemail. No callback yet.',
+      'He did not call back after the voicemail. He messaged Facebook instead, which is worth knowing before anyone dials him again.',
     ],
-    summarySource: 'Written from 340 things he did in the app and one voicemail.',
-    recommend: { label: 'Send a message', why: 'A voicemail already went unanswered. Do not leave a second one.' },
+    summarySource: 'Written from 340 things he did in the app, one voicemail and a Facebook message.',
+    web: { state: 'not_built', lines: ['Mobile mechanic, comes to you, Newcastle and Lake Macquarie.'] },
+    recommend: { label: 'Reply on Facebook', why: 'He answered on Facebook, not the phone. Reply where he already replied.' },
     sayOne: {
       lead: 'You are 22 invoices in without a bank connected, so you are reconciling by hand. That is the bit I can save you.',
       why: 'Lead with what it costs him, not what the feature is.',
       spares: ['I left you a voicemail Monday, no stress if you missed it.'],
     },
-    chat: { state: 'none', unread: 0, messages: [], empty: 'Jack has never opened the chat.' },
+    chat: {
+      state: 'quiet', unread: 0, channel: 'facebook',
+      toldUser: 'Juhi answered him on Facebook yesterday afternoon. He has not been back since.',
+      messages: [
+        { from: 'user', when: 'Yesterday, 6:02 PM', text: 'saw your missed call, easier to type. does this thing do bank stuff or do i have to keep matching them myself' },
+        { from: 'agent', when: 'Yesterday, 6:20 PM', text: 'It does. Connect the account once and the payments match themselves. Takes about 3 minutes and I can walk you through it.', video: 'Connecting your bank' },
+      ],
+    },
+    tickets: [
+      { id: 'SUP-1035', subject: 'Does Sole match bank payments, or do I keep doing it by hand?', channel: 'facebook',
+        status: 'waiting', owner: 'Juhi', opened: 'Yesterday, 6:02 PM', product: 'sole',
+        reporter: 'customer', waitingOn: 'them',
+        firstLine: 'Came in on Facebook Messenger, which arrives through GoHighLevel today. Answered, no reply yet.',
+        notes: [
+          { who: 'Juhi', when: 'Yesterday, 6:21 PM', text: 'Answered on Facebook with the bank video. Leaving it open until he actually connects one.' },
+        ],
+        answer: null, dev: null },
+    ],
     calls: [
       { id: 'call-jack-1', when: 'Monday, 3:12 PM', len: 'No answer', how: 'Phone', by: 'Juhi',
-        outcome: 'No answer, left a voicemail', outcomeTone: 'amber', score: null,
+        type: 'support', dir: 'out',
+        outcome: 'No answer, left a voicemail', outcomeTone: 'amber', score: null, mood: null,
         agreed: [], next: null, coach: [], transcript: [], approve: null,
         voicemail: 'Hi Jack, Juhi from Sole. Nothing urgent, just wanted to help you get your bank connected so you stop reconciling by hand. Give me a call back any time.' },
     ],
     timeline: [
+      { d: '2026-08-25', lane: 'chat', tone: 'green', when: '6:20 PM', title: 'Juhi answered him on Facebook', body: 'Sent the bank video. He has not replied.' },
+      { d: '2026-08-25', lane: 'chat', tone: 'amber', when: '6:02 PM', title: 'Messaged us on Facebook', body: 'After the missed call. Ticket SUP-1035, and it lands in the same thread as everything else.' },
       { d: '2026-08-25', lane: 'behaviour', tone: 'green', when: '5:14 PM', title: 'Sent 3 invoices', body: '22 sent in total, every one reconciled by hand.' },
       { d: '2026-08-24', lane: 'call', tone: 'amber', when: '3:12 PM', title: 'You called, no answer', body: 'Left a voicemail. He has not called back.' },
       { d: '2026-08-21', lane: 'email', tone: 'amber', when: '8:00 AM', title: 'Need a hand? Book a free 20 minute setup call', body: '', email: { state: 'Never opened', tone: 'amber' } },
@@ -490,33 +667,69 @@ const PEOPLE = [
     ],
   },
   {
-    id: 'p-grace', name: 'Grace Tui', business: 'Tui Cleaning Co', trade: 'Cleaner',
+    id: 'p-grace', stream: 'support', name: 'Grace Tui', business: 'Tui Cleaning Co', trade: 'Cleaner',
     city: 'Gold Coast', localTime: '10:22 AM', phone: '0466 118 205', email: 'grace@tuicleaning.com.au',
     website: 'tuicleaning.com.au', abn: '90 336 774 201', userId: '18463',
     signedUp: '4 days ago', trialDay: 4, source: 'Google search', platform: 'Web app',
-    plan: 'Trial', subStatus: 'Active', renewal: '12 Sep 2026', joined: '22 Aug 2026',
+    plan: 'Trial', subStatus: 'Active', renewal: '21 Sep 2026', joined: '22 Aug 2026',
     lastActive: 'This morning, 9:31 AM', totalMessages: 0,
     bucket: 'done', status: 'Sorted', statusTone: 'green',
-    reason: 'You spoke this morning. She is set up and happy.',
+    reason: 'You sorted her bank this morning. The bug she found is with the developers now.',
     summary: [
       'Grace runs a small cleaning business on the Gold Coast with 2 staff.',
       'You spoke this morning for 9 minutes and got her bank connected on the call.',
-      'She asked about paying her 2 staff, which we do not do yet. You told her honestly.',
+      'Then you moved to a screen share, watched her second staff member vanish on refresh, and sent the recording to the developers.',
     ],
     summarySource: 'Written from 130 things she did in the app and this morning call.',
+    web: { state: 'not_built', lines: ['Domestic and end of lease cleaning, Gold Coast, 2 staff.'] },
     recommend: { label: 'Nothing owed', why: 'Sorted on the call this morning. Only follow up if she asks.' },
     sayOne: { lead: '', why: '', spares: [] },
-    chat: { state: 'none', unread: 0, messages: [], empty: 'Grace has never opened the chat.' },
+    chat: { state: 'none', unread: 0, channel: 'app', messages: [], empty: 'Grace has never opened the chat.' },
     calls: [
+      { id: 'call-grace-2', when: 'Today, 9:36 AM', len: '11 min', how: 'Google Meet', by: 'Juhi',
+        type: 'support', dir: 'out', kind: 'Screen share, to see the problem',
+        outcome: 'Bug confirmed, sent to the developers', outcomeTone: 'blue', score: null, mood: 'Patient the whole way through',
+        agreed: [
+          'On her screen, the second staff member disappears from the list after a refresh. It is not something she is doing wrong.',
+          'Recording and the 40 second clip of it happening went to the developers, so she does not have to explain it twice.',
+          'You told her we would come back to her by Friday, and that is on your list.',
+        ],
+        next: { title: 'Tell Grace what the developers found', body: 'Thursday morning, on your list. She is expecting an answer by Friday.' },
+        coach: ['You moved to a Meet the moment she said "it just vanishes" rather than asking her to describe it again. That is what made this reportable.'],
+        learned: null,
+        transcript: [
+          ['Grace', 'It is there, then I refresh and it is gone.'],
+          ['You', 'Can I see your screen? It will be quicker than describing it. I will send you a link now.'],
+          ['Grace', 'Sure. One second.'],
+        ],
+        approve: null,
+        recording: { label: 'Screen recording, 11 min', shared: 'Shared with the developers at 9:52 AM, on ticket SUP-1039' } },
       { id: 'call-grace-1', when: 'Today, 9:24 AM', len: '9 min', how: 'Phone', by: 'Juhi',
-        outcome: 'Sorted on the call', outcomeTone: 'green', score: 8,
+        type: 'welcome', dir: 'out',
+        outcome: 'Sorted on the call', outcomeTone: 'green', score: 8, mood: 'Warm from the start',
         agreed: ['Her bank is connected. You did it together on the call.', 'She asked about paying 2 staff. Not supported yet, and you said so.'],
         next: null,
         coach: ['You got her to do the connection while you were on the phone instead of sending instructions. That is why it is actually done.'],
+        learned: 'Added to the call guide: get them to do it while you are still on the phone.',
         transcript: [['Grace', 'Hi, Grace here.'], ['You', 'Morning Grace, Juhi from Sole. Have you got 5 minutes to get your bank connected?']],
         approve: null },
     ],
+    tickets: [
+      { id: 'SUP-1039', subject: 'Second staff member vanishes from the list after a refresh', channel: 'phone',
+        status: 'with_us', owner: 'Ashish', opened: 'Today, 9:41 AM', product: 'sole',
+        reporter: 'internal', waitingOn: 'us',
+        firstLine: 'Found on a screen share, not described down the phone. The recording is attached, so nobody has to reproduce it from a summary.',
+        notify: 'Raised by Juhi off the call, so no form and no chat. She told Grace we would come back by Friday.',
+        notes: [
+          { who: 'Juhi', when: '9:52 AM', text: 'Recorded Meet attached. It happens on refresh, every time, on her Chrome. I told her we would come back by Friday.' },
+          { who: 'Ashish', when: '10:04 AM', text: 'Reproduced from the recording. It is the staff list cache, not her data. Fix is small, going out this week.' },
+        ],
+        answer: null,
+        dev: { state: 'With engineering', who: 'Ashish', body: 'Recording and the 40 second clip went straight over. No written repro steps needed.' } },
+    ],
     timeline: [
+      { d: '2026-08-26', lane: 'ticket', tone: 'blue', when: '9:41 AM', title: 'Bug sent to the developers', body: 'Ticket SUP-1039, with the screen recording on it. Ashish reproduced it from the recording at 10:04 AM.' },
+      { d: '2026-08-26', lane: 'call', tone: 'blue', when: '9:36 AM', title: 'Moved to a Google Meet to see her screen', body: 'Recorded, 11 minutes. This is the call type support actually uses when the issue is real.' },
       { d: '2026-08-26', lane: 'behaviour', tone: 'green', when: '9:31 AM', title: 'Connected a bank account', body: 'While she was on the call with you.' },
       { d: '2026-08-26', lane: 'content', tone: 'green', when: '9:28 AM', title: 'Watched "Connecting your bank"', body: 'You watched it together on the call.', video: { pct: 100 } },
       { d: '2026-08-26', lane: 'call', tone: 'green', when: '9:24 AM', title: 'You called, spoke for 9 minutes', body: 'Got her bank connected while you were on the phone.' },
@@ -524,98 +737,474 @@ const PEOPLE = [
       { d: '2026-08-22', lane: 'signup', tone: 'brand', when: '10:41 AM', title: 'Signed up', body: 'From a Google search.' },
     ],
   },
+  // Johann: "Julie's gonna call all the new customers as well, all the churn customers."
+  // A churn call that does not open with what they told us on the way out is a cold call,
+  // so the reason they gave the cancel form is the first thing on this record.
+  {
+    id: 'p-owen', stream: 'outreach', name: 'Owen Delaney', business: 'Delaney Electrical', trade: 'Electrician',
+    city: 'Wollongong', localTime: '10:22 AM', phone: '0407 335 812', email: 'owen@delaneyelectrical.com.au',
+    website: 'delaneyelectrical.com.au', abn: '23 550 118 704', userId: '17902',
+    signedUp: '2 months ago', trialDay: null, source: 'Google search', platform: 'Web app',
+    plan: 'Was on Solo, $20 a month', subStatus: 'Cancelled 2 days ago', renewal: 'Not renewing', joined: '28 Jun 2026',
+    cancelledOn: '24 Aug 2026',
+    cancelReason: 'Too much work to match the bank payments every week',
+    lastActive: '4 days ago', totalMessages: 3,
+    bucket: 'now', status: 'Cancelled 2 days ago', statusTone: 'red',
+    reason: 'Cancelled on Sunday. On the way out he said matching bank payments was too much work.',
+    summary: [
+      'Owen is an electrician in Wollongong who paid for 2 months and cancelled on Sunday.',
+      'He never connected a bank account, so every payment he matched, he matched by hand. That is exactly what he wrote in the cancel form.',
+      'He was invoicing properly, 34 sent, which is why this one is worth a call rather than an email.',
+    ],
+    summarySource: 'Written from 512 things he did in the app, 1 video and what he typed into the cancel form.',
+    web: { state: 'not_built', lines: ['Domestic and commercial electrical, Illawarra, 1 van.'] },
+    recommend: { label: 'Call', why: 'He gave a reason we can actually fix in 3 minutes. That is worth a call, and a cancelled customer will not open another email.' },
+    sayOne: {
+      lead: 'You said matching the bank payments was too much work, and that is the bit I want to say sorry for. You never had an account connected, so you were doing by hand what the app does on its own.',
+      why: 'Open with their own words from the cancel form. Anything else reads as a retention script.',
+      spares: [
+        'You sent 34 invoices, so the invoicing side clearly worked for you.',
+        'If you want, I will connect it with you now and you can decide after that.',
+      ],
+    },
+    chat: {
+      state: 'quiet', unread: 0, channel: 'app',
+      toldUser: 'Nothing outstanding. His last chat was in July and the bot answered it.',
+      messages: [
+        { from: 'user', when: 'Wed 16 Jul, 4:22 PM', text: 'is there a way to import payments from the bank' },
+        { from: 'bot', when: 'Wed 16 Jul, 4:22 PM', text: 'Yes. Connect the account once and payments arrive on their own, then match themselves against your invoices.', video: 'Connecting your bank' },
+        { from: 'user', when: 'Wed 16 Jul, 4:31 PM', text: 'ok ill look at it later' },
+      ],
+    },
+    tickets: [],
+    calls: [],
+    timeline: [
+      { d: '2026-08-24', lane: 'behaviour', tone: 'red', when: '7:48 PM', title: 'Cancelled the subscription', body: 'Reason he gave: too much work to match the bank payments every week. Nobody has been back to him.' },
+      { d: '2026-08-22', lane: 'behaviour', tone: 'amber', when: '6:12 PM', title: 'Matched 11 payments by hand', body: 'He did this most weeks. He never connected an account.' },
+      { d: '2026-08-19', lane: 'email', tone: 'amber', when: '8:00 AM', title: 'You have not connected a bank yet', body: '', email: { state: 'Never opened', tone: 'amber' } },
+      { d: '2026-07-16', lane: 'chat', tone: 'amber', when: '4:31 PM', title: 'Asked the chat about importing bank payments', body: 'The bot answered correctly and linked the video. He said he would look at it later, and never did.' },
+      { d: '2026-06-28', lane: 'signup', tone: 'brand', when: '11:20 AM', title: 'Signed up', body: 'From a Google search, on the web app.' },
+    ],
+  },
+  // Juhi: "sometimes they would directly call on GHL, but then I cannot receive that call
+  // somehow. And already been missed many a times." She also said numbers arrive from the
+  // website, not only the web app. So: an inbound miss, no Sole account, no history to read.
+  {
+    id: 'p-lena', stream: 'support', name: 'Lena Marsh', business: 'Business not given', trade: 'Not given',
+    city: 'Unknown', localTime: null, phone: '0439 118 260', email: 'lena.marsh81@gmail.com',
+    website: null, abn: null, userId: null,
+    signedUp: null, trialDay: null, source: 'Website chat', platform: 'Website, not signed in',
+    plan: 'No account', subStatus: 'Not signed up', renewal: null, joined: null,
+    lastActive: 'This morning, 9:04 AM', totalMessages: 4, unverified: true,
+    bucket: 'now', status: 'Called us, missed', statusTone: 'red',
+    reason: 'Rang at 9:04 AM and nobody picked up. She has no Sole account, so there is no history to read.',
+    summary: [
+      'Lena left her mobile in the website chat this morning and asked whether Sole can invoice in US dollars.',
+      'She rang 4 minutes later and the call was missed, then followed up on WhatsApp.',
+      'She has no account, so nothing on this page comes from the product. Everything here is what she typed.',
+    ],
+    summarySource: 'Written from 4 messages and one missed call. There is no app history because she has never signed in.',
+    web: { state: 'nothing', lines: [] },
+    recommend: { label: 'Call her back', why: 'She rang us and we missed it. Ringing back beats a message, and she left the number for that reason.' },
+    sayOne: {
+      lead: 'Lena, it is Juhi from Sole returning your call from this morning. Sorry we missed you.',
+      why: 'Name the missed call first. It is the thing she is annoyed about, and it costs one sentence.',
+      spares: ['You asked about invoicing in US dollars. We do that, and I can show you in 2 minutes.'],
+    },
+    chat: {
+      state: 'needs_you', unread: 2, waitingSince: '43 minutes', waitMins: 43, channel: 'whatsapp',
+      toldUser: 'The website bot took her number and said someone would be in touch. It did not say when.',
+      messages: [
+        { from: 'user', when: '9:00 AM', via: 'website', text: 'hi, can sole invoice in us dollars? most of my clients are in the states' },
+        { from: 'bot', when: '9:01 AM', via: 'website', text: 'I can pass this to a person. What is the best number to reach you on?' },
+        { from: 'user', when: '9:02 AM', via: 'website', text: '0439 118 260' },
+        { from: 'system', when: '9:04 AM', text: 'Lena called. Nobody picked up. The call went to the general number, not to a person.' },
+        { from: 'user', when: '9:39 AM', via: 'whatsapp', text: 'tried calling, no answer. is anyone there?' },
+      ],
+    },
+    tickets: [
+      { id: 'SUP-1043', subject: 'Can Sole invoice in US dollars?', channel: 'website',
+        status: 'new', owner: null, opened: 'Today, 9:00 AM', product: 'sole',
+        reporter: 'customer', waitingOn: 'us',
+        firstLine: 'From the website chat, which arrives through GoHighLevel. No Sole account, so this ticket is a phone number and a question.',
+        notify: 'Juhi was tagged in #support at 9:00 AM, 4 minutes before Lena rang in and got missed.',
+        notes: [], answer: null, dev: null },
+    ],
+    calls: [
+      { id: 'call-lena-1', when: 'Today, 9:04 AM', len: 'Missed', how: 'Phone', by: 'Nobody',
+        type: 'inbound', dir: 'in',
+        outcome: 'She called us, nobody picked up', outcomeTone: 'red', score: null, mood: null,
+        agreed: [], next: null, coach: [], learned: null, transcript: [], approve: null,
+        missed: 'Rang for 41 seconds on the general number. No voicemail was left.' },
+    ],
+    timeline: [
+      { d: '2026-08-26', lane: 'chat', tone: 'red', when: '9:39 AM', title: 'Asked on WhatsApp whether anyone is there', body: 'Second attempt to reach us this morning. Still waiting.' },
+      { d: '2026-08-26', lane: 'call', tone: 'red', when: '9:04 AM', title: 'She called us. Nobody picked up.', body: 'This is the failure Juhi named: inbound calls arrive on the general number and get missed.' },
+      { d: '2026-08-26', lane: 'chat', tone: 'amber', when: '9:00 AM', title: 'Asked the website chat about invoicing in US dollars', body: 'Ticket SUP-1043. The bot took her number and promised someone would be in touch.' },
+    ],
+  },
+  // Shishir asked directly whether Merlin's dialer is the same thing as the support dialer.
+  // These 2 records are the answer: a practice rather than a sole trader, no chatbot at all,
+  // and the work is calls and training rather than an inbox.
+  {
+    id: 'p-ruth', stream: 'outreach', name: 'Ruth Kavanagh', business: 'Kavanagh & Co Accountants', trade: 'Principal',
+    product: 'spm', seats: '6 of 8 seats used', clients: '410 clients',
+    city: 'Hobart', localTime: '10:22 AM', phone: '0428 771 093', email: 'ruth@kavanaghco.com.au',
+    website: 'kavanaghco.com.au', abn: '11 447 902 336', userId: 'SPM-0141',
+    signedUp: '3 weeks ago', trialDay: null, source: 'Referral from Michael Wilkins', platform: 'SPM web',
+    plan: 'Practice, 8 seats', subStatus: 'Active', renewal: '18 Sep 2026', joined: '5 Aug 2026',
+    lastActive: 'This morning, 8:12 AM', totalMessages: 0,
+    bucket: 'now', status: 'First payrun not lodged', statusTone: 'red',
+    reason: 'Her first payrun has sat unlodged since Friday. She has 6 staff waiting on it.',
+    summary: [
+      'Ruth is the principal at a 8 person practice in Hobart, live on SPM for 3 weeks.',
+      'She built her first payrun on Friday and it has not been lodged. Two of her staff have opened it since without finishing it.',
+      'She has not asked for help. This one came off the payrun report, not from her.',
+    ],
+    summarySource: 'Written from what her practice did in SPM. SPM has no chatbot, so there is no chat history to read.',
+    web: { state: 'not_built', lines: ['Business advisory and tax, Hobart, 8 staff, established 2004.'] },
+    recommend: { label: 'Call', why: 'Nobody in her practice has asked for help, which is how a stalled first payrun turns into a churn call in 6 weeks.' },
+    sayOne: {
+      lead: 'Your first payrun is still sitting in draft from Friday. I can walk whoever built it through lodging it this morning.',
+      why: 'Name the specific thing, not "how is SPM going". She is a principal and her time is the whole objection.',
+      spares: ['Was it you or one of the team who put it together?', 'Have you got 10 minutes now, or should I book your bookkeeper in?'],
+    },
+    chat: { state: 'none', unread: 0, channel: null, messages: [],
+      empty: 'SPM has no chatbot yet, so there is nothing here. Everything with a practice happens on a call or in a training session.' },
+    tickets: [
+      { id: 'SPM-204', subject: 'Payrun built on Friday, never lodged', channel: 'phone',
+        status: 'with_us', owner: 'Merlin', opened: 'Today, 8:40 AM', product: 'spm',
+        reporter: 'internal', waitingOn: 'us',
+        firstLine: 'Nobody at the practice raised this. It came off the payrun report, which is the only way an SPM problem surfaces today.',
+        notes: [
+          { who: 'Merlin', when: '8:44 AM', text: 'Calling Ruth this morning. Her bookkeeper opened it twice and backed out both times, so this is a training gap rather than a bug.' },
+          { who: 'Ashish', when: '9:15 AM', text: 'Checked the logs, the lodgement was never submitted. Nothing failed on our side.' },
+        ],
+        answer: null, dev: null },
+    ],
+    calls: [],
+    timeline: [
+      { d: '2026-08-26', lane: 'ticket', tone: 'red', when: '8:40 AM', title: 'Ticket SPM-204 opened off the payrun report', body: 'Not raised by the practice. Merlin picked it up.' },
+      { d: '2026-08-26', lane: 'behaviour', tone: 'amber', when: '8:12 AM', title: 'Her bookkeeper opened the payrun and backed out again', body: 'Second time this has happened. Nothing was lodged.' },
+      { d: '2026-08-21', lane: 'behaviour', tone: 'red', when: '4:36 PM', title: 'First payrun built and left in draft', body: '6 employees, $18,240. Still not lodged 5 days later.' },
+      { d: '2026-08-19', lane: 'content', tone: 'amber', when: '11:04 AM', title: 'Opened "Run your first payrun" in Sole Academy', body: 'Stopped a third of the way in.', video: { pct: 34 } },
+      { d: '2026-08-12', lane: 'behaviour', tone: 'green', when: '2:20 PM', title: 'Imported 410 clients', body: 'Came off Xero Practice Manager cleanly.' },
+      { d: '2026-08-05', lane: 'signup', tone: 'brand', when: '9:30 AM', title: 'Practice went live on SPM', body: 'Referred by Michael Wilkins. 8 seats.' },
+    ],
+  },
+  {
+    id: 'p-marcus', stream: 'support', name: 'Marcus Bhatt', business: 'Bhatt Accounting Group', trade: 'Practice manager',
+    product: 'spm', seats: '14 of 14 seats used', clients: '1,180 clients',
+    city: 'Perth', localTime: '8:22 AM', phone: '0431 664 208', email: 'marcus@bhattgroup.com.au',
+    website: 'bhattgroup.com.au', abn: '80 226 447 119', userId: 'SPM-0128',
+    signedUp: '6 weeks ago', trialDay: null, source: 'Direct', platform: 'SPM web',
+    plan: 'Practice, 14 seats', subStatus: 'Active', renewal: '2 Sep 2026', joined: '15 Jul 2026',
+    lastActive: 'Yesterday, 5:40 PM', totalMessages: 0,
+    bucket: 'waiting', status: 'Training booked', statusTone: 'blue',
+    reason: 'Booked a training session for Thursday. He wants his 3 bookkeepers on it, not himself.',
+    summary: [
+      'Marcus runs the back office at a 14 person practice in Perth, live on SPM for 6 weeks.',
+      'The practice is using it properly. His question is training, not support: he wants his 3 bookkeepers taken through payroll rather than reading it themselves.',
+      'He rang you on Monday about it and you booked Thursday 11:00 AM.',
+    ],
+    summarySource: 'Written from what his practice did in SPM and Monday call.',
+    web: { state: 'not_built', lines: ['Tax, audit and advisory, Perth CBD, 14 staff.'] },
+    recommend: { label: 'Wait for Thursday', why: 'He has a session booked and he asked for the bookkeepers to be on it. Nothing to chase before then.' },
+    sayOne: {
+      lead: 'Thursday 11:00 AM is locked in. Send me the 3 names and I will tailor it to what they actually do.',
+      why: 'He asked for his team to be trained, not himself. Keep the session about them.',
+      spares: ['Do they run payroll weekly or fortnightly?'],
+    },
+    chat: { state: 'none', unread: 0, channel: null, messages: [],
+      empty: 'SPM has no chatbot yet, so there is nothing here. Everything with a practice happens on a call or in a training session.' },
+    tickets: [],
+    calls: [
+      { id: 'call-marcus-1', when: 'Monday, 11:02 AM', len: '6 min', how: 'Phone', by: 'Merlin',
+        type: 'inbound', dir: 'in', kind: 'He rang us',
+        outcome: 'Training booked for Thursday', outcomeTone: 'green', score: 7, mood: 'Businesslike, no complaints',
+        agreed: [
+          'Thursday 11:00 AM, 45 minutes, his 3 bookkeepers rather than him.',
+          'Payroll first, then the client portal. He does not need the tax side covered.',
+          'He is sending the 3 names before Wednesday.',
+        ],
+        next: { title: 'Training session Thursday 11:00 AM', body: 'Google Meet, recorded, so the 2 who cannot make it can watch it after.' },
+        coach: ['You asked what the bookkeepers do day to day before agreeing the agenda. That is why this session will not be a product tour.'],
+        learned: null,
+        transcript: [
+          ['Marcus', 'It is less that it is broken, more that nobody has been shown it properly.'],
+          ['You', 'Then let me take the 3 of them through payroll on a call rather than send them a video.'],
+        ],
+        approve: null },
+    ],
+    timeline: [
+      { d: '2026-08-27', lane: 'call', tone: 'blue', when: '11:00 AM', title: 'Training session booked with you', body: 'Google Meet, 45 minutes, recorded. His 3 bookkeepers, payroll first.' },
+      { d: '2026-08-25', lane: 'behaviour', tone: 'green', when: '5:40 PM', title: 'Lodged 4 payruns', body: 'A normal week for this practice.' },
+      { d: '2026-08-24', lane: 'call', tone: 'green', when: '11:02 AM', title: 'He rang you, spoke for 6 minutes', body: 'Asked for his bookkeepers to be trained. Thursday booked on the call.' },
+      { d: '2026-08-18', lane: 'content', tone: 'green', when: '7:12 PM', title: 'Watched "Set up your practice" in Sole Academy', body: '', video: { pct: 100 } },
+      { d: '2026-07-15', lane: 'signup', tone: 'brand', when: '10:00 AM', title: 'Practice went live on SPM', body: '14 seats, moved off MYOB Practice.' },
+    ],
+  },
 ];
 
 const byId = (id) => PEOPLE.find(p => p.id === id);
+const prodOf = (p) => p.product || 'sole';
+const ticketsOf = (p) => p.tickets || [];
+
 const laneCount = (p, key) =>
     key === 'chat' ? (p.chat.messages || []).filter(m => m.from !== 'system').length
   : key === 'call' ? (p.calls || []).length
+  : key === 'ticket' ? ticketsOf(p).length
   : p.timeline.filter(t => t.lane === key || (key === 'behaviour' && t.lane === 'signup')).length;
 
-const inBucket = (key) => PEOPLE.filter(p => p.bucket === key)
+// --- the one piece of state the demo has to carry ---
+// Shishir asked for "have I contacted them? Yes, no, whatever. Move it over", which only
+// means anything if the row actually moves. So a small overlay sits on top of the seed
+// data: which people have been contacted, and what state each ticket is in now.
+const EMPTY_DEMO = { moved: {}, contacted: {}, tickets: {}, notes: {}, made: [], presence: 'available' };
+const bucketOf = (p, demo) => (demo.moved || {})[p.id] || p.bucket;
+const contactedAt = (p, demo) => (demo.contacted || {})[p.id] || null;
+const statusOf = (p, demo) => contactedAt(p, demo)
+  ? { label: `You reached out at ${contactedAt(p, demo)}`, tone: 'blue' }
+  : { label: p.status, tone: p.statusTone };
+
+// Shishir, 3 Sep: "that needs to be broken up between people that are on trial. And then
+// support." Support is what came to us. Outreach is everyone we go to first: new signups,
+// activation nudges and the people who cancelled.
+const STREAMS = [
+  { key: 'support', label: 'Support', hint: 'They came to us.' },
+  { key: 'outreach', label: 'Trials and outreach', labelSpm: 'Outreach', hint: 'We go to them first.' },
+];
+const streamOf = (p) => p.stream || 'support';
+
+const inBucket = (key, product, demo, stream) => PEOPLE
+  .filter(p => prodOf(p) === product && bucketOf(p, demo) === key
+    && (!stream || streamOf(p) === stream))
   // Anyone sitting in a live chat waiting on a human goes first. They are the only
   // people here who can tell they are being ignored.
   .slice().sort((x, y) => (y.chat.state === 'needs_you' ? 1 : 0) - (x.chat.state === 'needs_you' ? 1 : 0));
 
+const forProduct = (product) => PEOPLE.filter(p => prodOf(p) === product);
+
+// Every ticket in one list, each still carrying the person it belongs to. The board is a
+// view over this; it is not a second store.
+const ALL_TICKETS = PEOPLE.flatMap(p => ticketsOf(p).map(t => ({ ...t, person: p })));
+const tStatus = (t, demo) => (demo.tickets || {})[t.id] || t.status;
+const tNotes = (t, demo) => [...(t.notes || []), ...(((demo.notes || {})[t.id]) || [])];
+
+// Johann's 3 minute promise, rendered rather than asserted. It is only shown on people who
+// signed up today and have not been reached, because that is the only place it means anything.
+const fmtMins = (n) => n < 60 ? `${n} minutes` : n < 90 ? '1 hour' : `${Math.round(n / 60)} hours`;
+const callDue = (p, demo) => {
+  if (!p.signupMins || contactedAt(p, demo) || (p.calls || []).length) return null;
+  const late = p.signupMins - 3;
+  return late > 0
+    ? `Signed up ${fmtMins(p.signupMins)} ago. The 3 minute call is ${fmtMins(late)} late.`
+    : 'Signed up just now. The 3 minute call is due.';
+};
+
 // --- chrome ---
-const TopBar = ({ agent, setAgent, tab, setTab }) => (
-  <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-    <div style={{ padding: '0 20px', height: 56, display: 'flex', alignItems: 'center', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-        <div style={{ width: 26, height: 26, borderRadius: 7, background: T.primary, display: 'flex',
-                      alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="phone" size={14} color="#fff" strokeWidth={2.1} />
+// The eyebrow answers Shishir's first question of the demo, which was where this thing
+// lives: inside the support page, not in super admin. It costs one line and it stops the
+// question being relitigated every time somebody new sees the page.
+const PRESENCE = [
+  { key: 'available', label: 'Available', tone: 'green' },
+  { key: 'oncall', label: 'On a call', tone: 'amber' },
+  { key: 'away', label: 'Away', tone: 'neutral' },
+];
+
+const TopBar = ({ agent, setAgent, tab, setTab, presence, setPresence }) => {
+  const a = AGENTS.find(x => x.id === agent);
+  const pres = PRESENCE.find(p => p.key === presence) || PRESENCE[0];
+  return (
+    <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+      <div style={{ padding: '0 20px', height: 56, display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: T.primary, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="phone" size={14} color="#fff" strokeWidth={2.1} />
+          </div>
+          <div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: T.mutedSoft, letterSpacing: '0.07em',
+              textTransform: 'uppercase', lineHeight: 1.1 }}>Support</div>
+            <div style={{ fontWeight: 800, fontSize: 14.5, letterSpacing: '-0.02em' }}>Dialer</div>
+          </div>
         </div>
-        <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.02em' }}>Dialer</div>
-      </div>
-      <div style={{ display: 'flex', gap: 4 }}>
-        {[{ k: 'list', l: 'My list', i: 'list' }, { k: 'recent', l: 'Recent calls', i: 'history' }].map(n => (
-          <button key={n.k} data-btn="quiet" onClick={() => setTab(n.k)}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 8,
-              padding: '7px 12px', fontWeight: 600, fontSize: 13,
-              background: tab === n.k ? T.primarySoft : 'transparent',
-              color: tab === n.k ? T.primaryDark : T.muted }}>
-            <Icon name={n.i} size={15} />{n.l}
-          </button>
-        ))}
-      </div>
-      <div style={{ flex: 1 }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ display: 'flex', background: T.fieldBg, border: `1px solid ${T.border}`,
-                      borderRadius: 8, padding: 3, gap: 2 }}>
-          {AGENTS.map(a => (
-            <button key={a.id} data-btn="quiet" onClick={() => setAgent(a.id)}
-              style={{ border: 'none', borderRadius: 6, padding: '5px 11px', fontWeight: 600, fontSize: 12.5,
-                background: agent === a.id ? T.card : 'transparent',
-                boxShadow: agent === a.id ? T.shadowSm : 'none',
-                color: agent === a.id ? T.text : T.muted }}>{a.name}</button>
+        <div data-nav style={{ display: 'flex', gap: 2 }}>
+          {[{ k: 'list', l: 'My list', i: 'list' },
+            { k: 'tickets', l: 'Tickets', i: 'board' },
+            { k: 'recent', l: 'Calls', i: 'history' },
+            { k: 'today', l: 'Today', i: 'trend' }].map(n => (
+            <button key={n.k} data-btn="quiet" onClick={() => setTab(n.k)}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, border: 'none', borderRadius: 8,
+                padding: '7px 11px', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap',
+                background: tab === n.k ? T.primarySoft : 'transparent',
+                color: tab === n.k ? T.primaryDark : T.muted }}>
+              <Icon name={n.i} size={15} />{n.l}
+            </button>
           ))}
         </div>
-        <Avatar name={AGENTS.find(a => a.id === agent).name} size={30} />
+        <div style={{ flex: 1 }} />
+        {/* Juhi: "I am chatting with the persons same time I am on the call with the other
+            customer... or else I am in a call with Joe." Presence is hers to set, and Away
+            hands every chat she holds back to the bot at once. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%',
+            background: (TONES[pres.tone] || TONES.neutral).fg }} />
+          <select value={presence} onChange={e => setPresence(e.target.value)}
+            style={{ border: `1px solid ${T.border}`, borderRadius: 8, padding: '6px 8px',
+              background: T.card, fontSize: 12.5, fontWeight: 600, color: T.textSoft }}>
+            {PRESENCE.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+          </select>
+        </div>
+        <div data-switch style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', background: T.fieldBg, border: `1px solid ${T.border}`,
+                        borderRadius: 8, padding: 3, gap: 2 }}>
+            {AGENTS.map(x => (
+              <button key={x.id} data-btn="quiet" onClick={() => setAgent(x.id)}
+                style={{ border: 'none', borderRadius: 6, padding: '5px 11px', fontWeight: 600, fontSize: 12.5,
+                  background: agent === x.id ? T.card : 'transparent',
+                  boxShadow: agent === x.id ? T.shadowSm : 'none',
+                  color: agent === x.id ? T.text : T.muted }}>{x.name}</button>
+            ))}
+          </div>
+          <Avatar name={a.name} size={30} />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const DemoBanner = () => (
   <div style={{ background: '#111827', color: '#E5E7EB', fontSize: 12.5, padding: '8px 20px',
     textAlign: 'center', flexShrink: 0 }}>
-    Prototype. Every person, number and message on this page is made up, so we can talk about the shape without arguing about the data.
+    Prototype, sitting inside the existing support page. Every person, number and message on it is made up, so we can talk about the shape without arguing about the data.
   </div>
 );
 
 // --- screen 1: my list ---
 const BUCKETS = [
-  { key: 'now', title: 'Needs you now', hint: 'Someone just signed up, or something went wrong for them.' },
+  { key: 'now', title: 'Needs you now',
+    hint: 'They asked for a person, or the bot could not answer them, or they rang and we missed it.',
+    hintOut: 'Someone just signed up, stalled, or cancelled. A new signup gets a call inside 3 minutes.',
+    hintSpm: 'A practice is stuck, or something came off the payrun reports. Nobody at the practice has to ask for help first.' },
   { key: 'waiting', title: 'Waiting on them', hint: 'You have reached out. The ball is in their court.' },
-  { key: 'done', title: 'Done today', hint: 'Nothing owed.' },
+  { key: 'done', title: 'Done today', hint: 'Nothing owed today.' },
 ];
 
-const Stat = ({ n, label, tone }) => (
-  <Card pad={16} style={{ flex: 1 }}>
+const Stat = ({ n, label, tone, sub }) => (
+  <Card pad={16} style={{ flex: 1, minWidth: 0 }}>
     <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.03em', color: tone || T.text, lineHeight: 1.1 }}>{n}</div>
     <div style={{ fontSize: 13, color: T.muted, marginTop: 4 }}>{label}</div>
+    {sub && <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 3 }}>{sub}</div>}
   </Card>
 );
 
-const ListScreen = ({ agent, onOpen }) => {
+// One row, used by both the list and the board's person link. The status pill, the SLA clock
+// and the contacted action all read through `demo`, so pressing "Mark as contacted" moves the
+// row for real instead of describing that it would.
+const QueueRow = ({ p, demo, onOpen, onContact }) => {
+  const st = statusOf(p, demo);
+  const due = callDue(p, demo);
+  return (
+    <div data-row onClick={() => onOpen(p.id)}
+      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+        border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card, cursor: 'pointer' }}>
+      <Avatar name={p.name} size={42} />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 700, fontSize: 14.5 }}>{p.name}</span>
+          <span style={{ color: T.mutedSoft, fontSize: 13 }}>{p.business}</span>
+          <Pill tone={st.tone}>{st.label}</Pill>
+          {p.unverified && <Pill tone="neutral">No Sole account</Pill>}
+          {p.chat.unread > 0 && (
+            <Pill tone="red"><Icon name="chat" size={11} />{p.chat.unread} unread</Pill>
+          )}
+          {p.chat.unread > 0 && p.chat.channel && <ChannelChip id={p.chat.channel} />}
+        </div>
+        <div style={{ color: T.textSoft, fontSize: 13.5, marginTop: 4 }}>{p.reason}</div>
+        {due && (
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: T.red, marginTop: 5 }}>{due}</div>
+        )}
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'flex-end', gap: 8 }}>
+        <div style={{ fontSize: 12.5, color: T.mutedSoft }}>{p.city}</div>
+        <div style={{ display: 'flex', gap: 7 }}>
+          {bucketOf(p, demo) === 'now' && (
+            <Btn variant="secondary" icon="check"
+                 onClick={(e) => { e.stopPropagation(); onContact(p.id); }}>Contacted</Btn>
+          )}
+          <Btn variant="primary" onClick={(e) => { e.stopPropagation(); onOpen(p.id); }}>Open</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ListScreen = ({ agent, onOpen, demo, onContact, stream, setStream }) => {
   const a = AGENTS.find(x => x.id === agent);
+  const now = inBucket('now', a.product, demo, stream);
+  const waiting = inBucket('waiting', a.product, demo, stream);
+  const done = inBucket('done', a.product, demo, stream);
+  const newToday = forProduct(a.product)
+    .filter(p => p.joined === 'Today' && streamOf(p) === stream).length;
+  const waits = now.map(p => p.chat.waitMins || 0).filter(Boolean);
+  const longest = waits.length ? Math.max(...waits) : 0;
   return (
     <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 20,
       maxWidth: 1000, margin: '0 auto', padding: '28px 24px 80px', width: '100%' }}>
       <div>
         <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>{a.hello}</h1>
-        <div style={{ color: T.muted, fontSize: 13.5, marginTop: 5 }}>Wednesday 26 August · {a.product}</div>
+        <div style={{ color: T.muted, fontSize: 13.5, marginTop: 5 }}>
+          Wednesday 26 August · {a.productLabel} · {a.job}
+        </div>
+      </div>
+
+      {/* Two different jobs, so two lists. Support is answering; outreach is the trial and
+          activation calls, which is where the automatic AI call runs. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {STREAMS.map(st => {
+          const on = stream === st.key;
+          const n = ['now', 'waiting', 'done']
+            .reduce((acc, b) => acc + inBucket(b, a.product, demo, st.key).length, 0);
+          const overdue = inBucket('now', a.product, demo, st.key).filter(x => callDue(x, demo)).length;
+          const label = a.product === 'spm' && st.labelSpm ? st.labelSpm : st.label;
+          return (
+            <button key={st.key} data-btn="quiet" onClick={() => setStream(st.key)}
+              style={{ border: `1px solid ${on ? T.primary : T.border}`, borderRadius: T.radiusSm,
+                background: on ? T.primarySofter : T.card, padding: '9px 13px', textAlign: 'left',
+                display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ fontSize: 13, fontWeight: on ? 700 : 600,
+                color: on ? T.primaryDark : T.textSoft }}>{label}</span>
+              <span className="tnum" style={{ fontSize: 12.5, fontWeight: 700, color: T.mutedSoft }}>{n}</span>
+              {overdue > 0 && <Pill tone="red">{overdue} overdue</Pill>}
+            </button>
+          );
+        })}
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 12, color: T.mutedSoft, alignSelf: 'center' }}>
+          {(STREAMS.find(x => x.key === stream) || STREAMS[0]).hint}
+        </div>
       </div>
 
       <div data-stats style={{ display: 'flex', gap: 12 }}>
-        <Stat n={6} label="Signed up today" />
-        <Stat n={2} label="You have reached out" tone={T.greenDark} />
-        <Stat n={inBucket('now').length} label="Waiting on you" tone={T.red} />
+        <Stat n={now.length} label="Waiting on you" tone={T.red} />
+        {a.product === 'sole' && stream === 'support' && (
+          <Stat n={longest ? `${longest} min` : 'None'} label="Longest wait in a chat"
+                tone={longest > 15 ? T.red : T.text}
+                sub={longest ? 'Nobody has replied to them yet' : 'No open chats'} />
+        )}
+        <Stat n={waiting.length} label="You reached out" tone={T.blue} />
+        {stream === 'outreach' && a.product === 'sole'
+          ? <Stat n={newToday} label="Signed up today" sub="In this sample, not a real signup rate" />
+          : <Stat n={done.length} label="Sorted today" />}
       </div>
 
+      {!now.length && !waiting.length && !done.length && (
+        <Empty>Nothing in this list right now.</Empty>
+      )}
       {BUCKETS.map(b => {
-        const rows = inBucket(b.key);
+        const rows = b.key === 'now' ? now : b.key === 'waiting' ? waiting : done;
         if (!rows.length) return null;
         return (
           <div key={b.key}>
@@ -623,44 +1212,34 @@ const ListScreen = ({ agent, onOpen }) => {
               <div style={{ fontSize: 14, fontWeight: 700 }}>
                 {b.title} <span style={{ color: T.mutedSoft, fontWeight: 500 }}>({rows.length})</span>
               </div>
-              <div style={{ fontSize: 12, color: T.mutedSoft, marginTop: 3 }}>{b.hint}</div>
+              <div style={{ fontSize: 12, color: T.mutedSoft, marginTop: 3 }}>
+                {a.product === 'spm' && b.hintSpm ? b.hintSpm
+                  : stream === 'outreach' && b.hintOut ? b.hintOut : b.hint}
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {rows.map(p => (
-                <div key={p.id} data-row onClick={() => onOpen(p.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-                    border: `1px solid ${T.border}`, borderRadius: T.radius, background: T.card, cursor: 'pointer' }}>
-                  <Avatar name={p.name} size={42} />
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 700, fontSize: 14.5 }}>{p.name}</span>
-                      <span style={{ color: T.mutedSoft, fontSize: 13 }}>{p.business}</span>
-                      <Pill tone={p.statusTone}>{p.status}</Pill>
-                      {p.chat.unread > 0 && <Pill tone="red"><Icon name="chat" size={11} />{p.chat.unread} unread</Pill>}
-                    </div>
-                    <div style={{ color: T.textSoft, fontSize: 13.5, marginTop: 4 }}>{p.reason}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 12.5, color: T.mutedSoft, marginBottom: 8 }}>{p.city}</div>
-                    <Btn variant="primary" onClick={(e) => { e.stopPropagation(); onOpen(p.id); }}>Open</Btn>
-                  </div>
-                </div>
+                <QueueRow key={p.id} p={p} demo={demo} onOpen={onOpen} onContact={onContact} />
               ))}
             </div>
           </div>
         );
       })}
-      <Note>The list is the whole ticketing system. A signup adds a row, and the row is the person.</Note>
+      <Note>
+        One row per person, whatever they came in on. The ticket is the issue they raised, and it
+        lives on their record: the Tickets tab above is the same tickets, sorted by state instead
+        of by person.
+      </Note>
     </div>
   );
 };
 
 // --- left column: move between people without going back ---
-const PeopleRail = ({ currentId, onOpen }) => {
+const PeopleRail = ({ currentId, onOpen, product, demo, stream }) => {
   const groups = [
-    { title: 'Needs you now', rows: inBucket('now') },
-    { title: 'Waiting on them', rows: inBucket('waiting') },
-    { title: 'Done today', rows: inBucket('done') },
+    { title: 'Needs you now', rows: inBucket('now', product, demo, stream) },
+    { title: 'Waiting on them', rows: inBucket('waiting', product, demo, stream) },
+    { title: 'Done today', rows: inBucket('done', product, demo, stream) },
   ];
   return (
     <div data-col="left" className="scroll" style={{ width: 268, flexShrink: 0, background: T.card,
@@ -718,10 +1297,26 @@ const Bubble = ({ m, agentName }) => {
         {m.from === 'bot' && <Icon name="bot" size={12} color={m.failed ? T.red : T.mutedSoft} />}
         <span style={{ fontWeight: 600, color: m.failed ? T.red : T.mutedSoft }}>{who}</span>
         <span className="tnum">{m.when}</span>
+        {/* Only shown where it changes. A thread that starts on the website and moves to
+            WhatsApp is still one thread, and this is what makes that visible. */}
+        {m.via && <ChannelChip id={m.via} />}
       </div>
       <div style={{ maxWidth: '80%', background: skin.bg, color: skin.fg, border: `1px solid ${skin.bd}`,
         borderRadius: 12, padding: '10px 13px', fontSize: 13.5, lineHeight: 1.55 }}>
         {m.text}
+        {/* Juhi asked for this outright: "can I attach something here, the screenshot or an
+            attachment?" It matters more inbound than outbound, because a screenshot is how
+            she finds out what actually happened. */}
+        {m.file && (
+          <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 9,
+            background: mine ? 'rgba(255,255,255,0.15)' : T.fieldBg,
+            border: `1px solid ${mine ? 'rgba(255,255,255,0.25)' : T.border}`,
+            borderRadius: T.radiusSm, padding: '8px 10px' }}>
+            <Icon name="file" size={13} color={mine ? '#fff' : T.primary} />
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>{m.file.name}</span>
+            <span style={{ fontSize: 11.5, color: mine ? 'rgba(255,255,255,0.75)' : T.mutedSoft }}>{m.file.size}</span>
+          </div>
+        )}
         {m.video && (
           <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 8,
             background: mine ? 'rgba(255,255,255,0.15)' : T.card,
@@ -736,24 +1331,78 @@ const Bubble = ({ m, agentName }) => {
   );
 };
 
-const ChatLane = ({ p, agentName, state, setState, msgs, setMsgs }) => {
+// Juhi's sharpest question, unprompted: "now that I have taken over, and I missed it, hand
+// over to the bot. So will it automatically hand over to bot or will I have to do that every
+// time?" So it is automatic. The countdown is on screen because a silent rule is one she
+// cannot trust, and the demo link exists because nobody waits 3 minutes in a meeting.
+const IDLE_LIMIT = 180;
+const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+const ChatLane = ({ p, agentName, state, setState, msgs, setMsgs, presence }) => {
   const [draft, setDraft] = useState('');
+  const [idle, setIdle] = useState(0);
+  const [attached, setAttached] = useState(null);
   const boxRef = useRef(null);
   useEffect(() => { if (boxRef.current) boxRef.current.scrollTop = boxRef.current.scrollHeight; }, [msgs]);
-  useEffect(() => { setDraft(''); }, [p.id]);
+  useEffect(() => { setDraft(''); setIdle(0); setAttached(null); }, [p.id]);
+
+  const now = () => '10:22 AM';
+  const autoBack = (why) => {
+    setState('bot');
+    setMsgs(m => [...m, { from: 'system', when: now(), text: why }]);
+    setIdle(0);
+  };
+
+  // The clock only runs while she is holding the conversation.
+  useEffect(() => {
+    if (state !== 'you') { setIdle(0); return; }
+    const t = setInterval(() => setIdle(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [state, p.id]);
+
+  useEffect(() => {
+    if (state === 'you' && idle >= IDLE_LIMIT) {
+      autoBack('Nobody replied for 3 minutes, so the bot picked this back up on its own.');
+    }
+  }, [idle, state]);
+
+  // Setting yourself Away is the other half of the same problem: the times she knows in
+  // advance she is going into a call with Joe or Shishir.
+  useEffect(() => {
+    if (presence === 'away' && state === 'you') {
+      autoBack(`${agentName} went away, so the bot picked this back up.`);
+    }
+  }, [presence]);
 
   if (p.chat.state === 'none') return <Empty>{p.chat.empty}</Empty>;
 
-  const now = () => '10:22 AM';
-  const takeOver = () => { setState('you'); setMsgs(m => [...m, { from: 'system', when: now(), text: `${agentName} took over from the bot` }]); };
+  const takeOver = () => {
+    setState('you'); setIdle(0);
+    setMsgs(m => [...m, { from: 'system', when: now(), text: `${agentName} took over from the bot` }]);
+  };
   const handBack = () => { setState('bot'); setMsgs(m => [...m, { from: 'system', when: now(), text: `${agentName} handed the conversation back to the bot` }]); };
   const send = () => {
-    const t = draft.trim(); if (!t) return;
-    setMsgs(m => [...m, { from: 'agent', when: now(), text: t }]); setDraft('');
+    const t = draft.trim(); if (!t && !attached) return;
+    setMsgs(m => [...m, { from: 'agent', when: now(), text: t || 'Have a look at this.',
+      file: attached ? { name: attached, size: '96 KB' } : null }]);
+    setDraft(''); setAttached(null); setIdle(0);
   };
+  const left = IDLE_LIMIT - idle;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      {/* Which doorstep this conversation arrived on. Shishir, Johann and Juhi each named a
+          different one, and the answer is a label rather than another inbox. */}
+      <div style={{ flexShrink: 0, marginBottom: 12 }}><LaneSource info={LANE_INFO.chat} /></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12,
+        marginBottom: 14, borderBottom: `1px solid ${T.borderSoft}`, flexShrink: 0, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: T.muted }}>Latest on</span>
+        <ChannelChip id={p.chat.channel || 'app'} showVia />
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11.5, color: T.mutedSoft }}>
+          Everything they have ever sent us, on any channel, is in this one thread.
+        </span>
+      </div>
       {state === 'needs_you' && (
         <div style={{ background: T.redSoft, border: `1px solid ${T.redBorder}`, borderRadius: T.radiusSm,
           padding: 14, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12,
@@ -777,19 +1426,45 @@ const ChatLane = ({ p, agentName, state, setState, msgs, setMsgs }) => {
       <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.borderSoft}`, flexShrink: 0 }}>
         {state === 'you' ? (
           <Fragment>
+            {attached && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 9,
+                background: T.fieldBg, border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+                padding: '7px 10px', width: 'fit-content' }}>
+                <Icon name="file" size={13} color={T.primary} />
+                <span style={{ fontSize: 12.5, fontWeight: 600 }}>{attached}</span>
+                <button data-btn="quiet" onClick={() => setAttached(null)}
+                  style={{ border: 'none', background: 'transparent', padding: 2, display: 'flex' }}>
+                  <Icon name="x" size={13} color={T.mutedSoft} />
+                </button>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
-              <input value={draft} onChange={e => setDraft(e.target.value)}
+              <button data-btn="secondary" onClick={() => setAttached('where-to-click.png')}
+                title="Attach a screenshot or a file"
+                style={{ border: `1px solid ${T.border}`, background: T.card, borderRadius: T.radiusSm,
+                  width: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0 }}>
+                <Icon name="clip" size={17} color={T.muted} />
+              </button>
+              <input value={draft} onChange={e => { setDraft(e.target.value); setIdle(0); }}
                 onKeyDown={e => { if (e.key === 'Enter') send(); }}
                 placeholder={`Write to ${p.name.split(' ')[0]}...`}
                 style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
                   padding: '11px 13px', background: T.card, minHeight: 44 }} />
-              <Btn variant="primary" big onClick={send} disabled={!draft.trim()}>Send</Btn>
+              <Btn variant="primary" big onClick={send} disabled={!draft.trim() && !attached}>Send</Btn>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9 }}>
-              <span style={{ fontSize: 12.5, color: T.mutedSoft, flex: 1 }}>
-                You are replying. The bot has stepped back and will not send anything.
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12.5, color: T.mutedSoft, flex: 1, minWidth: 200 }}>
+                You are replying and the bot is silent. If you go 3 minutes without answering,
+                it picks the conversation back up so nobody is left waiting.
               </span>
-              <Btn variant="quiet" onClick={handBack}>Hand back to the bot</Btn>
+              <Pill tone={left <= 30 ? 'red' : 'neutral'}>
+                <Icon name="clock" size={11} />Bot takes over in <span className="tnum">{mmss(Math.max(0, left))}</span>
+              </Pill>
+              {left > 20 && (
+                <Btn variant="quiet" onClick={() => setIdle(IDLE_LIMIT - 8)}>Show me that happening</Btn>
+              )}
+              <Btn variant="quiet" onClick={handBack}>Hand back now</Btn>
             </div>
           </Fragment>
         ) : (
@@ -798,7 +1473,8 @@ const ChatLane = ({ p, agentName, state, setState, msgs, setMsgs }) => {
               borderRadius: T.radiusSm, padding: '11px 13px', color: T.mutedSoft, fontSize: 13.5,
               minHeight: 44, display: 'flex', alignItems: 'center' }}>
               {state === 'quiet' ? 'This conversation is closed. Reply and it opens again.'
-                                 : 'The bot is answering. Take over if you want to reply yourself.'}
+                : state === 'needs_you' ? 'They have asked for a person, so the bot has stopped answering. Nothing goes out until you reply.'
+                : 'The bot is answering. Take over if you want to reply yourself.'}
             </div>
             {state !== 'needs_you' && <Btn variant="secondary" big icon="chat" onClick={takeOver}>Take over</Btn>}
           </div>
@@ -809,7 +1485,19 @@ const ChatLane = ({ p, agentName, state, setState, msgs, setMsgs }) => {
 };
 
 // --- one call, expandable to everything we hold about it ---
-const CallCard = ({ c, agentName, defaultOpen }) => {
+// Johann: "she's not just support. Julie's gonna call all the new customers as well, all the
+// churn customers. So for each of those types of calls, I'd like to know what's working."
+// The type is on the record for that reason: it is what the roll-up groups by.
+const CALL_TYPES = {
+  ai:      { label: 'AI call', tone: 'brand' },
+  welcome: { label: 'Welcome call', tone: 'brand' },
+  support: { label: 'Support call', tone: 'neutral' },
+  churn:   { label: 'Churn call', tone: 'red' },
+  inbound: { label: 'They called us', tone: 'blue' },
+};
+const callType = (c) => CALL_TYPES[c.type] || CALL_TYPES.support;
+
+const CallCard = ({ c, agentName, defaultOpen, onCall }) => {
   const [open, setOpen] = useState(!!defaultOpen);
   const [card, setCard] = useState('open');
   const [showTx, setShowTx] = useState(false);
@@ -827,6 +1515,8 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
             {c.when} <span style={{ color: T.mutedSoft, fontWeight: 500 }}>· {c.len} · {c.how} · {c.by}</span>
           </div>
           <div style={{ display: 'flex', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
+            <Pill tone={callType(c).tone}>{callType(c).label}</Pill>
+            {c.kind && <Pill tone="neutral">{c.kind}</Pill>}
             <Pill tone={c.outcomeTone}>{c.outcome}</Pill>
             {c.score !== null && (
               <Pill tone={c.score >= 7 ? 'green' : 'amber'}><Icon name="star" size={11} />Call score {c.score} of 10</Pill>
@@ -839,7 +1529,27 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
       {open && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}`, padding: 18, display: 'flex',
           flexDirection: 'column', gap: 20, animation: 'fade .18s ease' }}>
-          {c.voicemail ? (
+          {/* Shishir drew this line himself: "for support it's support, Juhi will be the one
+              talking. But we are talking about also activation." So an AI call says so, and it
+              only ever appears on an activation call. */}
+          {c.ai && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: T.primarySofter,
+              border: '1px solid #D5D7FB', borderRadius: T.radiusSm, padding: '11px 13px' }}>
+              <Icon name="bot" size={15} color={T.primaryDark} style={{ marginTop: 2 }} />
+              <span style={{ fontSize: 12.5, color: T.textSoft, lineHeight: 1.55 }}>{c.ai}</span>
+            </div>
+          )}
+          {c.missed ? (
+            <div>
+              <SectionTitle hint="Juhi named this as the thing that fails today: inbound calls land on the general number and get missed.">
+                Nobody picked up
+              </SectionTitle>
+              <Empty>{c.missed}</Empty>
+              <div style={{ marginTop: 12 }}>
+                <Btn variant="primary" icon="phone" onClick={onCall}>Call her back</Btn>
+              </div>
+            </div>
+          ) : c.voicemail ? (
             <div>
               <SectionTitle>The voicemail you left</SectionTitle>
               <Empty>“{c.voicemail}”</Empty>
@@ -847,7 +1557,7 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
           ) : (
             <Fragment>
               <div>
-                <SectionTitle>The recording</SectionTitle>
+                <SectionTitle>{c.recording ? 'The screen recording' : 'The recording'}</SectionTitle>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: T.fieldBg,
                   border: `1px solid ${T.border}`, borderRadius: T.radiusSm, padding: '11px 14px' }}>
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: T.primary,
@@ -855,8 +1565,20 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
                     <Icon name="play" size={12} color="#fff" />
                   </div>
                   <Progress pct={0} />
-                  <span style={{ fontSize: 12.5, color: T.mutedSoft, whiteSpace: 'nowrap' }}>{c.len}</span>
+                  <span style={{ fontSize: 12.5, color: T.mutedSoft, whiteSpace: 'nowrap' }}>
+                    {c.recording ? c.recording.label : c.len}
+                  </span>
                 </div>
+                {/* Juhi records a Meet so the developers can watch the bug instead of reading
+                    her description of it. That handoff is the whole reason she uses Meet. */}
+                {c.recording && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10,
+                    background: T.blueSoft, border: `1px solid ${T.blueBorder}`, borderRadius: T.radiusSm,
+                    padding: '9px 12px' }}>
+                    <Icon name="users" size={14} color={T.blue} />
+                    <span style={{ fontSize: 12.5, color: T.textSoft }}>{c.recording.shared}</span>
+                  </div>
+                )}
                 <button data-btn="quiet" onClick={() => setShowTx(v => !v)}
                   style={{ border: 'none', background: 'transparent', color: T.primaryDark, fontWeight: 600,
                     fontSize: 13, marginTop: 12, padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -908,11 +1630,18 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 700 }}>How the call went</div>
                       <div style={{ fontSize: 12, color: T.mutedSoft, marginTop: 3 }}>
-                        Scored against our call doctrine. Only {agentName} and their manager see this.
+                        Scored against the call guide, which nobody has written yet, so the number
+                        is a placeholder. Only {agentName} and their manager see this.
                       </div>
                     </div>
+                    <Pill tone="amber">Draft</Pill>
                     <Pill tone="neutral"><Icon name="eye" size={12} />Private</Pill>
                   </div>
+                  {c.mood && (
+                    <div style={{ marginBottom: 12 }}>
+                      <Meta tone="neutral">How they sounded: {c.mood.toLowerCase()}</Meta>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {c.coach.map((s, i) => (
                       <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -922,6 +1651,17 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
                       </div>
                     ))}
                   </div>
+                  {/* The other direction of the same loop: one call teaching the guide, not
+                      just the guide marking one call. This is the line that turns the score
+                      into something the team owns. */}
+                  {c.learned && (
+                    <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 9,
+                      background: T.greenSoft, border: `1px solid ${T.greenBorder}`,
+                      borderRadius: T.radiusSm, padding: '9px 12px' }}>
+                      <Icon name="trend" size={14} color={T.greenDark} />
+                      <span style={{ fontSize: 12.5, color: T.textSoft }}>{c.learned}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -957,7 +1697,7 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
                             color={card === 'approved' ? T.green : T.mutedSoft} />
                       <span style={{ fontSize: 13.5, color: T.textSoft }}>
                         {card === 'approved'
-                          ? 'Added. The next person who asks this gets your answer, not a guess.'
+                          ? 'Saved to the answer queue. It goes live in the chatbot once someone signs off on the wording.'
                           : 'Binned. It will not be suggested again.'}
                       </span>
                     </div>
@@ -971,6 +1711,308 @@ const CallCard = ({ c, agentName, defaultOpen }) => {
     </Card>
   );
 };
+
+// --- tickets ---
+// Where the line sits, settled by Shishir on 3 Sep: "it should not open the thread, it should
+// open the ticket... it should just be a list of tickets. And the actual tickets will reside
+// [in the support ticket system]." So the dialer LISTS tickets and hands off. The workflow,
+// the internal notes and the reply to the customer live in his system, which already has them.
+// What stays here is the part only this surface can do: the answer a ticket produced, which is
+// what the chatbot learns from.
+//
+// This reverses round 4, which held the whole ticket in the dialer. Do not put it back without
+// going through Shishir: he showed his own service management board on the call.
+const REPORTERS = {
+  customer: { label: 'Customer', tone: 'blue' },
+  internal: { label: 'Raised by us', tone: 'neutral' },
+};
+
+const TicketRow = ({ t, demo, onOpenTicket, onOpenPerson, showPerson }) => {
+  const st = stateOf(tStatus(t, demo));
+  const rep = REPORTERS[t.reporter || 'customer'];
+  return (
+    <div data-trow data-row style={{ display: 'grid', alignItems: 'center', gap: 12,
+      padding: '13px 16px', borderBottom: `1px solid ${T.borderSoft}` }}>
+      <div>
+        <button data-btn="quiet" onClick={() => onOpenTicket(t)}
+          className="tnum" style={{ border: 'none', background: 'transparent', padding: 0,
+            fontSize: 12.5, fontWeight: 700, color: T.primaryDark }}>{t.id}</button>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <button data-btn="quiet" onClick={() => onOpenTicket(t)}
+          style={{ border: 'none', background: 'transparent', padding: 0, textAlign: 'left',
+            fontSize: 13.5, fontWeight: 600, lineHeight: 1.4, color: T.text }}>{t.subject}</button>
+        {showPerson && (
+          <button data-btn="quiet" onClick={onOpenPerson}
+            style={{ border: 'none', background: 'transparent', padding: 0, display: 'flex',
+              alignItems: 'center', gap: 7, marginTop: 5 }}>
+            <Avatar name={t.person.name} size={20} />
+            <span style={{ fontSize: 12, color: T.muted }}>{t.person.name}</span>
+            <Icon name="right" size={12} color={T.mutedSoft} />
+          </button>
+        )}
+        {t.tried && (
+          <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 4 }}>{t.tried}</div>
+        )}
+      </div>
+      <div><ChannelChip id={t.channel} /></div>
+      <div><Pill tone={rep.tone}>{rep.label}</Pill></div>
+      <div><Pill tone={st.tone}>{st.label}</Pill></div>
+      <div style={{ fontSize: 12.5, color: T.muted }}>
+        {t.waitingOn === 'them' ? 'Them' : 'Us'}
+        <div style={{ fontSize: 11.5, color: T.mutedSoft }}>{t.owner || 'Nobody yet'}</div>
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        <Btn variant="secondary" onClick={() => onOpenTicket(t)}>Open<Icon name="expand" size={13} /></Btn>
+      </div>
+    </div>
+  );
+};
+
+const TICKET_HEADS = ['Key', 'Summary', 'Came in on', 'Reporter', 'Status', 'Waiting on', ''];
+const TicketList = ({ rows, demo, onOpenTicket, onOpenPerson, showPerson, empty }) => (
+  <Card pad={0}>
+    <div data-trow style={{ display: 'grid', gap: 12, padding: '11px 16px',
+      borderBottom: `1px solid ${T.border}`, fontSize: 11, fontWeight: 700, color: T.mutedSoft,
+      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      {TICKET_HEADS.map((h, i) => <div key={i}>{h}</div>)}
+    </div>
+    {rows.length ? rows.map(t => (
+      <TicketRow key={t.id} t={t} demo={demo} showPerson={showPerson}
+        onOpenTicket={onOpenTicket} onOpenPerson={() => onOpenPerson && onOpenPerson(t.person.id)} />
+    )) : (
+      <div style={{ padding: '20px 16px' }}><Empty>{empty}</Empty></div>
+    )}
+  </Card>
+);
+
+// The handoff. Shishir walked us through his own ticket screen on the call: key, summary, who
+// reported it, external or internal, the workflow it can move to next, internal notes for the
+// technical team, and reply to customer. None of that is rebuilt here. This says where it goes
+// and shows what is waiting there, so the demo does not imply we host it.
+const TicketHandoff = ({ t, demo, onClose, onOpenPerson }) => {
+  const st = stateOf(tStatus(t, demo));
+  const notes = tNotes(t, demo);
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.55)', zIndex: 95,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      animation: 'fade .16s ease' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.card, borderRadius: 16,
+        boxShadow: T.shadowLg, width: 'min(620px, 100%)', maxHeight: '90vh', overflow: 'auto',
+        animation: 'rise .22s cubic-bezier(.22,1,.36,1) both' }}>
+        <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex',
+          alignItems: 'center', gap: 12 }}>
+          <Icon name="ticket" size={17} color={T.primary} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="tnum" style={{ fontSize: 12.5, fontWeight: 700, color: T.primaryDark }}>{t.id}</div>
+            <div style={{ fontWeight: 700, fontSize: 14.5, lineHeight: 1.35 }}>{t.subject}</div>
+          </div>
+          <button data-btn="quiet" onClick={onClose} style={{ border: 'none', background: 'transparent',
+            padding: 4, display: 'flex' }}><Icon name="x" size={17} color={T.muted} /></button>
+        </div>
+
+        <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ background: T.blueSoft, border: `1px solid ${T.blueBorder}`,
+            borderRadius: T.radiusSm, padding: 14, display: 'flex', gap: 11 }}>
+            <Icon name="expand" size={15} color={T.blue} style={{ marginTop: 2 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.blue }}>This opens in the support ticket system</div>
+              <div style={{ fontSize: 12.5, color: T.textSoft, marginTop: 4, lineHeight: 1.6 }}>
+                The workflow, the internal notes and the reply to the customer already exist there,
+                so they are not rebuilt here. The dialer lists tickets and links to them.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <SectionTitle>What is on it</SectionTitle>
+            <RefRow k="Status" v={st.label} strong />
+            <RefRow k="Reporter" v={(REPORTERS[t.reporter || 'customer']).label} />
+            <RefRow k="Came in on" v={(CHANNELS[t.channel] || CHANNELS.app).label} />
+            <RefRow k="Opened" v={t.opened} />
+            <RefRow k="Waiting on" v={t.waitingOn === 'them' ? 'The customer' : 'Us'} />
+            <RefRow k="Owner" v={t.owner || 'Nobody has picked it up'} />
+            <div style={{ fontSize: 13, color: T.textSoft, marginTop: 10, lineHeight: 1.6 }}>{t.firstLine}</div>
+            {t.tried && <div style={{ fontSize: 12.5, color: T.mutedSoft, marginTop: 6 }}>{t.tried}</div>}
+          </div>
+
+          {t.notify && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: T.fieldBg,
+              border: `1px solid ${T.border}`, borderRadius: T.radiusSm, padding: '10px 12px' }}>
+              <Icon name="chat" size={14} color={T.muted} />
+              <span style={{ fontSize: 12.5, color: T.textSoft }}>{t.notify}</span>
+            </div>
+          )}
+
+          {!!notes.length && (
+            <div>
+              <SectionTitle hint="Read only here. The technical team writes these in the ticket system.">
+                Last note on it
+              </SectionTitle>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Avatar name={notes[notes.length - 1].who} size={26} />
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 700 }}>{notes[notes.length - 1].who}</span>
+                    <span className="tnum" style={{ fontSize: 11.5, color: T.mutedSoft }}>{notes[notes.length - 1].when}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6, marginTop: 2 }}>
+                    {notes[notes.length - 1].text}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {t.dev && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <Icon name="users" size={14} color={T.blue} />
+              <span style={{ fontSize: 12.5, color: T.textSoft }}>{t.dev.state}, with {t.dev.who}</span>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '16px 22px', borderTop: `1px solid ${T.border}`, background: T.fieldBg,
+          borderRadius: '0 0 16px 16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Btn variant="quiet" onClick={() => { onClose(); onOpenPerson && onOpenPerson(t.person.id); }}>
+            See the whole person
+          </Btn>
+          <div style={{ flex: 1 }} />
+          <Btn variant="primary" big icon="expand" onClick={onClose}>Open the ticket</Btn>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Juhi and Merlin raise tickets too. Shishir: "Marlin and Julie should also be able to create
+// tickets." Everything a ticket needs to exist and to be findable, and nothing else.
+const NewTicketModal = ({ people, preset, onClose, onCreate }) => {
+  const [who, setWho] = useState(preset || (people[0] && people[0].id) || '');
+  const [subject, setSubject] = useState('');
+  const [channel, setChannel] = useState('phone');
+  const [done, setDone] = useState(null);
+  const create = () => {
+    const id = onCreate({ who, subject: subject.trim(), channel });
+    setDone(id);
+  };
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.55)', zIndex: 96,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      animation: 'fade .16s ease' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.card, borderRadius: 16,
+        boxShadow: T.shadowLg, width: 'min(520px, 100%)', animation: 'rise .22s cubic-bezier(.22,1,.36,1) both' }}>
+        <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex',
+          alignItems: 'center', gap: 12 }}>
+          <Icon name="ticket" size={17} color={T.primary} />
+          <div style={{ flex: 1, fontWeight: 700, fontSize: 15.5 }}>New ticket</div>
+          <button data-btn="quiet" onClick={onClose} style={{ border: 'none', background: 'transparent',
+            padding: 4, display: 'flex' }}><Icon name="x" size={17} color={T.muted} /></button>
+        </div>
+        {done ? (
+          <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="check" size={18} color={T.green} />
+              <span style={{ fontSize: 14.5, fontWeight: 700 }}>{done} created</span>
+            </div>
+            <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>
+              It is on their record and on the list, and Juhi has been tagged in Slack. The ticket
+              itself opens in the support ticket system.
+            </div>
+            <Btn variant="primary" full onClick={onClose}>Done</Btn>
+          </div>
+        ) : (
+          <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <RefLabel>Who it is for</RefLabel>
+              <select value={who} onChange={e => setWho(e.target.value)}
+                style={{ width: '100%', border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+                  padding: '10px 12px', background: T.card, fontSize: 13.5 }}>
+                {people.map(p => <option key={p.id} value={p.id}>{p.name} · {p.business}</option>)}
+              </select>
+            </div>
+            <div>
+              <RefLabel>What is wrong</RefLabel>
+              <input value={subject} onChange={e => setSubject(e.target.value)}
+                placeholder="In their words, one line"
+                style={{ width: '100%', border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+                  padding: '10px 12px', background: T.card, fontSize: 13.5 }} />
+            </div>
+            <div>
+              <RefLabel>How they told us</RefLabel>
+              <select value={channel} onChange={e => setChannel(e.target.value)}
+                style={{ width: '100%', border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+                  padding: '10px 12px', background: T.card, fontSize: 13.5 }}>
+                {['phone', 'app', 'whatsapp', 'website', 'facebook', 'email', 'form', 'academy']
+                  .map(k => <option key={k} value={k}>{CHANNELS[k].label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
+              <Btn variant="quiet" onClick={onClose}>Cancel</Btn>
+              <div style={{ flex: 1 }} />
+              <Btn variant="primary" big icon="check" disabled={!subject.trim()} onClick={create}>
+                Create it
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// The answer a ticket produced is the one part of a ticket that stays in this surface: it is
+// what the chatbot learns from, and it is the payoff of watching every conversation in one place.
+const AnswerCard = ({ t, demo }) => {
+  const [state, setState] = useState(t.answer ? t.answer.state : null);
+  if (!t.answer) return null;
+  return (
+    <div style={{ background: T.primarySofter, border: '1px solid #D5D7FB',
+      borderRadius: T.radiusSm, padding: 14 }}>
+      <SectionTitle hint={`From ${t.id}. The bot had nothing for this one, so your answer is what fills the gap.`}>
+        The answer this produced
+      </SectionTitle>
+      <div style={{ fontSize: 13.5, fontWeight: 600 }}>“{t.answer.q}”</div>
+      {state === 'live' ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12 }}>
+          <Icon name="check" size={15} color={T.green} />
+          <span style={{ fontSize: 13, color: T.textSoft }}>
+            Signed off. It is in the chatbot and in the help article queue.
+          </span>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
+          <Pill tone="amber">Waiting for sign off</Pill>
+          <div style={{ flex: 1 }} />
+          <Btn variant="primary" icon="check" onClick={() => setState('live')}>Sign it off</Btn>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TicketLane = ({ p, demo, onOpenTicket, onNewTicket }) => {
+  const rows = ticketsOf(p).map(t => ({ ...t, person: p }));
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <LaneSource info={LANE_INFO.ticket} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1, fontSize: 13, color: T.muted }}>
+          {rows.length ? `${rows.length} raised by or for ${p.name.split(' ')[0]}` : 'Nothing raised yet'}
+        </div>
+        <Btn variant="secondary" icon="ticket" onClick={onNewTicket}>New ticket</Btn>
+      </div>
+      <TicketList rows={rows} demo={demo} onOpenTicket={onOpenTicket}
+        empty={`Nothing raised by ${p.name.split(' ')[0]}. A ticket lands here whether it came from the chat, WhatsApp, the website, the help form or from inside a video.`} />
+      {rows.filter(t => t.answer).map(t => <AnswerCard key={t.id} t={t} demo={demo} />)}
+      <Note>
+        The ticket itself lives in the support ticket system, which already has the workflow, the
+        internal notes and the reply to the customer. This is the list and the link.
+      </Note>
+    </div>
+  );
+};
+
 
 // --- middle column: one thread, read through a filter ---
 // The demo runs on one clock: Wednesday 26 August 2026, 10:22 AM AEST. Every event
@@ -1062,7 +2104,8 @@ const EventRow = ({ t, first, tail, onOpenCalls }) => {
   const tone = TONES[t.tone] || TONES.neutral;
   // An anchor gets a badge: something went wrong, or a human was involved, or this is
   // where the story starts. Everything else is a dot, so the anchors carry the shape.
-  const anchor = t.tone === 'red' || t.tone === 'amber' || t.lane === 'call' || t.lane === 'signup';
+  const anchor = t.tone === 'red' || t.tone === 'amber' || t.lane === 'call'
+    || t.lane === 'signup' || t.lane === 'ticket';
   const alarm = t.tone === 'red';
   const opens = t.lane === 'call' && !!onOpenCalls;
   // A boxed row pulls back by its own padding so every title in the thread starts on
@@ -1080,6 +2123,9 @@ const EventRow = ({ t, first, tail, onOpenCalls }) => {
       {t.body && <div style={{ fontSize: 13.5, lineHeight: 1.6, color: T.textSoft, marginTop: 3 }}>{t.body}</div>}
       {t.video && <Meter pct={t.video.pct} />}
       {t.email && <Meta tone={t.email.tone}>{t.email.state}</Meta>}
+      {/* The one event on the page the product database cannot see. Kept, and labelled, so the
+          limit Shishir drew is visible rather than argued about later. */}
+      {t.frontEnd && <Meta tone="amber">Front end only, not in the database</Meta>}
     </Fragment>
   );
 
@@ -1122,10 +2168,46 @@ const EventRow = ({ t, first, tail, onOpenCalls }) => {
   );
 };
 
-const Thread = ({ rows, note, onOpenCalls, showGaps }) => {
+// Where a lane's data comes from, said out loud on the lane itself. Shishir would not
+// commit to how deep the Mixpanel feed goes, so the app-activity lane says that rather than
+// letting the demo imply the fidelity is free. He also assumed the video data came from
+// Mixpanel; it comes from the Academy's own player, which is the answer given on the call.
+// What each lane is fed by, and whether that feed exists yet. Shishir went through this line
+// by line on 3 Sep: "everything, messages, tickets is going to go live. Contacted. Call. Email
+// I'm not sure, that requires a different connection." Johann on the video data: "only then,
+// nothing before then." So a lane that is not wired says so instead of demoing as if it were.
+const LANE_INFO = {
+  chat: { live: true,
+    source: 'Read out of the existing chatbot, not a replacement for it. Ashish wires the ingest, and Johann has already said a 20 minute lag is fine.' },
+  ticket: { live: true,
+    source: 'Tickets arrive from the chat, the help form, WhatsApp, the website and from us. The ticket itself lives in the support ticket system.' },
+  behaviour: { live: true,
+    source: 'Read from the product database: things they created, changed or deleted. Not Mixpanel, which only sees the front end, and not clicks, which Shishir called unusable noise.' },
+  content: { live: false, blocker: 'Waiting on the video library',
+    source: 'The B2C video library is not linked to users yet. This is what it shows the day it is, and nothing before then.' },
+  email: { live: false, blocker: 'Waiting on the support inbox',
+    source: 'Application email and the GoHighLevel marketing email are separate systems, and nothing goes out from the app side today. Reading the support inbox needs its own approval.' },
+  call: { live: true,
+    source: 'Calls go out through Twilio, which Ashish already has access to. Recorded, transcribed and written up.' },
+};
+
+const LaneSource = ({ info }) => info ? (
+  <div style={{ padding: '10px 12px', background: info.live ? T.fieldBg : T.amberSoft,
+    border: `1px solid ${info.live ? T.border : T.amberBorder}`, borderRadius: T.radiusSm,
+    marginBottom: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+      <Icon name={info.live ? 'spark' : 'alert'} size={13} color={info.live ? T.mutedSoft : T.amber} />
+      <Pill tone={info.live ? 'green' : 'amber'}>{info.live ? 'Live at launch' : info.blocker}</Pill>
+    </div>
+    <div style={{ fontSize: 12, color: info.live ? T.muted : T.amber, lineHeight: 1.55 }}>{info.source}</div>
+  </div>
+) : null;
+
+const Thread = ({ rows, note, onOpenCalls, showGaps, info }) => {
   const groups = byDay(rows);
   return (
     <div style={{ width: '100%', maxWidth: 700, margin: '0 auto', padding: '9px 22px 28px' }}>
+      <LaneSource info={info} />
       {groups.map((g, gi) => {
         const next = groups[gi + 1];
         const gap = next && dayNum(g.d) <= TODAY_NUM ? dayNum(g.d) - dayNum(next.d) : 0;
@@ -1146,18 +2228,148 @@ const Thread = ({ rows, note, onOpenCalls, showGaps }) => {
   );
 };
 
+// Juhi asked whether Book replaces the web app's "schedule an onboarding session". It does,
+// and the kinds are named because she still needs to know which one she is walking into. The
+// screen share is the one that matters: it is what support actually uses for a real issue.
+const MEETING_KINDS = [
+  { key: 'onboarding', label: 'Onboarding session', body: '20 minutes, Google Meet. The same slot they can book themselves from the app.' },
+  { key: 'setup', label: 'Setup call', body: 'Phone, 10 minutes. For one specific thing they are stuck on.' },
+  { key: 'screen', label: 'Screen share, to see the problem', body: 'Google Meet, recorded, so the developers can watch the bug instead of reading your description of it.' },
+  { key: 'training', label: 'Training session', body: '45 minutes, Google Meet, recorded. For a practice putting a team through SPM.' },
+];
+
+const BookModal = ({ p, onClose }) => {
+  const [kind, setKind] = useState('onboarding');
+  const [done, setDone] = useState(false);
+  const chosen = MEETING_KINDS.find(k => k.key === kind);
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.55)', zIndex: 95,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, animation: 'fade .16s ease' }}
+      onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.card, borderRadius: 16,
+        boxShadow: T.shadowLg, width: 'min(520px, 100%)', maxHeight: '90vh', overflow: 'auto',
+        animation: 'rise .22s cubic-bezier(.22,1,.36,1) both' }}>
+        <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex',
+          alignItems: 'center', gap: 12 }}>
+          <Icon name="video" size={18} color={T.primary} />
+          <div style={{ flex: 1, fontWeight: 700, fontSize: 15.5 }}>Book time with {p.name.split(' ')[0]}</div>
+          <button data-btn="quiet" onClick={onClose} style={{ border: 'none', background: 'transparent',
+            padding: 4, display: 'flex' }}><Icon name="x" size={17} color={T.muted} /></button>
+        </div>
+        {done ? (
+          <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="check" size={18} color={T.green} />
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{chosen.label} booked for Thursday 11:00 AM</span>
+            </div>
+            <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>
+              It lands on their record, not in a second calendar, and the invitation goes out with
+              the Meet link on it. Recording is on, so the write up is done for you.
+            </div>
+            <Btn variant="primary" full onClick={onClose}>Done</Btn>
+          </div>
+        ) : (
+          <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {MEETING_KINDS.map(k => (
+              <button key={k.key} data-row onClick={() => setKind(k.key)}
+                style={{ textAlign: 'left', border: `1px solid ${kind === k.key ? T.primary : T.border}`,
+                  background: kind === k.key ? T.primarySofter : T.card, borderRadius: T.radiusSm,
+                  padding: '12px 14px' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{k.label}</div>
+                <div style={{ fontSize: 12.5, color: T.muted, marginTop: 3, lineHeight: 1.5 }}>{k.body}</div>
+              </button>
+            ))}
+            <div style={{ display: 'flex', gap: 9, marginTop: 4 }}>
+              <Btn variant="quiet" onClick={onClose}>Cancel</Btn>
+              <div style={{ flex: 1 }} />
+              <Btn variant="primary" big icon="video" onClick={() => setDone(true)}>Send the invitation</Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Shishir asked for this beside Call: "if we can add message, so that they can message on
+// WhatsApp, sorry, SMS or WhatsApp." Both go out on the number they already know.
+const MessageModal = ({ p, onClose }) => {
+  const [via, setVia] = useState('whatsapp');
+  const [text, setText] = useState('');
+  const [sent, setSent] = useState(false);
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.55)', zIndex: 95,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      animation: 'fade .16s ease' }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ background: T.card, borderRadius: 16,
+        boxShadow: T.shadowLg, width: 'min(520px, 100%)', animation: 'rise .22s cubic-bezier(.22,1,.36,1) both' }}>
+        <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex',
+          alignItems: 'center', gap: 12 }}>
+          <Icon name="chat" size={17} color={T.primary} />
+          <div style={{ flex: 1, fontWeight: 700, fontSize: 15.5 }}>Message {p.name.split(' ')[0]}</div>
+          <button data-btn="quiet" onClick={onClose} style={{ border: 'none', background: 'transparent',
+            padding: 4, display: 'flex' }}><Icon name="x" size={17} color={T.muted} /></button>
+        </div>
+        {sent ? (
+          <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="check" size={18} color={T.green} />
+              <span style={{ fontSize: 14.5, fontWeight: 700 }}>
+                Sent on {via === 'whatsapp' ? 'WhatsApp' : 'SMS'}
+              </span>
+            </div>
+            <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>
+              It lands in the same thread as everything else they have said to us, and their reply
+              comes back to the same place.
+            </div>
+            <Btn variant="primary" full onClick={onClose}>Done</Btn>
+          </div>
+        ) : (
+          <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[{ k: 'whatsapp', l: 'WhatsApp' }, { k: 'sms', l: 'SMS' }].map(o => (
+                <button key={o.k} data-btn="quiet" onClick={() => setVia(o.k)}
+                  style={{ flex: 1, border: `1px solid ${via === o.k ? T.primary : T.border}`,
+                    background: via === o.k ? T.primarySofter : T.card, borderRadius: T.radiusSm,
+                    padding: '10px 12px', fontSize: 13.5, fontWeight: via === o.k ? 700 : 600,
+                    color: via === o.k ? T.primaryDark : T.textSoft }}>{o.l}</button>
+              ))}
+            </div>
+            <div style={{ fontSize: 12.5, color: T.mutedSoft }}>To {p.phone}</div>
+            <textarea value={text} onChange={e => setText(e.target.value)} rows={4}
+              placeholder={p.sayOne.lead ? `Try: ${p.sayOne.lead}` : 'Write it in your own words...'}
+              style={{ width: '100%', border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+                padding: 12, resize: 'vertical', background: T.fieldBg, fontSize: 13.5 }} />
+            <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
+              <Btn variant="quiet" onClick={onClose}>Cancel</Btn>
+              <div style={{ flex: 1 }} />
+              <Btn variant="primary" big icon="chat" disabled={!text.trim()} onClick={() => setSent(true)}>
+                Send
+              </Btn>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // --- screen 2: the person, 3 columns ---
-const PersonScreen = ({ id, onBack, onOpen, onCall, agentName }) => {
+const PersonScreen = ({ id, onBack, onOpen, onCall, agentName, demo, onContact,
+                       onOpenTicket, onNewTicket, onMessage }) => {
   const p = byId(id);
-  const [lane, setLane] = useState(p.chat.state === 'needs_you' ? 'chat' : 'all');
+  const startLane = p.chat.state === 'needs_you' ? 'chat' : 'all';
+  const [lane, setLane] = useState(startLane);
   const [chatState, setChatState] = useState(p.chat.state);
   const [msgs, setMsgs] = useState(p.chat.messages);
+  const [booking, setBooking] = useState(false);
 
   // Moving between people must never leak one person's conversation into another's.
   useEffect(() => {
-    setLane(p.chat.state === 'needs_you' ? 'chat' : 'all');
+    setLane(startLane);
     setChatState(p.chat.state);
     setMsgs(p.chat.messages);
+    setBooking(false);
   }, [p.id]);
 
   const rows = lane === 'all' ? p.timeline
@@ -1168,9 +2380,13 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName }) => {
     : chatState === 'you' ? { tone: 'green', label: 'You are replying' }
     : chatState === 'bot' ? { tone: 'neutral', label: 'Bot active' } : null;
 
+  const st = statusOf(p, demo);
+  const due = callDue(p, demo);
+  const openTickets = ticketsOf(p).filter(t => tStatus(t, demo) !== 'closed').length;
+
   return (
     <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-      <PeopleRail currentId={id} onOpen={onOpen} />
+      <PeopleRail currentId={id} onOpen={onOpen} product={prodOf(p)} demo={demo} stream={streamOf(p)} />
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '14px 22px 0', borderBottom: `1px solid ${T.border}`,
@@ -1182,19 +2398,40 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName }) => {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
                 <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>{p.name}</h1>
-                <Pill tone={p.statusTone}>{p.status}</Pill>
+                <Pill tone={st.tone}>{st.label}</Pill>
                 {chatPill && <Pill tone={chatPill.tone}>{chatPill.label}</Pill>}
+                {p.unverified && <Pill tone="neutral">No Sole account</Pill>}
+                {openTickets > 0 && (
+                  <button data-btn="quiet" onClick={() => setLane('ticket')}
+                    style={{ border: 'none', background: 'transparent', padding: 0 }}>
+                    <Pill tone="amber"><Icon name="ticket" size={11} />{openTickets} open</Pill>
+                  </button>
+                )}
               </div>
               <div style={{ color: T.mutedSoft, fontSize: 12.5, marginTop: 2 }}>
-                {p.business} · {p.city} · {p.localTime} their time
+                {p.business} · {p.phone}{p.localTime ? ` · ${p.localTime} their time` : ''}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {bucketOf(p, demo) === 'now' && (
+                <Btn variant="secondary" icon="check" onClick={() => onContact(p.id)}>Contacted</Btn>
+              )}
               <Btn variant={p.recommend.label === 'Call' ? 'primary' : 'secondary'} icon="phone" onClick={onCall}>Call</Btn>
-              <Btn variant="secondary" icon="mail">Email</Btn>
-              <Btn variant="secondary" icon="video">Book</Btn>
+              {/* Shishir: "along with call, if we can add message, so that they can message on
+                  WhatsApp, sorry, SMS or WhatsApp." Email is not wired: application mail and the
+                  GoHighLevel marketing mail are separate systems today. */}
+              <Btn variant="secondary" icon="chat" onClick={() => onMessage(p)}>Message</Btn>
+              <Btn variant="secondary" icon="video" onClick={() => setBooking(true)}>Book</Btn>
+              <Btn variant="quiet" icon="mail" title="Not connected yet" disabled>Email</Btn>
             </div>
           </div>
+          {due && (
+            <div style={{ marginTop: 10, background: T.redSoft, border: `1px solid ${T.redBorder}`,
+              borderRadius: T.radiusSm, padding: '8px 12px', fontSize: 12.5, fontWeight: 600,
+              color: T.red, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="clock" size={13} color={T.red} />{due}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 2, marginTop: 12, overflowX: 'auto' }}>
             {LANES.map(l => {
@@ -1208,6 +2445,11 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName }) => {
                     color: on ? T.primaryDark : urgent ? T.red : T.muted,
                     borderBottom: `2px solid ${on ? T.primary : 'transparent'}`, marginBottom: -1 }}>
                   {l.label}
+                  {LANE_INFO[l.key] && !LANE_INFO[l.key].live && (
+                    <span title="Not connected yet" style={{ display: 'inline-block', width: 6, height: 6,
+                      borderRadius: '50%', background: T.amberBorder, marginLeft: 6,
+                      verticalAlign: 'middle' }} />
+                  )}
                   {l.key !== 'all' && n > 0 && (
                     <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 700,
                       color: urgent ? T.red : on ? T.primaryDark : T.mutedSoft }}>{n}</span>
@@ -1224,24 +2466,31 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName }) => {
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
               width: '100%', maxWidth: 780, margin: '0 auto', padding: 22 }}>
               <ChatLane p={p} agentName={agentName} state={chatState} setState={setChatState}
-                        msgs={msgs} setMsgs={setMsgs} />
+                        msgs={msgs} setMsgs={setMsgs} presence={demo.presence} />
+            </div>
+          ) : lane === 'ticket' ? (
+            <div style={{ width: '100%', maxWidth: 860, margin: '0 auto', padding: 22 }}>
+              <TicketLane p={p} demo={demo} onOpenTicket={onOpenTicket}
+                          onNewTicket={() => onNewTicket(p.id)} />
             </div>
           ) : lane === 'call' ? (
             <div style={{ width: '100%', maxWidth: 760, margin: '0 auto', padding: 22 }}>
+              <div style={{ marginBottom: 14 }}><LaneSource info={LANE_INFO.call} /></div>
               {p.calls.length ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {p.calls.map(c => (
-                    <CallCard key={c.id} c={c} agentName={agentName}
+                    <CallCard key={c.id} c={c} agentName={agentName} onCall={onCall}
                               defaultOpen={p.calls.length === 1} />
                   ))}
                 </div>
-              ) : <Empty>No calls with {p.name.split(' ')[0]} yet.</Empty>}
+              ) : <Empty>No calls or meetings with {p.name.split(' ')[0]} yet.</Empty>}
             </div>
           ) : rows.length ? (
-            <Thread rows={rows} showGaps={lane === 'all'}
+            <Thread rows={rows} showGaps={lane === 'all'} info={LANE_INFO[lane]}
                     onOpenCalls={p.calls.length ? () => setLane('call') : null} note={
-              <Note>One thread from signup to now, newest first. The tabs above are the same
-                list with the rest hidden, so nothing here is written down twice.</Note>
+              <Note>One thread from signup to now, newest first. Messages, Tickets and Calls
+                open the real thing; every other tab is this same list with the rest hidden, so
+                nothing here is written down twice.</Note>
             } />
           ) : (
             <div style={{ width: '100%', maxWidth: 700, margin: '0 auto', padding: 22 }}>
@@ -1258,6 +2507,40 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName }) => {
           {p.summary.map((s, i) => <p key={i} style={{ margin: 0 }}>{s}</p>)}
         </div>
         <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 10, lineHeight: 1.5 }}>{p.summarySource}</div>
+
+        {/* Shishir's one real objection to this panel: "this 'who this is', I think this would
+            be a bit more difficult to pull off because we don't really have that data." He is
+            right about the half that comes off the web, so the two halves are split and the
+            web half is marked for what it is. Everything above this line is data we hold. */}
+        {p.web && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${T.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+              <Icon name="globe" size={13} color={T.mutedSoft} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft,
+                textTransform: 'uppercase', letterSpacing: '0.06em' }}>From the web</span>
+              <div style={{ flex: 1 }} />
+              <Pill tone={p.web.state === 'nothing' ? 'neutral' : 'amber'}>
+                {p.web.state === 'nothing' ? 'Nothing to read' : 'Not built'}
+              </Pill>
+            </div>
+            {p.web.state === 'nothing' ? (
+              <div style={{ fontSize: 12.5, color: T.mutedSoft, lineHeight: 1.55 }}>
+                No website and no account, so there is nothing to look up. Everything above is
+                what they typed themselves, and the page says so rather than filling the gap.
+              </div>
+            ) : (
+              <Fragment>
+                {p.web.lines.map((l, i) => (
+                  <div key={i} style={{ fontSize: 12.5, color: T.mutedSoft, lineHeight: 1.55 }}>{l}</div>
+                ))}
+                <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 7, lineHeight: 1.5 }}>
+                  What reading a customer's website would give us, greyed because nobody has
+                  built it. It is deliberately not mixed into the summary above.
+                </div>
+              </Fragment>
+            )}
+          </div>
+        )}
 
         {p.sayOne.lead && (
           <div style={{ marginTop: 18, background: T.primarySofter, border: '1px solid #D5D7FB',
@@ -1286,37 +2569,87 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName }) => {
         <RefRow k="Mobile" v={p.phone} strong />
         <RefRow k="Email" v={p.email} />
         <RefRow k="Location" v={p.city} />
-        <RefRow k="User ID" v={p.userId} />
+        <RefRow k={prodOf(p) === 'spm' ? 'Practice ID' : 'User ID'}
+                v={p.userId || 'None. They have never signed in.'} />
         <RefRow k="Platform" v={p.platform} />
 
-        <RefLabel>Business</RefLabel>
-        <RefRow k="Business" v={p.business} strong />
-        <RefRow k="Trade" v={p.trade} />
-        <RefRow k="Website" v={p.website} />
-        <RefRow k="ABN" v={p.abn} />
+        <RefLabel>{prodOf(p) === 'spm' ? 'Practice' : 'Business'}</RefLabel>
+        <RefRow k={prodOf(p) === 'spm' ? 'Practice' : 'Business'} v={p.business} strong />
+        <RefRow k={prodOf(p) === 'spm' ? 'Their role' : 'Trade'} v={p.trade} />
+        {p.seats && <RefRow k="Seats" v={p.seats} />}
+        {p.clients && <RefRow k="Client list" v={p.clients} />}
+        <RefRow k="Website" v={p.website || 'Not given'} />
+        <RefRow k="ABN" v={p.abn || 'Not given'} />
 
         <RefLabel>Subscription</RefLabel>
         <RefRow k="Plan" v={p.plan} strong />
         <RefRow k="Status" v={p.subStatus} />
-        <RefRow k="Trial day" v={p.trialDay} />
-        <RefRow k="Renews" v={p.renewal} />
+        {p.trialDay && <RefRow k="Trial day" v={p.trialDay} />}
+        <RefRow k="Renews" v={p.renewal || 'No subscription'} />
+        {/* Johann asked Shishir for the cancel reasons in the same breath as the churn calls.
+            A churn call that does not open with what they told us on the way out is a cold
+            call, so it sits here and it is what the opening line is built from. */}
+        {p.cancelledOn && <RefRow k="Cancelled" v={p.cancelledOn} />}
+        {p.cancelReason && (
+          <div style={{ marginTop: 8, background: T.redSoft, border: `1px solid ${T.redBorder}`,
+            borderRadius: T.radiusSm, padding: '10px 12px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.red, textTransform: 'uppercase',
+              letterSpacing: '0.06em', marginBottom: 4 }}>Why they left</div>
+            <div style={{ fontSize: 12.5, color: T.textSoft, lineHeight: 1.55 }}>“{p.cancelReason}”</div>
+            <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 5 }}>
+              What they typed into the cancel form. Nobody has been back to them about it.
+            </div>
+          </div>
+        )}
 
         <RefLabel>Account</RefLabel>
-        <RefRow k="Joined" v={p.joined} />
+        <RefRow k="Joined" v={p.joined || 'Never signed up'} />
         <RefRow k="Last active" v={p.lastActive} />
-        <RefRow k="Chat messages" v={p.totalMessages} />
+        <RefRow k="Messages" v={p.totalMessages} />
         <RefRow k="Came from" v={p.source} />
       </div>
+
+      {booking && <BookModal p={p} onClose={() => setBooking(false)} />}
     </div>
   );
 };
 
 // --- the call itself ---
-const CallOverlay = ({ p, onEnd, onCancel }) => {
-  const [secs, setSecs] = useState(0);
-  useEffect(() => { const t = setInterval(() => setSecs(s => s + 1), 1000); return () => clearInterval(t); }, []);
-  const mm = String(Math.floor(secs / 60)).padStart(2, '0');
-  const ss = String(secs % 60).padStart(2, '0');
+// Two things came out of the meetings and both are here. Shishir: "there's complexities
+// around Twilio, the calls and all, how good, bad, the connection is", so the call rings
+// before it connects and it ends on a disposition rather than vanishing. Juhi: "I am
+// chatting with the persons same time I am on the call with the other customer", so it
+// minimises to a bar instead of holding the whole screen.
+const DISPOSITIONS = [
+  { key: 'sorted', label: 'Sorted on the call', tone: 'green' },
+  { key: 'callback', label: 'Call them back', tone: 'blue' },
+  { key: 'noanswer', label: 'No answer', tone: 'amber' },
+  { key: 'wrong', label: 'Wrong number', tone: 'neutral' },
+];
+
+const CallBar = ({ p, secs, onExpand, onEnd }) => (
+  <div style={{ position: 'fixed', left: 16, bottom: 16, zIndex: 92, background: T.text,
+    color: '#fff', borderRadius: 12, boxShadow: T.shadowLg, padding: '10px 12px',
+    display: 'flex', alignItems: 'center', gap: 12, animation: 'rise .18s ease' }}>
+    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#F87171',
+      animation: 'livedot 1.6s infinite' }} />
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: 13, fontWeight: 700 }}>{p.name.split(' ')[0]}</div>
+      <div className="tnum" style={{ fontSize: 11.5, color: '#C7CAD1' }}>{mmss(secs)} · on a call</div>
+    </div>
+    <button data-btn="quiet" onClick={onExpand} title="Bring the call back up"
+      style={{ border: '1px solid rgba(255,255,255,0.25)', background: 'transparent', color: '#fff',
+        borderRadius: 8, padding: '6px 10px', fontSize: 12.5, fontWeight: 600 }}>Open</button>
+    <button data-btn="quiet" onClick={onEnd}
+      style={{ border: 'none', background: '#DC2626', color: '#fff', borderRadius: 8,
+        padding: '6px 10px', fontSize: 12.5, fontWeight: 600 }}>End</button>
+  </div>
+);
+
+const CallOverlay = ({ p, onEnd, onCancel, onMinimise, secs, phase, setPhase }) => {
+  const [meet, setMeet] = useState(false);
+  const [dispo, setDispo] = useState(null);
+  const ringing = phase === 'ringing';
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,17,23,0.55)', zIndex: 90,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, animation: 'fade .16s ease' }}>
@@ -1325,100 +2658,469 @@ const CallOverlay = ({ p, onEnd, onCancel }) => {
         <div style={{ padding: '20px 24px', borderBottom: `1px solid ${T.border}`,
           display: 'flex', alignItems: 'center', gap: 14 }}>
           <Avatar name={p.name} size={44} />
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{p.name}</div>
             <div style={{ fontSize: 13, color: T.muted }}>{p.phone}</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: T.red, animation: 'livedot 1.6s infinite' }} />
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{mm}:{ss}</div>
-          </div>
+          {ringing ? (
+            <Pill tone="amber"><Icon name="phone" size={11} />Ringing</Pill>
+          ) : (
+            <Fragment>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: T.red, animation: 'livedot 1.6s infinite' }} />
+                <div className="tnum" style={{ fontWeight: 700, fontSize: 16 }}>{mmss(secs)}</div>
+              </div>
+              <button data-btn="quiet" onClick={onMinimise} title="Keep the call, use the rest of the screen"
+                style={{ border: `1px solid ${T.border}`, background: T.card, borderRadius: 8,
+                  padding: '6px 8px', display: 'flex' }}>
+                <Icon name="minimise" size={16} color={T.muted} />
+              </button>
+            </Fragment>
+          )}
         </div>
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {p.sayOne.lead && (
-            <div>
-              <SectionTitle>Say this</SectionTitle>
+
+        {ringing ? (
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ fontSize: 14, color: T.textSoft }}>
+              Dialling {p.phone} through Twilio. It does not always connect first time, so the
+              screen says which state you are in rather than assuming a live call.
+            </div>
+            {p.sayOne.lead && (
               <div style={{ background: T.primarySofter, border: '1px solid #D5D7FB', borderRadius: T.radiusSm,
                 padding: '14px 16px', fontSize: 15, lineHeight: 1.6 }}>“{p.sayOne.lead}”</div>
+            )}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <Btn variant="quiet" onClick={onCancel}>Hang up</Btn>
+              <div style={{ flex: 1 }} />
+              <Btn variant="secondary" onClick={() => setPhase('live')}>They picked up</Btn>
             </div>
-          )}
-          {!!p.sayOne.spares.length && (
-            <div>
-              <SectionTitle>Then ask</SectionTitle>
-              {p.sayOne.spares.map((s, i) => (
-                <div key={i} style={{ fontSize: 13.5, color: T.textSoft, marginTop: i ? 7 : 0 }}>· “{s}”</div>
-              ))}
-            </div>
-          )}
-          <div>
-            <SectionTitle hint="Only if you want to. The call is recorded and written up for you anyway.">Notes</SectionTitle>
-            <textarea placeholder="Anything you want to remember..." rows={3}
-              style={{ width: '100%', border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
-                padding: 12, resize: 'vertical', background: T.fieldBg }} />
           </div>
-        </div>
-        <div style={{ padding: '16px 24px', borderTop: `1px solid ${T.border}`, background: T.fieldBg,
-          borderRadius: '0 0 16px 16px', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Btn variant="quiet" onClick={onCancel}>Cancel</Btn>
-          <div style={{ flex: 1 }} />
-          <Btn variant="primary" big icon="check" onClick={onEnd}>End call</Btn>
-        </div>
+        ) : dispo ? (
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="check" size={18} color={T.green} />
+              <span style={{ fontSize: 14.5, fontWeight: 700 }}>Marked as: {dispo.label}</span>
+            </div>
+            <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>
+              The recording, the transcript, what you agreed and the write up land on
+              {' '}{p.name.split(' ')[0]}'s record. You do not have to type any of it.
+            </div>
+            <Btn variant="primary" full onClick={onEnd}>Back to the list</Btn>
+          </div>
+        ) : (
+          <Fragment>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {meet ? (
+                <div style={{ background: T.blueSoft, border: `1px solid ${T.blueBorder}`,
+                  borderRadius: T.radiusSm, padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <Icon name="video" size={16} color={T.blue} />
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: T.blue }}>Screen share started, recording on</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: T.textSoft, marginTop: 6, lineHeight: 1.6 }}>
+                    The Meet link went into your chat with {p.name.split(' ')[0]} so you did not
+                    have to hang up. The recording goes on the ticket, which is how a developer
+                    sees the bug without you writing it up.
+                  </div>
+                </div>
+              ) : null}
+              {p.sayOne.lead && (
+                <div>
+                  <SectionTitle>Say this</SectionTitle>
+                  <div style={{ background: T.primarySofter, border: '1px solid #D5D7FB', borderRadius: T.radiusSm,
+                    padding: '14px 16px', fontSize: 15, lineHeight: 1.6 }}>“{p.sayOne.lead}”</div>
+                </div>
+              )}
+              {!!p.sayOne.spares.length && (
+                <div>
+                  <SectionTitle>Then ask</SectionTitle>
+                  {p.sayOne.spares.map((s, i) => (
+                    <div key={i} style={{ fontSize: 13.5, color: T.textSoft, marginTop: i ? 7 : 0 }}>· “{s}”</div>
+                  ))}
+                </div>
+              )}
+              <div>
+                <SectionTitle hint="Only if you want to. The call is recorded and written up for you anyway.">Notes</SectionTitle>
+                <textarea placeholder="Anything you want to remember..." rows={3}
+                  style={{ width: '100%', border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+                    padding: 12, resize: 'vertical', background: T.fieldBg }} />
+              </div>
+              <div>
+                <SectionTitle hint="Juhi: for a small thing the phone is enough, but if the issue is real she needs to see their screen.">
+                  How it ended
+                </SectionTitle>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {DISPOSITIONS.map(d => (
+                    <Btn key={d.key} variant="secondary" onClick={() => setDispo(d)}>{d.label}</Btn>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: `1px solid ${T.border}`, background: T.fieldBg,
+              borderRadius: '0 0 16px 16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              {!meet && (
+                <Btn variant="secondary" icon="video" onClick={() => setMeet(true)}>Need to see their screen</Btn>
+              )}
+              <div style={{ flex: 1 }} />
+              <Btn variant="primary" big icon="check" onClick={() => setDispo(DISPOSITIONS[0])}>End call</Btn>
+            </div>
+          </Fragment>
+        )}
       </div>
     </div>
   );
 };
 
-// --- recent calls: the manager's view ---
-const ALL_CALLS = PEOPLE.flatMap(p => (p.calls || []).map(c => ({ ...c, person: p })));
-const RecentScreen = ({ onOpen }) => (
-  <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18,
-    maxWidth: 1000, margin: '0 auto', padding: '28px 24px 80px', width: '100%' }}>
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>Recent calls</h1>
-      <div style={{ color: T.muted, fontSize: 13.5, marginTop: 5 }}>Everyone the team has spoken to.</div>
-    </div>
-    <Card pad={0}>
-      <div data-cols style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr .6fr .7fr 1.2fr', gap: 14,
-        padding: '12px 18px', borderBottom: `1px solid ${T.border}`, fontSize: 11.5, fontWeight: 700,
-        color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        <div>Who</div><div>When</div><div>How</div><div>Length</div><div>How it went</div>
+// --- calls and meetings: the manager's view ---
+const callsFor = (product) => PEOPLE
+  .filter(p => prodOf(p) === product)
+  .flatMap(p => (p.calls || []).map(c => ({ ...c, person: p })));
+
+const CALL_COLS = '1.5fr .9fr .55fr .8fr .8fr 1.15fr';
+const RecentScreen = ({ onOpen, product }) => {
+  const rows = callsFor(product);
+  return (
+    <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18,
+      maxWidth: 1060, margin: '0 auto', padding: '28px 24px 80px', width: '100%' }}>
+      <div>
+        <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>Calls and meetings</h1>
+        <div style={{ color: T.muted, fontSize: 13.5, marginTop: 5 }}>
+          Everyone the team has spoken to, out or in. A recorded Google Meet is a call with a
+          screen on it, so it sits in the same list.
+        </div>
       </div>
-      {ALL_CALLS.map((c, i) => (
-        <div key={c.id} data-row data-cols onClick={() => onOpen(c.person.id)}
-          style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr .6fr .7fr 1.2fr', gap: 14,
-            padding: '14px 18px', alignItems: 'center', cursor: 'pointer',
-            borderBottom: i === ALL_CALLS.length - 1 ? 'none' : `1px solid ${T.borderSoft}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-            <Avatar name={c.person.name} size={32} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.person.name}</div>
-              <div style={{ fontSize: 12, color: T.mutedSoft, whiteSpace: 'nowrap',
-                overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.person.business}</div>
-            </div>
+      {rows.length ? (
+        <Card pad={0}>
+          <div data-cols style={{ display: 'grid', gridTemplateColumns: CALL_COLS, gap: 14,
+            padding: '12px 18px', borderBottom: `1px solid ${T.border}`, fontSize: 11.5, fontWeight: 700,
+            color: T.mutedSoft, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div>Who</div><div>When</div><div>By</div><div>How</div><div>Type</div><div>How it went</div>
           </div>
-          <div style={{ fontSize: 13, color: T.textSoft }}>{c.when}</div>
-          <div style={{ fontSize: 13, color: T.muted }}>{c.how}</div>
-          <div style={{ fontSize: 13, color: T.muted }}>{c.len}</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <Pill tone={c.outcomeTone}>{c.outcome}</Pill>
-            {c.score !== null && <Pill tone={c.score >= 7 ? 'green' : 'amber'}>{c.score}/10</Pill>}
+          {rows.map((c, i) => (
+            <div key={c.id} data-row data-cols onClick={() => onOpen(c.person.id)}
+              style={{ display: 'grid', gridTemplateColumns: CALL_COLS, gap: 14,
+                padding: '14px 18px', alignItems: 'center', cursor: 'pointer',
+                borderBottom: i === rows.length - 1 ? 'none' : `1px solid ${T.borderSoft}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
+                <Avatar name={c.person.name} size={32} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{c.person.name}</div>
+                  <div style={{ fontSize: 12, color: T.mutedSoft, whiteSpace: 'nowrap',
+                    overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.person.business}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 13, color: T.textSoft }}>{c.when}</div>
+              <div style={{ fontSize: 13, color: T.muted }}>{c.by}</div>
+              <div style={{ fontSize: 13, color: T.muted }}>
+                {c.how}
+                <div style={{ fontSize: 11.5, color: T.mutedSoft }}>
+                  {c.dir === 'in' ? 'They rang us' : 'We rang them'}
+                </div>
+              </div>
+              <div><Pill tone={callType(c).tone}>{callType(c).label}</Pill></div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <Pill tone={c.outcomeTone}>{c.outcome}</Pill>
+                {c.score !== null && <Pill tone={c.score >= 7 ? 'green' : 'amber'}>{c.score}/10</Pill>}
+              </div>
+            </div>
+          ))}
+        </Card>
+      ) : (
+        <Empty>No calls on this product yet.</Empty>
+      )}
+      <Note>
+        Click any row to open that call inside the person it belongs to. Nothing lives on its
+        own. Scores are illustrative: the call guide they are marked against has not been
+        written, so treat the numbers as a placeholder.
+      </Note>
+    </div>
+  );
+};
+
+// --- the tickets board ---
+// Shishir asked for this twice in the same conversation: "hopefully a Kanban board or
+// something. Very simple Kanban board, where I'll be able to see all the lists and things
+// that have been opened up against us." 4 columns, no drag, and every card is a link back
+// into the person, because the record is still the spine.
+const TicketsScreen = ({ onOpen, product, demo, onOpenTicket, onNewTicket }) => {
+  const [copied, setCopied] = useState(false);
+  const rows = ALL_TICKETS.filter(t => (t.product || 'sole') === product)
+    .concat((demo.made || []).filter(t => (t.product || 'sole') === product));
+  const open = rows.filter(t => tStatus(t, demo) !== 'closed');
+  return (
+    <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18,
+      maxWidth: 1240, margin: '0 auto', padding: '28px 24px 80px', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 260 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>Tickets</h1>
+          <div style={{ color: T.muted, fontSize: 13.5, marginTop: 5 }}>
+            {open.length} open of {rows.length}. Everything raised against us, whichever doorstep it
+            came through. The ticket itself opens in the support ticket system.
           </div>
         </div>
-      ))}
-    </Card>
-    <Note>Click any row to open that call inside the person it belongs to. Nothing lives on its own.</Note>
+        <Btn variant="primary" icon="ticket" onClick={() => onNewTicket(null)}>New ticket</Btn>
+      </div>
+
+      {/* Shishir: "I want to give them a link. Here's the link, they will go there, there will be
+          a form presented. That form feeds into this ticket." */}
+      <Card style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }} pad={14}>
+        <Icon name="globe" size={16} color={T.primary} />
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ fontSize: 13, fontWeight: 700 }}>The help form anyone can be sent</div>
+          <div style={{ fontSize: 12.5, color: T.muted, marginTop: 2 }}>
+            getsole.io/help · no Sole account needed, and every submission tags Juhi in Slack
+          </div>
+        </div>
+        <Btn variant="secondary" icon={copied ? 'check' : 'clip'} onClick={() => setCopied(true)}>
+          {copied ? 'Link copied' : 'Copy the link'}
+        </Btn>
+      </Card>
+
+      <TicketList rows={rows} demo={demo} showPerson onOpenTicket={onOpenTicket} onOpenPerson={onOpen}
+        empty="Nothing open on this product." />
+
+      <Note>
+        The same tickets sit on each person's record under Tickets. This is the list Shishir asked
+        for, not a second place to work: the workflow, the internal notes and the reply to the
+        customer all live in the ticket system.
+      </Note>
+    </div>
+  );
+};
+
+// --- today: the roll-up ---
+// Johann: "is there meant to be a little dashboard view over the top that says how many
+// people are waiting?" Shishir, answering him: "there'll be a dashboard for sure. How many
+// tickets are there? How many are open? And between each Sole and SPM." Both of those are
+// on this screen and every count on it is derived from the same seed data as the queue, so
+// a tile can never disagree with the list underneath it.
+//
+// The 3 blocks below the counts are hand written for the demo, like everything else here.
+// They are the shape of Johann's other ask: "what's working, what isn't, for what industry,
+// what pissed them off... what articles we need to create, why are people churning."
+const CALL_LEARNING = [
+  { line: 'Leading with the fix rather than a question', calls: 9, avg: '8.1', good: true },
+  { line: 'Getting them to do it while you are still on the phone', calls: 6, avg: '8.4', good: true },
+  { line: 'Asking "does that make sense" instead of "try it now while I am here"', calls: 7, avg: '5.4', good: false },
+  { line: 'Explaining a fix they had already tried twice', calls: 4, avg: '5.0', good: false },
+];
+const ASK_GAPS = [
+  { q: 'How do I cancel an invoice I have already sent?', asked: 5, state: 'No answer and no video. Needs writing.', tone: 'red' },
+  { q: 'Why does my Westpac business account fail to connect?', asked: 6, state: 'Answer written on SUP-1038, waiting for sign off.', tone: 'amber' },
+  { q: 'Can Sole invoice in US dollars?', asked: 3, state: 'The answer is yes, and there is nothing written down.', tone: 'amber' },
+];
+const CHURN_REASONS = [
+  { why: 'Too much work to match the bank payments', n: 4 },
+  { why: 'Went back to letting their accountant do it', n: 3 },
+  { why: 'Cannot pay staff in Sole yet', n: 2 },
+];
+
+const MiniRow = ({ left, right, sub, tone }) => (
+  <div style={{ padding: '10px 0', borderTop: `1px solid ${T.borderSoft}` }}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+      <span style={{ fontSize: 13, color: T.text, flex: 1, lineHeight: 1.5 }}>{left}</span>
+      <span className="tnum" style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+        color: tone ? (TONES[tone] || TONES.neutral).fg : T.text }}>{right}</span>
+    </div>
+    {sub && <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 3 }}>{sub}</div>}
   </div>
 );
+
+const TodayScreen = ({ product, demo, onOpen, setTab }) => {
+  const waitingNow = inBucket('now', product, demo);
+  const waits = waitingNow.map(p => p.chat.waitMins || 0).filter(Boolean);
+  const longest = waits.length ? Math.max(...waits) : 0;
+  const mine = ALL_TICKETS.filter(t => (t.product || 'sole') === product);
+  const open = mine.filter(t => tStatus(t, demo) !== 'closed');
+  const closed = mine.filter(t => tStatus(t, demo) === 'closed');
+  const callsToday = callsFor(product).filter(c => String(c.when).startsWith('Today'));
+
+  // Counted over tickets, one per thing raised against us. Counting conversations as well
+  // would count Tessa's chat and Tessa's ticket as 2 arrivals of the same problem.
+  const mix = {};
+  mine.forEach(t => { mix[t.channel] = (mix[t.channel] || 0) + 1; });
+  const mixRows = Object.keys(mix).sort((a, b) => mix[b] - mix[a]);
+  const mixTop = mixRows.length ? mix[mixRows[0]] : 1;
+
+  const split = AGENTS.map(a => ({
+    agent: a,
+    waiting: inBucket('now', a.product, demo).length,
+    open: ALL_TICKETS.filter(t => (t.product || 'sole') === a.product && tStatus(t, demo) !== 'closed').length,
+    calls: callsFor(a.product).filter(c => String(c.when).startsWith('Today')).length,
+  }));
+
+  return (
+    <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18,
+      maxWidth: 1060, margin: '0 auto', padding: '28px 24px 80px', width: '100%' }}>
+      <div>
+        <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>Today</h1>
+        <div style={{ color: T.muted, fontSize: 13.5, marginTop: 5 }}>
+          Wednesday 26 August, 10:22 AM · {AGENTS.find(x => x.product === product).productLabel}.
+          Load and learning across the team, not one agent's list.
+        </div>
+      </div>
+
+      <div data-stats style={{ display: 'flex', gap: 12 }}>
+        <Stat n={waitingNow.length} label="People waiting on us" tone={T.red} />
+        <Stat n={longest ? `${longest} min` : 'None'} label="Longest anyone has waited"
+              tone={longest > 15 ? T.red : T.text} />
+        <Stat n={open.length} label="Tickets open" tone={T.amber} />
+        <Stat n={closed.length} label="Closed today" tone={T.greenDark} />
+      </div>
+
+      {/* The 3 Sep call ended on "let's see if we can integrate our chatbot and launch", so the
+          first thing on this screen is what can actually go out and what it is waiting on. The
+          left column is Shishir's own list, in his order. */}
+      <Card>
+        <SectionTitle hint="Straight off the 3 Sep call. Nothing here is a guess about what is wired.">
+          What ships first
+        </SectionTitle>
+        <div data-two style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Pill tone="green"><Icon name="check" size={11} />Goes live now</Pill>
+            </div>
+            {['Everything, the one thread per person',
+              'Messages, read out of the existing chatbot',
+              'Tickets, as a list that opens the ticket system',
+              'Contacted, so a row can be moved',
+              'Call, out through Twilio',
+              'Message, on WhatsApp or SMS'].map((l, i) => (
+              <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', padding: '5px 0' }}>
+                <Icon name="check" size={14} color={T.green} style={{ marginTop: 3 }} />
+                <span style={{ fontSize: 13, lineHeight: 1.5 }}>{l}</span>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Pill tone="amber"><Icon name="clock" size={11} />Waiting on something</Pill>
+            </div>
+            {[['What they watched', 'The B2C video library is not linked to users yet'],
+              ['What we sent', 'Application email and the GoHighLevel marketing email are separate, and reading the support inbox needs its own approval'],
+              ['What they did', 'Needs the read connection to the product database, not Mixpanel'],
+              ['The AI activation call', 'Wanted on trials only. Support stays human']].map(([l, why], i) => (
+              <div key={i} style={{ padding: '5px 0' }}>
+                <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                  <Icon name="clock" size={14} color={T.amber} style={{ marginTop: 3 }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{l}</div>
+                    <div style={{ fontSize: 12, color: T.mutedSoft, lineHeight: 1.5, marginTop: 1 }}>{why}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <div data-two style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
+        alignItems: 'start' }}>
+        <Card>
+          <SectionTitle hint="The two products are not the same job, so they are never one number.">
+            Sole and SPM
+          </SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr .6fr .6fr .6fr', gap: 10,
+            fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase',
+            letterSpacing: '0.05em', paddingBottom: 8 }}>
+            <div>Product</div><div>Waiting</div><div>Open</div><div>Calls</div>
+          </div>
+          {split.map(s => (
+            <div key={s.agent.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr .6fr .6fr .6fr',
+              gap: 10, padding: '9px 0', borderTop: `1px solid ${T.borderSoft}`, alignItems: 'center' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{s.agent.productLabel}</div>
+                <div style={{ fontSize: 11.5, color: T.mutedSoft }}>{s.agent.name} · {s.agent.job}</div>
+              </div>
+              <div className="tnum" style={{ fontSize: 14, fontWeight: 700, color: s.waiting ? T.red : T.mutedSoft }}>{s.waiting}</div>
+              <div className="tnum" style={{ fontSize: 14, fontWeight: 700 }}>{s.open}</div>
+              <div className="tnum" style={{ fontSize: 14, fontWeight: 700 }}>{s.calls}</div>
+            </div>
+          ))}
+          <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 10, lineHeight: 1.5 }}>
+            SPM has no chatbot, so nothing arrives there by chat. Its work is calls and training
+            sessions, which is why Merlin's list has no messages in it.
+          </div>
+        </Card>
+
+        <Card>
+          <SectionTitle hint="Counted over tickets. One thread per person, whichever door they came through.">
+            Where the tickets came in
+          </SectionTitle>
+          {mixRows.length ? mixRows.map(k => (
+            <div key={k} style={{ padding: '9px 0', borderTop: `1px solid ${T.borderSoft}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}><ChannelChip id={k} showVia /></div>
+                <div style={{ width: 90, height: 5, borderRadius: 3, background: T.track, overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.round((mix[k] / mixTop) * 100)}%`, height: '100%',
+                    background: T.primary, borderRadius: 3 }} />
+                </div>
+                <span className="tnum" style={{ fontSize: 13, fontWeight: 700, width: 18,
+                  textAlign: 'right' }}>{mix[k]}</span>
+              </div>
+            </div>
+          )) : <Empty>No tickets open on this product.</Empty>}
+          <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 10, lineHeight: 1.5 }}>
+            The website chat, WhatsApp and Facebook all arrive through GoHighLevel today, and one
+            conversation can move between them. Counting where each ticket started is how we find
+            out which one to build first.
+          </div>
+        </Card>
+
+        <Card style={{ gridColumn: '1 / -1' }}>
+          <SectionTitle hint="Across the last 26 calls. A suggestion for whoever writes the call guide, not a score anyone is measured on yet.">
+            What is landing on calls, and what is not
+          </SectionTitle>
+          {CALL_LEARNING.map((l, i) => (
+            <MiniRow key={i} left={l.line} right={`${l.avg} avg`} tone={l.good ? 'green' : 'red'}
+                     sub={`${l.calls} calls`} />
+          ))}
+        </Card>
+
+        <Card>
+          <SectionTitle hint="Every ticket produces one of these, so the list writes itself.">
+            What we keep getting asked
+          </SectionTitle>
+          {ASK_GAPS.map((g, i) => (
+            <MiniRow key={i} left={`“${g.q}”`} right={`${g.asked} times`} tone={g.tone} sub={g.state} />
+          ))}
+          <div style={{ marginTop: 12 }}>
+            <Btn variant="secondary" icon="file">Write the missing ones</Btn>
+          </div>
+        </Card>
+
+        <Card>
+          <SectionTitle hint="From the cancel form, which is the only place they tell us.">
+            Why people are leaving
+          </SectionTitle>
+          {CHURN_REASONS.map((c, i) => (
+            <MiniRow key={i} left={c.why} right={`${c.n} people`} tone={i === 0 ? 'red' : null} />
+          ))}
+          <div style={{ marginTop: 12 }}>
+            <Btn variant="secondary" icon="phone" onClick={() => setTab('list')}>See who to call</Btn>
+          </div>
+        </Card>
+      </div>
+
+      <Note>
+        Company wide numbers are not here on purpose. Johann split that himself on the call:
+        cohort questions like how long it takes someone to send a first invoice belong to the
+        growth dashboard. This screen is queue load and what the calls are teaching us.
+      </Note>
+    </div>
+  );
+};
 
 // --- app ---
 // Hash routing so a refresh lands where you were, and a screen can be linked in a message:
 // #/person/p-priya, #/call/p-priya (in-call overlay), #/recent.
+const SCREENS = ['list', 'tickets', 'recent', 'today'];
 const parseHash = () => {
   const parts = String(window.location.hash || '').replace(/^#\/?/, '').split('/');
   const name = parts[0], id = parts[1];
   if (name === 'person' && byId(id)) return { name: 'person', id };
   if (name === 'call' && byId(id)) return { name: 'person', id, calling: id };
-  if (name === 'recent') return { name: 'recent' };
+  if (SCREENS.indexOf(name) > -1) return { name };
   return { name: 'list' };
 };
 
@@ -1426,8 +3128,16 @@ const App = () => {
   const [agent, setAgent] = useState('juhi');
   const [screen, setScreen] = useState(parseHash);
   const [calling, setCalling] = useState(() => parseHash().calling || null);
-  const tab = screen.name === 'recent' ? 'recent' : 'list';
-  const agentName = AGENTS.find(x => x.id === agent).name;
+  const [callPhase, setCallPhase] = useState('ringing');
+  const [callSecs, setCallSecs] = useState(0);
+  const [minimised, setMinimised] = useState(false);
+  const [demo, setDemo] = useState(EMPTY_DEMO);
+  const [stream, setStream] = useState('support');
+  const [ticket, setTicket] = useState(null);
+  const [newTicket, setNewTicket] = useState(false);
+  const [messaging, setMessaging] = useState(null);
+  const a = AGENTS.find(x => x.id === agent);
+  const tab = screen.name === 'person' ? 'list' : screen.name;
 
   useEffect(() => {
     const onHash = () => { const s = parseHash(); setScreen(s); setCalling(s.calling || null); };
@@ -1435,34 +3145,104 @@ const App = () => {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // Ring for 3 seconds, then connect. Shishir raised connection quality as a real risk, so
+  // the screen never pretends a call is live the instant you press the button.
+  useEffect(() => {
+    if (!calling) { setCallPhase('ringing'); setCallSecs(0); setMinimised(false); return; }
+    const ring = setTimeout(() => setCallPhase('live'), 3000);
+    return () => clearTimeout(ring);
+  }, [calling]);
+  useEffect(() => {
+    if (!calling || callPhase !== 'live') return;
+    const t = setInterval(() => setCallSecs(s => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [calling, callPhase]);
+
+  // Being on a call is a presence state, not a secret. It is also what hands a chat back to
+  // the bot, which is the case Juhi raised.
+  useEffect(() => {
+    setDemo(d => ({ ...d, presence: calling && callPhase === 'live' ? 'oncall'
+      : d.presence === 'oncall' ? 'available' : d.presence }));
+  }, [calling, callPhase]);
+
   const go = (s) => {
     const h = s.name === 'list' ? '#/' : `#/${s.name}${s.id ? '/' + s.id : ''}`;
     if (window.location.hash !== h) window.location.hash = h;
     setScreen(s);
   };
+  const open = (id) => go({ name: 'person', id });
+
+  const onContact = (id) => setDemo(d => ({ ...d,
+    moved: { ...d.moved, [id]: 'waiting' },
+    contacted: { ...d.contacted, [id]: '10:22 AM' } }));
+  const onStatus = (tid, key) => setDemo(d => ({ ...d, tickets: { ...d.tickets, [tid]: key } }));
+  const onNote = (tid, text) => setDemo(d => ({ ...d,
+    notes: { ...d.notes, [tid]: [...(d.notes[tid] || []), { who: a.name, when: '10:22 AM', text }] } }));
+
+  // Juhi and Merlin raising their own ticket. It joins the same list the chat, the form and
+  // WhatsApp feed, which is the whole point of there being one list.
+  const onCreate = ({ who, subject, channel }) => {
+    const person = byId(who);
+    const id = `SUP-10${44 + (demo.made || []).length}`;
+    setDemo(d => ({ ...d, made: [...(d.made || []), {
+      id, subject, channel, status: 'with_us', owner: a.name, opened: 'Today, 10:22 AM',
+      product: prodOf(person), reporter: 'internal', waitingOn: 'us',
+      firstLine: `Raised by ${a.name} on behalf of ${person.name}.`,
+      notify: 'Juhi was tagged in #support when it was created.',
+      notes: [], answer: null, dev: null, person,
+    }] }));
+    return id;
+  };
 
   // The person view is a fixed 3 column workspace, so the page itself must not scroll.
-  // The list and recent screens are ordinary documents, so they must.
+  // Every other screen is an ordinary document, so it must.
   const workspace = screen.name === 'person';
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: T.bg }}>
       <DemoBanner />
-      <TopBar agent={agent} setAgent={setAgent} tab={tab}
-              setTab={(t) => go({ name: t === 'list' ? 'list' : 'recent' })} />
+      <TopBar agent={agent} setAgent={setAgent} tab={tab} setTab={(t) => go({ name: t })}
+              presence={demo.presence} setPresence={(v) => setDemo(d => ({ ...d, presence: v }))} />
       <div className={workspace ? '' : 'scroll'} style={{ flex: 1, minHeight: 0, display: 'flex',
         flexDirection: 'column', overflowY: workspace ? 'hidden' : 'auto' }}>
-        {screen.name === 'list' && <ListScreen agent={agent} onOpen={(id) => go({ name: 'person', id })} />}
-        {screen.name === 'recent' && <RecentScreen onOpen={(id) => go({ name: 'person', id })} />}
+        {screen.name === 'list' && (
+          <ListScreen agent={agent} onOpen={open} demo={demo} onContact={onContact}
+                      stream={stream} setStream={setStream} />
+        )}
+        {screen.name === 'tickets' && (
+          <TicketsScreen onOpen={open} product={a.product} demo={demo}
+                         onOpenTicket={setTicket} onNewTicket={setNewTicket} />
+        )}
+        {screen.name === 'recent' && <RecentScreen onOpen={open} product={a.product} />}
+        {screen.name === 'today' && (
+          <TodayScreen product={a.product} demo={demo} onOpen={open}
+                       setTab={(t) => go({ name: t })} />
+        )}
         {screen.name === 'person' && (
-          <PersonScreen id={screen.id} agentName={agentName}
+          <PersonScreen id={screen.id} agentName={a.name} demo={demo}
             onBack={() => go({ name: 'list' })}
-            onOpen={(id) => go({ name: 'person', id })}
-            onCall={() => setCalling(screen.id)} />
+            onOpen={open}
+            onContact={onContact}
+            onOpenTicket={setTicket} onNewTicket={setNewTicket} onMessage={setMessaging}
+            onCall={() => { setCalling(screen.id); setMinimised(false); }} />
         )}
       </div>
-      {calling && (
-        <CallOverlay p={byId(calling)} onCancel={() => setCalling(null)} onEnd={() => setCalling(null)} />
+      {calling && !minimised && (
+        <CallOverlay p={byId(calling)} secs={callSecs} phase={callPhase} setPhase={setCallPhase}
+          onMinimise={() => setMinimised(true)}
+          onCancel={() => setCalling(null)} onEnd={() => setCalling(null)} />
       )}
+      {calling && minimised && (
+        <CallBar p={byId(calling)} secs={callSecs} onExpand={() => setMinimised(false)}
+                 onEnd={() => setCalling(null)} />
+      )}
+      {ticket && (
+        <TicketHandoff t={ticket} demo={demo} onClose={() => setTicket(null)} onOpenPerson={open} />
+      )}
+      {newTicket !== false && (
+        <NewTicketModal people={forProduct(a.product)} preset={newTicket}
+          onClose={() => setNewTicket(false)} onCreate={onCreate} />
+      )}
+      {messaging && <MessageModal p={messaging} onClose={() => setMessaging(null)} />}
     </div>
   );
 };
