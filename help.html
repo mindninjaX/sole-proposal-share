@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get help with Sole</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Draft of the public help form for Sole. Search the help articles first, then raise a ticket with our support team. Every example on this page is made up.">
+
+<!--
+  pages/help.html
+  The public help form. This is the ONE customer-facing surface in the dialer build,
+  so it carries the company's standard rather than the internal prototype's.
+
+  Self-contained on purpose: no framework, no build step, no external JavaScript, no
+  external stylesheet. It opens straight off the filesystem. Inter is named first in
+  the font stack and falls back to the system UI face when it is not installed, so
+  there is no webfont request to fail.
+
+  Design system: the tokens below are pages/dialer.html's `T` object, plus the 5 step
+  type scale (TX) and the 6 stop spacing scale (S) from the dialer design ruling.
+  Nothing here invents a size, a chip tone or a spacing value.
+
+  Two places I extended the ruling rather than breaking it, both called out in the CSS:
+    1. The page title uses the `metric` step (28/700). On a customer-facing page the H1
+       is the largest object on screen, and `metric` is the only step above `title`.
+    2. Form controls get a 44px minimum height for touch. The dialer has no public
+       form, so the scale had no control height to inherit.
+
+  Where the real POST goes: search this file for "WHERE THE REAL POST GOES".
+-->
+
+<style>
+  /* ---------- tokens: pages/dialer.html `T`, line 82 ---------- */
+  :root {
+    --primary: #5B5BF6;
+    --primary-dark: #4F46E5;
+    --primary-soft: #EEF0FF;
+    --primary-softer: #F5F6FF;
+    --primary-border: #C7C9FB;
+
+    --bg: #F5F4F8;
+    --card: #FFFFFF;
+    --border: #E5E7EB;
+    --border-soft: #ECEDF2;
+    --field-bg: #F9FAFB;
+    --row-hover: #F8F8FE;
+    --neutral-fill: #F3F4F6;
+
+    /* Greys split by role. Every one used for text clears 4.5:1 on white.
+       --faint is the only one that does not, so it never carries a word. */
+    --text: #0F1117;
+    --text-soft: #374151;
+    --muted: #5B616E;
+    --muted-soft: #6B7280;
+    --faint: #9CA3AF;
+
+    --green: #10B981;
+    --green-dark: #047857;
+    --green-soft: #ECFDF5;
+    --green-border: #A7F3D0;
+    --amber: #B45309;
+    --amber-soft: #FFFBEB;
+    --amber-border: #FCD34D;
+    --red: #DC2626;
+    --red-text: #B42318;
+    --red-soft: #FEF2F2;
+    --red-border: #FECACA;
+
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-chip: 6px;
+
+    /* S: 4px scale, 6 stops. 32 and 48 exist only as page level padding. */
+    --s-xs: 4px;
+    --s-sm: 8px;
+    --s-md: 12px;
+    --s-lg: 16px;
+    --s-xl: 20px;
+    --s-xxl: 24px;
+
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.10);
+    --ring: 0 0 0 3px rgba(91, 91, 246, 0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    color-scheme: light;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    /* TX.body is the page default: 13/400/1.55 */
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  /* ---------- TX: 5 type steps, nothing else renders text ---------- */
+  .t-metric { font-size: 28px; font-weight: 700; line-height: 1.1;  letter-spacing: -0.02em; }
+  .t-title  { font-size: 18px; font-weight: 700; line-height: 1.25; letter-spacing: -0.02em; }
+  .t-strong { font-size: 14px; font-weight: 600; line-height: 1.45; letter-spacing: -0.01em; }
+  .t-body   { font-size: 13px; font-weight: 400; line-height: 1.55; }
+  .t-label  { font-size: 12px; font-weight: 500; line-height: 1.4; }
+  .w600 { font-weight: 600; }
+  .c-muted { color: var(--muted); }
+  .c-muted-soft { color: var(--muted-soft); }
+  .c-soft { color: var(--text-soft); }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  h1, h2, h3, p { margin: 0; }
+
+  /* ---------- the draft marker ----------
+     The dialer's DemoBanner treatment: #111827 fill, #E5E7EB text, label 12/500.
+     Quiet, pinned to the very top, out of the way of the form. */
+  .demo {
+    background: #111827;
+    color: #E5E7EB;
+    padding: var(--s-sm) var(--s-lg);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  /* ---------- chrome ---------- */
+  .topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-in {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: var(--s-md) var(--s-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--s-md);
+    flex-wrap: wrap;
+  }
+  .mark { display: flex; align-items: center; gap: var(--s-sm); }
+  .mark-sq {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: 700;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+  }
+  .hours { margin-left: auto; }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 32px var(--s-xl) 48px; }
+  .lede { max-width: 620px; margin-bottom: var(--s-xxl); }
+  .lede h1 { margin-bottom: var(--s-md); }
+
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 32px;
+    align-items: start;
+  }
+
+  /* ---------- elevation: 4 roles, a thing gets exactly one ---------- */
+  .container {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--s-xl);
+  }
+  .container.flush { padding: 0; }
+
+  /* row role: no border of its own, one hairline between */
+  .row { border-bottom: 1px solid var(--border-soft); }
+  .row:last-child { border-bottom: 0; }
+
+  .fill {
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--s-md);
+  }
+
+  /* ---------- chip: 5 tones named by meaning, 2 shapes ---------- */
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 22px; padding: 0 var(--s-sm);
+    border-radius: var(--radius-chip);
+    font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+    background: var(--neutral-fill); border: 1px solid var(--border); color: var(--text-soft);
+  }
+  .chip-urgent  { background: var(--red-soft);     border-color: var(--red-border);     color: var(--red-text); }
+  .chip-blocked { background: var(--amber-soft);   border-color: var(--amber-border);   color: var(--amber); }
+  .chip-done    { background: var(--green-soft);   border-color: var(--green-border);   color: var(--green-dark); }
+  .chip-brand   { background: var(--primary-soft); border-color: var(--primary-border); color: var(--primary-dark); }
+  .chip-bare {
+    height: auto; padding: 0; background: none; border: 0;
+    color: var(--muted-soft); font-weight: 500;
+  }
+  .chip-bare .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+  .chip-bare.done .dot { background: var(--green); }
+
+  /* ---------- buttons: 3 variants, at most 1 primary per surface ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--s-sm);
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    font-family: inherit;
+    font-size: 13px; font-weight: 600;
+    padding: var(--s-sm) var(--s-md);
+    min-height: 36px;
+    cursor: pointer;
+    background: var(--card); border-color: var(--border); color: var(--text-soft);
+    transition: background .12s, border-color .12s, color .12s, filter .12s;
+  }
+  .btn-big { font-size: 14px; padding: var(--s-md) var(--s-lg); min-height: 44px; }
+  .btn-full { width: 100%; }
+  .btn-primary {
+    background: var(--primary); border-color: var(--primary-dark); color: #fff;
+    box-shadow: var(--shadow-sm);
+  }
+  .btn-primary:hover { filter: brightness(0.94); }
+  .btn-quiet { background: transparent; border-color: transparent; color: var(--muted); }
+  .btn:hover:not(.btn-primary):not(.btn-quiet) { border-color: var(--primary-border); color: var(--primary-dark); background: var(--primary-softer); }
+  .btn-quiet:hover { background: var(--neutral-fill); }
+  .btn:active { transform: translateY(0.5px); }
+
+  /* ---------- focus: visible on everything reachable ---------- */
+  a:focus-visible,
+  .btn:focus-visible,
+  summary:focus-visible,
+  .drop:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+  }
+  .drop:focus-within { border-color: var(--primary); }
+
+  /* ---------- fields ---------- */
+  .field { margin-bottom: var(--s-xl); }
+  .field:last-child { margin-bottom: 0; }
+  .field > label, .legend {
+    display: block;
+    font-size: 14px; font-weight: 600; line-height: 1.45; letter-spacing: -0.01em;
+    color: var(--text);
+    margin-bottom: var(--s-xs);
+  }
+  .hint { display: block; font-size: 12px; font-weight: 500; line-height: 1.4; color: var(--muted-soft); margin-bottom: var(--s-sm); }
+  .opt { color: var(--muted-soft); font-weight: 500; }
+
+  input[type=text], input[type=email], select, textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px; line-height: 1.55;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--s-md);
+    min-height: 44px; /* extension: touch target. The dialer has no public form. */
+  }
+  textarea { resize: vertical; min-height: 132px; }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235B616E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--s-md) center;
+    padding-right: 40px;
+  }
+  .bad input, .bad select, .bad textarea, .bad .drop { border-color: var(--red); }
+  .err {
+    display: none;
+    margin-top: var(--s-sm);
+    font-size: 12px; font-weight: 500; line-height: 1.4;
+    color: var(--red-text);
+  }
+  .bad .err { display: flex; gap: 6px; align-items: flex-start; }
+  .err svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* product picker: 2 rows in a container, radio role */
+  .picks { display: grid; gap: var(--s-sm); }
+  .pick {
+    display: flex; align-items: flex-start; gap: var(--s-md);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--s-md);
+    cursor: pointer;
+    background: var(--card);
+  }
+  .pick:hover { background: var(--row-hover); }
+  .pick input { margin: 2px 0 0; accent-color: var(--primary); width: 16px; height: 16px; }
+  .pick.on { border-color: var(--primary-border); background: var(--primary-softer); }
+
+  /* attachment */
+  .drop {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--field-bg);
+    padding: var(--s-xl);
+    text-align: center;
+  }
+  .drop.over { border-color: var(--primary); background: var(--primary-softer); }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .files { list-style: none; margin: var(--s-md) 0 0; padding: 0; }
+  .files li {
+    display: flex; align-items: center; gap: var(--s-md);
+    padding: var(--s-sm) 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .files li:last-child { border-bottom: 0; }
+  .x {
+    margin-left: auto;
+    border: 0; background: none; cursor: pointer;
+    color: var(--muted); padding: 4px; border-radius: 6px;
+    font-family: inherit;
+  }
+  .x:hover { background: var(--neutral-fill); color: var(--red-text); }
+
+  /* ---------- knowledge base first ---------- */
+  .kb { margin-top: var(--s-lg); }
+  .kb-head {
+    display: flex; align-items: center; gap: var(--s-sm);
+    padding: var(--s-md) var(--s-lg);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .art { padding: var(--s-md) var(--s-lg); }
+  .art-title {
+    font-size: 14px; font-weight: 600; line-height: 1.45; letter-spacing: -0.01em;
+    color: var(--text);
+    margin-bottom: var(--s-xs);
+  }
+  .art-acts { display: flex; flex-wrap: wrap; gap: var(--s-sm); margin-top: var(--s-md); }
+  .art-body { margin-top: var(--s-md); }
+
+  /* ---------- panels: the aside is instances of one object ---------- */
+  .panel { margin-top: var(--s-xxl); }
+  .panel:first-child { margin-top: 0; }
+  .panel-plain { border-top: 1px solid var(--border-soft); padding-top: var(--s-xl); }
+  .panel:first-child.panel-plain { border-top: 0; padding-top: 0; }
+  .panel-accent {
+    background: var(--primary-softer);
+    border: 1px solid var(--primary-border);
+    border-radius: var(--radius-sm);
+    padding: var(--s-lg);
+  }
+  .panel-title { margin-bottom: var(--s-md); }
+  .panel-accent .panel-title { color: var(--primary-dark); }
+  .panel-body { display: flex; flex-direction: column; gap: var(--s-sm); }
+  .panel-source { margin-top: var(--s-md); }
+  aside { position: sticky; top: var(--s-xl); }
+
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-md); }
+  .steps li { display: flex; gap: var(--s-md); }
+  .num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .ticks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-sm); }
+  .ticks li { display: flex; gap: var(--s-sm); }
+  /* The dot marks the first line of the item, the way a bullet does. */
+  .ticks .chip-bare { align-self: flex-start; margin-top: 7px; }
+
+  /* ---------- error summary ---------- */
+  .summary {
+    display: none;
+    background: var(--red-soft);
+    border: 1px solid var(--red-border);
+    border-radius: var(--radius-sm);
+    padding: var(--s-lg);
+    margin-bottom: var(--s-xl);
+  }
+  .summary.on { display: block; }
+  .summary ul { margin: var(--s-sm) 0 0; padding-left: var(--s-xl); }
+  .summary li { margin-top: var(--s-xs); }
+  .summary a { color: var(--red-text); }
+
+  /* ---------- outcomes ---------- */
+  .big-tick {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--green-soft); border: 1px solid var(--green-border);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: var(--s-lg);
+  }
+  .ref {
+    display: inline-flex; align-items: center; gap: var(--s-md);
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--s-md);
+    margin: var(--s-lg) 0;
+  }
+  details.seam { margin-top: var(--s-xxl); border-top: 1px solid var(--border-soft); padding-top: var(--s-lg); }
+  details.seam summary { cursor: pointer; color: var(--muted-soft); font-size: 12px; font-weight: 500; }
+  details.seam pre {
+    margin: var(--s-md) 0 0;
+    background: var(--field-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--s-md);
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-soft);
+  }
+
+  footer {
+    max-width: 1080px; margin: 0 auto;
+    padding: 0 var(--s-xl) 48px;
+  }
+  footer .in { border-top: 1px solid var(--border); padding-top: var(--s-lg); }
+  a { color: var(--primary-dark); }
+
+  /* No fill mode on purpose. With `both` the element holds the 0 opacity start frame
+     whenever animation time does not tick (a backgrounded tab, a headless capture),
+     so content that exists renders as invisible. Without it, an animation that never
+     runs leaves the element at its natural opacity. */
+  .fade { animation: fade .22s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+    .btn:active { transform: none; }
+  }
+
+  /* ---------- responsive: down to 390px ---------- */
+  @media (max-width: 900px) {
+    .cols { grid-template-columns: minmax(0, 1fr); gap: var(--s-xxl); }
+    aside { position: static; }
+  }
+  @media (max-width: 560px) {
+    main { padding: var(--s-xxl) var(--s-lg) 32px; }
+    .topbar-in { padding: var(--s-md) var(--s-lg); }
+    footer { padding: 0 var(--s-lg) 32px; }
+    .container { padding: var(--s-lg); }
+    .hours { margin-left: 0; width: 100%; }
+    .art-acts .btn { flex: 1 1 auto; }
+    .ref { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Quiet, top of the page, out of the way of the form. -->
+<div class="demo">Draft, not live yet. Nothing on this page reaches our support team, and every article, reference number and figure on it is made up.</div>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="mark">
+      <span class="mark-sq" aria-hidden="true">S</span>
+      <span class="t-strong">Sole</span>
+      <span class="t-label c-muted-soft">Help</span>
+    </div>
+    <div class="hours t-label c-muted-soft">Support is open 9:00 AM to 5:30 PM AEST, Monday to Friday</div>
+  </div>
+</header>
+
+<main>
+  <div class="lede">
+    <h1 class="t-metric">Get help with Sole</h1>
+    <p class="t-body c-muted">Tell us what is going on and we will come back by email. Start typing your subject and we will show you the articles that answer it most often, so you can skip the wait when one of them fits.</p>
+  </div>
+
+  <div class="cols">
+
+    <!-- ============ the form ============ -->
+    <div id="stage-form">
+      <form class="container" id="form" novalidate>
+
+        <div class="summary" id="summary" tabindex="-1" role="alert">
+          <div class="t-strong" style="color: var(--red-text);" id="summary-title">There are 2 things to fix</div>
+          <ul class="t-body" id="summary-list"></ul>
+        </div>
+
+        <div class="field">
+          <label for="name">Your name</label>
+          <input type="text" id="name" name="name" autocomplete="name" aria-describedby="name-err" placeholder="Priya Nair">
+          <p class="err" id="name-err"></p>
+        </div>
+
+        <div class="field">
+          <label for="email">Email we should reply to</label>
+          <span class="hint" id="email-hint">Use the address on your Sole account if you can. It is how we find your file.</span>
+          <input type="email" id="email" name="email" autocomplete="email" aria-describedby="email-hint email-err" placeholder="you@yourfirm.com.au">
+          <p class="err" id="email-err"></p>
+        </div>
+
+        <fieldset class="field" style="border: 0; margin: 0 0 var(--s-xl); padding: 0;">
+          <legend class="legend" style="padding: 0;">Which product</legend>
+          <span class="hint">This decides who picks it up, so it is worth getting right.</span>
+          <div class="picks" id="picks">
+            <label class="pick on" for="prod-sole">
+              <input type="radio" id="prod-sole" name="product" value="sole" checked>
+              <span>
+                <span class="t-strong" style="display: block;">Sole</span>
+                <span class="t-label c-muted-soft">Invoicing, expenses and tax for my own business</span>
+              </span>
+            </label>
+            <label class="pick" for="prod-spm">
+              <input type="radio" id="prod-spm" name="product" value="spm">
+              <span>
+                <span class="t-strong" style="display: block;">Sole Practice Manager</span>
+                <span class="t-label c-muted-soft">Running an accounting or bookkeeping practice</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="category">What do you need help with</label>
+          <select id="category" name="category" aria-describedby="category-err">
+            <option value="">Choose the closest one</option>
+            <option value="invoices">Invoices and payments</option>
+            <option value="banking">Bank feeds and reconciliation</option>
+            <option value="tax">BAS, GST and the ATO</option>
+            <option value="payroll">Payroll and Single Touch Payroll</option>
+            <option value="clients">Clients, contacts and who can see my file</option>
+            <option value="data">Importing or moving my data</option>
+            <option value="billing">Billing for my Sole subscription</option>
+            <option value="signin">Signing in and account access</option>
+            <option value="other">Something else</option>
+          </select>
+          <p class="err" id="category-err"></p>
+        </div>
+
+        <div class="field">
+          <label for="subject">Subject</label>
+          <span class="hint" id="subject-hint">One line in your own words. We read this first.</span>
+          <input type="text" id="subject" name="subject" maxlength="120"
+                 aria-describedby="subject-hint subject-err" autocomplete="off"
+                 placeholder="My BAS figures do not match the bank feed">
+          <p class="err" id="subject-err"></p>
+
+          <!-- Knowledge base first. Johann's requirement: the articles get a go before a
+               ticket exists, and the ticket records which ones were opened. -->
+          <div class="kb" id="kb" hidden>
+            <div class="container flush">
+              <div class="kb-head">
+                <span class="t-strong" style="flex: 1;">These usually answer it</span>
+                <span class="t-label c-muted-soft" id="kb-count"></span>
+              </div>
+              <div id="kb-list"></div>
+            </div>
+            <p class="t-label c-muted-soft" style="margin-top: var(--s-sm);">We record which of these you open and send it with your ticket, so nobody replies with an article you have already read.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="detail">What is happening</label>
+          <span class="hint" id="detail-hint">What you were doing, what you expected, and what you saw instead. Names, dates and amounts help us find it. If an ATO deadline is close, say so in the first line.</span>
+          <textarea id="detail" name="detail" rows="7" aria-describedby="detail-hint detail-err"
+                    placeholder="I lodged the March quarter on Tuesday and the GST on sales is $340 higher in Sole than in my bank feed. I have reconciled everything up to 31 March."></textarea>
+          <div style="display: flex; gap: var(--s-md); margin-top: var(--s-sm);">
+            <span class="t-label c-muted-soft tnum" id="detail-count" aria-live="off"></span>
+          </div>
+          <p class="err" id="detail-err"></p>
+        </div>
+
+        <div class="field">
+          <span class="legend" id="file-label">Attachment <span class="opt">(optional)</span></span>
+          <span class="hint" id="file-hint">A screenshot of what you saw is the single most useful thing you can add. PDF, PNG, JPG, CSV or XLSX, up to 10 MB each, 5 files at most.</span>
+          <div class="drop" id="drop">
+            <label class="btn" for="file" id="file-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              Choose files
+            </label>
+            <input class="sr-only" type="file" id="file" name="attachments" multiple
+                   accept=".pdf,.png,.jpg,.jpeg,.csv,.xlsx,image/png,image/jpeg,application/pdf,text/csv"
+                   aria-describedby="file-hint file-err">
+            <p class="t-label c-muted-soft" style="margin-top: var(--s-sm);">Or drag them onto this box</p>
+          </div>
+          <ul class="files" id="file-list"></ul>
+          <p class="err" id="file-err"></p>
+        </div>
+
+        <!-- The hidden half of the ticket contract. Nothing here is secret from the
+             customer: the line under the article list says we send it. -->
+        <input type="hidden" name="channel" value="form">
+        <input type="hidden" name="articles_shown" id="h-shown" value="">
+        <input type="hidden" name="articles_read" id="h-read" value="">
+        <input type="hidden" name="article_resolved" id="h-resolved" value="">
+        <input type="hidden" name="page" id="h-page" value="">
+        <input type="hidden" name="submitted_at" id="h-time" value="">
+
+        <div style="border-top: 1px solid var(--border-soft); padding-top: var(--s-xl); margin-top: var(--s-xxl);">
+          <button class="btn btn-primary btn-big btn-full" type="submit" id="send">Send it to support</button>
+          <p class="t-label c-muted-soft" style="margin-top: var(--s-md); text-align: center;">You get a reference number straight away, and a reply by email.</p>
+        </div>
+      </form>
+    </div>
+
+    <!-- ============ the article answered it ============ -->
+    <div id="stage-solved" hidden>
+      <div class="container">
+        <div class="big-tick" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <h2 class="t-title" id="solved-title" tabindex="-1" role="status">Good, that saved you the wait</h2>
+        <p class="t-body c-muted" style="margin-top: var(--s-md);">Nothing was sent to our team, so there is nothing to wait for. We keep a count of which articles answer things on their own, which is how we work out what to write next.</p>
+        <div class="fill" style="margin-top: var(--s-lg);">
+          <span class="t-label c-muted-soft" style="display: block;">The one that did it</span>
+          <span class="t-strong" id="solved-article" style="display: block; margin-top: var(--s-xs);"></span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: var(--s-sm); margin-top: var(--s-xl);">
+          <button class="btn" type="button" id="unsolve">Actually, I am still stuck</button>
+          <a class="btn btn-quiet" href="#" id="solved-restart">Ask about something else</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ sent ============ -->
+    <div id="stage-done" hidden>
+      <div class="container">
+        <div class="big-tick" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <h2 class="t-title" id="done-title" tabindex="-1" role="status">Your ticket is in</h2>
+        <p class="t-body c-muted" style="margin-top: var(--s-md);" id="done-sub"></p>
+
+        <div class="ref">
+          <span>
+            <span class="t-label c-muted-soft" style="display: block;">Your reference</span>
+            <span class="t-title tnum" id="done-ref" style="display: block;">SUP-0000</span>
+          </span>
+          <button class="btn btn-primary" type="button" id="copy">Copy it</button>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-soft); padding-top: var(--s-lg); margin-top: var(--s-lg);">
+          <div class="t-strong" style="margin-bottom: var(--s-md);">What happens next</div>
+          <ol class="steps t-body c-soft">
+            <li><span class="num" aria-hidden="true">1</span><span>It is in the support queue now, and the team is alerted the moment it lands.</span></li>
+            <li><span class="num" aria-hidden="true">2</span><span id="done-eta">Someone reads it and replies by email.</span></li>
+            <li><span class="num" aria-hidden="true">3</span><span>If it is quicker to talk it through, we will ask you for a time that suits.</span></li>
+          </ol>
+        </div>
+
+        <div id="done-read" hidden style="border-top: 1px solid var(--border-soft); padding-top: var(--s-lg); margin-top: var(--s-lg);">
+          <div class="t-strong" style="margin-bottom: var(--s-sm);">Sent with your ticket</div>
+          <p class="t-body c-muted">The articles you opened before raising this, so nobody sends them back to you.</p>
+          <ul class="ticks t-body c-soft" id="done-read-list" style="margin-top: var(--s-md);"></ul>
+        </div>
+
+        <!-- Left visible on purpose: this page gets handed to a developer, and the
+             payload is the part that has to survive the redesign. -->
+        <details class="seam">
+          <summary>What gets sent, for the team wiring this up</summary>
+          <pre id="done-json"></pre>
+        </details>
+
+        <div style="margin-top: var(--s-xl);">
+          <button class="btn" type="button" id="again">Raise another one</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ aside ============ -->
+    <aside>
+      <div class="panel panel-accent" id="before-send">
+        <div class="panel-title t-strong">Before you send</div>
+        <div class="panel-body t-body c-soft">
+          <p>3 things cut a day off the back and forth.</p>
+          <ul class="ticks" style="margin-top: var(--s-xs);">
+            <li><span class="chip chip-bare"><span class="dot"></span></span><span>A screenshot of the screen you are stuck on.</span></li>
+            <li><span class="chip chip-bare"><span class="dot"></span></span><span>The client, invoice number or BAS quarter it involves.</span></li>
+            <li><span class="chip chip-bare"><span class="dot"></span></span><span>What you expected to see instead.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel panel-plain">
+        <div class="panel-title t-strong">How long it takes</div>
+        <div class="panel-body t-body c-soft">
+          <p>Most tickets get a first reply inside 1 business hour, between 9:00 AM and 5:30 PM AEST, Monday to Friday.</p>
+          <p>Anything raised over a weekend is picked up on Monday morning.</p>
+        </div>
+        <p class="panel-source t-label c-muted-soft">Draft target for this page. Not a service commitment yet.</p>
+      </div>
+
+      <div class="panel panel-plain">
+        <div class="panel-title t-strong">If a deadline is today</div>
+        <div class="panel-body t-body c-soft">
+          <p>Write the date in the first line of the detail. Anything with a lodgement date inside 48 hours moves to the front of the queue.</p>
+        </div>
+      </div>
+
+      <div class="panel panel-plain">
+        <div class="panel-title t-strong">Already raised something</div>
+        <div class="panel-body t-body c-soft">
+          <p>Reply to the email we sent you and it lands back on the same ticket. A new form makes a second one, which slows both down.</p>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</main>
+
+<footer>
+  <div class="in t-label c-muted-soft">
+    Sole. Draft help form for internal review. Every name, article and figure on this page was invented for the draft.
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // The help articles. Invented for the draft, titled the way an Australian
+  // accountant or sole trader would search. `keys` is what the subject and the
+  // detail are matched against.
+  // When there is a real knowledge base, replace ARTICLES with a fetch of
+  //   GET /v1/help/articles?q=<subject>&category=<category>&product=<product>
+  // and keep the shape: { id, title, blurb, mins, excerpt }. Nothing else changes.
+  // ---------------------------------------------------------------------------
+  var ARTICLES = [
+    { id: 'inv-cancel', mins: 3,
+      title: 'Cancel or credit an invoice you have already sent',
+      blurb: 'A sent invoice cannot be deleted, so Sole reverses it with a credit note that keeps your GST straight.',
+      excerpt: 'Open the invoice, choose Cancel with a credit note, and Sole writes the reversal against the same client in the same GST period. Your client sees one cancellation email, and the original invoice number stays in your records so the quarter still adds up.',
+      keys: ['invoice', 'duplicate', 'twice', 'cancel', 'credit', 'void', 'delete', 'refund', 'wrong amount', 'resend'] },
+
+    { id: 'bas-match', mins: 4,
+      title: 'Fix a BAS that does not match your bank feed',
+      blurb: 'The 4 checks that explain most GST differences, in the order worth running them.',
+      excerpt: 'Start with unreconciled transactions inside the quarter, then invoices dated outside the period, then GST-free lines coded to GST, then manual journals. Sole shows what each check is worth in dollars, so you can see which one moves your number.',
+      keys: ['bas', 'gst', 'activity statement', 'ato', 'quarter', 'lodge', 'does not match', 'mismatch', 'difference', 'out by', 'w1', 'w2'] },
+
+    { id: 'feed-reconnect', mins: 2,
+      title: 'Reconnect a bank feed that stopped importing',
+      blurb: 'Banks expire feed access every 90 days. Reconnecting keeps everything you have already done.',
+      excerpt: 'Open Banking, pick the account with the warning, choose Reconnect, and sign in on your bank’s own screen. Nothing you have reconciled changes, and any transactions missed while the feed was down are backfilled once it is live again.',
+      keys: ['bank', 'feed', 'import', 'transactions', 'reconcile', 'reconnect', 'connection', 'cba', 'nab', 'westpac', 'anz', 'missing transactions', 'not importing', 'stopped'] },
+
+    { id: 'payroll-first', mins: 6,
+      title: 'Add an employee and run your first pay run',
+      blurb: 'What to have ready: the TFN declaration, super fund details, and the agreed rate or award.',
+      excerpt: 'Add the employee, set the pay cycle and ordinary hours, then open Pay runs and choose the period. Sole works out PAYG and super and shows you every figure before you file, and nothing reaches the ATO until you press Lodge.',
+      keys: ['payroll', 'employee', 'pay run', 'payrun', 'payslip', 'pay slip', 'super', 'wage', 'salary', 'timesheet', 'hours', 'leave', 'annual leave', 'termination'] },
+
+    { id: 'stp-setup', mins: 5,
+      title: 'Set up Single Touch Payroll reporting with the ATO',
+      blurb: 'The one-time ATO authorisation, and what to do when a lodgement comes back rejected.',
+      excerpt: 'You authorise Sole once in the ATO’s Access Manager, using the software ID on the STP settings page. A rejected lodgement lists the error code and the employee it belongs to on the pay run itself, so you fix that record and re-lodge.',
+      keys: ['stp', 'single touch', 'ato', 'lodge', 'rejected', 'software id', 'reporting', 'finalisation', 'finalise', 'payment summary'] },
+
+    { id: 'billing', mins: 2,
+      title: 'Change your plan, card or billing email',
+      blurb: 'Your subscription, the invoices we send you, and what happens to your data if you cancel.',
+      excerpt: 'Billing sits under Settings, then Subscription, where you can change plan, update the card and send our invoices to a different address. A plan change starts on your next billing date and the difference is prorated in AUD.',
+      keys: ['billing', 'plan', 'subscription', 'card', 'payment failed', 'charge', 'charged', 'price', 'pricing', 'upgrade', 'downgrade', 'cancel my subscription', 'receipt', 'invoice from sole', 'trial'] },
+
+    { id: 'signin', mins: 2,
+      title: 'Reset a password or unlock a login',
+      blurb: 'Locked out, no reset email arriving, or a code the screen will not accept.',
+      excerpt: 'Use Forgot password on the sign-in screen and the link stays valid for 60 minutes. If it does not arrive, check the spam folder and confirm the address, and an account locked by repeated attempts clears itself after 30 minutes or an owner can unlock it under Team.',
+      keys: ['password', 'login', 'log in', 'sign in', 'signin', 'locked', 'lock', 'mfa', 'two factor', '2fa', 'code', 'cannot get in', 'reset', 'email verification'] },
+
+    { id: 'migrate', mins: 8,
+      title: 'Import your clients and opening balances from another system',
+      blurb: 'The order to import in, so balances land on the right side of the ledger.',
+      excerpt: 'Contacts first, then the chart of accounts, then opening balances as at your start date, then unpaid invoices and bills. Sole checks each file before it commits anything and names the rows it cannot read, with the row numbers.',
+      keys: ['import', 'migrate', 'migration', 'xero', 'myob', 'quickbooks', 'csv', 'spreadsheet', 'opening balance', 'transfer', 'moving from', 'switch', 'data'] },
+
+    { id: 'access', mins: 3,
+      title: 'Give your accountant or bookkeeper access to your file',
+      blurb: 'Invite them by email and choose what they can see, without handing over your password.',
+      excerpt: 'Under Team, invite the email address and pick a role: an adviser sees reports and lodgements, a bookkeeper can enter and reconcile, an owner can change billing. You can remove access at any time, and the log keeps a record of what each person did.',
+      keys: ['access', 'invite', 'accountant', 'bookkeeper', 'permission', 'user', 'role', 'team', 'share', 'adviser', 'agent', 'staff', 'client access'] },
+
+    { id: 'reminders', mins: 3,
+      title: 'Chase an unpaid invoice with automatic reminders',
+      blurb: 'Set the schedule once and the follow-ups go out in your name.',
+      excerpt: 'Under Invoices, then Reminders, choose how many days after the due date each message goes out and whether the last one carries a statement. Reminders stop the moment a payment is matched, so a client who pays never gets the next email.',
+      keys: ['reminder', 'unpaid', 'overdue', 'chase', 'debtor', 'statement', 'follow up', 'not paid', 'late', 'aged receivables'] },
+
+    { id: 'allocate', mins: 3,
+      title: 'Match a payment that arrived as one lump sum',
+      blurb: 'Split a single deposit across several invoices, part payments included.',
+      excerpt: 'Open the bank line, choose Match, and tick every invoice the deposit covers. If it does not cover them all, enter what to allocate against each one and Sole leaves the remainder outstanding on the invoice it belongs to.',
+      keys: ['allocate', 'part payment', 'lump', 'match', 'deposit', 'payment', 'split', 'partial', 'overpaid', 'remittance', 'unallocated'] },
+
+    { id: 'recurring', mins: 3,
+      title: 'Set up a recurring invoice for a retainer client',
+      blurb: 'Monthly retainers, a price rise, and pausing one without losing the history.',
+      excerpt: 'Build the invoice once, set the cycle and the first issue date, and choose whether it sends on its own or waits for your approval. Pausing a schedule leaves the history and the client’s payment details in place, so you can start it again later.',
+      keys: ['recurring', 'retainer', 'repeat', 'monthly invoice', 'schedule', 'subscription invoice', 'automatic invoice', 'price rise'] }
+  ];
+
+  // A category with nothing typed yet still gets the obvious articles.
+  var BY_CATEGORY = {
+    invoices: ['inv-cancel', 'reminders', 'allocate'],
+    banking:  ['feed-reconnect', 'allocate', 'bas-match'],
+    tax:      ['bas-match', 'stp-setup', 'feed-reconnect'],
+    payroll:  ['payroll-first', 'stp-setup'],
+    clients:  ['access', 'migrate'],
+    data:     ['migrate', 'feed-reconnect'],
+    billing:  ['billing'],
+    signin:   ['signin', 'access'],
+    other:    []
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var el = {
+    form: $('form'), stageForm: $('stage-form'), stageSolved: $('stage-solved'), stageDone: $('stage-done'),
+    name: $('name'), email: $('email'), category: $('category'), subject: $('subject'), detail: $('detail'),
+    file: $('file'), drop: $('drop'), fileList: $('file-list'),
+    kb: $('kb'), kbList: $('kb-list'), kbCount: $('kb-count'),
+    summary: $('summary'), summaryTitle: $('summary-title'), summaryList: $('summary-list'),
+    detailCount: $('detail-count'),
+    hShown: $('h-shown'), hRead: $('h-read'), hResolved: $('h-resolved'), hPage: $('h-page'), hTime: $('h-time')
+  };
+
+  var shown = [];   // article ids we put in front of them
+  var read = [];    // article ids they actually opened, in order, with a time
+  var files = [];   // File objects that passed validation
+
+  el.hPage.value = (location.href || '').split('#')[0];
+
+  // ---------------------------------------------------------------------------
+  // Time, in AEST, 12-hour, because this is an Australian product.
+  // ---------------------------------------------------------------------------
+  var SYD = 'Australia/Sydney';
+  function sydParts(d) {
+    var s = d.toLocaleString('en-AU', {
+      timeZone: SYD, hour12: false, weekday: 'short',
+      hour: '2-digit', minute: '2-digit'
+    });
+    // Engines format this slightly differently, so pull the digits out defensively.
+    var hm = s.match(/(\d{1,2}):(\d{2})/);
+    return {
+      weekday: (s.split(',')[0] || '').trim(),
+      hour: hm ? parseInt(hm[1], 10) : d.getHours(),
+      minute: hm ? parseInt(hm[2], 10) : d.getMinutes()
+    };
+  }
+  function sydClock(d) {
+    return d.toLocaleTimeString('en-AU', { timeZone: SYD, hour: 'numeric', minute: '2-digit', hour12: true })
+      .replace(/ /g, ' ').toUpperCase();
+  }
+  function sydDate(d) {
+    return d.toLocaleDateString('en-AU', { timeZone: SYD, day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  // ISO with the AEST offset spelled out, which is what the ticket store wants.
+  // Sydney runs at +10:00 or +11:00, so derive the offset rather than hardcoding one.
+  function sydISO(d) {
+    var stamp = d.toLocaleString('sv-SE', { timeZone: SYD }).replace(' ', 'T');
+    var utc = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
+    var loc = new Date(d.toLocaleString('en-US', { timeZone: SYD }));
+    var mins = Math.round((loc - utc) / 60000);
+    var sign = mins < 0 ? '-' : '+';
+    mins = Math.abs(mins);
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    return stamp + sign + pad(Math.floor(mins / 60)) + ':' + pad(mins % 60);
+  }
+  function replyLine(d) {
+    var p = sydParts(d);
+    var weekend = /sat|sun/i.test(p.weekday);
+    var mins = p.hour * 60 + p.minute;
+    if (weekend) return 'Someone reads it and replies by email on Monday morning, from 9:00 AM AEST.';
+    if (mins < 9 * 60) return 'Someone reads it and replies by email after 9:00 AM AEST today.';
+    if (mins > 17 * 60 + 30) return 'Someone reads it and replies by email on the next business morning, from 9:00 AM AEST.';
+    return 'Someone reads it and replies by email, usually inside 1 business hour. It is ' + sydClock(d) + ' AEST now.';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Knowledge base first. Score the subject hard, the detail lightly, and let the
+  // category seed the list before anything is typed.
+  // ---------------------------------------------------------------------------
+  function score(article, subject, detail, category) {
+    var s = 0;
+    var sub = subject.toLowerCase();
+    var det = detail.toLowerCase();
+    for (var i = 0; i < article.keys.length; i++) {
+      var k = article.keys[i];
+      if (sub.indexOf(k) !== -1) s += 3;
+      if (det.indexOf(k) !== -1) s += 1;
+    }
+    var seeded = BY_CATEGORY[category] || [];
+    var seedAt = seeded.indexOf(article.id);
+    if (seedAt !== -1) s += (3 - seedAt);
+    return s;
+  }
+
+  function suggest() {
+    var subject = (el.subject.value || '').trim();
+    var detail = (el.detail.value || '').trim();
+    var category = el.category.value;
+
+    if (subject.length < 4 && !category) { hideKb(); return; }
+
+    var ranked = ARTICLES
+      .map(function (a) { return { a: a, s: score(a, subject, detail, category) }; })
+      .filter(function (r) { return r.s > 0; })
+      .sort(function (x, y) { return y.s - x.s; })
+      .slice(0, 3);
+
+    if (!ranked.length) { hideKb(); return; }
+
+    var ids = ranked.map(function (r) { return r.a.id; });
+    if (ids.join(',') === shown.join(',')) { return; }   // no churn while they type
+    shown = ids;
+    el.hShown.value = shown.join(',');
+    drawKb(ranked.map(function (r) { return r.a; }));
+  }
+
+  function hideKb() {
+    el.kb.hidden = true;
+    el.kbList.innerHTML = '';
+    shown = [];
+    el.hShown.value = '';
+  }
+
+  function drawKb(list) {
+    el.kbList.innerHTML = '';
+    el.kbCount.textContent = list.length === 1 ? '1 article' : list.length + ' articles';
+
+    list.forEach(function (a) {
+      var row = document.createElement('div');
+      row.className = 'art row';
+
+      var title = document.createElement('div');
+      title.className = 'art-title';
+      title.textContent = a.title;
+
+      var blurb = document.createElement('p');
+      blurb.className = 't-body c-muted';
+      blurb.textContent = a.blurb;
+
+      var meta = document.createElement('div');
+      meta.className = 't-label c-muted-soft';
+      meta.style.marginTop = 'var(--s-xs)';
+      meta.textContent = a.mins + ' min read';
+
+      var acts = document.createElement('div');
+      acts.className = 'art-acts';
+
+      var bodyId = 'art-' + a.id;
+      var body = document.createElement('div');
+      body.className = 'art-body fill t-body c-soft';
+      body.id = bodyId;
+      body.hidden = true;
+      body.textContent = a.excerpt;
+
+      var open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'btn';
+      open.textContent = 'Read it';
+      open.setAttribute('aria-expanded', 'false');
+      open.setAttribute('aria-controls', bodyId);
+      open.addEventListener('click', function () {
+        var nowOpen = body.hidden;
+        body.hidden = !nowOpen;
+        open.textContent = nowOpen ? 'Hide it' : 'Read it';
+        open.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+        if (nowOpen) { body.classList.add('fade'); markRead(a); }
+      });
+
+      var solved = document.createElement('button');
+      solved.type = 'button';
+      solved.className = 'btn';
+      solved.textContent = 'This answered it';
+      solved.addEventListener('click', function () { markRead(a); solve(a); });
+
+      acts.appendChild(open);
+      acts.appendChild(solved);
+
+      row.appendChild(title);
+      row.appendChild(blurb);
+      row.appendChild(meta);
+      row.appendChild(acts);
+      row.appendChild(body);
+      el.kbList.appendChild(row);
+    });
+
+    el.kb.hidden = false;
+    el.kb.classList.add('fade');
+  }
+
+  // Johann's requirement: the ticket records what they read before raising it.
+  function markRead(a) {
+    for (var i = 0; i < read.length; i++) { if (read[i].id === a.id) return; }
+    read.push({ id: a.id, title: a.title, at: sydISO(new Date()) });
+    el.hRead.value = read.map(function (r) { return r.id; }).join(',');
+  }
+
+  // ---------------------------------------------------------------------------
+  // The article answered it, so no ticket exists.
+  // ---------------------------------------------------------------------------
+  function solve(a) {
+    el.hResolved.value = a.id;
+    $('solved-article').textContent = a.title;
+    el.stageForm.hidden = true;
+    $('before-send').hidden = true;
+    el.stageSolved.hidden = false;
+    el.stageSolved.classList.add('fade');
+    $('solved-title').focus();
+    window.scrollTo(0, 0);
+
+    // WHERE THE REAL BEACON GOES
+    // Deflection is the number Johann asked for, and it only exists if we count it:
+    //   POST /v1/help/deflections  { article_id, subject, category, product, at }
+    // Fire and forget. It must never block or interrupt this screen.
+  }
+
+  $('unsolve').addEventListener('click', function () {
+    el.hResolved.value = '';
+    el.stageSolved.hidden = true;
+    $('before-send').hidden = false;
+    el.stageForm.hidden = false;
+    el.detail.focus();
+    window.scrollTo(0, 0);
+  });
+  $('solved-restart').addEventListener('click', function (e) { e.preventDefault(); reset(); });
+
+  // ---------------------------------------------------------------------------
+  // Attachments
+  // ---------------------------------------------------------------------------
+  var MAX_BYTES = 10 * 1024 * 1024;
+  var MAX_FILES = 5;
+  var OK_EXT = ['pdf', 'png', 'jpg', 'jpeg', 'csv', 'xlsx'];
+
+  function kb(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function addFiles(incoming) {
+    var problems = [];
+    for (var i = 0; i < incoming.length; i++) {
+      var f = incoming[i];
+      var ext = (f.name.split('.').pop() || '').toLowerCase();
+      if (files.length >= MAX_FILES) {
+        problems.push('You can attach 5 files at most. Remove one and add "' + f.name + '" again.');
+        break;
+      }
+      if (OK_EXT.indexOf(ext) === -1) {
+        problems.push('"' + f.name + '" is a .' + ext + ' file. Save it as a PDF, PNG, JPG, CSV or XLSX, or send a screenshot of it instead.');
+        continue;
+      }
+      if (f.size > MAX_BYTES) {
+        problems.push('"' + f.name + '" is ' + kb(f.size) + ', over the 10 MB limit. Send a screenshot of the part that matters, or split the file.');
+        continue;
+      }
+      files.push(f);
+    }
+    if (problems.length) { setError('file', problems.join(' ')); } else { clearError('file'); }
+    drawFiles();
+  }
+
+  function drawFiles() {
+    el.fileList.innerHTML = '';
+    files.forEach(function (f, i) {
+      var li = document.createElement('li');
+
+      var icon = document.createElement('span');
+      icon.className = 'chip chip-bare';
+      icon.innerHTML = '<span class="dot"></span>';
+
+      var nm = document.createElement('span');
+      nm.className = 't-body';
+      nm.style.wordBreak = 'break-word';
+      nm.textContent = f.name;
+
+      var sz = document.createElement('span');
+      sz.className = 't-label c-muted-soft tnum';
+      sz.textContent = kb(f.size);
+
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'x t-label';
+      rm.setAttribute('aria-label', 'Remove ' + f.name);
+      rm.textContent = 'Remove';
+      rm.addEventListener('click', function () {
+        files.splice(i, 1);
+        clearError('file');
+        drawFiles();
+        el.drop.querySelector('label').focus();
+      });
+
+      li.appendChild(icon);
+      li.appendChild(nm);
+      li.appendChild(sz);
+      li.appendChild(rm);
+      el.fileList.appendChild(li);
+    });
+  }
+
+  el.file.addEventListener('change', function () {
+    addFiles(el.file.files);
+    el.file.value = '';   // so the same file can be re-picked after a removal
+  });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    el.drop.addEventListener(ev, function (e) { e.preventDefault(); el.drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    el.drop.addEventListener(ev, function (e) { e.preventDefault(); el.drop.classList.remove('over'); });
+  });
+  el.drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Validation. Every message names the fix, never just the fault.
+  // ---------------------------------------------------------------------------
+  var LABELS = { name: 'Your name', email: 'Email', category: 'What you need help with', subject: 'Subject', detail: 'What is happening', file: 'Attachment' };
+
+  function fieldWrap(key) {
+    var node = key === 'file' ? el.file : el[key];
+    var w = node;
+    while (w && !(w.classList && w.classList.contains('field'))) { w = w.parentNode; }
+    return w;
+  }
+  function setError(key, msg) {
+    var wrap = fieldWrap(key);
+    if (!wrap) return;
+    wrap.classList.add('bad');
+    var p = $(key + '-err');
+    p.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>';
+    p.appendChild(document.createTextNode(msg));
+    var input = key === 'file' ? el.file : el[key];
+    if (input) input.setAttribute('aria-invalid', 'true');
+  }
+  function clearError(key) {
+    var wrap = fieldWrap(key);
+    if (!wrap) return;
+    wrap.classList.remove('bad');
+    $(key + '-err').textContent = '';
+    var input = key === 'file' ? el.file : el[key];
+    if (input) input.removeAttribute('aria-invalid');
+  }
+
+  var RULES = {
+    name: function () {
+      var v = (el.name.value || '').trim();
+      if (!v) return 'Enter your name, so we know who we are writing back to.';
+      if (v.length < 2) return 'That looks too short. Enter the name you go by, first name is enough.';
+      return null;
+    },
+    email: function () {
+      var v = (el.email.value || '').trim();
+      if (!v) return 'Enter an email address, because the reply comes back by email.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return 'That address is missing something. It needs the format name@yourfirm.com.au.';
+      return null;
+    },
+    category: function () {
+      if (!el.category.value) return 'Choose the closest category. Pick "Something else" if none of them fit.';
+      return null;
+    },
+    subject: function () {
+      var v = (el.subject.value || '').trim();
+      if (!v) return 'Add a one line subject, so we can see at a glance what this is about.';
+      if (v.length < 8) return 'Give it a few more words. "BAS figures do not match" tells us more than "help".';
+      return null;
+    },
+    detail: function () {
+      var v = (el.detail.value || '').trim();
+      if (!v) return 'Tell us what happened. Without it the first reply is only us asking.';
+      if (v.length < 30) return 'Add a bit more, at least 30 characters. What you were doing, what you expected, and what you saw instead.';
+      return null;
+    }
+  };
+
+  function validate(keys) {
+    var bad = [];
+    keys.forEach(function (k) {
+      var msg = RULES[k] ? RULES[k]() : null;
+      if (msg) { setError(k, msg); bad.push({ key: k, msg: msg }); } else { clearError(k); }
+    });
+    return bad;
+  }
+
+  function showSummary(bad) {
+    if (!bad.length) { el.summary.classList.remove('on'); return; }
+    el.summaryTitle.textContent = bad.length === 1 ? 'There is 1 thing to fix' : 'There are ' + bad.length + ' things to fix';
+    el.summaryList.innerHTML = '';
+    bad.forEach(function (b) {
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.href = '#' + b.key;
+      a.textContent = LABELS[b.key] + ': ' + b.msg;
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        var node = b.key === 'file' ? el.drop.querySelector('label') : el[b.key];
+        if (node) node.focus();
+      });
+      li.appendChild(a);
+      el.summaryList.appendChild(li);
+    });
+    el.summary.classList.add('on');
+  }
+
+  // Re-check a field the moment they fix it, so the red does not linger.
+  ['name', 'email', 'category', 'subject', 'detail'].forEach(function (k) {
+    var node = el[k];
+    node.addEventListener('blur', function () { if (node.value) validate([k]); });
+    node.addEventListener('input', function () {
+      var wrap = fieldWrap(k);
+      if (wrap && wrap.classList.contains('bad') && !RULES[k]()) clearError(k);
+    });
+  });
+  el.category.addEventListener('change', function () { validate(['category']); suggest(); });
+
+  // ---------------------------------------------------------------------------
+  // Typing
+  // ---------------------------------------------------------------------------
+  var timer = null;
+  function debounced() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(suggest, 260);
+  }
+  el.subject.addEventListener('input', debounced);
+  el.detail.addEventListener('input', function () {
+    var n = (el.detail.value || '').length;
+    // Silent until they start, then it is a count they can act on.
+    el.detailCount.textContent = !n ? '' : (n === 1 ? '1 character' : n + ' characters');
+    debounced();
+  });
+
+  // product picker highlight
+  Array.prototype.forEach.call(document.querySelectorAll('#picks input'), function (r) {
+    r.addEventListener('change', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('#picks .pick'), function (p) { p.classList.remove('on'); });
+      if (r.checked) r.closest('.pick').classList.add('on');
+      suggest();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Submit
+  // ---------------------------------------------------------------------------
+  el.form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var bad = validate(['name', 'email', 'category', 'subject', 'detail']);
+    showSummary(bad);
+    if (bad.length) {
+      el.summary.focus();
+      var first = bad[0].key === 'file' ? el.drop.querySelector('label') : el[bad[0].key];
+      if (first && first.scrollIntoView) first.scrollIntoView({ block: 'center' });
+      return;
+    }
+
+    var now = new Date();
+    el.hTime.value = sydISO(now);
+
+    var product = (document.querySelector('#picks input:checked') || {}).value || 'sole';
+    var ref = 'SUP-' + (1000 + Math.floor(Math.random() * 900));
+
+    // The payload, shaped to the ticket object the support console already reads
+    // (pages/dialer.html, PEOPLE[].tickets[]). Keeping the field names identical is
+    // the whole point: the console needs no mapping layer.
+    var payload = {
+      reference: ref,
+      subject: el.subject.value.trim(),
+      detail: el.detail.value.trim(),
+      category: el.category.value,
+      product: product,                 // 'sole' | 'spm', routes it to the right person
+      channel: 'form',                  // matches CHANNELS.form, "getsole.io/help"
+      reporter: 'customer',
+      status: 'new',
+      waitingOn: 'us',
+      owner: null,
+      opened: sydDate(now) + ', ' + sydClock(now) + ' AEST',
+      submitted_at: el.hTime.value,
+      contact: { name: el.name.value.trim(), email: el.email.value.trim() },
+      knowledge_base: {
+        shown: shown.slice(),
+        read: read.map(function (r) { return { id: r.id, title: r.title, at: r.at }; }),
+        resolved_by: el.hResolved.value || null
+      },
+      attachments: files.map(function (f) { return { name: f.name, bytes: f.size, type: f.type }; }),
+      page: el.hPage.value
+    };
+
+    // =========================================================================
+    // WHERE THE REAL POST GOES
+    //
+    // Everything above this line is finished. Replace this block with one call
+    // and nothing else in the file changes.
+    //
+    //   POST  https://api.getsole.io/v1/support/tickets
+    //   Content-Type: multipart/form-data
+    //     ticket        = JSON.stringify(payload)
+    //     attachments[] = each File from `files`
+    //
+    //   200 { "id": "SUP-1042", "opened": "Today, 10:10 AM" }
+    //   422 { "errors": { "email": "..." } }   render through setError(key, msg)
+    //   5xx keep the typed values on screen and offer Try again. Never clear the form.
+    //
+    // Server side, in this order, because Shishir asked for both halves:
+    //   1. Create the ticket with status 'new', waitingOn 'us', reporter 'customer',
+    //      channel 'form'. The support console reads it with no mapping.
+    //   2. Post to Slack #support and tag Juhi, or Merlin when product is 'spm'.
+    //      Include the reference, the subject, and the articles under
+    //      knowledge_base.read so the first reply does not repeat them.
+    //   3. Send the customer a confirmation carrying the same reference, so a reply
+    //      to that email threads onto this ticket instead of opening a second one.
+    //
+    // Until then: no request is made, and the reference below is generated in the
+    // browser for the draft.
+    // =========================================================================
+
+    $('done-ref').textContent = ref;
+    $('done-sub').textContent = 'Thanks ' + el.name.value.trim().split(' ')[0] +
+      '. We have it, and a copy is on the way to ' + el.email.value.trim() + '.';
+    $('done-eta').textContent = replyLine(now);
+    $('done-json').textContent = JSON.stringify(payload, null, 2);
+
+    if (read.length) {
+      var list = $('done-read-list');
+      list.innerHTML = '';
+      read.forEach(function (r) {
+        var li = document.createElement('li');
+        li.innerHTML = '<span class="chip chip-bare done"><span class="dot"></span></span>';
+        li.appendChild(document.createTextNode(r.title));
+        list.appendChild(li);
+      });
+      $('done-read').hidden = false;
+    }
+
+    el.stageForm.hidden = true;
+    $('before-send').hidden = true;   // nothing left to prepare, so stop advising it
+    el.stageDone.hidden = false;
+    el.stageDone.classList.add('fade');
+    $('done-title').focus();
+    window.scrollTo(0, 0);
+  });
+
+  $('copy').addEventListener('click', function () {
+    var text = $('done-ref').textContent;
+    var btn = $('copy');
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy it'; }, 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, done);
+    } else {
+      var t = document.createElement('textarea');
+      t.value = text; document.body.appendChild(t); t.select();
+      try { document.execCommand('copy'); } catch (err) { void err; }
+      document.body.removeChild(t);
+      done();
+    }
+  });
+
+  function reset() {
+    el.form.reset();
+    files = []; read = []; shown = [];
+    el.hShown.value = ''; el.hRead.value = ''; el.hResolved.value = '';
+    drawFiles();
+    hideKb();
+    el.detailCount.textContent = '';
+    ['name', 'email', 'category', 'subject', 'detail', 'file'].forEach(clearError);
+    el.summary.classList.remove('on');
+    $('done-read').hidden = true;
+    Array.prototype.forEach.call(document.querySelectorAll('#picks .pick'), function (p, i) { p.classList.toggle('on', i === 0); });
+    el.stageDone.hidden = true;
+    el.stageSolved.hidden = true;
+    $('before-send').hidden = false;
+    el.stageForm.hidden = false;
+    el.name.focus();
+    window.scrollTo(0, 0);
+  }
+  $('again').addEventListener('click', reset);
+
+})();
+</script>
+</body>
+</html>

@@ -82,17 +82,45 @@ const { useState, useEffect, useRef, Fragment } = React;
 const T = {
   primary: '#5B5BF6', primaryDark: '#4F46E5', primarySoft: '#EEF0FF', primarySofter: '#F5F6FF',
   bg: '#F5F4F8', card: '#FFFFFF', border: '#E5E7EB', borderSoft: '#ECEDF2',
-  text: '#0F1117', textSoft: '#374151', muted: '#6B7280', mutedSoft: '#9CA3AF',
+
+  // GREYS ARE SPLIT BY ROLE, and this is the change that fixed most of the "washed out"
+  // complaint. mutedSoft was #9CA3AF, which is 2.5:1 on white, and it was carrying 49
+  // pieces of body copy. Every grey below that renders TEXT now clears 4.5:1. `faint` keeps
+  // the old value and is for NON-TEXT only: hairlines, dividers, dots, decorative chevrons.
+  // Never put a word or a meaning-bearing icon in faint.
+  text: '#0F1117', textSoft: '#374151', muted: '#5B616E', mutedSoft: '#6B7280',
+  faint: '#9CA3AF',
   fieldBg: '#F9FAFB',
+
+  // Fills, borders and dots use the base colour. TEXT and meaning-bearing ICONS use the
+  // *Text variant: #DC2626 on #FEF2F2 measures 4.41:1 and fails, #B42318 measures 6.0:1.
   green: '#10B981', greenDark: '#047857', greenSoft: '#ECFDF5', greenBorder: '#A7F3D0',
   amber: '#B45309', amberSoft: '#FFFBEB', amberBorder: '#FCD34D',
-  red: '#DC2626', redSoft: '#FEF2F2', redBorder: '#FECACA',
-  blue: '#2563EB', blueSoft: '#EFF6FF', blueBorder: '#BFDBFE',
-  radius: 12, radiusSm: 8,
+  red: '#DC2626', redText: '#B42318', redSoft: '#FEF2F2', redBorder: '#FECACA',
+  blue: '#2563EB', blueText: '#1D4ED8', blueSoft: '#EFF6FF', blueBorder: '#BFDBFE',
+
+  radius: 12, radiusSm: 8, radiusChip: 6, radiusOverlay: 16,
   spine: '#E1E3ED', track: '#E4E6EE', dotQuiet: '#C3C7D4',
   shadowSm: '0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05)',
   shadowLg: '0 12px 34px -10px rgba(16,24,40,0.22)',
 };
+
+// --- type scale ---
+// 5 steps, replacing 15 ad hoc sizes including 6 fractional ones. A step's px and
+// line-height are fixed; weight may be the default or the one permitted emphasis.
+// Colour is always passed separately and never baked into a step.
+const TX = {
+  metric: { fontSize: 28, fontWeight: 700, lineHeight: 1.1,  letterSpacing: '-0.02em' },
+  title:  { fontSize: 18, fontWeight: 700, lineHeight: 1.25, letterSpacing: '-0.02em' },
+  strong: { fontSize: 14, fontWeight: 600, lineHeight: 1.45, letterSpacing: '-0.01em' },
+  body:   { fontSize: 13, fontWeight: 400, lineHeight: 1.55, letterSpacing: 0 },
+  label:  { fontSize: 12, fontWeight: 500, lineHeight: 1.4,  letterSpacing: 0 },
+};
+
+// --- spacing ---
+// One scale. The old 7/8/10/14/18 margins and 20 distinct padding strings had no rhythm,
+// which is why blocks never lined up across the 3 columns.
+const S = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24 };
 
 // --- icons ---
 const paths = {
@@ -108,6 +136,8 @@ const paths = {
   alert: 'M12 9v4 M12 17h.01 M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
   user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   list: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01',
+  more: 'M12 5h.01 M12 12h.01 M12 19h.01',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z M21 21l-4.35-4.35',
   history: 'M3 3v5h5 M3.05 13A9 9 0 1 0 6 5.3L3 8 M12 7v5l4 2',
   eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   down: 'M6 9l6 6 6-6',
@@ -154,30 +184,79 @@ const RefLabel = ({ children }) => (
   <div style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft, textTransform: 'uppercase',
     letterSpacing: '0.06em', margin: '20px 0 8px' }}>{children}</div>
 );
-const RefRow = ({ k, v, strong }) => (
-  <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', padding: '4px 0' }}>
-    <span style={{ fontSize: 12.5, color: T.muted, flex: 1 }}>{k}</span>
-    <span style={{ fontSize: 12.5, color: strong ? T.text : T.textSoft, fontWeight: strong ? 700 : 500,
-      textAlign: 'right', wordBreak: 'break-word', maxWidth: '64%' }}>{v}</span>
+const RefRow = ({ k, v, strong, from }) => (
+  <div style={{ display: 'flex', gap: S.md, alignItems: 'baseline', padding: `${S.xs}px 0` }}>
+    <span style={{ ...TX.label, color: T.mutedSoft, flex: 1 }}>{k}</span>
+    <span style={{ ...TX.body, color: T.text, textAlign: 'right', overflowWrap: 'break-word',
+      wordBreak: 'normal', maxWidth: '74%', minWidth: 0 }}>
+      {v}
+      {/* Where a fact came from, inline. An enriched fact has to carry its source or an
+          agent cannot tell what they can safely say out loud on a call. */}
+      {from && (
+        <span title={`Read from ${from}`} style={{ display: 'inline-flex', alignItems: 'center',
+          gap: 3, marginLeft: 6, ...TX.label, color: T.mutedSoft, whiteSpace: 'nowrap' }}>
+          <Icon name="globe" size={10} color={T.faint} />{from}
+        </span>
+      )}
+    </span>
   </div>
 );
 
+// THE COLOUR RULE. Exactly 4 things on this page may be coloured, and an agent has to be
+// able to tell what needs them from colour alone, without reading a word:
+//   urgent  someone is waiting on us and a clock is running
+//   blocked we cannot move until something outside this screen happens
+//   done    finished, and it should recede
+//   brand   this is a thing you can act on right now
+// Everything else is neutral. A channel name, a reporter, a product, a count and a
+// timestamp are FACTS, not states, so they never get a colour. Before this rule the
+// screen had WhatsApp in green, Facebook in blue, the help form in amber and the in-app
+// chat in indigo, which put 4 competing colours on a list where nothing was urgent.
 const TONES = {
-  neutral: { bg: '#F3F4F6', bd: T.border, fg: T.textSoft },
-  brand:   { bg: T.primarySoft, bd: '#C7C9FB', fg: T.primaryDark },
-  green:   { bg: T.greenSoft, bd: T.greenBorder, fg: T.greenDark },
-  amber:   { bg: T.amberSoft, bd: T.amberBorder, fg: T.amber },
-  red:     { bg: T.redSoft, bd: T.redBorder, fg: T.red },
-  blue:    { bg: T.blueSoft, bd: T.blueBorder, fg: T.blue },
-};
-const Pill = ({ children, tone = 'neutral', style }) => {
-  const t = TONES[tone] || TONES.neutral;
-  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: t.bg,
-    border: `1px solid ${t.bd}`, color: t.fg, borderRadius: 999, padding: '3px 10px',
-    fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', ...style }}>{children}</span>;
+  neutral: { bg: '#F3F4F6',        bd: T.border,      fg: T.textSoft },
+  brand:   { bg: T.primarySoft,    bd: '#C7C9FB',     fg: T.primaryDark },
+  urgent:  { bg: T.redSoft,        bd: T.redBorder,   fg: T.redText },
+  blocked: { bg: T.amberSoft,      bd: T.amberBorder, fg: T.amber },
+  done:    { bg: T.greenSoft,      bd: T.greenBorder, fg: T.greenDark },
+  // Legacy colour-named aliases. Call sites still pass these; they resolve to the
+  // semantic tone above so the rule holds even where the name at the call site is
+  // still a colour. `blue` is deliberately demoted to neutral: nothing on this page
+  // is blue any more, because a date in the future is a fact about time, not a state.
+  red:     { bg: T.redSoft,        bd: T.redBorder,   fg: T.redText },
+  amber:   { bg: T.amberSoft,      bd: T.amberBorder, fg: T.amber },
+  green:   { bg: T.greenSoft,      bd: T.greenBorder, fg: T.greenDark },
+  blue:    { bg: '#F3F4F6',        bd: T.border,      fg: T.textSoft },
 };
 
-const Btn = ({ children, variant = 'secondary', icon, onClick, style, full, big, disabled }) => {
+// One chip. A squared 6px corner at 22px tall reads as a data label; the old 999px pill
+// at 3px padding read as a button you could press, which is why the ticket table looked
+// like a row of controls rather than a table.
+const Chip = ({ children, tone = 'neutral', shape = 'solid', icon, style }) => {
+  const t = TONES[tone] || TONES.neutral;
+  const bare = shape === 'bare';
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
+      background: bare ? 'transparent' : t.bg,
+      border: `1px solid ${bare ? 'transparent' : t.bd}`,
+      color: bare ? (tone === 'neutral' ? T.muted : t.fg) : t.fg,
+      borderRadius: T.radiusChip, height: 22, padding: bare ? '0 2px' : '0 8px',
+      ...TX.label, fontWeight: 600, whiteSpace: 'nowrap', ...style }}>
+      {icon && <Icon name={icon} size={11} color={bare && tone === 'neutral' ? T.muted : t.fg} />}
+      {children}
+    </span>
+  );
+};
+
+// Pill is now Chip. Kept as a name so the 28 existing call sites pick up the new shape
+// without 28 separate edits, each of which would be a chance to break something.
+const Pill = Chip;
+
+// `title` and `aria-label` were not in this signature, so every title passed to a Btn was
+// silently dropped. That included the old disabled Email button's "Not connected yet"
+// tooltip, which therefore never appeared. An icon-only button with no label is also
+// unreachable by a screen reader, so both are forwarded now.
+const Btn = ({ children, variant = 'secondary', icon, onClick, style, full, big, disabled,
+               title, ariaLabel }) => {
   const base = {
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderRadius: T.radiusSm, fontWeight: 600, fontSize: big ? 14 : 13,
@@ -192,6 +271,7 @@ const Btn = ({ children, variant = 'secondary', icon, onClick, style, full, big,
   };
   return (
     <button data-btn={variant} disabled={disabled} onClick={disabled ? undefined : onClick}
+            title={title} aria-label={ariaLabel || title}
             style={{ ...base, ...skins[variant], ...style }}>
       {icon && <Icon name={icon} size={big ? 16 : 15} />}{children}
     </button>
@@ -226,14 +306,14 @@ const Empty = ({ children }) => (
 // A channel is a LABEL on the conversation, never a second inbox: the whole point of the
 // person page is that everything they said to us sits in one thread.
 const CHANNELS = {
-  app:      { label: 'In-app chat',  tone: 'brand',   via: 'Sole web app' },
+  app:      { label: 'In-app chat',  tone: 'neutral', via: 'Sole web app' },
   website:  { label: 'Website chat', tone: 'neutral', via: 'via GoHighLevel' },
-  whatsapp: { label: 'WhatsApp',     tone: 'green',   via: 'via GoHighLevel' },
-  facebook: { label: 'Facebook',     tone: 'blue',    via: 'via GoHighLevel' },
+  whatsapp: { label: 'WhatsApp',     tone: 'neutral', via: 'via GoHighLevel' },
+  facebook: { label: 'Facebook',     tone: 'neutral', via: 'via GoHighLevel' },
   phone:    { label: 'Phone',        tone: 'neutral', via: 'Twilio' },
   email:    { label: 'Email',        tone: 'neutral', via: 'SendGrid' },
-  academy:  { label: 'Sole Academy', tone: 'brand',   via: 'Asked from inside a video' },
-  form:     { label: 'Help form',    tone: 'amber',   via: 'getsole.io/help' },
+  academy:  { label: 'Sole Academy', tone: 'neutral', via: 'Asked from inside a video' },
+  form:     { label: 'Help form',    tone: 'neutral', via: 'getsole.io/help' },
 };
 const ChannelChip = ({ id, showVia }) => {
   const c = CHANNELS[id] || CHANNELS.app;
@@ -241,7 +321,7 @@ const ChannelChip = ({ id, showVia }) => {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5,
       fontWeight: 600, color: T.muted, whiteSpace: 'nowrap' }}>
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.fg, flexShrink: 0 }} />
+      <span style={{ width: 5, height: 5, borderRadius: '50%', background: T.faint, flexShrink: 0 }} />
       {c.label}{showVia && <span style={{ color: T.mutedSoft, fontWeight: 500 }}>{c.via}</span>}
     </span>
   );
@@ -280,7 +360,7 @@ const TEAM = [
 const TICKET_STATES = [
   { key: 'new',     label: 'New',             hint: 'Nobody has picked it up.',        tone: 'red' },
   { key: 'with_us', label: 'With us',         hint: 'Someone is on it right now.',     tone: 'amber' },
-  { key: 'waiting', label: 'Waiting on them', hint: 'Answered. Their move.',           tone: 'blue' },
+  { key: 'waiting', label: 'Waiting on them', hint: 'Answered. Their move.',           tone: 'neutral' },
   { key: 'closed',  label: 'Closed today',    hint: 'Answered and finished.',          tone: 'green' },
 ];
 const stateOf = (k) => TICKET_STATES.find(s => s.key === k) || TICKET_STATES[0];
@@ -539,7 +619,7 @@ const PEOPLE = [
         status: 'with_us', owner: 'Juhi', opened: 'Today, 8:36 AM', product: 'sole',
         reporter: 'customer', waitingOn: 'us',
         firstLine: 'Raised with the Help button inside "Set up your business details", so he never left the video.',
-        tried: 'He read 2 help articles and watched 1 minute of the video before raising it. The knowledge base got first go, which is the point of putting the form in there.',
+        tried: 'Read 2 help articles and watched 1 minute of the video before raising this.',
         notify: 'Juhi was tagged in #support at 8:36 AM.',
         notes: [
           { who: 'Juhi', when: '9:12 AM', text: 'Sending him the 40 second clip rather than calling. He signed up on his phone and is out on a job.' },
@@ -582,7 +662,7 @@ const PEOPLE = [
         status: 'with_us', owner: 'Juhi', opened: 'Yesterday, 11:14 AM', product: 'sole',
         reporter: 'customer', waitingOn: 'us',
         firstLine: 'Filled in the help form rather than the chat. She has a call booked for Thursday, so this is the agenda for it.',
-        tried: 'She read the deposits article first and it did not cover payment plans, which is what sent her to the form.',
+        tried: 'Read the deposits article first. It does not cover payment plans.',
         notify: 'Juhi was tagged in #support when the form came in.',
         notes: [
           { who: 'Juhi', when: 'Yesterday, 11:40 AM', text: 'Holding this until Thursday. It is the same thing she booked the call about, so answering twice would be noise.' },
@@ -1075,9 +1155,12 @@ const TopBar = ({ agent, setAgent, tab, setTab, presence, setPresence }) => {
 };
 
 const DemoBanner = () => (
-  <div style={{ background: '#111827', color: '#E5E7EB', fontSize: 12.5, padding: '8px 20px',
-    textAlign: 'center', flexShrink: 0 }}>
-    Prototype, sitting inside the existing support page. Every person, number and message on it is made up, so we can talk about the shape without arguing about the data.
+  <div style={{ background: T.primarySofter, color: T.muted, ...TX.label,
+    padding: `${S.xs + 2}px ${S.xl}px`, textAlign: 'center', flexShrink: 0,
+    borderBottom: `1px solid ${T.borderSoft}` }}>
+    <span style={{ fontWeight: 600, color: T.primaryDark }}>Prototype</span>
+    <span style={{ margin: `0 ${S.sm - 1}px`, color: T.faint }}>·</span>
+    every person and message on this page is invented
   </div>
 );
 
@@ -1188,13 +1271,13 @@ const ListScreen = ({ agent, onOpen, demo, onContact, stream, setStream }) => {
       </div>
 
       <div data-stats style={{ display: 'flex', gap: 12 }}>
-        <Stat n={now.length} label="Waiting on you" tone={T.red} />
+        <Stat n={now.length} label="Waiting on you" tone={T.redText} />
         {a.product === 'sole' && stream === 'support' && (
           <Stat n={longest ? `${longest} min` : 'None'} label="Longest wait in a chat"
                 tone={longest > 15 ? T.red : T.text}
                 sub={longest ? 'Nobody has replied to them yet' : 'No open chats'} />
         )}
-        <Stat n={waiting.length} label="You reached out" tone={T.blue} />
+        <Stat n={waiting.length} label="You reached out" tone={T.text} />
         {stream === 'outreach' && a.product === 'sole'
           ? <Stat n={newToday} label="Signed up today" sub="In this sample, not a real signup rate" />
           : <Stat n={done.length} label="Sorted today" />}
@@ -1234,20 +1317,119 @@ const ListScreen = ({ agent, onOpen, demo, onContact, stream, setStream }) => {
   );
 };
 
+// The recommendation becomes the one primary button, so it needs an icon and it needs to
+// know whether it dials or opens the chat. Anything not listed opens the chat, which is the
+// safe default: it is reversible and it never rings a customer by accident.
+const NEXT_IS_CALL = { 'Call': true, 'Call her back': true };
+const NEXT_ICON = { 'Call': 'phone', 'Call her back': 'phone', 'Send a message': 'chat',
+  'Reply in the chat': 'chat', 'Reply on Facebook': 'chat', 'Wait for Thursday': 'clock',
+  'Nothing owed': 'check' };
+
+// Overflow for the actions that are real but rarely the next thing. A disabled item stays
+// visible with its reason, because hiding it makes people ask for a feature that exists.
+const HeaderMore = ({ items }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <Btn variant="secondary" onClick={() => setOpen(o => !o)} title="More actions"
+        style={{ padding: `0 ${S.sm}px`, minWidth: 36 }}>
+        <Icon name="more" size={16} />
+      </Btn>
+      {open && (
+        <Fragment>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div style={{ position: 'absolute', right: 0, top: 40, zIndex: 41, background: T.card,
+            border: `1px solid ${T.border}`, borderRadius: T.radiusSm, boxShadow: T.shadowLg,
+            padding: S.xs, minWidth: 194, animation: 'rise .14s ease both' }}>
+            {items.map((it, i) => (
+              <button key={i} disabled={it.disabled}
+                onClick={() => { if (!it.disabled) { setOpen(false); it.onClick(); } }}
+                title={it.hint || undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: S.sm + 1, width: '100%',
+                  textAlign: 'left', border: 'none', background: 'transparent',
+                  padding: `${S.sm}px ${S.sm + 2}px`, borderRadius: T.radiusChip,
+                  color: it.disabled ? T.faint : T.textSoft, ...TX.body,
+                  cursor: it.disabled ? 'default' : 'pointer' }}>
+                <Icon name={it.icon} size={14} color={it.disabled ? T.faint : T.muted} />
+                <span style={{ flex: 1 }}>{it.label}</span>
+                {it.hint && <span style={{ ...TX.label, color: T.faint }}>{it.hint}</span>}
+              </button>
+            ))}
+          </div>
+        </Fragment>
+      )}
+    </div>
+  );
+};
+
 // --- left column: move between people without going back ---
+const RAIL_FILTERS = [
+  { key: 'all',     label: 'All' },
+  { key: 'now',     label: 'Needs you' },
+  { key: 'unread',  label: 'Unread' },
+  { key: 'waiting', label: 'Waiting' },
+];
+
 const PeopleRail = ({ currentId, onOpen, product, demo, stream }) => {
-  const groups = [
-    { title: 'Needs you now', rows: inBucket('now', product, demo, stream) },
-    { title: 'Waiting on them', rows: inBucket('waiting', product, demo, stream) },
-    { title: 'Done today', rows: inBucket('done', product, demo, stream) },
+  // The rail is how an agent moves between people without going back to the list, so it
+  // needs to answer "who else needs me" and "find that person" in place. A name search
+  // matters more than it looks: the rail holds every person, and scrolling a rail to find
+  // someone you were just talking to is the slowest thing on the screen.
+  const [filter, setFilter] = useState('all');
+  const [q, setQ] = useState('');
+  const needle = q.trim().toLowerCase();
+
+  const all = [
+    { title: 'Needs you now', key: 'now',     rows: inBucket('now', product, demo, stream) },
+    { title: 'Waiting on them', key: 'waiting', rows: inBucket('waiting', product, demo, stream) },
+    { title: 'Done today', key: 'done',      rows: inBucket('done', product, demo, stream) },
   ];
+  const match = (p) => {
+    if (needle && ![p.name, p.business].some(v => String(v || '').toLowerCase().includes(needle))) return false;
+    if (filter === 'unread') return p.chat.unread > 0;
+    return true;
+  };
+  const groups = all
+    .filter(g => filter === 'all' || filter === 'unread' || g.key === filter)
+    .map(g => ({ ...g, rows: g.rows.filter(match) }));
+  const total = groups.reduce((n, g) => n + g.rows.length, 0);
+
   return (
     <div data-col="left" className="scroll" style={{ width: 268, flexShrink: 0, background: T.card,
       borderRight: `1px solid ${T.border}`, overflowY: 'auto' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 2, background: T.card,
+        borderBottom: `1px solid ${T.borderSoft}`, padding: `${S.md}px ${S.md}px ${S.sm + 2}px` }}>
+        <div style={{ position: 'relative', marginBottom: S.sm }}>
+          <Icon name="search" size={13} color={T.mutedSoft}
+            style={{ position: 'absolute', left: 9, top: 9, pointerEvents: 'none' }} />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Find someone"
+            style={{ width: '100%', height: 32, border: `1px solid ${T.border}`,
+              borderRadius: T.radiusSm, padding: '0 9px 0 28px', ...TX.label, background: T.card }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: S.xs }}>
+          {RAIL_FILTERS.map(f => {
+            const on = filter === f.key;
+            return (
+              <button key={f.key} onClick={() => setFilter(f.key)}
+                style={{ height: 26, padding: `0 ${S.sm - 2}px`, borderRadius: T.radiusChip,
+                  border: `1px solid ${on ? T.primaryDark : T.border}`,
+                  background: on ? T.primary : T.card, color: on ? '#fff' : T.muted,
+                  ...TX.label, fontWeight: on ? 700 : 500 }}>{f.label}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      {!total && (
+        <div style={{ padding: `${S.xl}px ${S.lg}px`, ...TX.label, color: T.mutedSoft, textAlign: 'center' }}>
+          {needle ? `Nobody matching "${q}".` : 'Nobody in this filter.'}
+        </div>
+      )}
+
       {groups.map(g => !!g.rows.length && (
         <div key={g.title}>
-          <div style={{ padding: '14px 16px 8px', fontSize: 11, fontWeight: 700, color: T.mutedSoft,
-            textTransform: 'uppercase', letterSpacing: '0.06em' }}>{g.title} · {g.rows.length}</div>
+          <div style={{ padding: `${S.md + 2}px ${S.lg}px ${S.sm}px`, ...TX.label,
+            fontWeight: 600, color: T.mutedSoft }}>{g.title} · {g.rows.length}</div>
           {g.rows.map(p => {
             const on = p.id === currentId;
             return (
@@ -1713,26 +1895,37 @@ const CallCard = ({ c, agentName, defaultOpen, onCall }) => {
 };
 
 // --- tickets ---
-// Where the line sits, settled by Shishir on 3 Sep: "it should not open the thread, it should
-// open the ticket... it should just be a list of tickets. And the actual tickets will reside
-// [in the support ticket system]." So the dialer LISTS tickets and hands off. The workflow,
-// the internal notes and the reply to the customer live in his system, which already has them.
-// What stays here is the part only this surface can do: the answer a ticket produced, which is
-// what the chatbot learns from.
+// THE TICKET LIVES HERE. This question has flipped 3 times, so here is the whole history in
+// one place before anybody changes it again.
 //
-// This reverses round 4, which held the whole ticket in the dialer. Do not put it back without
-// going through Shishir: he showed his own service management board on the call.
+// Round 4 built the entire ticket in the dialer. Round 5 tore it back out to a list plus a
+// link, on this line from Shishir on 3 Sep: "it should not open the thread, it should open
+// the ticket... it should just be a list of tickets. And the actual tickets will reside
+// [in the support ticket system]."
+//
+// On 4 Sep Rishabh corrected the reading: Shishir meant the VIEW should be a LIST rather
+// than a kanban. He was not saying the entity lives elsewhere. Sole is moving off Jira, so
+// the ticket is ours: raised here, worked here, closed here. The board is kept as the
+// second view, which is what the original objection was actually about.
+//
+// So: list is the default view, board is the switcher, and the answer a ticket produced
+// still stays with us because that is what the chatbot learns from.
 const REPORTERS = {
-  customer: { label: 'Customer', tone: 'blue' },
+  customer: { label: 'Customer', tone: 'neutral' },
   internal: { label: 'Raised by us', tone: 'neutral' },
 };
 
-const TicketRow = ({ t, demo, onOpenTicket, onOpenPerson, showPerson }) => {
+const TicketRow = ({ t, demo, onOpenTicket, onOpenPerson, showPerson, compact }) => {
   const st = stateOf(tStatus(t, demo));
   const rep = REPORTERS[t.reporter || 'customer'];
   return (
-    <div data-trow data-row style={{ display: 'grid', alignItems: 'center', gap: 12,
-      padding: '13px 16px', borderBottom: `1px solid ${T.borderSoft}` }}>
+    <div data-trow={compact ? undefined : true} data-row
+      onClick={() => onOpenTicket(t)} role="button" tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenTicket(t); } }}
+      style={{ display: 'grid', alignItems: 'center', gap: S.md, cursor: 'pointer',
+      padding: `${S.md}px ${S.lg}px`, borderBottom: `1px solid ${T.borderSoft}`,
+      minHeight: showPerson ? 52 : 44,
+      ...(compact ? { gridTemplateColumns: '68px minmax(0, 1fr) 104px 20px' } : null) }}>
       <div>
         <button data-btn="quiet" onClick={() => onOpenTicket(t)}
           className="tnum" style={{ border: 'none', background: 'transparent', padding: 0,
@@ -1751,34 +1944,35 @@ const TicketRow = ({ t, demo, onOpenTicket, onOpenPerson, showPerson }) => {
             <Icon name="right" size={12} color={T.mutedSoft} />
           </button>
         )}
-        {t.tried && (
-          <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 4 }}>{t.tried}</div>
-        )}
       </div>
-      <div><ChannelChip id={t.channel} /></div>
-      <div><Pill tone={rep.tone}>{rep.label}</Pill></div>
-      <div><Pill tone={st.tone}>{st.label}</Pill></div>
-      <div style={{ fontSize: 12.5, color: T.muted }}>
-        {t.waitingOn === 'them' ? 'Them' : 'Us'}
-        <div style={{ fontSize: 11.5, color: T.mutedSoft }}>{t.owner || 'Nobody yet'}</div>
-      </div>
+      {!compact && <div><ChannelChip id={t.channel} /></div>}
+      {!compact && <div><Chip tone={rep.tone} shape="bare">{rep.label}</Chip></div>}
+      <div><Chip tone={st.tone}>{st.label}</Chip></div>
+      {!compact && (
+        <div style={{ ...TX.label, color: T.muted }}>
+          {t.waitingOn === 'them' ? 'Them' : 'Us'}
+          <div style={{ ...TX.label, color: T.mutedSoft }}>{t.owner || 'Nobody yet'}</div>
+        </div>
+      )}
       <div style={{ textAlign: 'right' }}>
-        <Btn variant="secondary" onClick={() => onOpenTicket(t)}>Open<Icon name="expand" size={13} /></Btn>
+        <Icon name="right" size={14} color={T.faint} />
       </div>
     </div>
   );
 };
 
 const TICKET_HEADS = ['Key', 'Summary', 'Came in on', 'Reporter', 'Status', 'Waiting on', ''];
-const TicketList = ({ rows, demo, onOpenTicket, onOpenPerson, showPerson, empty }) => (
+const TICKET_HEADS_COMPACT = ['Key', 'Summary', 'Status', ''];
+const TicketList = ({ rows, demo, onOpenTicket, onOpenPerson, showPerson, empty, compact }) => (
   <Card pad={0}>
-    <div data-trow style={{ display: 'grid', gap: 12, padding: '11px 16px',
-      borderBottom: `1px solid ${T.border}`, fontSize: 11, fontWeight: 700, color: T.mutedSoft,
-      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-      {TICKET_HEADS.map((h, i) => <div key={i}>{h}</div>)}
+    <div data-trow={compact ? undefined : true} style={{ display: 'grid', gap: S.md,
+      padding: `${S.md}px ${S.lg}px`, borderBottom: `1px solid ${T.border}`,
+      ...TX.label, fontWeight: 600, color: T.mutedSoft,
+      ...(compact ? { gridTemplateColumns: '68px minmax(0, 1fr) 104px 20px' } : null) }}>
+      {(compact ? TICKET_HEADS_COMPACT : TICKET_HEADS).map((h, i) => <div key={i}>{h}</div>)}
     </div>
     {rows.length ? rows.map(t => (
-      <TicketRow key={t.id} t={t} demo={demo} showPerson={showPerson}
+      <TicketRow key={t.id} t={t} demo={demo} showPerson={showPerson} compact={compact}
         onOpenTicket={onOpenTicket} onOpenPerson={() => onOpenPerson && onOpenPerson(t.person.id)} />
     )) : (
       <div style={{ padding: '20px 16px' }}><Empty>{empty}</Empty></div>
@@ -1812,14 +2006,14 @@ const TicketHandoff = ({ t, demo, onClose, onOpenPerson }) => {
         </div>
 
         <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ background: T.blueSoft, border: `1px solid ${T.blueBorder}`,
-            borderRadius: T.radiusSm, padding: 14, display: 'flex', gap: 11 }}>
-            <Icon name="expand" size={15} color={T.blue} style={{ marginTop: 2 }} />
+          <div style={{ background: T.primarySofter, border: `1px solid #C7C9FB`,
+            borderRadius: T.radiusSm, padding: S.lg, display: 'flex', gap: S.md - 1 }}>
+            <Icon name="ticket" size={15} color={T.primaryDark} style={{ marginTop: 2 }} />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.blue }}>This opens in the support ticket system</div>
-              <div style={{ fontSize: 12.5, color: T.textSoft, marginTop: 4, lineHeight: 1.6 }}>
-                The workflow, the internal notes and the reply to the customer already exist there,
-                so they are not rebuilt here. The dialer lists tickets and links to them.
+              <div style={{ ...TX.strong, color: T.primaryDark }}>The ticket lives here</div>
+              <div style={{ ...TX.body, color: T.textSoft, marginTop: S.xs }}>
+                Sole is moving off Jira, so the workflow, the internal notes and the reply to
+                the customer are being built on this screen rather than linked out to.
               </div>
             </div>
           </div>
@@ -1916,8 +2110,7 @@ const NewTicketModal = ({ people, preset, onClose, onCreate }) => {
               <span style={{ fontSize: 14.5, fontWeight: 700 }}>{done} created</span>
             </div>
             <div style={{ fontSize: 13, color: T.textSoft, lineHeight: 1.6 }}>
-              It is on their record and on the list, and Juhi has been tagged in Slack. The ticket
-              itself opens in the support ticket system.
+              It is on their record and on the list, and Juhi has been tagged in Slack.
             </div>
             <Btn variant="primary" full onClick={onClose}>Done</Btn>
           </div>
@@ -2002,12 +2195,12 @@ const TicketLane = ({ p, demo, onOpenTicket, onNewTicket }) => {
         </div>
         <Btn variant="secondary" icon="ticket" onClick={onNewTicket}>New ticket</Btn>
       </div>
-      <TicketList rows={rows} demo={demo} onOpenTicket={onOpenTicket}
+      <TicketList rows={rows} demo={demo} onOpenTicket={onOpenTicket} compact
         empty={`Nothing raised by ${p.name.split(' ')[0]}. A ticket lands here whether it came from the chat, WhatsApp, the website, the help form or from inside a video.`} />
       {rows.filter(t => t.answer).map(t => <AnswerCard key={t.id} t={t} demo={demo} />)}
       <Note>
-        The ticket itself lives in the support ticket system, which already has the workflow, the
-        internal notes and the reply to the customer. This is the list and the link.
+        Every ticket raised by or for this person, whichever door it came through. The full
+        ticket opens from any row.
       </Note>
     </div>
   );
@@ -2180,7 +2373,7 @@ const LANE_INFO = {
   chat: { live: true,
     source: 'Read out of the existing chatbot, not a replacement for it. Ashish wires the ingest, and Johann has already said a 20 minute lag is fine.' },
   ticket: { live: true,
-    source: 'Tickets arrive from the chat, the help form, WhatsApp, the website and from us. The ticket itself lives in the support ticket system.' },
+    source: 'Tickets arrive from the chat, the help form, WhatsApp, the website and from us.' },
   behaviour: { live: true,
     source: 'Read from the product database: things they created, changed or deleted. Not Mixpanel, which only sees the front end, and not clicks, which Shishir called unusable noise.' },
   content: { live: false, blocker: 'Waiting on the video library',
@@ -2391,45 +2584,58 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName, demo, onContact,
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '14px 22px 0', borderBottom: `1px solid ${T.border}`,
           background: T.card, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
+          {/* THE HEADER, rebuilt 4 Sep. It had 4 chips stacking vertically beside the name
+              and 5 equal-weight outline buttons, so there was no primary action and the
+              urgency was spread across 3 red things at once. Now: 1 line for identity and
+              the action, 1 line of facts, 1 line of chips that never stacks, and the reason
+              the primary button says what it says. "Best next move" moved out of the right
+              column to here, because it is an action and it belongs with the buttons. */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: S.md + 1 }}>
             <button data-btn="quiet" onClick={onBack} style={{ border: 'none', background: 'transparent',
-              color: T.muted, padding: 4, display: 'flex' }}><Icon name="back" size={17} /></button>
+              color: T.muted, padding: S.xs, display: 'flex', marginTop: 2 }}><Icon name="back" size={17} /></button>
             <Avatar name={p.name} size={40} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>{p.name}</h1>
-                <Pill tone={st.tone}>{st.label}</Pill>
-                {chatPill && <Pill tone={chatPill.tone}>{chatPill.label}</Pill>}
-                {p.unverified && <Pill tone="neutral">No Sole account</Pill>}
-                {openTickets > 0 && (
-                  <button data-btn="quiet" onClick={() => setLane('ticket')}
-                    style={{ border: 'none', background: 'transparent', padding: 0 }}>
-                    <Pill tone="amber"><Icon name="ticket" size={11} />{openTickets} open</Pill>
-                  </button>
-                )}
-              </div>
-              <div style={{ color: T.mutedSoft, fontSize: 12.5, marginTop: 2 }}>
+              <h1 style={{ ...TX.title, margin: 0 }}>{p.name}</h1>
+              <div style={{ color: T.mutedSoft, ...TX.label, marginTop: 2 }}>
                 {p.business} · {p.phone}{p.localTime ? ` · ${p.localTime} their time` : ''}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {bucketOf(p, demo) === 'now' && (
-                <Btn variant="secondary" icon="check" onClick={() => onContact(p.id)}>Contacted</Btn>
-              )}
-              <Btn variant={p.recommend.label === 'Call' ? 'primary' : 'secondary'} icon="phone" onClick={onCall}>Call</Btn>
-              {/* Shishir: "along with call, if we can add message, so that they can message on
-                  WhatsApp, sorry, SMS or WhatsApp." Email is not wired: application mail and the
-                  GoHighLevel marketing mail are separate systems today. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: S.sm, flexShrink: 0 }}>
+              <Btn variant="primary" icon={NEXT_ICON[p.recommend.label] || 'chat'}
+                onClick={() => (NEXT_IS_CALL[p.recommend.label] ? onCall() : setLane('chat'))}>
+                {p.recommend.label}
+              </Btn>
               <Btn variant="secondary" icon="chat" onClick={() => onMessage(p)}>Message</Btn>
-              <Btn variant="secondary" icon="video" onClick={() => setBooking(true)}>Book</Btn>
-              <Btn variant="quiet" icon="mail" title="Not connected yet" disabled>Email</Btn>
+              <HeaderMore items={[
+                ...(bucketOf(p, demo) === 'now'
+                  ? [{ icon: 'check', label: 'Mark as contacted', onClick: () => onContact(p.id) }] : []),
+                { icon: 'phone', label: 'Call', onClick: onCall },
+                { icon: 'video', label: 'Book a time', onClick: () => setBooking(true) },
+                { icon: 'mail', label: 'Email', hint: 'Not connected yet', disabled: true },
+              ]} />
             </div>
           </div>
-          {due && (
-            <div style={{ marginTop: 10, background: T.redSoft, border: `1px solid ${T.redBorder}`,
-              borderRadius: T.radiusSm, padding: '8px 12px', fontSize: 12.5, fontWeight: 600,
-              color: T.red, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icon name="clock" size={13} color={T.red} />{due}
+
+          {/* One chip row, on its own line so it can never stack against the name. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: S.sm - 2, flexWrap: 'wrap',
+            marginTop: S.sm + 2, paddingLeft: 66 }}>
+            <Chip tone={st.tone}>{st.label}</Chip>
+            {chatPill && <Chip tone={chatPill.tone}>{chatPill.label}</Chip>}
+            {due && <Chip tone="urgent" icon="clock">{due}</Chip>}
+            {p.unverified && <Chip tone="neutral" shape="bare">No Sole account</Chip>}
+            {openTickets > 0 && (
+              <button data-btn="quiet" onClick={() => setLane('ticket')}
+                style={{ border: 'none', background: 'transparent', padding: 0 }}>
+                <Chip tone="neutral" icon="ticket">{openTickets} open</Chip>
+              </button>
+            )}
+          </div>
+
+          {/* Why the primary button says what it says. Without this the recommendation is an
+              instruction with no reasoning, which is the thing that stops agents trusting it. */}
+          {p.recommend.why && (
+            <div style={{ ...TX.label, color: T.muted, marginTop: S.sm - 2, paddingLeft: 66 }}>
+              {p.recommend.why}
             </div>
           )}
 
@@ -2508,39 +2714,6 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName, demo, onContact,
         </div>
         <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 10, lineHeight: 1.5 }}>{p.summarySource}</div>
 
-        {/* Shishir's one real objection to this panel: "this 'who this is', I think this would
-            be a bit more difficult to pull off because we don't really have that data." He is
-            right about the half that comes off the web, so the two halves are split and the
-            web half is marked for what it is. Everything above this line is data we hold. */}
-        {p.web && (
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px dashed ${T.border}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
-              <Icon name="globe" size={13} color={T.mutedSoft} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: T.mutedSoft,
-                textTransform: 'uppercase', letterSpacing: '0.06em' }}>From the web</span>
-              <div style={{ flex: 1 }} />
-              <Pill tone={p.web.state === 'nothing' ? 'neutral' : 'amber'}>
-                {p.web.state === 'nothing' ? 'Nothing to read' : 'Not built'}
-              </Pill>
-            </div>
-            {p.web.state === 'nothing' ? (
-              <div style={{ fontSize: 12.5, color: T.mutedSoft, lineHeight: 1.55 }}>
-                No website and no account, so there is nothing to look up. Everything above is
-                what they typed themselves, and the page says so rather than filling the gap.
-              </div>
-            ) : (
-              <Fragment>
-                {p.web.lines.map((l, i) => (
-                  <div key={i} style={{ fontSize: 12.5, color: T.mutedSoft, lineHeight: 1.55 }}>{l}</div>
-                ))}
-                <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 7, lineHeight: 1.5 }}>
-                  What reading a customer's website would give us, greyed because nobody has
-                  built it. It is deliberately not mixed into the summary above.
-                </div>
-              </Fragment>
-            )}
-          </div>
-        )}
 
         {p.sayOne.lead && (
           <div style={{ marginTop: 18, background: T.primarySofter, border: '1px solid #D5D7FB',
@@ -2559,11 +2732,6 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName, demo, onContact,
           </div>
         )}
 
-        <div style={{ marginTop: 14, background: T.fieldBg, border: `1px solid ${T.border}`,
-          borderRadius: T.radiusSm, padding: '11px 13px' }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 3 }}>Best next move: {p.recommend.label}</div>
-          <div style={{ fontSize: 12, color: T.muted, lineHeight: 1.5 }}>{p.recommend.why}</div>
-        </div>
 
         <RefLabel>Contact</RefLabel>
         <RefRow k="Mobile" v={p.phone} strong />
@@ -2579,7 +2747,17 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName, demo, onContact,
         {p.seats && <RefRow k="Seats" v={p.seats} />}
         {p.clients && <RefRow k="Client list" v={p.clients} />}
         <RefRow k="Website" v={p.website || 'Not given'} />
-        <RefRow k="ABN" v={p.abn || 'Not given'} />
+        <RefRow k="ABN" v={p.abn || 'Not given'} from={p.abn ? 'ABR' : undefined} />
+        {/* Read off their own website by supabase/functions/dialer-enrich, which honours
+            robots.txt and reads at most 2 pages. Business level only: a business matches on
+            a domain or an ABN and is exact, where a person matches on a name and picks the
+            wrong human. */}
+        {p.web && p.web.state !== 'nothing' && p.web.lines.map((l, i) => (
+          <RefRow key={i} k={i === 0 ? 'What they do' : ''} v={l} from="their site" />
+        ))}
+        {p.web && p.web.state === 'nothing' && (
+          <RefRow k="What they do" v="No website on file, so there is nothing to read." />
+        )}
 
         <RefLabel>Subscription</RefLabel>
         <RefRow k="Plan" v={p.plan} strong />
@@ -2597,7 +2775,7 @@ const PersonScreen = ({ id, onBack, onOpen, onCall, agentName, demo, onContact,
               letterSpacing: '0.06em', marginBottom: 4 }}>Why they left</div>
             <div style={{ fontSize: 12.5, color: T.textSoft, lineHeight: 1.55 }}>“{p.cancelReason}”</div>
             <div style={{ fontSize: 11.5, color: T.mutedSoft, marginTop: 5 }}>
-              What they typed into the cancel form. Nobody has been back to them about it.
+              From the cancel form. Nobody has followed up yet.
             </div>
           </div>
         )}
@@ -2842,11 +3020,162 @@ const RecentScreen = ({ onOpen, product }) => {
 // something. Very simple Kanban board, where I'll be able to see all the lists and things
 // that have been opened up against us." 4 columns, no drag, and every card is a link back
 // into the person, because the record is still the spine.
+// --- ticket triage --------------------------------------------------------------
+// Juhi and Merlin are not technical, so triage is 5 named questions rather than 5 empty
+// dropdowns. Each preset carries its own live count, so "what needs me" is answered on
+// screen before anybody clicks anything.
+const TRIAGE = [
+  { key: 'plate',  label: 'On our plate',        test: (t, st) => st !== 'closed' && t.waitingOn !== 'them' },
+  { key: 'new',    label: 'Needs a first reply', test: (t, st) => st === 'new' },
+  { key: 'them',   label: 'Waiting on them',     test: (t, st) => st !== 'closed' && t.waitingOn === 'them' },
+  { key: 'closed', label: 'Closed today',        test: (t, st) => st === 'closed' },
+  { key: 'all',    label: 'Everything',          test: () => true },
+];
+
+const Field = ({ value, onChange, children, width }) => (
+  <select value={value} onChange={e => onChange(e.target.value)}
+    style={{ height: 34, border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+      background: T.card, color: T.textSoft, ...TX.body, fontWeight: 500,
+      padding: `0 ${S.xxl + 6}px 0 ${S.sm + 2}px`, width, cursor: 'pointer',
+      appearance: 'none', WebkitAppearance: 'none',
+      backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%235B616E\' stroke-width=\'2.5\' stroke-linecap=\'round\'><path d=\'M6 9l6 6 6-6\'/></svg>")',
+      backgroundRepeat: 'no-repeat', backgroundPosition: 'right 9px center' }}>
+    {children}
+  </select>
+);
+
+const ViewSwitch = ({ view, setView }) => (
+  <div style={{ display: 'inline-flex', border: `1px solid ${T.border}`, borderRadius: T.radiusSm,
+    overflow: 'hidden', background: T.card, flexShrink: 0 }}>
+    {[['list', 'List'], ['board', 'Board']].map(([k, label]) => (
+      <button key={k} onClick={() => setView(k)} title={`${label} view`}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 32,
+          padding: `0 ${S.md - 1}px`, border: 'none',
+          background: view === k ? T.primarySoft : 'transparent',
+          color: view === k ? T.primaryDark : T.muted, ...TX.label,
+          fontWeight: view === k ? 700 : 500 }}>
+        <Icon name={k} size={13} color={view === k ? T.primaryDark : T.muted} />{label}
+      </button>
+    ))}
+  </div>
+);
+
+const TicketToolbar = ({ preset, setPreset, counts, q, setQ, owner, setOwner, channel, setChannel,
+                         view, setView, owners, shown, total }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: S.md - 1 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+      {TRIAGE.map(g => {
+        const on = preset === g.key;
+        return (
+          <button key={g.key} onClick={() => setPreset(g.key)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 32,
+              padding: `0 ${S.md}px`, borderRadius: 999, ...TX.label, fontWeight: on ? 700 : 500,
+              border: `1px solid ${on ? T.primaryDark : T.border}`,
+              background: on ? T.primary : T.card, color: on ? '#fff' : T.textSoft }}>
+            {g.label}
+            <span className="tnum" style={{ ...TX.label, fontWeight: 700,
+              color: on ? 'rgba(255,255,255,0.82)' : T.mutedSoft }}>{counts[g.key]}</span>
+          </button>
+        );
+      })}
+      <div style={{ flex: 1 }} />
+      <ViewSwitch view={view} setView={setView} />
+    </div>
+
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', flex: 1, minWidth: 210, maxWidth: 340 }}>
+        <Icon name="search" size={14} color={T.mutedSoft}
+          style={{ position: 'absolute', left: 10, top: 10, pointerEvents: 'none' }} />
+        <input value={q} onChange={e => setQ(e.target.value)}
+          placeholder="Search a subject, a person or a key"
+          style={{ width: '100%', height: 34, border: `1px solid ${T.border}`,
+            borderRadius: T.radiusSm, padding: '0 10px 0 31px', ...TX.body, background: T.card }} />
+      </div>
+      <Field value={owner} onChange={setOwner} width={132}>
+        <option value="any">Anyone</option>
+        {owners.map(o => <option key={o} value={o}>{o}</option>)}
+        <option value="none">Nobody yet</option>
+      </Field>
+      <Field value={channel} onChange={setChannel} width={140}>
+        <option value="any">Any channel</option>
+        {Object.entries(CHANNELS).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
+      </Field>
+      <div style={{ flex: 1 }} />
+      <div className="tnum" style={{ ...TX.label, color: T.muted }}>
+        {shown === total ? `${total} tickets` : `${shown} of ${total}`}
+      </div>
+    </div>
+  </div>
+);
+
+// The board answers a different question from the list: where work is piling up. The list
+// answers what to do next, which is why the list is the default.
+const TicketBoard = ({ rows, demo, onOpenTicket }) => (
+  <div data-board style={{ display: 'grid',
+    gridTemplateColumns: `repeat(${TICKET_STATES.length}, minmax(0, 1fr))`, gap: S.md }}>
+    {TICKET_STATES.map(col => {
+      const items = rows.filter(t => tStatus(t, demo) === col.key);
+      return (
+        <div key={col.key} style={{ display: 'flex', flexDirection: 'column', gap: 9, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: S.sm, padding: '0 2px' }}>
+            <Chip tone={col.tone}>{col.label}</Chip>
+            <span className="tnum" style={{ ...TX.label, fontWeight: 700, color: T.mutedSoft }}>{items.length}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9, background: '#EFEFF5',
+            border: `1px solid ${T.borderSoft}`, borderRadius: T.radiusSm, padding: 9, minHeight: 96 }}>
+            {items.length ? items.map(t => (
+              <button key={t.id} data-row onClick={() => onOpenTicket(t)}
+                style={{ textAlign: 'left', border: `1px solid ${T.border}`, background: T.card,
+                  borderRadius: T.radiusSm, padding: `${S.sm + 2}px ${S.md - 1}px`,
+                  display: 'flex', flexDirection: 'column', gap: 7 }}>
+                <span className="tnum" style={{ ...TX.label, fontWeight: 700, color: T.primaryDark }}>{t.id}</span>
+                <span style={{ ...TX.body, fontWeight: 600, color: T.text }}>{t.subject}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Avatar name={t.person.name} size={18} />
+                  <span style={{ ...TX.label, color: T.muted, overflow: 'hidden',
+                    textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.person.name}</span>
+                </span>
+                <ChannelChip id={t.channel} />
+              </button>
+            )) : (
+              <div style={{ ...TX.label, color: T.mutedSoft, padding: `${S.sm + 2}px ${S.xs}px`,
+                textAlign: 'center' }}>Empty</div>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
 const TicketsScreen = ({ onOpen, product, demo, onOpenTicket, onNewTicket }) => {
   const [copied, setCopied] = useState(false);
+  const [preset, setPreset] = useState('plate');
+  const [q, setQ] = useState('');
+  const [owner, setOwner] = useState('any');
+  const [channel, setChannel] = useState('any');
+  const [view, setView] = useState('list');
   const rows = ALL_TICKETS.filter(t => (t.product || 'sole') === product)
     .concat((demo.made || []).filter(t => (t.product || 'sole') === product));
   const open = rows.filter(t => tStatus(t, demo) !== 'closed');
+
+  // Counts come from the preset alone and ignore the search and the 2 selects, so a chip
+  // always answers "how many are there". A count that moved while you typed would be
+  // useless as a triage signal.
+  const counts = {};
+  TRIAGE.forEach(g => { counts[g.key] = rows.filter(t => g.test(t, tStatus(t, demo))).length; });
+
+  const owners = [...new Set(rows.map(t => t.owner).filter(Boolean))].sort();
+  const needle = q.trim().toLowerCase();
+  const shown = rows.filter(t => {
+    const st = tStatus(t, demo);
+    if (!(TRIAGE.find(g => g.key === preset) || TRIAGE[0]).test(t, st)) return false;
+    if (owner === 'none' ? t.owner : owner !== 'any' && t.owner !== owner) return false;
+    if (channel !== 'any' && t.channel !== channel) return false;
+    if (needle && ![t.subject, t.id, t.person.name, t.person.business]
+      .some(v => String(v || '').toLowerCase().includes(needle))) return false;
+    return true;
+  });
   return (
     <div className="rise" style={{ display: 'flex', flexDirection: 'column', gap: 18,
       maxWidth: 1240, margin: '0 auto', padding: '28px 24px 80px', width: '100%' }}>
@@ -2855,7 +3184,7 @@ const TicketsScreen = ({ onOpen, product, demo, onOpenTicket, onNewTicket }) => 
           <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', margin: 0 }}>Tickets</h1>
           <div style={{ color: T.muted, fontSize: 13.5, marginTop: 5 }}>
             {open.length} open of {rows.length}. Everything raised against us, whichever doorstep it
-            came through. The ticket itself opens in the support ticket system.
+            came through, in one list.
           </div>
         </div>
         <Btn variant="primary" icon="ticket" onClick={() => onNewTicket(null)}>New ticket</Btn>
@@ -2876,13 +3205,30 @@ const TicketsScreen = ({ onOpen, product, demo, onOpenTicket, onNewTicket }) => 
         </Btn>
       </Card>
 
-      <TicketList rows={rows} demo={demo} showPerson onOpenTicket={onOpenTicket} onOpenPerson={onOpen}
-        empty="Nothing open on this product." />
+      <TicketToolbar preset={preset} setPreset={setPreset} counts={counts}
+        q={q} setQ={setQ} owner={owner} setOwner={setOwner}
+        channel={channel} setChannel={setChannel} view={view}
+        setView={v => {
+          // The board exists to show how work spreads ACROSS statuses, so arriving on it
+          // under a status-narrowing preset would show 2 real columns and 2 permanently
+          // empty ones, which reads as a broken board rather than an applied filter.
+          if (v === 'board' && preset !== 'all') setPreset('all');
+          setView(v);
+        }}
+        owners={owners} shown={shown.length} total={rows.length} />
+
+      {view === 'board' ? (
+        <TicketBoard rows={shown} demo={demo} onOpenTicket={onOpenTicket} />
+      ) : (
+        <TicketList rows={shown} demo={demo} showPerson onOpenTicket={onOpenTicket} onOpenPerson={onOpen}
+          empty={q || owner !== 'any' || channel !== 'any'
+            ? 'Nothing matches those filters.'
+            : 'Nothing here right now.'} />
+      )}
 
       <Note>
-        The same tickets sit on each person's record under Tickets. This is the list Shishir asked
-        for, not a second place to work: the workflow, the internal notes and the reply to the
-        customer all live in the ticket system.
+        The same tickets sit on each person's record under Tickets. One ticket, 2 places to
+        reach it.
       </Note>
     </div>
   );
@@ -2961,11 +3307,11 @@ const TodayScreen = ({ product, demo, onOpen, setTab }) => {
       </div>
 
       <div data-stats style={{ display: 'flex', gap: 12 }}>
-        <Stat n={waitingNow.length} label="People waiting on us" tone={T.red} />
+        <Stat n={waitingNow.length} label="People waiting on us" tone={T.redText} />
         <Stat n={longest ? `${longest} min` : 'None'} label="Longest anyone has waited"
               tone={longest > 15 ? T.red : T.text} />
-        <Stat n={open.length} label="Tickets open" tone={T.amber} />
-        <Stat n={closed.length} label="Closed today" tone={T.greenDark} />
+        <Stat n={open.length} label="Tickets open" tone={T.text} />
+        <Stat n={closed.length} label="Closed today" tone={T.text} />
       </div>
 
       {/* The 3 Sep call ended on "let's see if we can integrate our chatbot and launch", so the
@@ -2982,7 +3328,7 @@ const TodayScreen = ({ product, demo, onOpen, setTab }) => {
             </div>
             {['Everything, the one thread per person',
               'Messages, read out of the existing chatbot',
-              'Tickets, as a list that opens the ticket system',
+              'Tickets, raised here and listed here',
               'Contacted, so a row can be moved',
               'Call, out through Twilio',
               'Message, on WhatsApp or SMS'].map((l, i) => (
@@ -2998,8 +3344,7 @@ const TodayScreen = ({ product, demo, onOpen, setTab }) => {
             </div>
             {[['What they watched', 'The B2C video library is not linked to users yet'],
               ['What we sent', 'Application email and the GoHighLevel marketing email are separate, and reading the support inbox needs its own approval'],
-              ['What they did', 'Needs the read connection to the product database, not Mixpanel'],
-              ['The AI activation call', 'Wanted on trials only. Support stays human']].map(([l, why], i) => (
+              ['What they did', 'Needs the read connection to the product database, not Mixpanel']].map(([l, why], i) => (
               <div key={i} style={{ padding: '5px 0' }}>
                 <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
                   <Icon name="clock" size={14} color={T.amber} style={{ marginTop: 3 }} />
