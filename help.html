@@ -1313,8 +1313,50 @@
     //   3. Send the customer a confirmation carrying the same reference, so a reply
     //      to that email threads onto this ticket instead of opening a second one.
     //
-    // Until then: no request is made, and the reference below is generated in the
-    // browser for the draft.
+    // WIRED 8 Sep 2026. The endpoint is supabase/functions/dialer-intake, which
+    // creates the ticket, links or provisionally creates the person, writes the
+    // timeline row and posts to Slack. Configure it by setting these two on the
+    // page before this script runs; with them unset the form still works and
+    // stays a local draft, so the page never breaks on a missing endpoint.
+    var INTAKE_URL = window.SOLE_INTAKE_URL || '';
+    var INTAKE_KEY = window.SOLE_INTAKE_KEY || '';
+
+    if (INTAKE_URL) {
+      // Fire and render optimistically. The customer has already told us their
+      // problem; making them watch a spinner to find out whether our database
+      // accepted it is our problem, not theirs. A failure is recorded and shown
+      // as "we have it, and it has not reached the team yet", never as silence.
+      fetch(INTAKE_URL + '?source=form', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'X-Intake-Secret': INTAKE_KEY },
+        body: JSON.stringify({
+          channel: 'form',
+          product: payload.product || 'sole',
+          subject: payload.subject,
+          detail: payload.detail,
+          tried: payload.tried,
+          topic: payload.topic,
+          name: payload.name,
+          email: payload.email,
+          phone: payload.phone,
+          business: payload.business,
+          submissionId: ref,
+          pageUrl: window.location.href,
+          formVersion: '2026-09-08',
+          firstLine: payload.detail
+            ? String(payload.detail).split(/(?<=[.!?])\s/)[0].slice(0, 200)
+            : null
+        })
+      }).then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (body) {
+          if (body && body.ticketId) {
+            // Show the REAL reference, not the browser-generated draft one, so the
+            // number the customer quotes back is the number an agent can find.
+            $('done-ref').textContent = body.ticketId;
+          }
+        })
+        .catch(function () { /* the draft reference stands; see the note above */ });
+    }
     // =========================================================================
 
     $('done-ref').textContent = ref;
