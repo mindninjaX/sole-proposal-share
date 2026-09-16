@@ -482,6 +482,22 @@
     <div id="stage-form">
       <form class="container" id="form" novalidate>
 
+        <!-- The trap.
+             Hidden from people three ways over (off-screen, no height, and taken
+             out of the tab order and the accessibility tree), left empty by any
+             real browser, and filled in by a bot that completes every input it
+             finds. A submission that carries a value here is answered as though it
+             worked and writes nothing.
+
+             autocomplete is off on purpose: a browser helpfully filling this in for
+             a real customer would get them silently rejected. -->
+        <div aria-hidden="true" style="position:absolute;left:-9999px;height:0;overflow:hidden">
+          <label for="company-website">Company website</label>
+          <input type="text" id="company-website" name="company_website"
+                 tabindex="-1" autocomplete="off">
+        </div>
+
+
         <div class="summary" id="summary" tabindex="-1" role="alert">
           <div class="t-strong" style="color: var(--red-text);" id="summary-title">There are 2 things to fix</div>
           <ul class="t-body" id="summary-list"></ul>
@@ -1315,11 +1331,20 @@
     //
     // WIRED 8 Sep 2026. The endpoint is supabase/functions/dialer-intake, which
     // creates the ticket, links or provisionally creates the person, writes the
-    // timeline row and posts to Slack. Configure it by setting these two on the
-    // page before this script runs; with them unset the form still works and
-    // stays a local draft, so the page never breaks on a missing endpoint.
+    // timeline row and posts to Slack. Set window.SOLE_INTAKE_URL on the page
+    // before this script runs; with it unset the form still works and stays a
+    // local draft, so the page never breaks on a missing endpoint.
+    //
+    // THERE IS NO KEY HERE, AND THERE MUST NEVER BE ONE. This file is published to
+    // public GitHub Pages by .github/workflows/deploy-proposal-share.yml, so
+    // anything in it is public. An earlier version of docs/DIALER_DEPLOY.md told
+    // you to paste INTAKE_SECRET in right here, which would have handed the whole
+    // internet the ability to create tickets, and you cannot un-publish a secret.
+    //
+    // The endpoint knows. A caller with no secret is allowed to be the help form
+    // and nothing else, and is rate limited per IP with a body cap and the trap
+    // field below. See supabase/functions/_shared/intake-rules.ts.
     var INTAKE_URL = window.SOLE_INTAKE_URL || '';
-    var INTAKE_KEY = window.SOLE_INTAKE_KEY || '';
 
     if (INTAKE_URL) {
       // Fire and render optimistically. The customer has already told us their
@@ -1328,9 +1353,13 @@
       // as "we have it, and it has not reached the team yet", never as silence.
       fetch(INTAKE_URL + '?source=form', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'X-Intake-Secret': INTAKE_KEY },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           channel: 'form',
+          // The trap. Hidden from people, left empty by any real browser, filled in
+          // by a bot that completes every input it finds. Named to look worth
+          // filling in: a field called `honeypot` is not a honeypot.
+          company_website: (document.getElementById('company-website') || {}).value || '',
           product: payload.product || 'sole',
           subject: payload.subject,
           detail: payload.detail,
