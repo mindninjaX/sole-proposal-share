@@ -473,7 +473,12 @@
 <body>
 
 <!-- Quiet, top of the page, out of the way of the form. -->
-<div class="demo">Draft, not live yet. Nothing on this page reaches our support team, and every article, reference number and figure on it is made up.</div>
+<!-- This banner said "Nothing on this page reaches our support team" and that was
+     true for as long as window.SOLE_INTAKE_URL was unset. It is set now and the
+     form writes a real ticket, so leaving the old wording would tell a customer
+     their message went nowhere while an agent was reading it. The help articles
+     are still placeholders, which is what the banner now says instead. -->
+<div class="demo">Preview. The form is live and your message does reach the support team, but the help articles below are placeholders.</div>
 
 <header class="topbar">
   <div class="topbar-in">
@@ -1379,12 +1384,19 @@
           product: payload.product || 'sole',
           subject: payload.subject,
           detail: payload.detail,
-          tried: payload.tried,
-          topic: payload.topic,
-          name: payload.name,
-          email: payload.email,
-          phone: payload.phone,
-          business: payload.business,
+          // READ THESE OFF THE RIGHT PLACES. The endpoint takes name, email and
+          // topic at the top level; this payload nests the person under `contact`
+          // and calls the topic `category`. Sending payload.name sent undefined,
+          // JSON.stringify dropped the key, and the ticket arrived with nobody
+          // attached to it: a provisional person with a null name and a null email,
+          // which is a support request nobody can reply to. Proved on SUP-1045 and
+          // SUP-1047 before this line was fixed.
+          topic: payload.category || null,
+          name: (payload.contact && payload.contact.name) || null,
+          email: (payload.contact && payload.contact.email) || null,
+          // The form does not collect these three, so they are not sent. They were
+          // being sent as undefined, which reads in the code as "we tried", and the
+          // honest version is that the fields do not exist on this page.
           submissionId: ref,
           pageUrl: window.location.href,
           formVersion: '2026-09-08',
