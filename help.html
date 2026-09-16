@@ -453,6 +453,22 @@
     .ref { width: 100%; }
   }
 </style>
+
+<!-- WHERE THE FORM SENDS.
+     This one line is the whole difference between a form that looks like it works
+     and a form that reaches the support queue. The submit handler below reads
+     window.SOLE_INTAKE_URL and skips the network call entirely when it is empty,
+     which it always was: nothing in this repo ever assigned it. So every ticket a
+     customer submitted from the deployed page since 8 Sep rendered a reference
+     number and went nowhere.
+
+     THIS IS A URL, NOT A KEY, AND THAT IS THE POINT. This file is published to
+     public GitHub Pages, so anything in it is public. The endpoint's public door
+     takes no secret: it accepts `source=form` only, caps the body, runs the
+     honeypot, and rate limits per IP hour with a fail-closed limiter. A caller
+     holding INTAKE_SECRET gets more, and that secret lives in the edge function
+     and must never appear here. See supabase/functions/_shared/intake-rules.ts. -->
+<script>window.SOLE_INTAKE_URL = 'https://tkvntpfahjfmligvgdda.supabase.co/functions/v1/dialer-intake';</script>
 </head>
 <body>
 
