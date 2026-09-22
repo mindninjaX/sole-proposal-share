@@ -1,19 +1,46 @@
 <!DOCTYPE html>
 <html lang="en-AU">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
 <title>Sole Dialer</title>
-<meta name="robots" content="noindex, nofollow">
-<link rel="icon" type="image/png" href="/sole-proposal-share/dialer-app/sole-icon.png" />
-<meta name="description" content="Sole support: one person, one thread, one place to reply." />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <script type="module" crossorigin src="/sole-proposal-share/dialer-app/assets/index-DPPkZdsC.js"></script>
-  <link rel="stylesheet" crossorigin href="/sole-proposal-share/dialer-app/assets/index-CppEl9Rh.css">
+<!--
+  THIS FILE IS DEPLOYED AS hosting/dialer-app/index.html, NOT AT ITS OWN URL.
+
+  Until 22 Sep 2026 this repo BUILT the dialer and rsynced the bundle to /dialer-app/.
+  The dialer now lives in soleappcodes/sole-dialer on Bitbucket and deploys itself to
+  Netlify, so that build step is gone.
+
+  WHY A REDIRECT RATHER THAN DELETING THE DIRECTORY. Deleting it 404s a URL staff have.
+  Leaving it alone is worse: the last build would sit there forever, still talking to
+  the LIVE database, with nobody able to rebuild it. A stale front end against live data
+  looks like it is working, which is the failure mode with no symptom.
+
+  IT IS A FILE RATHER THAN A HEREDOC IN THE WORKFLOW. The first version of this was
+  written inline in deploy-proposal-share.yml, and its HTML sat at column 0 inside a
+  `run: |` block scalar, which terminates the block and makes the whole workflow
+  unparseable. The run did not fail a step; it never started, and `gh run view` showed
+  no jobs at all. A file that gets copied cannot do that, and the redirect check can
+  read it.
+
+  location.replace, not location.href: no history entry, so Back returns where they came
+  from rather than bouncing through here again. The hash is deliberately not forwarded,
+  because old links carry fixture ids that the live database cannot resolve.
+-->
+<script>location.replace('https://sole-dialer.netlify.app/');</script>
+<meta http-equiv="refresh" content="0; url=https://sole-dialer.netlify.app/">
+<style>
+  body { margin:0; font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         color:#0f172a; background:#f8fafc; display:grid; place-items:center;
+         min-height:100vh; padding:24px; }
+  .c { max-width:30rem; text-align:center; }
+  a { color:#4f46e5; }
+</style>
 </head>
 <body>
-<div id="root"></div>
+  <div class="c">
+    <p>The dialer has moved.</p>
+    <p><a href="https://sole-dialer.netlify.app/">Open the dialer</a></p>
+  </div>
 </body>
 </html>
