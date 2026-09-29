@@ -189,6 +189,15 @@
   .sop-doc ul, .sop-doc ol { margin: 2px 0 10px; padding-left: 20px; }
   .sop-doc li { margin: 3px 0; }
   .sop-doc strong { font-weight: 650; }
+  /* Help articles: "**Label**: detail" bullets render as a two-column field
+     guide (see kbRows in Module 15). The divider colour comes from --kb-line,
+     set inline from T.borderSoft, so no colour is hardcoded here. */
+  .kb-article ul.kb-list { list-style: none; padding-left: 0; margin: 2px 0 12px; }
+  .kb-article li.kb-row { display: grid; grid-template-columns: minmax(130px, 30%) minmax(0, 1fr); column-gap: 18px; margin: 0; padding: 10px 0; border-top: 1px solid var(--kb-line); }
+  .kb-article ul.kb-list > li.kb-row:first-child { border-top: 0; padding-top: 2px; }
+  .kb-article ul.kb-list > li:not(.kb-row) { list-style: disc; margin-left: 18px; }
+  .kb-article .kb-k { font-weight: 650; }
+  @media (max-width: 640px) { .kb-article li.kb-row { grid-template-columns: 1fr; row-gap: 2px; } }
 
   /* ---- Proposal templates: typography stacks loaded into rendered pages ---- */
   .tpl-font-editorial-heading { font-family: 'Source Serif 4', 'Iowan Old Style', Georgia, 'Times New Roman', serif; font-feature-settings: 'ss01', 'cv11'; }
@@ -2251,76 +2260,51 @@ const VideoStage = ({ lesson }) => {
   );
 };
 
-// One module, and the videos inside it. This is the whole browsing surface.
-// No cover art: a 16:9 tile of a dimmed product screenshot told a learner
-// nothing and, with one module published, blew up to the width of the page.
-// A row is a video that exists and plays; nothing else is ever listed.
+// One module, as a tile. This is the whole browsing surface: a grid of the
+// app's menu groups, each opening straight onto its first chapter. With help
+// articles, all 16 modules have something to open, and 16 full-width cards with
+// their chapters listed inside read as a wall; a grid of equal tiles reads as a
+// map of the menu. The module page lists every chapter, so nothing is hidden.
+// No cover art: a dimmed product screenshot told a learner nothing.
 const ModuleCard = ({ course, openCourse, openLesson }) => {
-  const { isMobile } = useViewport();
   const face = moduleFace(course);
   const color = face.color;
   const lessons = readableLessons(course);
   const videos = lessons.filter(isPublished);
   const reads = lessons.length - videos.length;
   const mins = videos.reduce((s, l) => s + (l.mins || 0), 0);
-  // "3 videos · 12 min · 2 articles": say what is actually there to open.
-  const count = [videos.length ? `${videos.length} video${videos.length === 1 ? '' : 's'} · ${mins} min` : '',
-    reads ? `${reads} article${reads === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
+  const watched = videos.filter(l => isLessonComplete(l.id)).length;
+  // Land on the next unwatched video if there is one, else the first chapter.
+  const first = videos.find(l => !isLessonComplete(l.id)) || lessons[0];
   return (
-    <div style={{ border: `1px solid ${T.border}`, borderRadius: T.radiusCard, background: T.card, boxShadow: T.shadowSm, overflow: 'hidden' }}>
-      <button onClick={() => openCourse(course)} data-hover="row" style={{
-        width: '100%', display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: 12, padding: '14px 16px',
-        border: 'none', background: 'transparent', textAlign: 'left', cursor: 'pointer' }}>
-        <div style={{ width: 36, height: 36, borderRadius: 9, flexShrink: 0, background: withAlpha(color, 0.12), color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={face.icon} size={17} color={color} />
+    <button onClick={() => first ? openLesson(course, first) : openCourse(course)} data-academy-module={course.id}
+      style={{ textAlign: 'left', border: `1px solid ${T.border}`, borderRadius: T.radiusCard, background: T.card, boxShadow: T.shadowSm,
+        paddingTop: 16, paddingBottom: 14, paddingLeft: 16, paddingRight: 16, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10,
+        transition: 'border-color 0.12s, box-shadow 0.12s', minHeight: 156 }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderStrong; e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,17,23,0.08)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.boxShadow = T.shadowSm; }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: withAlpha(color, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={face.icon} size={16} color={color} />
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: T.text, letterSpacing: -0.2 }}>{course.title}</div>
-          {/* Narrow screens put the count under the title: beside it, a wrapped
-              summary pushes it into a five-line column of its own. */}
-          {isMobile && <div style={{ fontSize: 11.5, color: T.muted, marginTop: 2 }}>{count}</div>}
-          <Helper style={{ fontSize: 12, marginTop: 2, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{course.summary}</Helper>
-        </div>
-        {!isMobile && <span style={{ fontSize: 11.5, color: T.muted, flexShrink: 0, whiteSpace: 'nowrap' }}>{count}</span>}
-      </button>
-      <div style={{ borderTop: `1px solid ${T.borderSoft}`, padding: 6 }}>
-        {videos.map(l => {
-          const watched = isLessonComplete(l.id);
-          const video = isPublished(l);
-          const art = lessonArticle(l);
-          return (
-            <button key={l.id} onClick={() => openLesson(course, l)} data-hover="row" data-academy-row={video ? 'video' : 'article'} style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px',
-              border: 'none', background: 'transparent', borderRadius: 8, textAlign: 'left', cursor: 'pointer' }}>
-              <span style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                background: watched ? T.green : withAlpha(color, 0.12), color: watched ? '#fff' : color }}>
-                {watched
-                  ? <Icon name="check" size={12} color="#fff" />
-                  : video
-                    ? <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 1 }}><polygon points="6,4 20,12 6,20" /></svg>
-                    : <Icon name="fileText" size={11} color={color} />}
-              </span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 500, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</span>
-              <span style={{ fontSize: 11.5, color: T.muted, flexShrink: 0 }}>{video ? `${l.mins} min` : `${articleReadMins(art) || 1} min read`}</span>
-            </button>
-          );
-        })}
-        {/* Videos are listed; articles are one quiet line. Listing all 53 help
-            articles here would turn the page back into the wall of rows the
-            flat design exists to avoid. The module page lists them all. */}
+        <div style={{ fontSize: 14.5, fontWeight: 700, color: T.text, letterSpacing: -0.2, lineHeight: 1.3, minWidth: 0 }}>{course.title}</div>
+      </div>
+      <div style={{ fontSize: 12.5, color: T.muted, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{course.summary}</div>
+      <div style={{ flex: 1 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 11.5, color: T.muted }}>
+        {videos.length > 0 && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: watched === videos.length ? T.greenDark : color, fontWeight: 600 }}>
+            <Icon name={watched === videos.length ? 'checkCircle' : 'play'} size={11} color={watched === videos.length ? T.greenDark : color} />
+            {videos.length} video{videos.length === 1 ? '' : 's'} · {mins} min
+          </span>
+        )}
         {reads > 0 && (
-          <button onClick={() => openLesson(course, lessons.find(l => !isPublished(l)))} data-hover="row" data-academy-articles={reads} style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px',
-            border: 'none', background: 'transparent', borderRadius: 8, textAlign: 'left', cursor: 'pointer' }}>
-            <span style={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: T.fieldBg }}>
-              <Icon name="fileText" size={11} color={T.muted} />
-            </span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 500, color: T.muted }}>{reads} help article{reads === 1 ? '' : 's'}</span>
-            <Icon name="chevronRight" size={13} color={T.mutedSoft} />
-          </button>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="fileText" size={11} color={T.mutedSoft} />{reads} article{reads === 1 ? '' : 's'}
+          </span>
         )}
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -2399,7 +2383,7 @@ const AcademyModules = ({ openCourse, openLesson }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       {modules.length === 0
         ? <Card><EmptyState icon="video" title="No videos yet" hint="Modules appear here as their videos are published. This page updates on its own, no new link needed." /></Card>
-        : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 12 }}>
             {modules.map(c => <ModuleCard key={c.id} course={c} openCourse={openCourse} openLesson={openLesson} />)}
           </div>}
     </div>
@@ -2410,10 +2394,26 @@ const AcademyModules = ({ openCourse, openLesson }) => {
 // own way of working. Putting the entry point at the bottom of Academy Home is
 // how "go through Sole Academy" reaches it without a second sidebar hunt.
 
+// The first drafts are reference notes ("**KPI row**: Utilisation · Hours
+// free"), so bullets that open with a bold label render as a two-column field
+// guide: label left, detail right. A bullet holding a nested list is left
+// alone, because splitting it would break the nesting.
+const kbRows = (html) => String(html || '')
+  .replace(/<li><strong>([^<]+?)<\/strong>:?\s*([\s\S]*?)<\/li>/g, (m, k, v) => (/<(ul|ol|li)\b/.test(v) ? m
+    : `<li class="kb-row"><span class="kb-k">${k.replace(/[:\s]+$/, '')}</span><span class="kb-v">${v.replace(/^[:,\s]+/, '').replace(/^[a-z]/, c => c.toUpperCase())}</span></li>`))
+  .replace(/<ul><li class="kb-row">/g, '<ul class="kb-list"><li class="kb-row">');
+// The check date as one short phrase, for a header meta line.
+const articleCheckLabel = (a) => {
+  const st = articleCheckState(a), when = articleCheckedDate(a);
+  return st === 'current' ? `Checked ${when}` : st === 'overdue' ? `Checked ${when}, due again` : st === 'unchecked' ? 'Not yet checked against the live app' : 'Screen changed since it was checked';
+};
+
 // The help article for one chapter. The line under it is the update process
 // made visible: a reader always knows when this was last checked against the
 // live app, and is told plainly when a release has changed the screen since.
-const LessonArticle = ({ lesson, fireToast }) => {
+//   `inHeader`: the page header already shows the check date (an article-only
+//   chapter), so the footer keeps only the report link.
+const LessonArticle = ({ lesson, fireToast, inHeader }) => {
   const a = lessonArticle(lesson);
   const [reported, setReported] = useState(false);
   useEffect(() => { setReported(false); }, [lesson && lesson.id]);
@@ -2432,11 +2432,11 @@ const LessonArticle = ({ lesson, fireToast }) => {
           {a.flagNote || 'Parts of this article may be out of date until someone checks it again.'}
         </Banner>
       )}
-      <div className="sop-doc" style={{ color: T.textSoft }} dangerouslySetInnerHTML={{ __html: a.html }} />
+      <div className="sop-doc kb-article" style={{ color: T.textSoft, '--kb-line': T.borderSoft }} dangerouslySetInnerHTML={{ __html: kbRows(a.html) }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.borderSoft}`, fontSize: 11.5, color: warn ? T.amber : T.mutedSoft }}>
-        <Icon name={st === 'current' ? 'checkCircle' : warn ? 'alertTriangle' : 'clock'} size={12} color={warn ? T.amber : st === 'current' ? T.green : T.mutedSoft} />
-        <span>{line}</span>
-        {a.owner && <span>· {a.owner} looks after this</span>}
+        {!inHeader && <Icon name={st === 'current' ? 'checkCircle' : warn ? 'alertTriangle' : 'clock'} size={12} color={warn ? T.amber : st === 'current' ? T.green : T.mutedSoft} />}
+        {!inHeader && <span>{line}</span>}
+        {a.owner && <span>{inHeader ? '' : '· '}{a.owner} looks after this</span>}
         <div style={{ flex: 1 }} />
         {reported
           ? <span style={{ color: T.greenDark, fontWeight: 600 }}>Thanks, flagged for a check</span>
@@ -2540,13 +2540,37 @@ const CoursePlayerPage = ({ courseId, lessonId, fireToast }) => {
           <span>{[videoLessons.length ? `${videoLessons.length} video${videoLessons.length === 1 ? '' : 's'} · ${totalMins} min` : '', reads ? `${reads} help article${reads === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ')}</span>
           {isCourseComplete(course) && <Pill color="green" style={{ fontSize: 9.5, marginLeft: 2 }}>Completed</Pill>}
         </div>
-        <div style={{ fontSize: 23, fontWeight: 800, letterSpacing: -0.4, marginTop: 7 }}>{course.title}</div>
-        <Helper style={{ marginTop: 3, fontSize: 13, maxWidth: 640 }}>{course.summary}</Helper>
+        {/* A video chapter keeps the module as its heading (the player and the
+            playlist are the module). An article chapter is a page you read, so
+            the page is titled by the article and the module becomes the trail. */}
+        {video ? (
+          <Fragment>
+            <div style={{ fontSize: 23, fontWeight: 800, letterSpacing: -0.4, marginTop: 7 }}>{course.title}</div>
+            <Helper style={{ marginTop: 3, fontSize: 13, maxWidth: 640 }}>{course.summary}</Helper>
+          </Fragment>
+        ) : (
+          <Fragment>
+            <div data-article-title style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, marginTop: 8, lineHeight: 1.2 }}>{lesson.title}</div>
+            {lesson.description && <div style={{ marginTop: 6, fontSize: 14, color: T.textSoft, lineHeight: 1.6, maxWidth: 680 }}>{lesson.description}</div>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: T.muted }}><Icon name="fileText" size={12} color={T.mutedSoft} />Help article · {articleReadMins(article) || 1} min read</span>
+              <span style={{ width: 3, height: 3, borderRadius: 999, background: T.mutedSoft }} />
+              <span data-article-check style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600,
+                color: articleCheckState(article) === 'current' ? T.greenDark : T.amber }}>
+                <Icon name={articleCheckState(article) === 'current' ? 'checkCircle' : 'alertTriangle'} size={12} color={articleCheckState(article) === 'current' ? T.green : T.amber} />{articleCheckLabel(article)}
+              </span>
+              {chapterStatus(lesson) === 'recording' && <Fragment><span style={{ width: 3, height: 3, borderRadius: 999, background: T.mutedSoft }} /><span style={{ fontSize: 11.5, color: T.muted }}>Video being recorded</span></Fragment>}
+              <div style={{ flex: 1 }} />
+              {prevLesson && <Btn variant="ghost" size="sm" icon="chevronLeft" onClick={() => goLesson(prevLesson.id)}>Previous</Btn>}
+              {nextLesson && <Btn variant="ghost" size="sm" iconRight="arrow" onClick={() => goLesson(nextLesson.id)}>Next</Btn>}
+            </div>
+          </Fragment>
+        )}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'minmax(0,1fr) 320px', gap: 22, alignItems: 'start' }}>
         <div style={{ minWidth: 0 }}>
           {video && <VideoStage lesson={lesson} />}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: video ? 16 : 0, flexWrap: 'wrap' }}>
+          {video && <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11, color: T.muted, fontWeight: 600 }}>{video ? `Video ${idx + 1} of ${lessons.length} · ${lesson.mins} min` : `Help article · ${articleReadMins(article) || 1} min read${chapterStatus(lesson) === 'recording' ? ' · video being recorded' : ''}`}</div>
               <div style={{ fontSize: 18, fontWeight: 700, marginTop: 2, letterSpacing: -0.2 }}>{lesson.title}</div>
@@ -2561,26 +2585,28 @@ const CoursePlayerPage = ({ courseId, lessonId, fireToast }) => {
               {prevLesson && <Btn variant="ghost" size="sm" icon="chevronLeft" onClick={() => goLesson(prevLesson.id)}>Previous</Btn>}
               {nextLesson && <Btn variant="ghost" size="sm" iconRight="arrow" onClick={() => goLesson(nextLesson.id)}>Next</Btn>}
             </div>
-          </div>
+          </div>}
           {/* Everything under the video is optional and only renders when the
               content team actually wrote it, so an unwritten field costs a
               learner nothing instead of an empty tab. */}
-          <Card style={{ marginTop: 16 }}>
-            {lesson.description && <div style={{ fontSize: 13.5, color: T.textSoft, lineHeight: 1.65 }}>{lesson.description}</div>}
+          <Card style={{ marginTop: video ? 16 : 0 }}>
+            {/* On an article chapter the description is already the page's lead. */}
+            {video && lesson.description && <div style={{ fontSize: 13.5, color: T.textSoft, lineHeight: 1.65 }}>{lesson.description}</div>}
+            {/* Outcomes first: what you will be able to do, then the detail. */}
+            {(lesson.takeaways || []).length > 0 && (
+              <div data-academy-takeaways style={{ marginTop: video && lesson.description ? 16 : 0, padding: '12px 14px', borderRadius: 10, background: T.fieldBg }}>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: T.muted }}>What you&rsquo;ll be able to do</div>
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {lesson.takeaways.map((t, i) => <div key={i} style={{ display: 'flex', gap: 9, fontSize: 13, color: T.text, lineHeight: 1.45 }}><Icon name="checkCircle" size={15} color={T.green} /><span>{t}</span></div>)}
+                </div>
+              </div>
+            )}
             {/* The help article. On a video chapter it sits under its own heading;
                 on an article-only chapter it IS the chapter. */}
             {article && (
-              <div style={{ marginTop: lesson.description ? 18 : 0, paddingTop: lesson.description ? 16 : 0, borderTop: lesson.description ? `1px solid ${T.borderSoft}` : 'none' }}>
-                {video && <SectionTitle style={{ marginBottom: 8 }}>How this screen works</SectionTitle>}
-                <LessonArticle lesson={lesson} fireToast={fireToast} />
-              </div>
-            )}
-            {(lesson.takeaways || []).length > 0 && (
-              <div style={{ marginTop: lesson.description ? 16 : 0 }}>
-                <SectionTitle>What you&rsquo;ll learn</SectionTitle>
-                <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  {lesson.takeaways.map((t, i) => <div key={i} style={{ display: 'flex', gap: 9, fontSize: 12.5, color: T.textSoft, lineHeight: 1.4 }}><Icon name="checkCircle" size={16} color={T.green} /><span>{t}</span></div>)}
-                </div>
+              <div style={{ marginTop: (video && lesson.description) || (lesson.takeaways || []).length ? 20 : 0 }}>
+                <SectionTitle style={{ marginBottom: 10 }}>{video ? 'How this screen works' : 'On this screen'}</SectionTitle>
+                <LessonArticle lesson={lesson} fireToast={fireToast} inHeader={!video} />
               </div>
             )}
             {/* The annotated walkthrough for this screen (Screen Tour, Module 92).
@@ -2589,7 +2615,7 @@ const CoursePlayerPage = ({ courseId, lessonId, fireToast }) => {
               <a href={tourHref(lesson)} target="_blank" rel="noopener noreferrer" data-hover="row" data-academy-tour
                 style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px', border: `1px solid ${T.border}`, borderRadius: 10, textDecoration: 'none', color: T.text }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: withAlpha(color, 0.12), color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="image" size={15} color={color} /></div>
-                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 10, color: T.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Read instead of watch</div><div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>Annotated walkthrough of this screen</div></div>
+                <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 10, color: T.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{video ? 'Read instead of watch' : 'Screen tour'}</div><div style={{ fontSize: 12.5, fontWeight: 600, color: T.text }}>Annotated walkthrough of this screen</div></div>
                 <Icon name="arrow" size={15} color={T.muted} />
               </a>
             )}
