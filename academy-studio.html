@@ -15,6 +15,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <!-- Starter curricula + the product registry. Loads BEFORE the app. -->
 <script src="resources/academy-seed.js"></script>
+<!-- Help articles: the converter both the Studio and the generator use, and the
+     first-draft articles built from the SPM knowledge base
+     (scripts/build-academy-articles.js). -->
+<script src="resources/academy-markdown.js"></script>
+<script src="resources/academy-articles.js"></script>
 <!-- Shared draft, media library and publishing. Degrades to LOCAL (this-browser)
      mode until academy-config.js is filled in. See docs/ACADEMY_STUDIO_SETUP.md. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -474,6 +479,49 @@ const emptyTrack = () => ({ id: uid('trk'), label: '', color: T.primary, blurb: 
 const emptyPath = () => ({ id: uid('path'), title: '', forRole: '', blurb: '', lessonIds: [] });
 
 const allLessons = (doc) => (doc.courses || []).flatMap(c => (c.lessons || []).map(l => ({ lesson: l, course: c })));
+
+/* ---- help articles ---------------------------------------------------------
+   A chapter is one screen of the app, so its article is "how this screen
+   works". Two sources: what someone wrote here (lesson.article), else the first
+   draft generated from the SPM knowledge base. The Academy applies the same
+   rule, so what you see here is what a learner reads.
+   The update process is what keeps it true, and it has three triggers:
+     1. time      a review date: checkedAt + reviewDays
+     2. releases  "this screen changed" flagged by whoever ships the change
+     3. readers   "something wrong here?" on the article (logged, v2)
+   The Help articles screen is the queue those feed. */
+const MD = window.SoleAcademyMarkdown || { toHtml: (s) => String(s || ''), toText: (s) => String(s || '') };
+const SEED_ARTICLES = window.SOLE_ACADEMY_ARTICLES || {};
+const ARTICLE_REVIEW_OPTIONS = [30, 60, 90, 180, 365];
+const DAY_MS = 86400000;
+const seedArticle = (productId, lessonId) => ((SEED_ARTICLES[productId] || {})[lessonId]) || null;
+const ownArticle = (l) => (l && l.article && String(l.article.md || '').trim()) ? l.article : null;
+const articleOf = (doc, l) => ownArticle(l) || seedArticle(doc && doc.product, l && l.id);
+const isoToday = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const isoToDate = (iso) => { const d = iso ? new Date(String(iso).slice(0, 10) + 'T00:00:00') : null; return d && !isNaN(d.getTime()) ? d : null; };
+const fmtIso = (iso) => { const d = isoToDate(iso); return d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
+// flagged > overdue > unchecked > current. Same order and meaning as the app.
+const articleState = (a) => {
+  if (!a) return 'none';
+  if (a.flagged) return 'flagged';
+  const d = isoToDate(a.checkedAt);
+  if (!d) return 'unchecked';
+  return d.getTime() + (a.reviewDays || 90) * DAY_MS < Date.now() ? 'overdue' : 'current';
+};
+const ARTICLE_FACE = {
+  flagged:   { label: 'Screen changed', color: T.red,       bg: T.redSoft,   icon: 'alertTriangle', blurb: 'A release changed this screen. Check the article against the live app.' },
+  overdue:   { label: 'Check is due',   color: T.amber,     bg: T.amberSoft, icon: 'clock',         blurb: 'Past its review date.' },
+  unchecked: { label: 'Never checked',  color: T.amber,     bg: T.amberSoft, icon: 'clock',         blurb: 'Written from the build, not yet checked against the live app.' },
+  current:   { label: 'Up to date',     color: T.greenDark, bg: T.greenSoft, icon: 'checkCircle',   blurb: 'Checked against the live app within its review window.' },
+  none:      { label: 'No article',     color: T.mutedSoft, bg: T.fieldBg,   icon: 'fileText',      blurb: 'Nothing written for this screen yet.' },
+};
+const publishedArticle = (doc, l) => {
+  const a = articleOf(doc, l);
+  const md = a && String(a.md || '').trim();
+  if (!md) return null;
+  return { md, html: MD.toHtml(md), text: MD.toText(md), checkedAt: a.checkedAt || null, reviewDays: a.reviewDays || 90,
+    owner: a.owner || '', flagged: !!a.flagged, flagNote: a.flagNote || '', source: ownArticle(l) ? 'Academy Studio' : (a.source || 'SPM knowledge base') };
+};
 const courseMins = (c) => (c.lessons || []).reduce((s, l) => s + (Number(l.mins) || 0), 0);
 const lessonHasVideo = (l) => !!(l.embedUrl || l.videoUrl);
 const trackById = (doc, id) => (doc.tracks || []).find(t => t.id === id) || null;
@@ -587,6 +635,11 @@ const toPublished = (doc) => ({
       if (l.thumbUrl) out.thumbUrl = l.thumbUrl;
       if (l.tour) out.tour = l.tour;
       if (l.guide) out.guide = l.guide;   // reserved for annotated-screenshot lessons
+      // The help article, with its check date, so the Academy and the chatbot
+      // can both say how current it is. A chapter with an article is readable
+      // even with no video; `status` above still only ever describes the video.
+      const art = publishedArticle(doc, l);
+      if (art) out.article = art;
       return out;
     }),
   })),
@@ -1243,7 +1296,174 @@ const VideoField = ({ lesson, onApply, fireToast }) => {
   );
 };
 
-const LessonEditor = ({ doc, course, lesson, live, edit, fireToast, setSel, onPublish, publishing, owners }) => {
+/* ---- the help article field -------------------------------------------------
+   Markdown in a plain box, because the team writing these is support and
+   marketing, not engineering: headings with #, bullets with -, bold with **.
+   Preview renders it with the exact converter the Academy uses. */
+const ArticleField = ({ doc, lesson, set, owners, liveArticles, fireToast }) => {
+  const own = ownArticle(lesson);
+  const seed = seedArticle(doc.product, lesson.id);
+  const a = own || seed;
+  const [preview, setPreview] = useState(false);
+  useEffect(() => { setPreview(false); }, [lesson.id]);
+  const st = articleState(a);
+  const face = ARTICLE_FACE[a ? st : 'none'];
+  const base = own || (seed ? { md: seed.md, checkedAt: seed.checkedAt, reviewDays: seed.reviewDays || 90, owner: seed.owner || '', source: seed.source } : { md: '', checkedAt: null, reviewDays: 90, owner: '' });
+  const setArt = (patch) => set({ article: { ...base, ...patch, updatedAt: new Date().toISOString() } });
+  const md = a ? String(a.md || '') : '';
+  const isLive = !!md.trim() && liveArticles[lesson.id] === md.trim();
+
+  if (!a) return (
+    <Card>
+      <SectionTitle style={{ marginBottom: 6 }}>3. The help article</SectionTitle>
+      <Helper style={{ marginBottom: 12 }}>How this screen works, in writing. Learners can read it even before the video exists, and the chatbot answers from it.</Helper>
+      <Btn variant="outline" size="sm" icon="plus" onClick={() => setArt({ md: '# What this screen is for\n\n\n# How to use it\n\n- ', checkedAt: null })}>Write the article</Btn>
+    </Card>
+  );
+
+  return (
+    <Card>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+        <SectionTitle>3. The help article</SectionTitle>
+        <Pill color={face.color} icon={face.icon}>{face.label}</Pill>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, fontWeight: 600, color: isLive ? T.greenDark : T.amber, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <Icon name={isLive ? 'checkCircle' : 'alertTriangle'} size={12} color={isLive ? T.greenDark : T.amber} />{isLive ? 'Live' : 'Not live, publish to update'}
+        </span>
+      </div>
+      <Helper style={{ marginBottom: 12 }}>
+        {own ? 'Learners read this under the video, or instead of it until the video exists.'
+          : 'A first draft built from the SPM knowledge base. It is already what learners see. Edit it here and your version replaces it.'}
+      </Helper>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <Chip selected={!preview} onClick={() => setPreview(false)}>Write</Chip>
+        <Chip selected={preview} onClick={() => setPreview(true)}>Preview</Chip>
+      </div>
+      {preview
+        ? <div data-article-preview style={{ border: `1px solid ${T.border}`, borderRadius: T.radius, padding: '14px 16px', background: T.card, fontSize: 13, lineHeight: 1.65, color: T.textSoft }}
+            dangerouslySetInnerHTML={{ __html: MD.toHtml(md) }} />
+        : <Textarea rows={12} value={md} onChange={e => setArt({ md: e.target.value })} data-article-md
+            placeholder={'# What this screen is for\n\nOne or two sentences.\n\n# How to use it\n\n- **The first thing**: what it does'}
+            style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }} />}
+      <Helper style={{ marginTop: 6, fontSize: 11 }}># for a heading, - for a bullet, **word** for bold. Headings become the sections the chatbot quotes.</Helper>
+
+      {/* Keeping it true. This block is the whole update process for one article. */}
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.borderSoft}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <Field label="Checked against the live app on" hint={a.checkedAt ? `Next check due ${fmtIso(new Date(isoToDate(a.checkedAt).getTime() + (a.reviewDays || 90) * DAY_MS).toISOString())}.` : 'Never checked yet.'}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <Input type="date" value={a.checkedAt ? String(a.checkedAt).slice(0, 10) : ''} onChange={e => setArt({ checkedAt: e.target.value || null })} />
+              <Btn variant="outline" size="sm" icon="check" onClick={() => { setArt({ checkedAt: isoToday(), flagged: false, flagNote: '' }); fireToast('Marked as checked today'); }} data-article-checked>Checked today</Btn>
+            </div>
+          </Field>
+          <Field label="Check it again every">
+            <Select value={String(a.reviewDays || 90)} onChange={e => setArt({ reviewDays: Number(e.target.value) || 90 })}>
+              {ARTICLE_REVIEW_OPTIONS.map(d => <option key={d} value={d}>{d === 365 ? '12 months' : d + ' days'}</option>)}
+            </Select>
+          </Field>
+        </div>
+        <Field label="Who looks after it" hint="The person who re-checks it when the screen changes.">
+          <Input list="academy-article-owners" value={a.owner || ''} onChange={e => setArt({ owner: e.target.value })} placeholder="Juhi" />
+          <datalist id="academy-article-owners">{(owners || []).map(o => <option key={o} value={o} />)}</datalist>
+        </Field>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!a.flagged} onChange={e => setArt({ flagged: e.target.checked })} style={{ marginTop: 2, accentColor: T.red }} data-article-flag />
+          <span>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>This screen has changed since the article was checked</span>
+            <Helper style={{ fontSize: 10.5 }}>Tick it when a release touches this screen. Learners see a warning until someone checks it and presses Checked today.</Helper>
+          </span>
+        </label>
+        {a.flagged && (
+          <Field label="What changed">
+            <Input value={a.flagNote || ''} onChange={e => setArt({ flagNote: e.target.value })} placeholder="The Payrun list gained a Compare button in the 30 Sep release" />
+          </Field>
+        )}
+      </div>
+    </Card>
+  );
+};
+
+/* ---- the Help articles screen: the update queue ------------------------------
+   One question: which articles might be wrong right now? Flagged first (a
+   release changed the screen), then overdue, then never checked. Everything
+   up to date is folded away, because a list that is mostly green is a list
+   nobody reads. */
+const ArticlesScreen = ({ doc, jumpToLesson, liveArticles }) => {
+  const [showAll, setShowAll] = useState(false);
+  const rows = allLessons(doc).map(r => ({ ...r, a: articleOf(doc, r.lesson) }));
+  const by = (st) => rows.filter(r => (r.a ? articleState(r.a) : 'none') === st);
+  const order = ['flagged', 'overdue', 'unchecked'];
+  const queue = order.flatMap(by);
+  const current = by('current'), none = by('none');
+  const withArticle = rows.filter(r => r.a).length;
+  const Row = ({ r }) => {
+    const st = r.a ? articleState(r.a) : 'none';
+    const f = ARTICLE_FACE[st];
+    const md = r.a ? String(r.a.md || '').trim() : '';
+    const live = md && liveArticles[r.lesson.id] === md;
+    return (
+      <button data-btn onClick={() => jumpToLesson(r.course.id, r.lesson.id)} data-article-row={st}
+        style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1.3fr) 150px 110px', gap: 10, alignItems: 'center', width: '100%', textAlign: 'left',
+          padding: '9px 13px', border: 'none', borderTop: `1px solid ${T.borderSoft}`, background: 'transparent' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+          <Icon name={f.icon} size={13} color={f.color} />
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.lesson.title || 'Untitled chapter'}</span>
+        </span>
+        <span style={{ fontSize: 11, color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.course.title}{r.a && r.a.flagNote ? ' · ' + r.a.flagNote : ''}</span>
+        <span style={{ fontSize: 11, color: st === 'current' ? T.muted : f.color }}>{r.a ? (r.a.checkedAt ? 'Checked ' + fmtIso(r.a.checkedAt) : 'Never checked') : 'Nothing written'}</span>
+        <span style={{ fontSize: 11, color: T.mutedSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.a ? (r.a.owner || 'No owner') : ''}{r.a ? (live ? '' : ' · not live') : ''}</span>
+      </button>
+    );
+  };
+  const Group = ({ title, hint, items, tone }) => items.length ? (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: tone || T.text }}>{title}</div>
+        <Helper style={{ fontSize: 11 }}>{hint} · {items.length}</Helper>
+      </div>
+      <Card pad={0} style={{ overflow: 'hidden' }}>{items.map(r => <Row key={r.lesson.id} r={r} />)}</Card>
+    </div>
+  ) : null;
+  return (
+    <div className="scroll" style={{ flex: 1, minHeight: 0, padding: '20px 24px 60px' }}>
+      <div style={{ marginBottom: 16, maxWidth: 760 }}>
+        <SectionTitle style={{ fontSize: 16 }}>Help articles</SectionTitle>
+        <Helper style={{ marginTop: 2 }}>
+          The knowledge base: one article per screen, read in the Academy and by the chatbot. This list is what might be wrong right now.
+          An article leaves it when someone checks it against the live app and presses <b>Checked today</b>.
+        </Helper>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px,1fr))', gap: 9, marginBottom: 16 }}>
+        {[['flagged', by('flagged').length], ['overdue', by('overdue').length], ['unchecked', by('unchecked').length], ['current', current.length], ['none', none.length]].map(([k, n]) => (
+          <Card key={k} pad={12}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 700, color: ARTICLE_FACE[k].color, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+              <Icon name={ARTICLE_FACE[k].icon} size={11} color={ARTICLE_FACE[k].color} />{ARTICLE_FACE[k].label}
+            </div>
+            <div style={{ fontSize: 21, fontWeight: 800, marginTop: 5, letterSpacing: -0.5 }}>{n}</div>
+          </Card>
+        ))}
+      </div>
+      {queue.length === 0 && <Banner tone="success" icon="checkCircle" title="Nothing needs a check">Every article has been checked within its review window. {withArticle} of {rows.length} screens have one.</Banner>}
+      <Group title="Screen changed" hint="A release touched these screens" items={by('flagged')} tone={T.red} />
+      <Group title="Check is due" hint="Past their review date" items={by('overdue')} tone={T.amber} />
+      <Group title="Never checked" hint="Written from the build, not the live app" items={by('unchecked')} tone={T.amber} />
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <Btn variant="outline" size="sm" icon={showAll ? 'chevronDown' : 'chevronRight'} onClick={() => setShowAll(v => !v)}>
+          {showAll ? 'Hide' : 'Show'} the {current.length} up to date and {none.length} with no article
+        </Btn>
+      </div>
+      {showAll && (
+        <div style={{ marginTop: 14 }}>
+          <Group title="Up to date" hint="Checked within their review window" items={current} tone={T.greenDark} />
+          <Group title="No article yet" hint="Open one and press Write the article" items={none} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const LessonEditor = ({ doc, course, lesson, live, liveArticles, edit, fireToast, setSel, onPublish, publishing, owners }) => {
   const set = (patch) => edit(d => { const l = findLesson(d, course.id, lesson.id); if (l) Object.assign(l, patch); });
   const lessons = course.lessons || [];
   const idx = lessons.indexOf(lesson);
@@ -1275,7 +1495,8 @@ const LessonEditor = ({ doc, course, lesson, live, edit, fireToast, setSel, onPu
           <Helper style={{ marginTop: 2 }}>
             {state === 'live' ? 'Anyone with the Academy link can watch this.'
               : state === 'waiting' ? 'The video is saved, but learners cannot see it until you press Publish.'
-              : 'Paste the link below. Chapters with no video are hidden from learners.'}
+              : articleOf(doc, lesson) ? 'Learners can already read the help article below. Paste a link to add the video.'
+              : 'Paste the link below. A chapter with no video and no article is hidden from learners.'}
           </Helper>
         </div>
         {state === 'waiting' && (
@@ -1303,6 +1524,8 @@ const LessonEditor = ({ doc, course, lesson, live, edit, fireToast, setSel, onPu
           </Field>
         </div>
       </Card>
+
+      <ArticleField doc={doc} lesson={lesson} set={set} owners={owners} liveArticles={liveArticles || {}} fireToast={fireToast} />
 
       <button data-btn onClick={() => setMore(m => !m)} style={{
         display: 'flex', alignItems: 'center', gap: 7, width: '100%', padding: '9px 12px',
@@ -2332,6 +2555,7 @@ const NAV = [
   { id: 'curriculum', label: 'Curriculum', icon: 'layers' },
   { id: 'paths', label: 'Learning paths', icon: 'graduation' },
   { id: 'production', label: 'Production', icon: 'clipboardCheck' },
+  { id: 'articles', label: 'Help articles', icon: 'fileText' },
   { id: 'media', label: 'Media', icon: 'image' },
   { id: 'preview', label: 'Preview', icon: 'eye' },
   { id: 'publish', label: 'Publish', icon: 'send' },
@@ -2615,6 +2839,12 @@ const AcademyStudio = () => {
      which one you have, and offers the missing step in one click. */
   // What learners can watch this second, straight from the published version.
   const live = useMemo(() => liveVideoMap(latest ? latest.doc : null), [latest]);
+  // Same idea for articles: what the published version holds, by chapter.
+  const liveArticles = useMemo(() => {
+    const map = {};
+    ((latest && latest.doc && latest.doc.courses) || []).forEach(c => (c.lessons || []).forEach(l => { if (l.article && l.article.md) map[l.id] = String(l.article.md).trim(); }));
+    return map;
+  }, [latest]);
   const waiting = useMemo(() => waitingLessons(doc, live), [doc, live]);
   const draftAsPublished = useMemo(() => toPublished(doc), [doc]);
   const pending = useMemo(() => diffDocs(latest ? latest.doc : null, draftAsPublished), [latest, draftAsPublished]);
@@ -2716,7 +2946,7 @@ const AcademyStudio = () => {
       const course = findCourse(doc, sel.courseId);
       const lesson = findLesson(doc, sel.courseId, sel.id);
       if (course && lesson) return (
-        <LessonEditor doc={doc} course={course} lesson={lesson} live={live} edit={edit} fireToast={fireToast}
+        <LessonEditor doc={doc} course={course} lesson={lesson} live={live} liveArticles={liveArticles} edit={edit} fireToast={fireToast}
           setSel={setSel} onPublish={() => setScreen('publish')} publishing={publishing} owners={owners} />
       );
     }
@@ -2857,6 +3087,7 @@ const AcademyStudio = () => {
         )}
         {screen === 'paths' && <PathsScreen doc={doc} edit={edit} fireToast={fireToast} />}
         {screen === 'production' && <ProductionScreen doc={doc} edit={edit} jumpToLesson={jumpToLesson} owners={owners} />}
+        {screen === 'articles' && <ArticlesScreen doc={doc} jumpToLesson={jumpToLesson} liveArticles={liveArticles} />}
         {screen === 'media' && <MediaScreen assets={assets} onUpload={onUpload} onDelete={onDeleteAsset} cloud={cloudReady} fireToast={fireToast} busy={uploading} doc={doc} />}
         {screen === 'preview' && <PreviewScreen doc={doc} />}
         {screen === 'publish' && (
